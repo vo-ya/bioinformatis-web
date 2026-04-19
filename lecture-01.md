@@ -1,6 +1,6 @@
 # Lecture 1 — Foundations: From Cells to Sequences to FASTQ
 
-> **Duration**: ≈210 min content + two 10-min breaks (≈230 min total)
+> **Duration**: ≈215 min content (~3h 35min)
 > **Audience**: EE undergraduates / graduates, minimal biology background assumed
 > **File**: to be rendered as `lectures/lecture-01.html`
 
@@ -163,12 +163,6 @@ Big-picture map so students know where the rest of the course fits:
 ```
 
 Each arrow is a research community. This lecture covers up through **raw reads / FASTQ**. Subsequent lectures cover alignment, assembly, variant calling, downstream analysis.
-
----
-
-### ☕ Break (10 min)
-
----
 
 ## Part 3 — Sequencing: From Sanger to the Cost Collapse (≈40 min)
 
@@ -388,12 +382,6 @@ Competitors worth naming:
 - **Element Biosciences (AVITI)**: rolling-circle amplicon chemistry with avidity-based base calling. Newer entrant, 2023+.
 - **Ultima Genomics**: single-end, massive-scale, unconventional open flow cell. Targets $100 genomes.
 
----
-
-### ☕ Break (10 min)
-
----
-
 ## Part 5 — Long-Read Sequencing (≈30 min)
 
 ### 5.1 Why long reads? (≈5 min)
@@ -605,12 +593,10 @@ Walk-through:
 |---|---|---|
 | Part 1 — Biology | 45 min | 0:45 |
 | Part 2 — Central Dogma | 25 min | 1:10 |
-| Break | 10 min | 1:20 |
-| Part 3 — History + Cost | 40 min | 2:00 |
-| Part 4 — Illumina | 40 min | 2:40 |
-| Break | 10 min | 2:50 |
-| Part 5 — Long-read | 30 min | 3:20 |
-| Part 6 — FASTQ | 25 min | 3:45 |
-| Wrap-up | 10 min | 3:55 |
+| Part 3 — History + Cost | 40 min | 1:50 |
+| Part 4 — Illumina | 40 min | 2:30 |
+| Part 5 — Long-read | 30 min | 3:00 |
+| Part 6 — FASTQ | 25 min | 3:25 |
+| Wrap-up | 10 min | 3:35 |
 
-**Total**: ~3h 55min. Tight for a 4-hour slot; slide Part 1 depth up or down depending on students' biology background.
+**Total**: ~3h 35min of content. Slide Part 1 depth up or down depending on students' biology background.

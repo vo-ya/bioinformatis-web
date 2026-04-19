@@ -63,7 +63,7 @@ Every lecture follows this structure. Lengths scale with the topic; the skeleton
 ```
 # Lecture N — Title: Subtitle (optional)
 
-> **Duration**: ≈X min content + breaks
+> **Duration**: ≈X min content
 > **Audience**: EE undergraduates / graduates, minimal biology background assumed
 > **File**: to be rendered as `lectures/lecture-NN.html`
 
@@ -95,12 +95,6 @@ By the end of this lecture, a student should be able to:
 ## Part 2 — [Title] (≈X min)
 
 ...
-
----
-
-### ☕ Break (10 min)
-
----
 
 ## Part 3 — [Title] (≈X min)
 
@@ -148,7 +142,6 @@ By the end of this lecture, a student should be able to:
 - **Learning Objectives** are a numbered list of 5–8 items. Each starts with a verb (describe, explain, compare, derive, compute, interpret…). Specific outcomes, not vague ones.
 - **Parts** are numbered (`Part 1`, `Part 2`, …). Each has an estimated duration in the header.
 - **Subsections** are numbered hierarchically (`1.1`, `1.2`, `3.4`, …). Each has its own duration estimate.
-- **Breaks** are marked with `☕` and italic `### ☕ Break (N min)` between `---` separators. Typically one break per ~90 min of content.
 - **Artifact embeds** use the exact marker shown above — this is how they're located and wired into the HTML later.
 - **Wrap-up** always has: takeaways, next-lecture pointer, homework, references. All four.
 - **Timing appendix** at the bottom — a table of cumulative time. The lecturer checks this in real time during class.
@@ -411,7 +404,6 @@ Before considering a lecture draft done, verify:
 - [ ] Learning Objectives: 5–8 numbered items, each starts with a verb.
 - [ ] Parts numbered `Part 1`, `Part 2`, …, each with duration estimate.
 - [ ] Subsections numbered hierarchically (1.1, 1.2, …), each with duration.
-- [ ] At least one break (`☕ Break (10 min)`) per ~90 min of content.
 - [ ] No speaker notes anywhere.
 - [ ] All callouts use approved labels only (§4).
 - [ ] Artifact embeds use the exact marker format (§7).
@@ -432,7 +424,7 @@ Copy this into a new file and fill it in.
 ```markdown
 # Lecture N — Title
 
-> **Duration**: ≈X min content + breaks
+> **Duration**: ≈X min content
 > **Audience**: EE undergraduates / graduates, minimal biology background assumed
 > **File**: to be rendered as `lectures/lecture-NN.html`
 
@@ -466,12 +458,6 @@ By the end of this lecture, a student should be able to:
 ## Part 2 — [Title] (≈X min)
 
 ...
-
----
-
-### ☕ Break (10 min)
-
----
 
 ## Part 3 — [Title] (≈X min)
 

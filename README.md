@@ -33,9 +33,10 @@ Open <http://localhost:8000/>. Alternatives: `npx serve .` if you have Node, or 
 │   ├── lecture.css                       # Lecture-page layout, callouts, figures
 │   └── logo/                             # Mark, wordmark, favicon variants
 ├── markdown_resources/                   # Specs + source-of-truth content
-│   ├── website-spec.md  homepage-spec.md  logo-spec.md
+│   ├── website-spec.md  homepage-spec.md  logo-spec.md        # Course-wide specs
 │   ├── lecture-style-guide.md  diagram-style-guide.md
-│   ├── artifacts-spec.md  figures-spec.md  lecture-01.md      # Lecture 1 sources
+│   ├── lesson1_md_files/                                      # Lecture 1 sources
+│   │   ├── artifacts-spec.md  figures-spec.md  lecture-01.md
 │   └── lesson2_md_files/                                      # Lecture 2 sources
 │       ├── artifacts-spec.md  figures-spec.md  lecture-02.md
 └── proof_html_resources/                 # Standalone-viewable design references
@@ -56,7 +57,8 @@ These are the sources of truth when adding content. Read the relevant one before
 | `markdown_resources/logo-spec.md` | Course mark and wordmark |
 | `markdown_resources/lecture-style-guide.md` | Voice, structure, callout types, and formatting for lecture prose |
 | `markdown_resources/diagram-style-guide.md` | House style for SVG diagrams (colour, stroke, typography, arrows) |
-| `markdown_resources/artifacts-spec.md` · `figures-spec.md` · `lecture-01.md` | Lecture 1 — behaviour specs and source content |
+| `markdown_resources/generate_new_lesson_flow.md` | End-to-end recipe for generating a new lecture (phases, steps, validations) |
+| `markdown_resources/lesson1_md_files/` | Lecture 1 — behaviour specs and source content |
 | `markdown_resources/lesson2_md_files/` | Lecture 2 — behaviour specs and source content |
 | `proof_html_resources/fastq-anatomy-proof.html` | Canonical SVG reference — copy arrow markers and typography patterns from here |
 | `proof_html_resources/logo-proof-v2.html` | Logo visual reference; course mark is locked to Variant A3 |

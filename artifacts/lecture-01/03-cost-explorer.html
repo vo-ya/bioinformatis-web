@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sequencing Cost Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 60ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-title {
+      font-family: var(--font-serif);
+      font-size: var(--text-xl);
+      margin: 0 0 0.25rem;
+    }
+    .panel-sub {
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      margin: 0 0 1rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      align-items: center;
+      padding: 0.9rem 1rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 1rem;
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+    }
+    .control-group { display: flex; align-items: center; gap: 0.5rem; }
+    .control-group strong {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+    }
+
+    .toggle {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .toggle label {
+      padding: 0.35rem 0.7rem;
+      cursor: pointer;
+      background: var(--bg-elevated);
+      border-right: 1px solid var(--border);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+    }
+    .toggle label:last-child { border-right: 0; }
+    .toggle input {
+      position: absolute;
+      width: 1px; height: 1px; margin: -1px; padding: 0;
+      overflow: hidden; clip: rect(0 0 0 0); border: 0;
+    }
+    .toggle label:has(input:checked) { background: var(--accent); color: #ffffff; }
+    .toggle label:focus-within { outline: 2px solid var(--accent-bright); outline-offset: -2px; }
+
+    .series-list {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .series-list label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .series-list .swatch {
+      display: inline-block;
+      width: 0.8rem;
+      height: 0.8rem;
+      border-radius: 2px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 440px;
+    }
+
+    .legend-notes {
+      margin: 1rem 0 0;
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* ─── Calculator ─────────────────────────────────────── */
+    .calc {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .calc-field label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+    .calc-field input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+    .calc-field input[type="number"] {
+      width: 100%;
+      font-family: var(--font-mono);
+      font-size: var(--text-lg);
+      padding: 0.4rem 0.6rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .calc-readout {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      margin-top: 0.3rem;
+    }
+
+    .calc-summary {
+      background: var(--accent-bg);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      padding: 1rem 1.25rem;
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      color: var(--fg);
+    }
+    .calc-summary strong { color: var(--accent); font-family: var(--font-mono); }
+    .calc-summary .ratio { font-family: var(--font-mono); color: var(--fg); font-weight: 600; }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .chart-wrap { height: 360px; }
+      .calc { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="cost-explorer">
+
+  <header class="artifact-head">
+    <h1>Sequencing Cost Explorer</h1>
+    <p>NHGRI's cost-per-genome curve (2001–present), with a Moore's-Law reference line. Toggle log/linear, add or remove series, and see what sequencing a family would have cost across the last two decades.</p>
+  </header>
+
+  <section class="panel">
+    <h2 class="panel-title">Cost per genome — with Moore's Law</h2>
+    <p class="panel-sub">Approximate NHGRI figures. Moore's Law is anchored at the 2001 genome cost and halved every 24 months.</p>
+
+    <div class="controls">
+      <div class="control-group">
+        <strong>Y-axis</strong>
+        <div class="toggle" role="radiogroup" aria-label="Y-axis scale">
+          <label><input type="radio" name="axis" value="log" checked>Log</label>
+          <label><input type="radio" name="axis" value="linear">Linear</label>
+        </div>
+      </div>
+
+      <div class="control-group series-list" role="group" aria-label="Series visibility">
+        <label><input type="checkbox" id="ser-genome" checked><span class="swatch" style="background: var(--accent)"></span>Cost per genome</label>
+        <label><input type="checkbox" id="ser-mb" checked><span class="swatch" style="background: var(--base-c)"></span>Cost per Mb</label>
+        <label><input type="checkbox" id="ser-moore" checked><span class="swatch" style="background: var(--fg-muted); opacity: 0.7"></span>Moore's Law</label>
+      </div>
+    </div>
+
+    <div class="chart-wrap"><canvas id="cost-chart"></canvas></div>
+
+    <p class="legend-notes">
+      Annotations: <strong>2003</strong> — Human Genome Project complete. <strong>2008</strong> — NGS goes mainstream (Illumina GA/SOLiD); the curve breaks loose from Moore's Law. <strong>2014</strong> — Illumina HiSeq X announces the "$1000 genome." <strong>2022</strong> — NovaSeq / DNBSEQ push costs to ~$200.
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-title">Family sequencing calculator</h2>
+    <p class="panel-sub">If you'd sequenced your whole family that year, what would it have cost?</p>
+
+    <div class="calc">
+      <div class="calc-field">
+        <label for="calc-year">Year</label>
+        <input id="calc-year" type="range" min="2001" max="2024" step="1" value="2015">
+        <div class="calc-readout">
+          <span>2001</span>
+          <span id="calc-year-readout">2015</span>
+          <span>2024</span>
+        </div>
+      </div>
+      <div class="calc-field">
+        <label for="calc-people">Family members</label>
+        <input id="calc-people" type="number" min="1" max="20" step="1" value="4">
+      </div>
+    </div>
+
+    <div class="calc-summary" id="calc-summary"></div>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
+        crossorigin="anonymous"></script>
+<script>
+(() => {
+  'use strict';
+
+  // ─── NHGRI data (approximate) ────────────────────────────
+  const DATA = [
+    { year: 2001, perGenome: 100_000_000, perMb: 5292.39,  tech: 'Sanger (HGP)' },
+    { year: 2003, perGenome:  70_000_000, perMb: 3898.64,  tech: 'Sanger' },
+    { year: 2006, perGenome:  20_000_000, perMb:  651.81,  tech: 'Sanger / early NGS' },
+    { year: 2008, perGenome:   1_000_000, perMb:   15.03,  tech: 'Illumina GA, 454, SOLiD' },
+    { year: 2010, perGenome:      50_000, perMb:    0.35,  tech: 'HiSeq 2000' },
+    { year: 2012, perGenome:       7_666, perMb:    0.09,  tech: 'HiSeq 2500' },
+    { year: 2014, perGenome:       1_000, perMb:    0.04,  tech: 'HiSeq X Ten' },
+    { year: 2019, perGenome:         942, perMb:    0.01,  tech: 'NovaSeq 6000' },
+    { year: 2022, perGenome:         525, perMb:    0.006, tech: 'NovaSeq, DNBSEQ' },
+    { year: 2024, perGenome:         200, perMb:    0.003, tech: 'NovaSeq X, Ultima' },
+  ];
+  const ANNOTATIONS = [
+    { year: 2003, label: 'HGP complete' },
+    { year: 2008, label: 'NGS mainstream' },
+    { year: 2014, label: '$1000 genome' },
+    { year: 2022, label: '$200 genome' },
+  ];
+
+  const YEAR_MIN = DATA[0].year;
+  const YEAR_MAX = DATA[DATA.length - 1].year;
+
+  // ─── Moore's Law reference ───────────────────────────────
+  function mooreAt(year) {
+    return DATA[0].perGenome * Math.pow(0.5, (year - YEAR_MIN) / 2);
+  }
+
+  // Log-linear interpolation of perGenome cost between known data points
+  function costAt(year) {
+    if (year <= DATA[0].year) return DATA[0].perGenome;
+    if (year >= DATA[DATA.length-1].year) return DATA[DATA.length-1].perGenome;
+    for (let i = 0; i < DATA.length - 1; i++) {
+      const a = DATA[i], b = DATA[i+1];
+      if (year >= a.year && year <= b.year) {
+        const f = (year - a.year) / (b.year - a.year);
+        const logCost = Math.log10(a.perGenome) + f * (Math.log10(b.perGenome) - Math.log10(a.perGenome));
+        return Math.pow(10, logCost);
+      }
+    }
+    return DATA[DATA.length-1].perGenome;
+  }
+
+  function techAt(year) {
+    let best = DATA[0];
+    for (const d of DATA) if (d.year <= year) best = d;
+    return best.tech;
+  }
+
+  function fmtUsd(n) {
+    if (n >= 1e9) return '$' + (n/1e9).toFixed(1) + 'B';
+    if (n >= 1e6) return '$' + (n/1e6).toFixed(n < 1e7 ? 1 : 0) + 'M';
+    if (n >= 1e3) return '$' + Math.round(n).toLocaleString();
+    if (n >= 1)   return '$' + n.toFixed(n < 10 ? 2 : 0);
+    if (n > 0)    return '$' + n.toFixed(3);
+    return '$0';
+  }
+
+  // ─── Chart ───────────────────────────────────────────────
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const accent  = css('--accent');
+  const muted   = css('--fg-muted');
+  const subtle  = css('--fg-subtle');
+  const border  = css('--border');
+  const mutedBg = css('--bg-muted');
+
+  const labels   = DATA.map(d => d.year);
+  const genome   = DATA.map(d => ({ x: d.year, y: d.perGenome }));
+  const perMb    = DATA.map(d => ({ x: d.year, y: d.perMb }));
+  const moore    = DATA.map(d => ({ x: d.year, y: mooreAt(d.year) }));
+
+  // Custom plugin: draw annotations
+  const annotationPlugin = {
+    id: 'annotations',
+    afterDatasetsDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!scales.x || !scales.y) return;
+      ctx.save();
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = 'rgba(30, 58, 138, 0.25)';
+      ctx.fillStyle = accent;
+      ctx.font = '500 11px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ANNOTATIONS.forEach((a, i) => {
+        const x = scales.x.getPixelForValue(a.year);
+        if (x < chartArea.left || x > chartArea.right) return;
+        ctx.beginPath();
+        ctx.moveTo(x, chartArea.top);
+        ctx.lineTo(x, chartArea.bottom);
+        ctx.stroke();
+        const labelY = chartArea.top + 14 + (i % 2) * 16;
+        // background pill
+        const metrics = ctx.measureText(a.label);
+        const padX = 6, padY = 2;
+        ctx.fillStyle = 'rgba(252, 252, 250, 0.92)';
+        ctx.fillRect(x - metrics.width/2 - padX, labelY - 10, metrics.width + padX*2, 14 + padY);
+        ctx.strokeStyle = border;
+        ctx.setLineDash([]);
+        ctx.strokeRect(x - metrics.width/2 - padX, labelY - 10, metrics.width + padX*2, 14 + padY);
+        ctx.fillStyle = accent;
+        ctx.fillText(a.label, x, labelY);
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(30, 58, 138, 0.25)';
+      });
+      ctx.restore();
+    },
+  };
+
+  const canvas = document.getElementById('cost-chart');
+  const chart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Cost per genome',
+          data: genome,
+          borderColor: accent,
+          backgroundColor: accent,
+          borderWidth: 2.5,
+          pointRadius: 3.5,
+          pointHoverRadius: 6,
+          pointBackgroundColor: accent,
+          tension: 0.1,
+        },
+        {
+          label: 'Cost per Mb',
+          data: perMb,
+          borderColor: css('--base-c'),
+          backgroundColor: css('--base-c'),
+          borderWidth: 2,
+          borderDash: [2, 3],
+          pointRadius: 2.5,
+          pointHoverRadius: 5,
+          tension: 0.1,
+        },
+        {
+          label: "Moore's Law (2× / 24 mo)",
+          data: moore,
+          borderColor: muted,
+          backgroundColor: muted,
+          borderWidth: 1.5,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          tension: 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 400 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },  // we show a custom legend up top
+        tooltip: {
+          callbacks: {
+            afterTitle: (items) => {
+              const i = items[0].dataIndex;
+              return DATA[i] ? DATA[i].tech : '';
+            },
+            label: (ctx) => {
+              const v = ctx.parsed.y;
+              const name = ctx.dataset.label;
+              if (name === 'Cost per Mb') return `${name}: $${v.toLocaleString(undefined, {maximumFractionDigits: 3})}`;
+              return `${name}: ${fmtUsd(v)}`;
+            },
+          },
+        },
+      },
+      scales: {
+        y: {
+          type: 'logarithmic',
+          min: 0.001,
+          max: 1e9,
+          grid: { color: border },
+          border: { color: border },
+          ticks: {
+            color: muted,
+            font: { family: 'JetBrains Mono, monospace', size: 10 },
+            callback: (v) => fmtUsd(v),
+          },
+          title: { display: true, text: 'Cost (USD, log scale)', color: muted, font: { family: 'Inter, sans-serif', size: 11 } },
+        },
+        x: {
+          type: 'linear',
+          min: YEAR_MIN,
+          max: YEAR_MAX,
+          grid: { color: border, tickColor: border },
+          border: { color: border },
+          ticks: {
+            color: muted,
+            font: { family: 'JetBrains Mono, monospace', size: 10 },
+            stepSize: 2,
+            callback: (v) => Math.round(v),
+          },
+          title: { display: true, text: 'Year', color: muted, font: { family: 'Inter, sans-serif', size: 11 } },
+        },
+      },
+    },
+    plugins: [annotationPlugin],
+  });
+
+  // ─── Control wiring ────────────────────────────────────
+  document.querySelectorAll('input[name="axis"]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const axis = document.querySelector('input[name="axis"]:checked').value;
+      chart.options.scales.y.type = axis === 'log' ? 'logarithmic' : 'linear';
+      if (axis === 'log') {
+        chart.options.scales.y.min = 0.001;
+        chart.options.scales.y.max = 1e9;
+      } else {
+        chart.options.scales.y.min = 0;
+        chart.options.scales.y.max = undefined;
+      }
+      chart.update();
+    });
+  });
+
+  function bindVisibility(id, datasetIndex) {
+    const el = document.getElementById(id);
+    el.addEventListener('change', () => {
+      chart.setDatasetVisibility(datasetIndex, el.checked);
+      chart.update();
+    });
+  }
+  bindVisibility('ser-genome', 0);
+  bindVisibility('ser-mb', 1);
+  bindVisibility('ser-moore', 2);
+
+  // ─── Family sequencing calculator ─────────────────────
+  const yearEl   = document.getElementById('calc-year');
+  const yearRO   = document.getElementById('calc-year-readout');
+  const peopleEl = document.getElementById('calc-people');
+  const sumEl    = document.getElementById('calc-summary');
+
+  function updateCalc() {
+    const year = +yearEl.value;
+    const people = Math.max(1, Math.min(20, +peopleEl.value || 1));
+    const unit = costAt(year);
+    const total = unit * people;
+    const now = DATA[DATA.length-1].perGenome;
+    const totalNow = now * people;
+    const ratio = total / totalNow;
+
+    yearRO.textContent = year;
+
+    const plural = people === 1 ? 'genome' : 'genomes';
+    const ratioStr = ratio >= 1000
+      ? `≈ ${Math.round(ratio).toLocaleString()}×`
+      : ratio >= 10
+        ? `≈ ${Math.round(ratio)}×`
+        : `≈ ${ratio.toFixed(1)}×`;
+
+    sumEl.innerHTML = `
+      In <strong>${year}</strong>, sequencing <strong>${people}</strong> ${plural} (using ${techAt(year)}) would have cost about
+      <strong>${fmtUsd(total)}</strong>.
+      Today (${YEAR_MAX}) the same ${plural} would cost <strong>${fmtUsd(totalNow)}</strong> — a <span class="ratio">${ratioStr}</span> difference.
+    `;
+  }
+
+  yearEl.addEventListener('input', updateCalc);
+  peopleEl.addEventListener('input', updateCalc);
+  updateCalc();
+})();
+</script>
+
+</body>
+</html>

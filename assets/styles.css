@@ -1,0 +1,266 @@
+/* ───────────────────────────────────────────────────────────────
+   Site-wide styles — tokens + landing page.
+   Design spec: website-spec.md §5.
+   ─────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Surface */
+  --bg:             #fcfcfa;
+  --bg-elevated:    #ffffff;
+  --bg-muted:       #f4f3ee;
+  --bg-inset:       #ebeae3;
+
+  --border:         #e5e3dc;
+  --border-strong:  #c4c1b6;
+
+  /* Text */
+  --fg:             #0a0a0a;
+  --fg-muted:       #525252;
+  --fg-subtle:      #8a8a85;
+
+  /* Accent */
+  --accent:         #1e3a8a;
+  --accent-hover:   #1e40af;
+  --accent-bright:  #2563eb;
+  --accent-bg:      #eef2ff;
+
+  /* Bases */
+  --base-a:         #c4342c;
+  --base-t:         #0d7377;
+  --base-g:         #b45309;
+  --base-c:         #2d7a3e;
+  --base-u:         #7c3aed;
+  --base-n:         #6b7280;
+
+  /* Feedback */
+  --success:        #15803d;
+  --warning:        #b45309;
+  --error:          #b91c1c;
+  --info:           var(--accent-bright);
+
+  /* Type */
+  --font-serif: "Source Serif 4", "Charter", "Iowan Old Style", Georgia, serif;
+  --font-sans:  "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:  "JetBrains Mono", "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+
+  --text-xs:    0.75rem;
+  --text-sm:    0.875rem;
+  --text-base:  1rem;
+  --text-lg:    1.125rem;
+  --text-xl:    1.25rem;
+  --text-2xl:   1.5rem;
+  --text-3xl:   2rem;
+  --text-4xl:   2.75rem;
+
+  --leading-tight:   1.2;
+  --leading-normal:  1.6;
+  --leading-relaxed: 1.75;
+
+  --radius-sm: 3px;
+  --radius:    6px;
+  --radius-lg: 10px;
+
+  /* Layout */
+  --content-prose:   720px;
+  --content-lecture: 960px;
+  --content-landing: 1100px;
+}
+
+/* ─── Reset / base ─────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--fg);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.015em;
+  color: var(--fg);
+  margin: 0;
+}
+
+h4, h5, h6 {
+  font-family: var(--font-sans);
+  line-height: var(--leading-tight);
+  margin: 0;
+}
+
+p { margin: 0 0 1em; }
+
+code, kbd, pre, samp { font-family: var(--font-mono); font-size: 0.95em; }
+
+a {
+  color: var(--accent-bright);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
+}
+
+/* ─── Landing page layout ──────────────────────────── */
+
+.site-header {
+  max-width: var(--content-landing);
+  margin: 0 auto;
+  padding: 5rem 2rem 2rem;
+}
+
+.site-kicker {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  margin-bottom: 0.75rem;
+}
+
+.site-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-4xl);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.02em;
+  margin: 0 0 1rem;
+}
+
+.site-meta {
+  color: var(--fg-muted);
+  font-size: var(--text-base);
+}
+
+.site-description {
+  max-width: var(--content-prose);
+  margin: 2.5rem auto 0;
+  padding: 0 2rem;
+  color: var(--fg-muted);
+  font-size: var(--text-lg);
+  line-height: var(--leading-relaxed);
+}
+
+.site-description > :last-child { margin-bottom: 0; }
+
+/* ─── Lecture cards grid ───────────────────────────── */
+
+.lecture-grid-wrap {
+  max-width: var(--content-landing);
+  margin: 4rem auto 0;
+  padding: 0 2rem;
+}
+
+.lecture-grid-heading {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  margin-bottom: 1.25rem;
+}
+
+.lecture-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+.lecture-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem 1.75rem 1.5rem;
+  color: var(--fg);
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  text-decoration: none;
+}
+
+.lecture-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: 0 6px 16px rgba(10, 10, 10, 0.04);
+  text-decoration: none;
+}
+
+.lecture-card--placeholder {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.lecture-card-number {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  margin-bottom: 0.5rem;
+}
+
+.lecture-card-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-tight);
+  margin: 0 0 0.75rem;
+  color: var(--fg);
+}
+
+.lecture-card-summary {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  line-height: var(--leading-relaxed);
+  margin: 0 0 1.25rem;
+}
+
+.lecture-card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--fg-subtle);
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.lecture-card-open {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ─── Footer ───────────────────────────────────────── */
+
+.site-footer {
+  max-width: var(--content-landing);
+  margin: 6rem auto 3rem;
+  padding: 2rem;
+  border-top: 1px solid var(--border);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.site-footer a { color: var(--fg-muted); }
+.site-footer a:hover { color: var(--accent-bright); }
+
+/* ─── Responsive ───────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .site-header { padding: 3rem 1.5rem 1.5rem; }
+  .site-title { font-size: var(--text-3xl); }
+  .site-description { padding: 0 1.5rem; margin-top: 1.5rem; }
+  .lecture-grid-wrap { padding: 0 1.5rem; margin-top: 2.5rem; }
+  .site-footer { padding: 1.5rem; }
+}

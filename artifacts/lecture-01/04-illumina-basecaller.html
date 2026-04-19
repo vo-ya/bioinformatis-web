@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Illumina Base Caller</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 60ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .seq-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .seq-input {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      letter-spacing: 0.04em;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      min-width: 0;
+    }
+    .seq-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .control-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .control-field input[type="range"] { accent-color: var(--accent); width: 100%; }
+    .control-readout {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+
+    .toggle {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .toggle label {
+      padding: 0.35rem 0.7rem;
+      cursor: pointer;
+      background: var(--bg-elevated);
+      border-right: 1px solid var(--border);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+    }
+    .toggle label:last-child { border-right: 0; }
+    .toggle input {
+      position: absolute;
+      width: 1px; height: 1px; margin: -1px; padding: 0;
+      overflow: hidden; clip: rect(0 0 0 0); border: 0;
+    }
+    .toggle label:has(input:checked) { background: var(--accent); color: #fff; }
+    .toggle label:focus-within { outline: 2px solid var(--accent-bright); outline-offset: -2px; }
+
+    .playback {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .cycle-readout {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+    }
+    .cycle-readout strong { color: var(--fg); }
+
+    /* ─── Flow-cell tile ─────────────────────────────────── */
+    .flowcell {
+      background: #0b0d10;
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      border: 1px solid var(--border);
+      overflow-x: auto;
+    }
+    .flowcell-grid {
+      display: grid;
+      grid-template-columns: repeat(var(--cols, 8), 1fr);
+      gap: 0.75rem;
+      justify-content: center;
+      min-width: min-content;
+    }
+    .cluster {
+      position: relative;
+      aspect-ratio: 1;
+      min-width: 60px;
+      min-height: 60px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, var(--clr, #111) 0%, rgba(0,0,0,0.7) 65%, transparent 100%);
+      transition: background 250ms ease, transform 150ms ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .cluster-label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.55);
+      letter-spacing: 0.08em;
+      position: absolute;
+      bottom: -1.2rem;
+    }
+    .cluster-call {
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.95);
+      text-shadow: 0 0 6px rgba(0,0,0,0.8);
+    }
+
+    /* ─── Intensity bars ─────────────────────────────────── */
+    .intensity-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+    .intensity-table th {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      text-align: left;
+      padding: 0.35rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .intensity-table td {
+      padding: 0.35rem 0.5rem;
+      vertical-align: middle;
+      border-bottom: 1px solid var(--border);
+    }
+    .intensity-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .int-bar {
+      width: 42px;
+      height: 0.55rem;
+      background: var(--bg-inset);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+    .int-bar-fill {
+      height: 100%;
+      transition: width 200ms ease, background 200ms ease;
+    }
+    .int-val {
+      font-size: 0.7rem;
+      color: var(--fg-muted);
+      min-width: 2.4rem;
+    }
+
+    .call-correct { color: var(--success); font-weight: 600; }
+    .call-error   { color: var(--error); font-weight: 600; }
+
+    .quality-pill {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 0.05rem 0.4rem;
+      border-radius: 3px;
+      background: var(--bg-inset);
+      color: var(--fg-muted);
+    }
+    .quality-pill.q-good { background: #d9edd9; color: var(--success); }
+    .quality-pill.q-warn { background: #fdeacc; color: var(--warning); }
+    .quality-pill.q-bad  { background: #fdd9d5; color: var(--error); }
+
+    /* ─── Basecall output ────────────────────────────────── */
+    .basecalls {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      line-height: 1.6;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .basecalls .row { display: flex; gap: 0.6rem; }
+    .basecalls .row-label {
+      color: var(--fg-subtle);
+      font-size: 0.75rem;
+      min-width: 5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .basecalls .row-seq { letter-spacing: 0.04em; }
+    .basecalls .row.template { border-bottom: 1px dashed var(--border); padding-bottom: 0.3rem; margin-bottom: 0.3rem; }
+    .basecalls .base.is-A { color: var(--base-a); }
+    .basecalls .base.is-T { color: var(--base-t); }
+    .basecalls .base.is-G { color: var(--base-g); }
+    .basecalls .base.is-C { color: var(--base-c); }
+    .basecalls .base.miscall {
+      background: #fdd9d5;
+      color: var(--error);
+      border-radius: 2px;
+      padding: 0 2px;
+      font-weight: 700;
+    }
+    .basecalls .base.pending {
+      color: var(--fg-subtle);
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="illumina-basecaller">
+
+  <header class="artifact-head">
+    <h1>Illumina Base Caller</h1>
+    <p>A simplified model of Illumina's sequencing-by-synthesis. Simulated clusters on a flow-cell tile emit fluorescence cycle-by-cycle; the basecaller reads intensities and emits base calls. Turn up the noise and phasing sliders to see why quality degrades along the read.</p>
+  </header>
+
+  <section class="panel">
+    <label class="field-label" for="template">Template</label>
+    <div class="seq-row">
+      <input id="template" class="seq-input" type="text" spellcheck="false" autocomplete="off"
+             value="GATTACAGATTACAGA">
+      <button id="random-btn" class="btn" type="button">Random</button>
+    </div>
+
+    <div class="controls">
+      <div class="control-field">
+        <label class="field-label" for="clusters">Clusters</label>
+        <input id="clusters" type="range" min="1" max="16" step="1" value="8">
+        <div class="control-readout"><span>1</span><span id="clusters-read">8</span><span>16</span></div>
+      </div>
+      <div class="control-field">
+        <label class="field-label" for="cycles">Cycles to run</label>
+        <input id="cycles" type="range" min="4" max="40" step="1" value="16">
+        <div class="control-readout"><span>4</span><span id="cycles-read">16</span><span>40</span></div>
+      </div>
+      <div class="control-field">
+        <label class="field-label" for="noise">Noise σ</label>
+        <input id="noise" type="range" min="0" max="0.5" step="0.01" value="0.15">
+        <div class="control-readout"><span>0</span><span id="noise-read">0.15</span><span>0.50</span></div>
+      </div>
+      <div class="control-field">
+        <label class="field-label" for="phasing">Phasing / cycle</label>
+        <input id="phasing" type="range" min="0" max="0.08" step="0.005" value="0.02">
+        <div class="control-readout"><span>0</span><span id="phasing-read">0.020</span><span>0.08</span></div>
+      </div>
+      <div class="control-field">
+        <label class="field-label">Chemistry</label>
+        <div class="toggle" role="radiogroup" aria-label="Chemistry">
+          <label><input type="radio" name="chem" value="4" checked>4-channel</label>
+          <label><input type="radio" name="chem" value="2">2-channel</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="playback">
+      <button id="play-btn" class="btn btn--primary" type="button">▶ Play</button>
+      <button id="pause-btn" class="btn" type="button" disabled>⏸ Pause</button>
+      <button id="step-btn" class="btn" type="button">⏭ Step</button>
+      <button id="reset-btn" class="btn" type="button">↺ Reset</button>
+      <span class="cycle-readout">Cycle <strong id="cycle-n">0</strong> / <span id="cycle-max">16</span></span>
+      <span class="cycle-readout" id="error-rate" style="margin-left: auto;"></span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Flow-cell tile — fluorescence at current cycle</p>
+    <div class="flowcell">
+      <div class="flowcell-grid" id="flowcell-grid"></div>
+    </div>
+    <p class="hint" id="chemistry-hint"></p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Per-cluster intensities, current cycle</p>
+    <table class="intensity-table" id="intensity-table">
+      <thead><tr>
+        <th>Cluster</th>
+        <th id="ch-1">A</th>
+        <th id="ch-2">C</th>
+        <th id="ch-3">G</th>
+        <th id="ch-4">T</th>
+        <th>Call</th>
+        <th>Q</th>
+      </tr></thead>
+      <tbody id="intensity-body"></tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Running basecalls</p>
+    <div class="basecalls" id="basecalls"></div>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const BASES = ['A', 'C', 'G', 'T'];
+  const BASE_COLOR = {
+    A: 'var(--base-a)',
+    C: 'var(--base-c)',
+    G: 'var(--base-g)',
+    T: 'var(--base-t)',
+  };
+  // RGB values approximating base colors for canvas/background mixing
+  const BASE_RGB = {
+    A: [196, 52, 44],    // red-ish
+    C: [45, 122, 62],    // green
+    G: [180, 83,  9],    // amber
+    T: [13, 115, 119],   // teal
+  };
+
+  const state = {
+    template: 'GATTACAGATTACAGA',
+    clusters: 8,
+    cyclesMax: 16,
+    cycle: 0,
+    noise: 0.15,
+    phasing: 0.02,
+    chem: 4,
+    playing: false,
+    timer: null,
+    data: [],   // per cluster: [{calls:[], qualities:[], intensities:[][]}]
+  };
+
+  // ─── DOM refs ────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+  const templateEl = $('template');
+  const randomBtn  = $('random-btn');
+  const clustersEl = $('clusters');
+  const cyclesEl   = $('cycles');
+  const noiseEl    = $('noise');
+  const phasingEl  = $('phasing');
+  const playBtn    = $('play-btn');
+  const pauseBtn   = $('pause-btn');
+  const stepBtn    = $('step-btn');
+  const resetBtn   = $('reset-btn');
+  const cycleN     = $('cycle-n');
+  const cycleMaxEl = $('cycle-max');
+  const errorRate  = $('error-rate');
+  const flowcell   = $('flowcell-grid');
+  const intensityBody = $('intensity-body');
+  const basecalls  = $('basecalls');
+  const chemHint   = $('chemistry-hint');
+  const ch1 = $('ch-1'), ch2 = $('ch-2'), ch3 = $('ch-3'), ch4 = $('ch-4');
+
+  // ─── Helpers ─────────────────────────────────────────
+  function sanitize(s) { return (s || '').toUpperCase().replace(/[^ACGT]/g, ''); }
+  function randomDna(n) {
+    const L = 'ACGT';
+    let out = '';
+    for (let i = 0; i < n; i++) out += L[Math.floor(Math.random() * 4)];
+    return out;
+  }
+
+  // Box-Muller
+  function gauss() {
+    const u = 1 - Math.random();
+    const v = 1 - Math.random();
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  }
+
+  // Initialise per-cluster phasing weights (prob mass at {-2,-1,0,+1,+2})
+  function initCluster(clusterIdx) {
+    return {
+      calls: [],
+      qualities: [],
+      intensities: [],
+      weights: new Map([[0, 1]]),  // ensemble: most molecules at position 0
+      seed: clusterIdx,
+    };
+  }
+
+  // Advance phasing ensemble: each cycle, p_phasing leaks to pos-1, p_phasing to pos+1
+  function stepPhasing(weights, p) {
+    const next = new Map();
+    const stay = 1 - 2 * p;
+    weights.forEach((w, pos) => {
+      next.set(pos,     (next.get(pos)     || 0) + w * stay);
+      next.set(pos - 1, (next.get(pos - 1) || 0) + w * p);     // lag
+      next.set(pos + 1, (next.get(pos + 1) || 0) + w * p);     // lead
+    });
+    // Drop negligible weights to keep map small
+    for (const [k, v] of next) if (v < 1e-4) next.delete(k);
+    return next;
+  }
+
+  // Compute 4 intensities given a mix of positions, plus noise
+  function intensitiesForCluster(template, weights, cycle, noiseSigma) {
+    const I = { A: 0, C: 0, G: 0, T: 0 };
+    weights.forEach((w, relOffset) => {
+      const pos = cycle + relOffset;
+      if (pos < 0 || pos >= template.length) return;
+      const b = template[pos];
+      if (I[b] !== undefined) I[b] += w;
+    });
+    // Small crosstalk between nearest channels (A↔T similar dyes, C↔G similar — simplified)
+    const I2 = {
+      A: I.A + 0.03 * I.T,
+      T: I.T + 0.03 * I.A,
+      C: I.C + 0.03 * I.G,
+      G: I.G + 0.03 * I.C,
+    };
+    // Noise
+    ['A','C','G','T'].forEach(b => { I2[b] = Math.max(0, I2[b] + noiseSigma * gauss()); });
+    return I2;
+  }
+
+  // 4-channel basecall: argmax
+  function callFourChannel(I) {
+    let best = 'A', max = -Infinity, second = -Infinity;
+    for (const b of BASES) {
+      if (I[b] > max) { second = max; max = I[b]; best = b; }
+      else if (I[b] > second) second = I[b];
+    }
+    const ratio = max / (max + second + 1e-6);
+    // Map ratio in [0.5, 1] → Q in [2, 41]
+    const q = Math.max(2, Math.min(41, Math.round((ratio - 0.5) * 2 * 41)));
+    return { call: best, q };
+  }
+
+  // 2-channel basecall: T=red only, C=green only, A=both, G=dark
+  function callTwoChannel(I) {
+    const red   = I.T + I.A;
+    const green = I.C + I.A;
+    const thr = 0.5;
+    let call;
+    if (red >= thr && green >= thr)       call = 'A';
+    else if (red >= thr && green < thr)   call = 'T';
+    else if (red < thr && green >= thr)   call = 'C';
+    else                                   call = 'G';
+    // Quality: how confidently we classified — distance from threshold averaged
+    const dr = Math.abs(red   - thr);
+    const dg = Math.abs(green - thr);
+    const conf = Math.min(1, (dr + dg));
+    const q = Math.max(2, Math.min(41, Math.round(conf * 41)));
+    return { call, q };
+  }
+
+  // Cluster fluorescence color for the flow-cell tile
+  function mixColor(I) {
+    let r = 0, g = 0, b = 0, total = 0;
+    BASES.forEach(base => {
+      const w = Math.max(0, Math.min(1.2, I[base]));
+      const [rr, gg, bb] = BASE_RGB[base];
+      r += rr * w; g += gg * w; b += bb * w;
+      total += w;
+    });
+    if (total === 0) return 'rgb(15,15,15)';
+    // Don't divide — brighter clusters glow brighter; cap at 255.
+    const brightness = Math.min(1, total);
+    r = Math.min(255, r * brightness / Math.max(0.4, total));
+    g = Math.min(255, g * brightness / Math.max(0.4, total));
+    b = Math.min(255, b * brightness / Math.max(0.4, total));
+    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+  }
+
+  // 2-channel cluster color: red channel + green channel (no G emission)
+  function mixColorTwoChannel(I) {
+    const red = Math.max(0, Math.min(1.2, I.T + I.A));
+    const green = Math.max(0, Math.min(1.2, I.C + I.A));
+    const r = Math.round(Math.min(255, 180 * red));
+    const g = Math.round(Math.min(255, 160 * green));
+    return `rgb(${r}, ${g}, 20)`;
+  }
+
+  // ─── Initialisation ──────────────────────────────────
+  function resetSim() {
+    state.data = Array.from({length: state.clusters}, (_, i) => initCluster(i));
+    state.cycle = 0;
+    render();
+  }
+
+  function advance() {
+    if (state.cycle >= state.cyclesMax) return;
+    state.cycle += 1;
+    const c = state.cycle - 1;  // 0-indexed position in template
+
+    state.data.forEach((cl) => {
+      // Step phasing ensemble *after* computing this cycle's intensities (phasing
+      // accumulates from cycle to cycle; t=0 is clean)
+      const I = intensitiesForCluster(state.template, cl.weights, c, state.noise);
+      cl.intensities.push(I);
+      const out = state.chem === 4 ? callFourChannel(I) : callTwoChannel(I);
+      cl.calls.push(out.call);
+      cl.qualities.push(out.q);
+      cl.weights = stepPhasing(cl.weights, state.phasing);
+    });
+
+    render();
+
+    if (state.cycle >= state.cyclesMax) stop();
+  }
+
+  function play() {
+    if (state.cycle >= state.cyclesMax) resetSim();
+    state.playing = true;
+    updateButtons();
+    state.timer = setInterval(() => { advance(); if (!state.playing) stop(); }, 450);
+  }
+
+  function stop() {
+    state.playing = false;
+    if (state.timer) { clearInterval(state.timer); state.timer = null; }
+    updateButtons();
+  }
+
+  function step() { stop(); advance(); }
+
+  function updateButtons() {
+    const atEnd = state.cycle >= state.cyclesMax;
+    playBtn.disabled  = state.playing || atEnd;
+    pauseBtn.disabled = !state.playing;
+    stepBtn.disabled  = atEnd;
+  }
+
+  // ─── Render ──────────────────────────────────────────
+  function render() {
+    cycleN.textContent  = state.cycle;
+    cycleMaxEl.textContent = state.cyclesMax;
+
+    // Update channel labels based on chemistry
+    if (state.chem === 2) {
+      ch1.textContent = 'Red (T,A)'; ch1.style.color = 'var(--base-a)';
+      ch2.textContent = 'Green (C,A)'; ch2.style.color = 'var(--base-c)';
+      ch3.textContent = ''; ch3.style.display = 'none';
+      ch4.textContent = ''; ch4.style.display = 'none';
+      chemHint.textContent = '2-channel chemistry: only red and green dyes. T=red, C=green, A=both, G=dark. A "dark" G looks like no signal — a characteristic error source.';
+    } else {
+      ch1.textContent = 'A'; ch1.style.color = 'var(--base-a)';
+      ch2.textContent = 'C'; ch2.style.color = 'var(--base-c)';
+      ch3.textContent = 'G'; ch3.style.color = 'var(--base-g)'; ch3.style.display = '';
+      ch4.textContent = 'T'; ch4.style.color = 'var(--base-t)'; ch4.style.display = '';
+      chemHint.textContent = '4-channel chemistry: one dye per base. Classic HiSeq / MiSeq. Higher per-cycle imaging cost than 2-channel.';
+    }
+
+    // Flow cell
+    flowcell.innerHTML = '';
+    const cols = Math.min(state.clusters, 8);
+    flowcell.style.setProperty('--cols', cols);
+    state.data.forEach((cl, i) => {
+      const I = cl.intensities[state.cycle - 1] || { A:0, C:0, G:0, T:0 };
+      const color = state.chem === 4 ? mixColor(I) : mixColorTwoChannel(I);
+      const div = document.createElement('div');
+      div.className = 'cluster';
+      div.style.setProperty('--clr', color);
+      const last = cl.calls[state.cycle - 1];
+      if (last) {
+        const span = document.createElement('span');
+        span.className = 'cluster-call';
+        span.textContent = last;
+        div.appendChild(span);
+      }
+      const lbl = document.createElement('span');
+      lbl.className = 'cluster-label';
+      lbl.textContent = `c${i+1}`;
+      div.appendChild(lbl);
+      flowcell.appendChild(div);
+    });
+
+    // Intensity table
+    intensityBody.innerHTML = '';
+    state.data.forEach((cl, i) => {
+      const I = cl.intensities[state.cycle - 1];
+      const call = cl.calls[state.cycle - 1];
+      const q = cl.qualities[state.cycle - 1];
+      const truth = state.template[state.cycle - 1];
+      const tr = document.createElement('tr');
+      const cells = [];
+      cells.push(`<td>cluster ${i+1}</td>`);
+      const channels = state.chem === 4 ? ['A','C','G','T'] : ['A','C'];  // display uses A/C as columns but below render value
+
+      if (state.chem === 4) {
+        ['A','C','G','T'].forEach(b => {
+          const v = I ? I[b] : 0;
+          cells.push(`<td><div class="intensity-cell"><div class="int-bar"><div class="int-bar-fill" style="width: ${Math.max(0, Math.min(1, v))*100}%; background: ${BASE_COLOR[b]}"></div></div><div class="int-val">${I ? v.toFixed(2) : '—'}</div></div></td>`);
+        });
+      } else {
+        const red = I ? (I.T + I.A) : 0;
+        const green = I ? (I.C + I.A) : 0;
+        cells.push(`<td><div class="intensity-cell"><div class="int-bar"><div class="int-bar-fill" style="width: ${Math.max(0,Math.min(1,red))*100}%; background: var(--base-a)"></div></div><div class="int-val">${I ? red.toFixed(2) : '—'}</div></div></td>`);
+        cells.push(`<td><div class="intensity-cell"><div class="int-bar"><div class="int-bar-fill" style="width: ${Math.max(0,Math.min(1,green))*100}%; background: var(--base-c)"></div></div><div class="int-val">${I ? green.toFixed(2) : '—'}</div></div></td>`);
+        cells.push(`<td colspan="2" style="color: var(--fg-subtle); font-size: 0.75rem;">(2-channel)</td>`);
+      }
+
+      const callHtml = call
+        ? `<span class="${call === truth ? 'call-correct' : 'call-error'}">${call}${call === truth ? '' : ' ✗'}</span>`
+        : '—';
+      cells.push(`<td>${callHtml}</td>`);
+      const qCls = q === undefined ? '' : (q >= 30 ? 'q-good' : q >= 20 ? 'q-warn' : 'q-bad');
+      cells.push(`<td>${q === undefined ? '—' : `<span class="quality-pill ${qCls}">Q${q}</span>`}</td>`);
+
+      tr.innerHTML = cells.join('');
+      intensityBody.appendChild(tr);
+    });
+
+    // Running basecalls
+    basecalls.innerHTML = '';
+    const truth = state.template.slice(0, state.cyclesMax);
+    const templateRow = document.createElement('div');
+    templateRow.className = 'row template';
+    templateRow.innerHTML = `<span class="row-label">Template</span><span class="row-seq">${truth.split('').map(b => `<span class="base is-${b}">${b}</span>`).join('')}</span>`;
+    basecalls.appendChild(templateRow);
+    state.data.forEach((cl, i) => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const seqSpans = [];
+      for (let t = 0; t < state.cyclesMax; t++) {
+        if (t < cl.calls.length) {
+          const called = cl.calls[t];
+          const truthB = truth[t];
+          if (called === truthB) {
+            seqSpans.push(`<span class="base is-${called}">${called}</span>`);
+          } else {
+            seqSpans.push(`<span class="base miscall">${called}</span>`);
+          }
+        } else {
+          seqSpans.push('<span class="base pending">·</span>');
+        }
+      }
+      row.innerHTML = `<span class="row-label">cluster ${i+1}</span><span class="row-seq">${seqSpans.join('')}</span>`;
+      basecalls.appendChild(row);
+    });
+
+    // Error rate
+    let totalCalls = 0, totalErrors = 0;
+    state.data.forEach((cl) => {
+      for (let t = 0; t < cl.calls.length; t++) {
+        totalCalls++;
+        if (cl.calls[t] !== truth[t]) totalErrors++;
+      }
+    });
+    if (totalCalls) {
+      const pct = (totalErrors / totalCalls) * 100;
+      errorRate.innerHTML = `Error rate: <strong style="color: ${pct > 1 ? 'var(--error)' : 'var(--success)'}">${pct.toFixed(2)}%</strong> (${totalErrors} / ${totalCalls})`;
+    } else {
+      errorRate.textContent = '';
+    }
+
+    updateButtons();
+  }
+
+  // ─── Wiring ──────────────────────────────────────────
+  function updateReadouts() {
+    $('clusters-read').textContent = clustersEl.value;
+    $('cycles-read').textContent   = cyclesEl.value;
+    $('noise-read').textContent    = (+noiseEl.value).toFixed(2);
+    $('phasing-read').textContent  = (+phasingEl.value).toFixed(3);
+  }
+
+  function applyControls() {
+    state.template = sanitize(templateEl.value) || 'GATTACAGATTACAGA';
+    templateEl.value = state.template;
+    state.clusters = +clustersEl.value;
+    state.cyclesMax = Math.min(+cyclesEl.value, Math.max(4, state.template.length));
+    state.noise = +noiseEl.value;
+    state.phasing = +phasingEl.value;
+    const chem = document.querySelector('input[name="chem"]:checked');
+    state.chem = chem ? +chem.value : 4;
+    updateReadouts();
+  }
+
+  templateEl.addEventListener('input', () => {
+    templateEl.value = sanitize(templateEl.value);
+    applyControls(); stop(); resetSim();
+  });
+  randomBtn.addEventListener('click', () => {
+    templateEl.value = randomDna(20 + Math.floor(Math.random() * 15));
+    applyControls(); stop(); resetSim();
+  });
+  [clustersEl, cyclesEl, noiseEl, phasingEl].forEach((el) => {
+    el.addEventListener('input', () => { applyControls(); stop(); resetSim(); });
+  });
+  document.querySelectorAll('input[name="chem"]').forEach((el) => {
+    el.addEventListener('change', () => { applyControls(); stop(); resetSim(); });
+  });
+
+  playBtn.addEventListener('click', play);
+  pauseBtn.addEventListener('click', stop);
+  stepBtn.addEventListener('click', step);
+  resetBtn.addEventListener('click', () => { stop(); resetSim(); });
+
+  applyControls();
+  resetSim();
+})();
+</script>
+
+</body>
+</html>

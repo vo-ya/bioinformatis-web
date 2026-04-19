@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FASTQ Inspector + Phred Calculator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 60ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .panel-title {
+      font-family: var(--font-serif);
+      font-size: var(--text-xl);
+      margin: 0;
+    }
+    .panel-sub {
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      margin: 0;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .toolbar select {
+      font: inherit;
+      padding: 0.4rem 0.6rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    /* Phred encoding toggle */
+    .toggle {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .toggle label {
+      padding: 0.4rem 0.75rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      cursor: pointer;
+      background: var(--bg-muted);
+      border-right: 1px solid var(--border);
+    }
+    .toggle label:last-child { border-right: 0; }
+    .toggle input {
+      position: absolute;
+      width: 1px; height: 1px; margin: -1px; padding: 0;
+      overflow: hidden; clip: rect(0 0 0 0); border: 0;
+    }
+    .toggle label:has(input:checked) {
+      background: var(--accent);
+      color: #ffffff;
+    }
+    .toggle label:focus-within {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: -2px;
+    }
+
+    .fastq-input {
+      width: 100%;
+      min-height: 8rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      padding: 0.75rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      resize: vertical;
+      line-height: 1.6;
+    }
+    .fastq-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+    .fastq-input.is-invalid { border-color: var(--error); }
+
+    .validation {
+      font-size: var(--text-xs);
+      margin: 0.5rem 0 0;
+      min-height: 1em;
+    }
+    .validation.is-ok    { color: var(--success); }
+    .validation.is-error { color: var(--error); }
+    .validation.is-warn  { color: var(--warning); }
+
+    /* ─── Parsed summary ─────────────────────────────────── */
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      padding: 0.9rem 1rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin: 1.25rem 0;
+    }
+    .summary-cell .label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+    }
+    .summary-cell .value {
+      font-family: var(--font-mono);
+      font-size: var(--text-lg);
+      color: var(--fg);
+      word-break: break-all;
+    }
+    .summary-cell .value.is-small {
+      font-size: var(--text-sm);
+    }
+
+    /* ─── Per-base view ──────────────────────────────────── */
+    .per-base {
+      --cell: 1.75rem;
+      overflow-x: auto;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .per-base-row {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: var(--cell);
+      min-width: min-content;
+    }
+    .pb-head {
+      font-family: var(--font-sans);
+      font-size: 0.6rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      text-align: center;
+      padding-bottom: 0.25rem;
+    }
+    .pb-pos  { font-family: var(--font-mono); font-size: 0.62rem; text-align: center; color: var(--fg-subtle); }
+    .pb-base { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 500; text-align: center; line-height: 1.3; }
+    .pb-base.is-A { color: var(--base-a); }
+    .pb-base.is-T { color: var(--base-t); }
+    .pb-base.is-G { color: var(--base-g); }
+    .pb-base.is-C { color: var(--base-c); }
+    .pb-base.is-N { color: var(--base-n); }
+    .pb-base.is-U { color: var(--base-u); }
+    .pb-char { font-family: var(--font-mono); font-size: 0.95rem; text-align: center; color: var(--fg-muted); line-height: 1.3; }
+    .pb-q    { font-family: var(--font-mono); font-size: 0.7rem; text-align: center; color: var(--fg); padding: 0.15rem 0; border-radius: 2px; }
+    .pb-q.q-bad  { background: #fdd9d5; color: var(--error); }
+    .pb-q.q-warn { background: #fdeacc; color: var(--warning); }
+    .pb-q.q-ok   { background: #d9edd9; color: var(--success); }
+    .pb-q.q-great{ background: #c6e0d8; color: var(--success); font-weight: 600; }
+
+    .per-base-col {
+      display: contents;
+    }
+
+    /* Chart */
+    .chart-wrap {
+      position: relative;
+      height: 220px;
+    }
+
+    /* ─── Phred calculator ───────────────────────────────── */
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .calc-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    .calc-field label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+    }
+    .calc-field input {
+      font-family: var(--font-mono);
+      font-size: var(--text-lg);
+      padding: 0.55rem 0.75rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .calc-field input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+    .calc-hint {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0;
+    }
+
+    .equation {
+      padding: 1rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      text-align: center;
+      margin: 1rem 0 0.75rem;
+      font-size: 1.1rem;
+    }
+
+    .intuition {
+      border-left: 3px solid var(--accent);
+      background: var(--accent-bg);
+      padding: 0.75rem 1rem;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .intuition-label {
+      display: block;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .per-base { --cell: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="fastq-inspector">
+
+  <header class="artifact-head">
+    <h1>FASTQ Inspector &amp; Phred Calculator</h1>
+    <p>Paste a FASTQ record to see it parsed and its per-base qualities decoded. Below, a live calculator binds Q, error probability, and the ASCII character together so you can feel the triad.</p>
+  </header>
+
+  <!-- ─── Panel A: FASTQ Inspector ──────────────────────── -->
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2 class="panel-title">FASTQ Inspector</h2>
+        <p class="panel-sub">Four lines: <code>@id</code> · sequence · <code>+</code> · quality string.</p>
+      </div>
+      <div class="toggle" role="radiogroup" aria-label="Phred encoding">
+        <label><input type="radio" name="enc" value="33" checked>Phred+33 (modern)</label>
+        <label><input type="radio" name="enc" value="64">Phred+64 (legacy)</label>
+      </div>
+    </div>
+
+    <label class="field-label" for="fastq-text">FASTQ record</label>
+    <textarea id="fastq-text" class="fastq-input" spellcheck="false" autocomplete="off"></textarea>
+    <p class="validation" id="validation" role="status"></p>
+
+    <div class="toolbar">
+      <label for="example-pick" class="field-label" style="margin: 0 0.4rem 0 0;">Load example</label>
+      <select id="example-pick">
+        <option value="illumina-clean">Illumina, clean 27-bp read</option>
+        <option value="illumina-bad-tail">Illumina, 100-bp with quality drop-off</option>
+        <option value="pacbio-hifi">PacBio HiFi, Q50 read</option>
+      </select>
+      <button id="load-btn"  class="btn" type="button">Load</button>
+      <button id="clear-btn" class="btn" type="button">Clear</button>
+      <button id="random-btn" class="btn" type="button">Random (Illumina-like)</button>
+    </div>
+
+    <div class="summary" id="summary"></div>
+
+    <p class="panel-label">Per-base view</p>
+    <div class="per-base" id="per-base" aria-label="Per-base sequence and quality"></div>
+
+    <p class="panel-label">Per-base error probability (log scale)</p>
+    <div class="chart-wrap"><canvas id="error-chart"></canvas></div>
+  </section>
+
+  <!-- ─── Panel B: Phred Calculator ─────────────────────── -->
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2 class="panel-title">Phred ↔ Error ↔ ASCII</h2>
+        <p class="panel-sub">Change any field; the other two update. Uses the current Phred encoding above.</p>
+      </div>
+    </div>
+
+    <div class="calc-grid">
+      <div class="calc-field">
+        <label for="calc-q">Q (Phred score)</label>
+        <input id="calc-q" type="number" min="0" max="93" step="1" value="30">
+        <p class="calc-hint">Integer 0–93.</p>
+      </div>
+      <div class="calc-field">
+        <label for="calc-p">P<sub>error</sub></label>
+        <input id="calc-p" type="text" value="0.001">
+        <p class="calc-hint" id="calc-p-hint">Probability the base call is wrong.</p>
+      </div>
+      <div class="calc-field">
+        <label for="calc-char">ASCII character</label>
+        <input id="calc-char" type="text" maxlength="1" value="?">
+        <p class="calc-hint" id="calc-char-hint">Char code ↔ Q via <code>ord(c) − offset</code>.</p>
+      </div>
+    </div>
+
+    <div class="equation" id="equation">Q = −10 · log<sub>10</sub>(P<sub>error</sub>)</div>
+
+    <aside class="intuition">
+      <span class="intuition-label">EE intuition</span>
+      Phred scores are <strong>decibels of confidence</strong>. Q30 = 30&nbsp;dB = 99.9% accurate. Q40 = 40&nbsp;dB = 99.99% accurate. If you read signal-to-noise ratios in dB, you read Phred already.
+    </aside>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
+        crossorigin="anonymous"></script>
+
+<!-- KaTeX -->
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+        crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+        crossorigin="anonymous"
+        onload="renderMathInElement(document.getElementById('equation'),{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+
+<script>
+(() => {
+  'use strict';
+
+  // ─── Example records ──────────────────────────────────
+  const EXAMPLES = {
+    'illumina-clean':
+`@HWI-D00360:5:H814YADXX:1:1101:1230:2106 1:N:0:ACAGTG
+GATCCTACTGAACGATCACGACTAGCA
++
+BBBFFFFFFFFFFFIIIIIIFFFFFFF`,
+
+    'illumina-bad-tail': (() => {
+      // 100 bp with quality degrading along the read — classic Illumina tail drop.
+      const rnd = (seed) => () => {
+        seed = (seed * 9301 + 49297) % 233280;
+        return seed / 233280;
+      };
+      const r = rnd(42);
+      let seq = '';
+      const L = 'ACGT';
+      for (let i = 0; i < 100; i++) seq += L[Math.floor(r() * 4)];
+      let qual = '';
+      for (let i = 0; i < 100; i++) {
+        // Q starts around 37, drops toward 12 by position 100, plus noise
+        const base = 37 - (i / 100) * 25;
+        const noise = (r() - 0.5) * 4;
+        const q = Math.max(2, Math.min(41, Math.round(base + noise)));
+        qual += String.fromCharCode(q + 33);
+      }
+      return `@M02077:73:000000000-K2BYK:1:1101:19427:3187 1:N:0:ATTACTCG+CCTATCCT\n${seq}\n+\n${qual}`;
+    })(),
+
+    'pacbio-hifi':
+`@m64012_190806_011308/42663867/ccs
+TAGATTTCGGCAATGCAGATCGTCGATCAGGCTAGGTCTAGCTGAT
++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`,
+  };
+
+  // ─── State ────────────────────────────────────────────
+  let encoding = 33;
+  let parsed = null;
+  let chart = null;
+
+  // ─── DOM refs ─────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+  const ta         = $('fastq-text');
+  const validation = $('validation');
+  const summary    = $('summary');
+  const perBase    = $('per-base');
+  const canvas     = $('error-chart');
+  const exPick     = $('example-pick');
+  const loadBtn    = $('load-btn');
+  const clearBtn   = $('clear-btn');
+  const randomBtn  = $('random-btn');
+  const calcQ      = $('calc-q');
+  const calcP      = $('calc-p');
+  const calcChar   = $('calc-char');
+  const calcPHint  = $('calc-p-hint');
+  const calcCharHint = $('calc-char-hint');
+
+  // ─── Helpers ──────────────────────────────────────────
+  function parseFastq(text) {
+    const rawLines = text.replace(/\r\n/g, '\n').split('\n');
+    // Tolerate a single trailing blank line
+    const lines = rawLines.length && rawLines[rawLines.length - 1] === ''
+      ? rawLines.slice(0, -1) : rawLines.slice();
+
+    const errs = [];
+    if (lines.length !== 4) errs.push(`Expected 4 lines, got ${lines.length}.`);
+    if (lines[0] && !lines[0].startsWith('@')) errs.push('Line 1 must start with "@".');
+    if (lines[2] && !lines[2].startsWith('+')) errs.push('Line 3 must start with "+".');
+    if (lines[1] && lines[3] && lines[1].length !== lines[3].length) {
+      errs.push(`Sequence length (${lines[1].length}) ≠ quality length (${lines[3].length}).`);
+    }
+
+    const header = (lines[0] || '').slice(1);
+    const spaceIdx = header.indexOf(' ');
+    const id = spaceIdx < 0 ? header : header.slice(0, spaceIdx);
+    const description = spaceIdx < 0 ? '' : header.slice(spaceIdx + 1);
+    const seq = lines[1] || '';
+    const qual = lines[3] || '';
+
+    return { id, description, seq, qual, errors: errs };
+  }
+
+  function qualityScores(qual, offset) {
+    const out = [];
+    for (const c of qual) out.push(c.charCodeAt(0) - offset);
+    return out;
+  }
+
+  function qClass(q) {
+    if (q < 20) return 'q-bad';
+    if (q < 30) return 'q-warn';
+    if (q < 40) return 'q-ok';
+    return 'q-great';
+  }
+
+  function pError(q) { return Math.pow(10, -q / 10); }
+
+  function setValidation(text, cls) {
+    validation.className = 'validation ' + (cls || '');
+    validation.textContent = text || '';
+    ta.classList.toggle('is-invalid', cls === 'is-error');
+  }
+
+  // ─── Render ───────────────────────────────────────────
+  function render() {
+    parsed = parseFastq(ta.value);
+    const { id, description, seq, qual, errors } = parsed;
+    const qs = qualityScores(qual, encoding);
+
+    // Validation
+    if (errors.length) setValidation(errors.join(' '), 'is-error');
+    else if (qs.some(q => q < 0)) setValidation(`Negative Q values — you may be decoding Phred+${encoding} on data encoded the other way.`, 'is-warn');
+    else setValidation('Valid record.', 'is-ok');
+
+    // Summary
+    const meanQ = qs.length ? qs.reduce((a,b)=>a+b,0) / qs.length : NaN;
+    const minQ = qs.length ? Math.min(...qs) : NaN;
+    const maxQ = qs.length ? Math.max(...qs) : NaN;
+
+    summary.innerHTML = '';
+    const cells = [
+      ['ID',          id || '—',              'is-small'],
+      ['Description', description || '—',     'is-small'],
+      ['Length',      `${seq.length} bp`],
+      ['Mean Q',      isFinite(meanQ) ? meanQ.toFixed(1) : '—'],
+      ['Min Q',       isFinite(minQ)  ? `${minQ}` : '—'],
+      ['Max Q',       isFinite(maxQ)  ? `${maxQ}` : '—'],
+    ];
+    cells.forEach(([label, value, extra]) => {
+      const cell = document.createElement('div');
+      cell.className = 'summary-cell';
+      const l = document.createElement('div'); l.className = 'label'; l.textContent = label;
+      const v = document.createElement('div'); v.className = 'value' + (extra ? ' ' + extra : ''); v.textContent = value;
+      cell.append(l, v);
+      summary.appendChild(cell);
+    });
+
+    // Per-base view
+    perBase.innerHTML = '';
+    if (seq.length) {
+      // 4 rows: position, base, ASCII char, Q
+      const rows = [
+        { cls: 'pb-pos',  values: Array.from({length: seq.length}, (_,i) => String(i+1)) },
+        { cls: 'pb-base', values: seq.split('').map(b => b), baseColor: true },
+        { cls: 'pb-char', values: qual.split('').map(c => c) },
+        { cls: 'pb-q',    values: qs.map(q => String(q)),   qStyle: true },
+      ];
+      rows.forEach((r) => {
+        const row = document.createElement('div');
+        row.className = 'per-base-row';
+        r.values.forEach((v, i) => {
+          const cell = document.createElement('span');
+          cell.className = r.cls;
+          if (r.baseColor) cell.classList.add('is-' + v.toUpperCase());
+          if (r.qStyle) cell.classList.add(qClass(qs[i]));
+          cell.textContent = v;
+          const q = qs[i];
+          const p = pError(q);
+          cell.title = `Position ${i+1}\nBase: ${seq[i]}\nChar: '${qual[i]}' (ASCII ${qual.charCodeAt(i)})\nQ = ${q}  →  P(error) = ${p.toExponential(2)} (1 in ${Math.round(1/p).toLocaleString()})`;
+          row.appendChild(cell);
+        });
+        perBase.appendChild(row);
+      });
+    } else {
+      perBase.innerHTML = '<p style="color: var(--fg-subtle); font-style: italic; font-family: var(--font-sans); font-size: var(--text-sm); margin:0;">Paste a FASTQ record above to see its per-base view.</p>';
+    }
+
+    // Chart
+    renderChart(qs);
+  }
+
+  function renderChart(qs) {
+    if (!window.Chart) return;
+    const data = qs.map(q => pError(q));
+    const labels = qs.map((_, i) => i + 1);
+
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    const border = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+    const fgMuted = getComputedStyle(document.documentElement).getPropertyValue('--fg-muted').trim();
+
+    if (chart) chart.destroy();
+    chart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'P(error)',
+          data,
+          backgroundColor: accent,
+          borderWidth: 0,
+          maxBarThickness: 14,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const q = qs[ctx.dataIndex];
+                const p = ctx.parsed.y;
+                return `Q=${q}  ·  P(error)=${p.toExponential(2)}  ·  1 in ${Math.round(1/p).toLocaleString()}`;
+              },
+            },
+          },
+        },
+        scales: {
+          y: {
+            type: data.length ? 'logarithmic' : 'linear',
+            min: 1e-6,
+            max: 1,
+            grid: { color: border },
+            ticks: {
+              color: fgMuted,
+              font: { family: 'JetBrains Mono, monospace', size: 10 },
+              callback: (v) => {
+                const exp = Math.log10(v);
+                if (exp !== Math.round(exp)) return '';
+                return `10${toSuper(exp)}`;
+              },
+            },
+          },
+          x: {
+            grid: { display: false },
+            ticks: {
+              color: fgMuted,
+              font: { family: 'JetBrains Mono, monospace', size: 10 },
+              autoSkip: true,
+              maxRotation: 0,
+            },
+            title: { display: true, text: 'Position (bp)', color: fgMuted, font: { family: 'Inter, sans-serif', size: 11 } },
+          },
+        },
+      },
+    });
+  }
+
+  function toSuper(n) {
+    const map = { '-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹' };
+    return String(n).split('').map(c => map[c] || c).join('');
+  }
+
+  // ─── Example loader & buttons ─────────────────────────
+  function loadExample(key) {
+    ta.value = EXAMPLES[key] || EXAMPLES['illumina-clean'];
+    render();
+  }
+
+  loadBtn.addEventListener('click', () => loadExample(exPick.value));
+  exPick.addEventListener('change', () => loadExample(exPick.value));
+
+  clearBtn.addEventListener('click', () => { ta.value = ''; render(); });
+  randomBtn.addEventListener('click', () => {
+    const L = 'ACGT';
+    let seq = '', qual = '';
+    const len = 50 + Math.floor(Math.random() * 50);
+    for (let i = 0; i < len; i++) {
+      seq += L[Math.floor(Math.random() * 4)];
+      const base = 37 - (i / len) * 15;
+      const q = Math.max(5, Math.min(41, Math.round(base + (Math.random() - 0.5) * 6)));
+      qual += String.fromCharCode(q + 33);
+    }
+    ta.value = `@SIM:1:FCX:1:${Math.floor(Math.random()*9999)}:${Math.floor(Math.random()*9999)}:${Math.floor(Math.random()*9999)} 1:N:0:ATCACG\n${seq}\n+\n${qual}`;
+    render();
+  });
+
+  ta.addEventListener('input', render);
+  document.querySelectorAll('input[name="enc"]').forEach((el) => {
+    el.addEventListener('change', () => { encoding = +el.value; render(); syncCalc('q'); });
+  });
+
+  // ─── Phred calculator ─────────────────────────────────
+  function syncCalc(source) {
+    if (source === 'q') {
+      const q = +calcQ.value;
+      if (!isFinite(q) || q < 0) return;
+      const p = pError(q);
+      calcP.value = p < 0.0001 ? p.toExponential(2) : p.toPrecision(3);
+      const code = Math.round(q) + encoding;
+      calcChar.value = (code >= 33 && code <= 126) ? String.fromCharCode(code) : '';
+      updateHints(q, p, code);
+    } else if (source === 'p') {
+      const raw = calcP.value.trim();
+      const p = parseFloat(raw);
+      if (!isFinite(p) || p <= 0 || p > 1) return;
+      const q = Math.round(-10 * Math.log10(p) * 10) / 10;
+      calcQ.value = q.toFixed(1).replace(/\.0$/, '');
+      const code = Math.round(q) + encoding;
+      calcChar.value = (code >= 33 && code <= 126) ? String.fromCharCode(code) : '';
+      updateHints(q, p, code);
+    } else if (source === 'char') {
+      const c = calcChar.value;
+      if (!c) return;
+      const code = c.charCodeAt(0);
+      const q = code - encoding;
+      calcQ.value = q;
+      const p = pError(q);
+      calcP.value = p < 0.0001 ? p.toExponential(2) : p.toPrecision(3);
+      updateHints(q, p, code);
+    }
+  }
+
+  function updateHints(q, p, code) {
+    const inv = p > 0 ? Math.round(1 / p) : Infinity;
+    calcPHint.textContent = `1 in ${isFinite(inv) ? inv.toLocaleString() : '∞'}.`;
+    calcCharHint.textContent = `ASCII code ${code} = Q${q} under Phred+${encoding}.`;
+  }
+
+  calcQ.addEventListener('input', () => syncCalc('q'));
+  calcP.addEventListener('input', () => syncCalc('p'));
+  calcChar.addEventListener('input', () => syncCalc('char'));
+
+  // ─── Init ─────────────────────────────────────────────
+  loadExample('illumina-clean');
+  syncCalc('q');
+})();
+</script>
+
+</body>
+</html>

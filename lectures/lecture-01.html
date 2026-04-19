@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 1 — Foundations: From Cells to Sequences to FASTQ</title>
+  <meta name="description" content="Cells, DNA, the central dogma, sequencing technologies from Sanger to Nanopore, and the FASTQ format.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <!-- ─── TOC (desktop sticky sidebar) ──────────────────────── -->
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — Biological Foundations</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Why an EE student should care</a></li>
+          <li><a href="#sec-1-2">1.2 The cell</a></li>
+          <li><a href="#sec-1-3">1.3 DNA: structure and language</a></li>
+          <li><a href="#sec-1-4">1.4 RNA and proteins</a></li>
+          <li><a href="#sec-1-5">1.5 Genes and genome organization</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Central Dogma</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 The central dogma</a></li>
+          <li><a href="#sec-2-2">2.2 The genetic code</a></li>
+          <li><a href="#sec-2-3">2.3 End-to-end pipeline</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Sanger to the Cost Collapse</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Pre-Sanger</a></li>
+          <li><a href="#sec-3-2">3.2 Sanger sequencing</a></li>
+          <li><a href="#sec-3-3">3.3 PCR</a></li>
+          <li><a href="#sec-3-4">3.4 Human Genome Project</a></li>
+          <li><a href="#sec-3-5">3.5 Moore's Law vs genome cost</a></li>
+          <li><a href="#sec-3-6">3.6 Consumer genomics</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Illumina / NGS</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Overview</a></li>
+          <li><a href="#sec-4-2">4.2 Library preparation</a></li>
+          <li><a href="#sec-4-3">4.3 Cluster generation</a></li>
+          <li><a href="#sec-4-4">4.4 Sequencing by synthesis</a></li>
+          <li><a href="#sec-4-5">4.5 Base calling &amp; error profile</a></li>
+          <li><a href="#sec-4-6">4.6 Platforms</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Long-Read Sequencing</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 Why long reads?</a></li>
+          <li><a href="#sec-5-2">5.2 PacBio SMRT</a></li>
+          <li><a href="#sec-5-3">5.3 Oxford Nanopore</a></li>
+          <li><a href="#sec-5-4">5.4 Error profile comparison</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — FASTQ</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 The 4-line record</a></li>
+          <li><a href="#sec-6-2">6.2 Phred quality scores</a></li>
+          <li><a href="#sec-6-3">6.3 ASCII encoding</a></li>
+          <li><a href="#sec-6-4">6.4 QC and trimming</a></li>
+          <li><a href="#sec-6-5">6.5 Hands-on parse</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <!-- ─── Lecture main ──────────────────────────────────────── -->
+  <main class="lecture-main">
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 01</div>
+      <h1 class="lecture-title">Foundations: From Cells to Sequences to FASTQ</h1>
+      <p class="lecture-subtitle">DNA, the central dogma, sequencing platforms, and the FASTQ format.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <!-- ─── Mobile TOC ──────────────────────────────────────── -->
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — Biological Foundations</a></li>
+        <li><a href="#part-2">Part 2 — Central Dogma</a></li>
+        <li><a href="#part-3">Part 3 — Sanger to the Cost Collapse</a></li>
+        <li><a href="#part-4">Part 4 — Illumina / NGS</a></li>
+        <li><a href="#part-5">Part 5 — Long-Read Sequencing</a></li>
+        <li><a href="#part-6">Part 6 — FASTQ</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <!-- ─── Learning objectives ─────────────────────────── -->
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Describe DNA, RNA, and proteins, and the central dogma relating them.</li>
+          <li>Explain the end-to-end pipeline from biological sample to biological interpretation.</li>
+          <li>Compare Sanger, Illumina, PacBio, and Nanopore on mechanism, read length, throughput, and error.</li>
+          <li>Explain how PCR amplifies DNA and why it matters for library preparation.</li>
+          <li>Read the NHGRI cost curve and relate it to consumer genomics.</li>
+          <li>Parse a FASTQ record by hand, including Phred+33 decoding.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 45 min</span>
+          Biological Foundations
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Why an EE student should care</h3>
+
+          <p>Bioinformatics is, at its core, a data problem. And the data is generated by instruments — sequencers, microscopes, mass spectrometers — that are themselves designed by engineers. The entire field rests on signal processing, instrumentation, statistics, and increasingly machine learning. All EE-native skills.</p>
+
+          <p>Concrete places where EE skills show up:</p>
+          <ul>
+            <li><strong>Signal processing.</strong> Nanopore basecalling is literally a time-series denoising / sequence-labeling problem.</li>
+            <li><strong>Image analysis.</strong> Illumina sequencers are massive fluorescence microscopes; base calls come from image stacks.</li>
+            <li><strong>FPGA / ASIC design.</strong> Real-time basecalling, alignment acceleration — Illumina DRAGEN, Oxford Nanopore MinIT.</li>
+            <li><strong>ML / statistics.</strong> Variant calling, structural inference, protein structure prediction (AlphaFold).</li>
+            <li><strong>Information theory.</strong> The genetic code itself is a degenerate code with redundancy and error-correction properties.</li>
+          </ul>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 The cell</h3>
+
+          <p>Cells come in two broad categories:</p>
+          <ul>
+            <li><strong>Prokaryotes</strong> (bacteria, archaea): no nucleus, DNA floats free in the cytoplasm, typically a single circular chromosome plus plasmids. Roughly 1–10&nbsp;μm.</li>
+            <li><strong>Eukaryotes</strong> (plants, animals, fungi, protists): DNA enclosed in a <strong>nucleus</strong>; cell carries specialized organelles. Roughly 10–100&nbsp;μm.</li>
+          </ul>
+
+          <p>Organelles that matter for information flow:</p>
+          <ul>
+            <li><strong>Nucleus</strong> — houses the genome (nuclear DNA).</li>
+            <li><strong>Ribosome</strong> — protein factory; reads mRNA, outputs proteins. Free-floating or on the ER.</li>
+            <li><strong>Mitochondria</strong> — energy production. Crucially, carries <strong>its own small circular genome</strong> (~16.5&nbsp;kb in humans), inherited maternally. This is the basis for mitochondrial ancestry tests.</li>
+            <li><strong>Endoplasmic reticulum &amp; Golgi apparatus</strong> — protein folding, modification, trafficking.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition</span>
+            <p>Think of the cell as a computer. DNA is persistent storage (hard drive). RNA is RAM / message-passing. Proteins are the running programs — they actually do things. The ribosome is the CPU. Mitochondria are the PSU, with a surprising amount of their own firmware.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 DNA: structure and language</h3>
+
+          <p>DNA is a polymer of <strong>nucleotides</strong>. Each nucleotide has three parts: a deoxyribose sugar, a phosphate group, and a nitrogenous base. Four bases:</p>
+
+          <table>
+            <thead>
+              <tr><th>Base</th><th>Letter</th><th>Pairs with</th><th>Chemistry</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Adenine</td>  <td><code class="base-A">A</code></td> <td><code class="base-T">T</code></td> <td>Purine (double-ring)</td></tr>
+              <tr><td>Thymine</td>  <td><code class="base-T">T</code></td> <td><code class="base-A">A</code></td> <td>Pyrimidine (single-ring)</td></tr>
+              <tr><td>Guanine</td>  <td><code class="base-G">G</code></td> <td><code class="base-C">C</code></td> <td>Purine</td></tr>
+              <tr><td>Cytosine</td> <td><code class="base-C">C</code></td> <td><code class="base-G">G</code></td> <td>Pyrimidine</td></tr>
+            </tbody>
+          </table>
+
+          <p>Key structural facts:</p>
+          <ul>
+            <li><strong>Double helix</strong> (Watson &amp; Crick, 1953; with essential data from Rosalind Franklin): two antiparallel strands wound around each other.</li>
+            <li><strong>Antiparallel.</strong> One strand runs 5'→3', the other 3'→5'. Directionality matters — DNA polymerase only synthesizes 5'→3'.</li>
+            <li><strong>Complementary base pairing.</strong> A–T share 2 hydrogen bonds, G–C share 3. G–C regions are thermally more stable; this is why GC content matters for PCR primer design and library preparation.</li>
+            <li><strong>Chromosomes.</strong> Humans have 23 pairs (22 autosomes + XX/XY). Total haploid genome roughly 3.1 billion base pairs.</li>
+          </ul>
+
+          <p>The term <strong>genome</strong> refers to the complete set of DNA in a cell. The human genome is ~3.1&nbsp;Gb haploid, ~6.2&nbsp;Gb diploid.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">DNA Explorer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-01/01-dna-explorer.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-01/01-dna-explorer.html"
+                    class="artifact-frame" loading="lazy"
+                    title="DNA Explorer"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>A genome is a 3-billion-symbol string over a 4-letter alphabet. That's 2&nbsp;bits per base × 3&nbsp;Gb ≈ 750&nbsp;MB of raw information in theory. In practice we store it in FASTQ/FASTA at much higher cost, because we also carry per-base quality scores and metadata.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 RNA and proteins</h3>
+
+          <p><strong>RNA</strong> is DNA's single-stranded cousin. Differences:</p>
+          <ul>
+            <li>Ribose sugar (not deoxyribose).</li>
+            <li><strong>Uracil (<code class="base-U">U</code>)</strong> replaces Thymine.</li>
+            <li>Usually single-stranded; can fold into complex 3D structures.</li>
+          </ul>
+
+          <p>Functional RNA types worth naming:</p>
+          <ul>
+            <li><strong>mRNA</strong> — messenger RNA, the transcript that is translated into protein.</li>
+            <li><strong>tRNA</strong> — transfer RNA, brings amino acids to the ribosome.</li>
+            <li><strong>rRNA</strong> — ribosomal RNA, structural and catalytic component of ribosomes.</li>
+            <li><strong>ncRNA / miRNA / lncRNA</strong> — non-coding RNAs; regulate gene expression. The human genome encodes far more regulatory RNA than we once thought.</li>
+          </ul>
+
+          <p><strong>Proteins</strong> are polymers of <strong>amino acids</strong> (20 canonical ones). The sequence of amino acids (<em>primary</em> structure) determines folding (<em>secondary</em>: α-helices, β-sheets; <em>tertiary</em>: overall 3D shape; <em>quaternary</em>: multi-subunit assemblies). Function follows structure — enzymes, structural proteins, receptors, antibodies, motors.</p>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>Predicting protein structure from amino acid sequence was a grand challenge for 50 years. AlphaFold (2021) largely solved it with transformer-based deep learning. If any single application convinces EE students this field is theirs, it's this.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-5">
+          <h3>1.5 Genes and genome organization</h3>
+
+          <p>A <strong>gene</strong> is a stretch of DNA that codes for a functional product — usually a protein, sometimes an RNA.</p>
+
+          <p>In eukaryotes, genes are discontinuous:</p>
+          <ul>
+            <li><strong>Exons</strong> — the parts that end up in the mature mRNA.</li>
+            <li><strong>Introns</strong> — intervening sequences, spliced out after transcription.</li>
+            <li><strong>UTRs</strong> — untranslated regions at the 5' and 3' ends of the mRNA.</li>
+            <li><strong>Promoters, enhancers, silencers</strong> — regulatory regions that control when and how much a gene is expressed.</li>
+          </ul>
+
+          <p>Surprising numbers:</p>
+          <ul>
+            <li>Humans have ~20,000 protein-coding genes (similar count to <em>C. elegans</em>, a 1&nbsp;mm worm).</li>
+            <li>Only ~1–2% of the human genome codes for protein.</li>
+            <li>The rest was once called "junk DNA" — we now know much of it is regulatory, structural, or repetitive.</li>
+          </ul>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion</span>
+            <p>If 98% of your genome doesn't code for protein, what could it possibly be doing? (Answers: regulation, structural chromatin roles, repeat elements, ancient viral DNA, genuinely non-functional sequence…)</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 25 min</span>
+          Central Dogma &amp; the Bioinformatics Pipeline
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 The central dogma</h3>
+
+          <p>Francis Crick, 1958:</p>
+
+          <pre class="code-block">DNA  ──transcription──▶  RNA  ──translation──▶  Protein</pre>
+
+          <ul>
+            <li><strong>Transcription.</strong> RNA polymerase reads a DNA template strand and synthesizes complementary RNA.</li>
+            <li><strong>Splicing</strong> (eukaryotes). Introns are removed, exons joined to produce mature mRNA.</li>
+            <li><strong>Translation.</strong> The ribosome reads mRNA in triplets (<strong>codons</strong>) and assembles amino acids into a protein, using tRNAs as the dictionary.</li>
+          </ul>
+
+          <p>Exceptions to the "one-way" flow:</p>
+          <ul>
+            <li><strong>Reverse transcription</strong> (retroviruses like HIV, and some cellular elements): RNA → DNA.</li>
+            <li><strong>RNA replication</strong> (some viruses): RNA → RNA.</li>
+            <li><strong>Prions</strong>: protein → protein propagation, with no nucleic acid at all.</li>
+          </ul>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 The genetic code</h3>
+
+          <p>64 possible codons (4³), encoding 20 amino acids plus 3 stop signals. The code is:</p>
+          <ul>
+            <li><strong>Redundant / degenerate.</strong> Most amino acids are encoded by multiple codons. Often the third base is the "wobble" position.</li>
+            <li><strong>Nearly universal.</strong> Bacteria, plants, and humans use almost the same code. A few exceptions exist in mitochondria and some protists.</li>
+            <li><strong>Has a start codon.</strong> <code>AUG</code> (also codes for methionine).</li>
+            <li><strong>Has three stop codons.</strong> <code>UAA</code>, <code>UAG</code>, <code>UGA</code>.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — error correction</span>
+            <p>The redundancy isn't arbitrary. Synonymous codons cluster such that a single-base substitution is more likely to produce the same or a chemically similar amino acid than a radically different one. The code has baked-in robustness to point mutations — think Hamming distance, but for biology.</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Central Dogma Translator</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-01/02-central-dogma.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-01/02-central-dogma.html"
+                    class="artifact-frame"
+                    loading="lazy"
+                    title="Central Dogma Translator"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 The end-to-end bioinformatics pipeline</h3>
+
+          <p>Big-picture map, so you know where the rest of the course fits:</p>
+
+          <pre class="code-block">┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+│  Biological  │──▶│   Library    │──▶│   Sequencer  │──▶│   Raw reads  │
+│    sample    │   │ preparation  │   │  (instrument)│   │   (FASTQ)    │
+└──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘
+                                                                │
+                                                                ▼
+┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+│  Biological  │◀──│   Variant    │◀──│  Alignment / │◀──│      QC      │
+│interpretation│   │   calling    │   │   assembly   │   │  &amp; trimming  │
+└──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘</pre>
+
+          <p>Each arrow is a research community. This lecture covers up through <strong>raw reads / FASTQ</strong>. Subsequent lectures cover alignment, assembly, variant calling, and downstream analysis.</p>
+        </section>
+      </section>
+
+      <div class="lecture-break" role="note">Break · 10 min</div>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 40 min</span>
+          Sequencing: From Sanger to the Cost Collapse
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 Pre-Sanger</h3>
+          <p>Brief mention only: <strong>Maxam–Gilbert sequencing</strong> (1976–77) used chemical cleavage at specific bases, read on a gel. Laborious and toxic — hydrazine, DMS. Historically important; obsolete by the mid-80s.</p>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Sanger sequencing (1977)</h3>
+
+          <p>Frederick Sanger's chain-termination method. The core trick:</p>
+          <ol>
+            <li>Set up a DNA synthesis reaction with template DNA, primer, polymerase, and the four <strong>dNTPs</strong> (A, T, G, C).</li>
+            <li>Add a small fraction of <strong>ddNTPs</strong> (dideoxynucleotides) — these lack the 3'-OH that the next nucleotide needs to attach to. Once incorporated, the chain <strong>terminates</strong>.</li>
+            <li>Each ddNTP is labeled with a different fluorescent dye (in modern capillary Sanger).</li>
+            <li>The reaction produces a population of fragments of every possible length, each ending in a known fluorescently labeled base.</li>
+            <li><strong>Capillary electrophoresis</strong> separates fragments by length with single-nucleotide resolution. A laser reads the fluorescent color as each fragment passes the detector.</li>
+            <li>The resulting <strong>electropherogram</strong> is a 4-channel trace; peak colors give the sequence.</li>
+          </ol>
+
+          <p>Characteristics:</p>
+          <ul>
+            <li><strong>Read length.</strong> Up to ~800–1000&nbsp;bp of high-quality sequence.</li>
+            <li><strong>Accuracy.</strong> Very high — greater than 99.99% per base for good reads.</li>
+            <li><strong>Throughput.</strong> Low. One read per capillary, ~96 capillaries per run on an ABI 3730xl.</li>
+            <li><strong>Still used today</strong> for validation, small-scale projects, and plasmid verification. It remains the <strong>gold standard</strong> reference for base calls.</li>
+          </ul>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 PCR — the polymerase chain reaction</h3>
+
+          <p>Kary Mullis, 1983 (Nobel 1993). The insight: DNA polymerase replicates DNA. If you can separate the strands, prime them, and let the polymerase extend, you can <strong>double</strong> the DNA. Do it again: quadruple. Repeat 30 times: 2³⁰ ≈ 10⁹× amplification.</p>
+
+          <p>Ingredients:</p>
+          <ul>
+            <li><strong>Template</strong> DNA (even a single molecule, in principle).</li>
+            <li>Two <strong>primers</strong> — short oligos flanking the region you want to amplify.</li>
+            <li><strong>dNTPs.</strong></li>
+            <li><strong>Thermostable DNA polymerase</strong> (Taq, from <em>Thermus aquaticus</em> — a hot-spring bacterium). Essential: it survives the 95&nbsp;°C denaturation step.</li>
+          </ul>
+
+          <p>Thermal cycle, repeated ~30 times:</p>
+          <ol>
+            <li><strong>Denature</strong> (~95&nbsp;°C): strands separate.</li>
+            <li><strong>Anneal</strong> (~55–65&nbsp;°C): primers bind to their complementary sites.</li>
+            <li><strong>Extend</strong> (~72&nbsp;°C): polymerase synthesizes the new strand.</li>
+          </ol>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>PCR is a positive-feedback amplifier with a fixed gain per cycle. Like any amplifier, it has noise (polymerase errors, primer-dimers), a saturation regime (reagents deplete, plateau), and dynamic-range limits.</p>
+          </aside>
+
+          <p>Why PCR matters for the rest of this lecture:</p>
+          <ul>
+            <li>Every NGS library-prep protocol includes one or more PCR steps.</li>
+            <li>"PCR duplicates" are a common artifact that bioinformaticians must filter out.</li>
+            <li>Real-time (quantitative) PCR is the workhorse of clinical molecular diagnostics — including the COVID-19 tests everyone has experienced.</li>
+          </ul>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 The Human Genome Project</h3>
+
+          <p><strong>1990–2003.</strong> Announced complete draft in 2001, fully (mostly) finished in 2003. First 3&nbsp;Gb human genome sequenced. Two efforts, famously in competition:</p>
+
+          <ul>
+            <li><strong>Public consortium (HGP)</strong> — international, publicly funded (~$2.7&nbsp;billion). Used a <strong>clone-based, hierarchical</strong> approach: break the genome into large chunks, map them, then sequence each chunk with Sanger.</li>
+            <li><strong>Celera Genomics</strong> (Craig Venter) — private, aimed to sequence faster using <strong>whole-genome shotgun</strong>: shred the whole genome into small pieces, sequence them all, reassemble computationally.</li>
+          </ul>
+
+          <p>Both worked. Both were published back-to-back (Nature and Science) in Feb&nbsp;2001.</p>
+
+          <p>Consequences:</p>
+          <ul>
+            <li>Established the reference human genome still used today (with updates — GRCh37/hg19, GRCh38/hg38, and now T2T-CHM13, the first truly telomere-to-telomere human assembly, 2022).</li>
+            <li>Catalyzed the genomics industry.</li>
+            <li>Made it clear that Sanger sequencing at genome scale was <strong>not sustainable at the cost</strong>. The race for cheaper methods began immediately.</li>
+          </ul>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 Moore's Law vs. the genome cost curve</h3>
+
+          <p>This is one of the most dramatic plots in all of technology history.</p>
+
+          <p>The <strong>NHGRI</strong> (National Human Genome Research Institute) has tracked cost-per-genome from 2001 to present. Key data points (approximate, USD):</p>
+
+          <table>
+            <thead><tr><th>Year</th><th>Cost per genome</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>2001</td><td>~$100,000,000</td><td>HGP-era Sanger</td></tr>
+              <tr><td>2007</td><td>~$10,000,000</td>  <td>Early NGS emerging</td></tr>
+              <tr><td>2008</td><td>~$1,000,000</td>   <td>Illumina GA, SOLiD</td></tr>
+              <tr><td>2010</td><td>~$50,000</td>      <td>HiSeq 2000</td></tr>
+              <tr><td>2014</td><td>~$1,000</td>       <td>HiSeq X "1000-dollar genome"</td></tr>
+              <tr><td>2022</td><td>~$200</td>         <td>NovaSeq, DNBSEQ</td></tr>
+              <tr><td>2024</td><td>~$100</td>         <td>NovaSeq X, Ultima</td></tr>
+            </tbody>
+          </table>
+
+          <p>Plotted on a log scale, <strong>cost per genome fell faster than Moore's Law</strong> from roughly 2008 onward, when second-generation (NGS) instruments became mainstream. Moore's Law predicts ~2× improvement every 18–24 months; sequencing improved ~10× per year for several years.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>Moore's Law is driven by one technology lineage (CMOS scaling). The genome cost curve is driven by <strong>technology replacement</strong> — when one paradigm (Sanger) was displaced by a fundamentally different one (NGS), the curve broke free of any single scaling law. The same is happening again: nanopore and direct-detection methods are now displacing sequencing-by-synthesis in some niches.</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Sequencing Cost Explorer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-01/03-cost-explorer.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-01/03-cost-explorer.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Sequencing Cost Explorer"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-3-6">
+          <h3>3.6 The rise of consumer genomics</h3>
+
+          <p>When a test drops from $100M to $100, the business model changes. A few companies to know:</p>
+
+          <h4>23andMe (2006–)</h4>
+          <ul>
+            <li>Direct-to-consumer ancestry + health reports.</li>
+            <li><strong>Technology caveat.</strong> 23andMe does <strong>not sequence</strong> your genome. It uses a <strong>SNP genotyping array</strong> — reading ~600,000 pre-selected common variants, not your full sequence. Cheaper (~$100–200) but covers less than 0.02% of your DNA.</li>
+            <li>FDA briefly banned its health reports in 2013; since reinstated under restrictions.</li>
+            <li><strong>2023 data breach.</strong> A credential-stuffing attack exposed data on ~7&nbsp;million users, including relative-matching profiles. A cautionary tale about genomic data security.</li>
+            <li><strong>2024–2025.</strong> The company entered bankruptcy; acquired by founder Anne Wojcicki's nonprofit. The future of its ~15M-customer database is unresolved.</li>
+          </ul>
+
+          <h4>Dante Labs (2016–)</h4>
+          <ul>
+            <li>Offers actual <strong>whole-genome sequencing</strong> (WGS) direct-to-consumer — typically 30× coverage Illumina short-read, sometimes long-read add-ons.</li>
+            <li>Price range: historically $300–1000+.</li>
+            <li>Customer receives raw FASTQ / BAM / VCF files — exactly what bioinformaticians know how to work with. An interesting accessibility milestone.</li>
+          </ul>
+
+          <h4>Nebula Genomics (2016–)</h4>
+          <ul>
+            <li>Founded by George Church (Harvard). Pitched blockchain-based privacy and data ownership. WGS at consumer prices.</li>
+            <li>Operations have wound down substantially as of 2024.</li>
+          </ul>
+
+          <h4>Ancestry, MyHeritage, FamilyTreeDNA</h4>
+          <p>All genotyping-array-based (like 23andMe), ancestry-focused.</p>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion</span>
+            <p>Who owns your genomic data? What happens to it when the company goes bankrupt or is acquired? These are not hypotheticals anymore.</p>
+          </aside>
+
+          <p>Key conceptual distinction to hammer home:</p>
+          <ul>
+            <li><strong>Genotyping (SNP array).</strong> Reads pre-chosen variant positions. Cheap, fast, limited.</li>
+            <li><strong>Sequencing (WGS / WES).</strong> Reads the actual sequence. More expensive, generates orders of magnitude more data, finds novel variants.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 40 min</span>
+          Illumina / NGS in Detail
+        </h2>
+
+        <aside class="callout callout--note">
+          <span class="callout-label">Why we dwell here</span>
+          <p>This is the deepest technical block of the lecture. Illumina is ~80% of sequencing output globally — if you understand one platform, make it this one.</p>
+        </aside>
+
+        <section id="sec-4-1">
+          <h3>4.1 Overview</h3>
+          <p>Illumina's technology is called <strong>sequencing-by-synthesis (SBS)</strong> with <strong>reversible terminators</strong>. The basic idea:</p>
+          <ul>
+            <li>Immobilize millions of DNA fragments on a flow cell.</li>
+            <li>Amplify each fragment in place to form a "cluster" of ~1000 identical copies (signal amplification).</li>
+            <li>Cycle through: add all four fluorescently labeled, reversibly-terminated nucleotides → let one incorporate → image → cleave the terminator and fluorophore → repeat.</li>
+            <li>Each cycle adds one base to every cluster. The imaging tells you which base was added where.</li>
+          </ul>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 Library preparation</h3>
+
+          <p>Before a sample touches the sequencer, it's converted into a "library":</p>
+          <ol>
+            <li><strong>Fragmentation.</strong> Break genomic DNA into pieces of desired size (~300–500&nbsp;bp for standard short-read). Methods: sonication (Covaris), enzymatic (tagmentation with Tn5 transposase — Nextera kits).</li>
+            <li><strong>End repair &amp; A-tailing.</strong> Blunt the fragment ends, add a single A overhang.</li>
+            <li><strong>Adapter ligation.</strong> Ligate <strong>adapter sequences</strong> onto both ends. Adapters contain:
+              <ul>
+                <li>Sequences complementary to flow-cell oligos (so fragments can bind).</li>
+                <li>Sequencing primer sites.</li>
+                <li><strong>Index / barcode</strong> sequences — so you can pool multiple samples in one run (<strong>multiplexing</strong>).</li>
+              </ul>
+            </li>
+            <li><strong>PCR amplification.</strong> Enrich for adapter-ligated fragments; add sample indices if not already present.</li>
+            <li><strong>Size selection.</strong> AMPure beads or gel, to narrow the fragment size distribution.</li>
+            <li><strong>QC.</strong> Bioanalyzer / TapeStation + qPCR to verify library concentration and size.</li>
+          </ol>
+
+          <pre class="sequence-block">5'─[P5 adapter]─[i5 index]─[Read1 primer]─[INSERT]─[Read2 primer]─[i7 index]─[P7 adapter]─3'</pre>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Cluster generation — bridge amplification</h3>
+
+          <p>The <strong>flow cell</strong> is a glass slide with billions of short oligos covalently bound to its surface — two kinds, complementary to the P5 and P7 adapters.</p>
+
+          <ol>
+            <li><strong>Seeding.</strong> Library is flowed over the cell. Each fragment hybridizes to a surface oligo by its P5 or P7 end.</li>
+            <li><strong>First extension.</strong> The surface oligo is used as a primer; polymerase extends, creating a covalently attached copy. The original template is washed away.</li>
+            <li><strong>Bridge formation.</strong> The free end (P7 or P5) bends over and hybridizes to a <strong>nearby</strong> surface oligo of the complementary type.</li>
+            <li><strong>Bridge amplification.</strong> Polymerase extends the bridge. Denaturation separates them. Now two covalently attached copies, close together.</li>
+            <li><strong>Repeat ~35 cycles.</strong> Exponential clonal amplification produces a <strong>cluster</strong> of ~1000 identical copies, all localized to a ~1&nbsp;μm spot on the flow cell.</li>
+            <li><strong>Linearization.</strong> One of the two strand types is cleaved and washed away, leaving a cluster of single-stranded DNA all in the same orientation, ready for sequencing.</li>
+          </ol>
+
+          <p>Why clusters? Single-molecule fluorescence would be too dim to image reliably. A cluster of 1000 copies gives a bright, diffraction-limited spot the camera can see.</p>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Sequencing by synthesis</h3>
+
+          <p>Each cycle:</p>
+          <ol>
+            <li>Add a mix of all four dNTPs. Each is labeled with a different fluorescent dye <strong>and</strong> carries a <strong>reversible 3' blocker</strong>, so only one can be incorporated per cycle.</li>
+            <li>Polymerase extends each cluster's strand by exactly one base.</li>
+            <li>Wash away unincorporated nucleotides.</li>
+            <li><strong>Image</strong> the flow cell in 4 channels (4-channel chemistry — HiSeq, MiSeq) or 2 channels (NextSeq, NovaSeq — faster and cheaper with clever color encoding).</li>
+            <li>Chemically cleave the fluorophore and the 3' blocker.</li>
+            <li>Repeat for N cycles (where N = desired read length, e.g., 150).</li>
+          </ol>
+
+          <h4>Two-channel chemistry</h4>
+          <p>On NextSeq / NovaSeq only two dyes are used. Bases are distinguished by which channels they appear in:</p>
+          <ul>
+            <li><code class="base-T">T</code>: red only.</li>
+            <li><code class="base-C">C</code>: green only.</li>
+            <li><code class="base-A">A</code>: red + green (both).</li>
+            <li><code class="base-G">G</code>: no color (dark).</li>
+          </ul>
+          <p>This halves imaging time and reduces cost. But "dark G" can be confused with a missing base — a source of characteristic 2-channel error.</p>
+
+          <h4>Paired-end sequencing</h4>
+          <p>After Read&nbsp;1, the cluster is re-synthesized from the other end (through a "turnaround" step) and Read&nbsp;2 is sequenced from the opposite direction. You get two reads per fragment — powerful for alignment (they bracket an "insert" of known approximate size) and for resolving repeats.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Illumina Base Caller</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-01/04-illumina-basecaller.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-01/04-illumina-basecaller.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Illumina Base Caller"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 Imaging, base calling, and error profile</h3>
+
+          <p>The sequencer is, physically, a fluorescence microscope with:</p>
+          <ul>
+            <li>Lasers at the relevant excitation wavelengths.</li>
+            <li>A motorized stage that scans the flow cell in tiles.</li>
+            <li>A CCD or CMOS sensor.</li>
+            <li>Real-time analysis (RTA) software that processes images to produce base calls and quality scores on the fly.</li>
+          </ul>
+
+          <p>The base-calling pipeline:</p>
+          <ol>
+            <li><strong>Image registration.</strong> Align images across cycles (the stage isn't perfectly repeatable).</li>
+            <li><strong>Cluster identification.</strong> Find spots in the first few cycles.</li>
+            <li><strong>Intensity extraction.</strong> Measure per-cluster fluorescence in each channel, each cycle.</li>
+            <li><strong>Crosstalk correction.</strong> The four dyes have overlapping emission spectra; a 4×4 correction matrix unmixes them.</li>
+            <li><strong>Phasing correction.</strong> In each cluster, a few percent of molecules "lag" (didn't incorporate this cycle) or "lead" (read through the terminator). This contamination accumulates and is corrected statistically.</li>
+            <li><strong>Base call + quality score.</strong> The cleanest channel wins; the quality score reflects how clean.</li>
+          </ol>
+
+          <p><strong>Error profile:</strong></p>
+          <ul>
+            <li><strong>Substitution errors</strong> dominate (~0.1–1%). Indels are rare.</li>
+            <li>Quality <strong>degrades along the read</strong>, especially after ~100–150 cycles, due to phasing accumulation.</li>
+            <li><strong>GC-bias.</strong> Extreme GC-content regions amplify poorly in PCR and cluster generation, producing coverage dropouts.</li>
+          </ul>
+        </section>
+
+        <section id="sec-4-6">
+          <h3>4.6 Platforms &amp; use cases</h3>
+
+          <table>
+            <thead><tr><th>Platform</th><th>Output</th><th>Read length</th><th>Typical use</th></tr></thead>
+            <tbody>
+              <tr><td><strong>MiSeq</strong></td>          <td>15&nbsp;Gb / run</td>    <td>2×300&nbsp;bp</td> <td>Small genomes, amplicons, 16S, validation</td></tr>
+              <tr><td><strong>NextSeq 2000</strong></td>   <td>360&nbsp;Gb / run</td>   <td>2×150&nbsp;bp</td> <td>Mid-scale WGS, exomes, transcriptomes</td></tr>
+              <tr><td><strong>NovaSeq X</strong></td>      <td>up to 16&nbsp;Tb / run</td><td>2×150&nbsp;bp</td><td>Population-scale WGS — the workhorse</td></tr>
+              <tr><td><strong>iSeq 100</strong></td>       <td>1.2&nbsp;Gb / run</td>   <td>2×150&nbsp;bp</td> <td>Benchtop, small-scale</td></tr>
+            </tbody>
+          </table>
+
+          <p>Competitors worth naming:</p>
+          <ul>
+            <li><strong>MGI / BGI / Complete Genomics (DNBSEQ).</strong> Similar SBS-style chemistry with "DNA nanoballs" instead of bridge-amplified clusters. Price-competitive; significant market share outside the US.</li>
+            <li><strong>Element Biosciences (AVITI).</strong> Rolling-circle amplicon chemistry with avidity-based base calling. Newer entrant, 2023+.</li>
+            <li><strong>Ultima Genomics.</strong> Single-end, massive-scale, unconventional open flow cell. Targets $100 genomes.</li>
+          </ul>
+        </section>
+      </section>
+
+      <div class="lecture-break" role="note">Break · 10 min</div>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 30 min</span>
+          Long-Read Sequencing
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 Why long reads?</h3>
+
+          <p>Illumina reads are typically 150&nbsp;bp. The human genome has repeat elements 10&nbsp;kb+ long. Short reads are <strong>ambiguous</strong> across long repeats — you can't tell which copy of a repeat a read came from.</p>
+
+          <p>What long reads enable:</p>
+          <ul>
+            <li><strong>Resolving structural variants</strong> (inversions, duplications, translocations, large insertions) — especially important in cancer and Mendelian disease.</li>
+            <li><strong>Haplotype phasing</strong> — knowing which variants are on the same chromosome copy.</li>
+            <li><strong>De novo assembly</strong> of genomes without a reference.</li>
+            <li><strong>Direct detection of DNA modifications</strong> — methylation — without additional chemistry.</li>
+            <li><strong>Full-length transcript sequencing</strong> — resolving isoforms in RNA-seq.</li>
+          </ul>
+
+          <p>Trade-off: historically, long reads had much higher per-base error rates. That gap has narrowed dramatically — PacBio HiFi is now competitive with Illumina on accuracy.</p>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 PacBio SMRT sequencing</h3>
+
+          <p><strong>Pacific Biosciences.</strong> SMRT = Single Molecule, Real Time. The core trick is a <strong>zero-mode waveguide (ZMW)</strong>:</p>
+          <ul>
+            <li>A ZMW is a hole ~70&nbsp;nm in diameter in a thin metal film on a glass slide.</li>
+            <li>Light at visible wavelengths <strong>cannot</strong> propagate into a hole that small (it's below the cutoff wavelength). But an <strong>evanescent field</strong> extends ~20–30&nbsp;nm in.</li>
+            <li>Fix a single DNA polymerase at the bottom of each ZMW. Only fluorescence from molecules near the polymerase (within the evanescent field) is detected. Everything above, in bulk solution, is dark.</li>
+            <li>Flow in fluorescently labeled nucleotides. As the polymerase incorporates each one, the fluorophore sits in the illuminated zone for milliseconds — long enough to be detected — then is cleaved off.</li>
+            <li>You directly observe nucleotide incorporation in real time.</li>
+          </ul>
+
+          <p>Characteristics:</p>
+          <ul>
+            <li><strong>Read length.</strong> 10–25&nbsp;kb typical, up to 100&nbsp;kb+.</li>
+            <li><strong>Error.</strong> Raw reads have ~10–15% random error. But PacBio <strong>HiFi</strong> mode circularizes short templates so the polymerase reads the same molecule <strong>repeatedly</strong> (~10+ passes); the <strong>consensus</strong> (<strong>CCS — circular consensus sequencing</strong>) is &gt;99.9% accurate.</li>
+            <li><strong>Throughput.</strong> Revio system, multi-Gb / run.</li>
+            <li><strong>Kinetic signal.</strong> The time between incorporations carries information — base modifications (e.g., m6A, 5mC) alter kinetics and can be detected directly.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>The evanescent-field trick is pure optics / physics. Subwavelength apertures as volume selectors — the same class of idea as near-field microscopy.</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Oxford Nanopore sequencing</h3>
+
+          <p><strong>Oxford Nanopore Technologies (ONT).</strong> The most EE-native platform in all of biology.</p>
+
+          <p>The device:</p>
+          <ul>
+            <li>A membrane with <strong>protein nanopores</strong> embedded in it (engineered pores based on bacterial porins).</li>
+            <li>Apply a voltage across the membrane. Ions flow through the pore, creating a measurable <strong>ionic current</strong> (~100&nbsp;pA).</li>
+            <li>Feed single-stranded DNA through the pore. The bases inside the pore <strong>partially block</strong> the ion flow — the current drops to a level characteristic of the bases currently in the narrow constriction.</li>
+            <li>Record the current over time. The signal is called a <strong>squiggle</strong>.</li>
+            <li>A motor protein attached to the pore controls the translocation rate (~400 bases / sec currently).</li>
+          </ul>
+
+          <p>The catch: at any moment, <strong>5–6 bases</strong> sit in the constriction simultaneously, all contributing to the current level. So the signal is an overlapping k-mer code, not one-base-at-a-time.</p>
+
+          <h4>Basecalling</h4>
+          <ul>
+            <li>This is a sequence-to-sequence machine learning problem: ionic current time series → base sequence.</li>
+            <li>Modern basecallers (Dorado, Bonito) are transformer- or RNN-based neural networks, trained on known references.</li>
+            <li>Running the basecaller typically requires a GPU.</li>
+          </ul>
+
+          <p>Characteristics:</p>
+          <ul>
+            <li><strong>Read length.</strong> Typical 10–50&nbsp;kb, <strong>ultra-long</strong> protocols routinely 100&nbsp;kb+, record reads &gt;4&nbsp;Mb.</li>
+            <li><strong>Error.</strong> Current high-accuracy basecalling gives ~99% per-base. Historically error was insertion/deletion-biased, especially in homopolymers (runs of the same base).</li>
+            <li><strong>Throughput.</strong> MinION (USB stick, ~$1000) generates ~10–30&nbsp;Gb / run. PromethION generates multi-Tb / run.</li>
+            <li><strong>Form factor.</strong> Uniquely portable. Deployed on research ships, in remote field stations, and on the International Space Station (Kate Rubins, 2016).</li>
+            <li><strong>Direct RNA sequencing.</strong> Unlike other platforms, ONT can sequence native RNA directly, preserving modifications.</li>
+          </ul>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Nanopore Squiggle Decoder</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-01/05-nanopore-squiggle.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-01/05-nanopore-squiggle.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Nanopore Squiggle Decoder"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — push harder</span>
+            <p>This is signal processing with deep learning. If you've done CTC (Connectionist Temporal Classification) in speech recognition, you've done most of nanopore basecalling. The similarity isn't a coincidence — many nanopore basecaller architectures were directly adapted from speech models.</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Error profile comparison</h3>
+
+          <table>
+            <thead><tr><th>Platform</th><th>Read length</th><th>Raw error</th><th>Consensus error</th><th>Error type</th></tr></thead>
+            <tbody>
+              <tr><td>Sanger</td>             <td>~800&nbsp;bp</td>    <td>&lt;0.1%</td>       <td>—</td>           <td>Random, low</td></tr>
+              <tr><td>Illumina</td>           <td>150–300&nbsp;bp</td> <td>~0.1–1%</td>        <td>—</td>           <td>Substitutions; quality drops late in read</td></tr>
+              <tr><td>PacBio CLR</td>         <td>10–25&nbsp;kb</td>   <td>~10–15%</td>        <td>—</td>           <td>Random</td></tr>
+              <tr><td>PacBio HiFi (CCS)</td>  <td>10–25&nbsp;kb</td>   <td>—</td>              <td>&lt;0.1%</td>    <td>Effectively Sanger-like, at scale</td></tr>
+              <tr><td>ONT (latest)</td>       <td>10&nbsp;kb–Mb</td>   <td>~1–5%</td>          <td>&lt;0.1% (duplex / consensus)</td><td>Indels, homopolymers historically</td></tr>
+            </tbody>
+          </table>
+
+          <p>Key conceptual point: <strong>error rate per read is not the same as error rate after consensus.</strong> Both PacBio HiFi and ONT duplex sequencing achieve Illumina-grade accuracy at long read lengths.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 25 min</span>
+          FASTQ File Format
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 The 4-line record</h3>
+
+          <p>Raw reads from any modern sequencer are delivered in <strong>FASTQ</strong> format. One read equals exactly four lines:</p>
+
+          <pre class="sequence-block">@SEQ_ID optional description
+GATTACAGATTACAGATTACAGATTACA
++
+!''*((((***+))%%%++)(%%%%).1</pre>
+
+          <p>Line by line:</p>
+          <ol>
+            <li><code>@</code> followed by the read identifier, and optional whitespace-separated description.</li>
+            <li>The <strong>raw sequence</strong> (A / C / G / T / N only, one character per base).</li>
+            <li><code>+</code> optionally followed by the same ID (usually just <code>+</code> alone).</li>
+            <li><strong>Quality string</strong> — one ASCII character per base, same length as the sequence.</li>
+          </ol>
+
+          <p>Files are usually <strong>gzip-compressed</strong> (<code>.fastq.gz</code> or <code>.fq.gz</code>). Large files are routinely 10–100&nbsp;GB compressed.</p>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 Phred quality scores</h3>
+
+          <p>Each quality character encodes a <strong>Phred quality score</strong> <em>Q</em>, relating to the probability <em>P</em> that the base call is wrong:</p>
+
+          <div class="equation-block">
+            Q = −10 · log<sub>10</sub>(P<sub>error</sub>)
+          </div>
+
+          <p>Equivalently:</p>
+
+          <div class="equation-block">
+            P<sub>error</sub> = 10<sup>−Q / 10</sup>
+          </div>
+
+          <p>Common values:</p>
+
+          <table>
+            <thead><tr><th>Q</th><th>P<sub>error</sub></th><th>Interpretation</th></tr></thead>
+            <tbody>
+              <tr><td>10</td><td>10% = 1 in 10</td>         <td>Poor</td></tr>
+              <tr><td>20</td><td>1% = 1 in 100</td>         <td>OK</td></tr>
+              <tr><td>30</td><td>0.1% = 1 in 1,000</td>     <td>Good ("Q30")</td></tr>
+              <tr><td>40</td><td>0.01% = 1 in 10,000</td>   <td>Excellent</td></tr>
+              <tr><td>50</td><td>0.001% = 1 in 100,000</td> <td>PacBio HiFi / Sanger-grade</td></tr>
+            </tbody>
+          </table>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — decibels</span>
+            <p>Phred is exactly 10·log<sub>10</sub> of an error rate. If you're comfortable reading dB, you already read Phred. Q30 = "30&nbsp;dB of base-call confidence."</p>
+          </aside>
+
+          <p>Illumina targets <strong>%Q30 &gt; 85%</strong> as a run-quality metric — meaning 85%+ of bases have Q ≥ 30.</p>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 ASCII encoding</h3>
+
+          <p>The quality <strong>character</strong> encodes the score as <code>ASCII_value − offset</code>. There are historical dialects:</p>
+          <ul>
+            <li><strong>Phred+33</strong> (modern standard — all current Illumina, PacBio, ONT output). <code>Q = ord(char) − 33</code>. Characters <code>!</code> (33) through <code>~</code> (126) encode Q 0–93.</li>
+            <li><strong>Phred+64</strong> (Solexa / early Illumina, ~2004–2011). <code>Q = ord(char) − 64</code>. Obsolete, but you'll still encounter old data.</li>
+          </ul>
+
+          <p>Example: the character <code>I</code> has ASCII value 73. In Phred+33: <code>Q = 73 − 33 = 40</code>.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning</span>
+            <p>Always know which encoding you're dealing with. Mixing them silently produces quality scores that are off by 31 — disastrous and non-obvious. Tools like FastQC auto-detect and warn.</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">FASTQ Inspector + Phred Calculator</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-01/06-fastq-inspector.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-01/06-fastq-inspector.html"
+                    class="artifact-frame" loading="lazy"
+                    title="FASTQ Inspector + Phred Calculator"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 Quality control and trimming</h3>
+
+          <p>Before any analysis, reads should be QC'd:</p>
+          <ul>
+            <li><strong>FastQC</strong> — standard QC tool. Produces an HTML report: per-base quality, per-sequence quality, GC distribution, adapter content, duplication levels, overrepresented sequences.</li>
+            <li><strong>Adapter trimming</strong> — remove leftover adapter sequences from reads that sequenced all the way through the insert. Tools: <code>cutadapt</code>, <code>trim_galore</code>, <code>fastp</code>.</li>
+            <li><strong>Quality trimming</strong> — trim low-quality tails (common at the 3' end of Illumina reads).</li>
+            <li><strong>Length filtering</strong> — drop reads shorter than a threshold post-trimming.</li>
+          </ul>
+        </section>
+
+        <section id="sec-6-5">
+          <h3>6.5 Hands-on parse</h3>
+
+          <p>Project this record on the board and work through it together:</p>
+
+          <pre class="sequence-block">@HWI-D00360:5:H814YADXX:1:1101:1230:2106 1:N:0:ACAGTG
+GATCCTACTGAACGATCACGACTAGCA
++
+BBBFFFFFFFFFFFIIIIIIFFFFFFF</pre>
+
+          <p>Walk-through:</p>
+          <ul>
+            <li>Read ID decoded: <code>HWI-D00360</code> instrument, run&nbsp;5, flow cell <code>H814YADXX</code>, lane&nbsp;1, tile&nbsp;1101, coords (1230,&nbsp;2106), paired read&nbsp;1, not filtered, index <code>ACAGTG</code>.</li>
+            <li>Length: 27 bases.</li>
+            <li>Quality characters → Phred+33 scores: <code>B</code>=33, <code>F</code>=37, <code>I</code>=40 — most bases are Q33–40.</li>
+            <li>Lowest quality in this record: <code>B</code> = Q33 ≈ 0.05% error.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup" class="lecture-wrapup">
+        <h2>
+          <span class="part-kicker">Wrap-up · 10 min</span>
+          Takeaways, homework, and next lecture
+        </h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li>DNA → RNA → Protein is the information spine of biology. Sequencing reads the first link.</li>
+          <li>Sequencing is an instrumentation + signal-processing problem. The field's progress has been driven by engineering as much as biology.</li>
+          <li>The cost collapse (from $100M to $100 in 20 years) is what made modern bioinformatics, and consumer genomics, exist.</li>
+          <li>Illumina dominates short-read; PacBio and ONT dominate long-read. They solve different problems.</li>
+          <li>Raw data = FASTQ. Quality = Phred = dB. Learn to read it.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Read alignment and genome assembly: BWA, minimap2, de Bruijn graphs, and the theoretical limits of short-read assembly.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Download a small FASTQ file (e.g., an SRA sample, or a provided subset).</li>
+          <li>Write a Python or MATLAB script that:
+            <ul>
+              <li>Parses the FASTQ without using Biopython.</li>
+              <li>Computes the mean quality per read.</li>
+              <li>Plots the mean quality as a function of position along the read.</li>
+            </ul>
+          </li>
+          <li>Answer: at what read position does quality start to drop off, and why?</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li><em>Molecular Biology of the Cell</em> — Alberts et al. (Chapters 4–6).</li>
+          <li>Metzker, M. L. (2010). Sequencing technologies — the next generation. <em>Nature Reviews Genetics</em> 11, 31–46.</li>
+          <li>Goodwin, McPherson &amp; McCombie (2016). Coming of age: ten years of next-generation sequencing technologies. <em>Nature Reviews Genetics</em> 17, 333–351.</li>
+          <li>Mantere, T., Kersten, S., &amp; Hoischen, A. (2019). Long-read sequencing emerging in medical genetics. <em>Frontiers in Genetics</em> 10, 426.</li>
+          <li>NHGRI Genome Sequencing Program cost data: <a href="https://www.genome.gov/about-genomics/fact-sheets/Sequencing-Human-Genome-cost" target="_blank" rel="noopener">genome.gov/sequencing-cost</a>.</li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — Biology</td>       <td>45&nbsp;min</td><td>0:45</td></tr>
+            <tr><td>Part 2 — Central Dogma</td> <td>25&nbsp;min</td><td>1:10</td></tr>
+            <tr><td>Break</td>                  <td>10&nbsp;min</td><td>1:20</td></tr>
+            <tr><td>Part 3 — History + Cost</td><td>40&nbsp;min</td><td>2:00</td></tr>
+            <tr><td>Part 4 — Illumina</td>      <td>40&nbsp;min</td><td>2:40</td></tr>
+            <tr><td>Break</td>                  <td>10&nbsp;min</td><td>2:50</td></tr>
+            <tr><td>Part 5 — Long-read</td>     <td>30&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Part 6 — FASTQ</td>         <td>25&nbsp;min</td><td>3:45</td></tr>
+            <tr><td>Wrap-up</td>                <td>10&nbsp;min</td><td>3:55</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 55min. Tight for a 4-hour slot; slide Part 1 depth up or down depending on students' biology background.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  // Scroll-progress bar
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  // TOC current-section highlighting
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+
+    const targets = Array.from(byId.keys())
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+
+    targets.forEach(t => io.observe(t));
+  })();
+
+  // Iframe auto-resize (listens for postMessage from artifacts)
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) {
+          f.style.height = d.height + 'px';
+        }
+      });
+    });
+  })();
+
+  // Heading anchor-link copy
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+</body>
+</html>

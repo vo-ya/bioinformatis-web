@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DNA Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 60ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .seq-row { display: flex; gap: 0.5rem; }
+    .seq-input {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      letter-spacing: 0.04em;
+      padding: 0.55rem 0.75rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      min-width: 0;
+    }
+    .seq-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+    .seq-input.is-invalid { border-color: var(--error); }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.55rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .error-note {
+      margin: 0.5rem 0 0;
+      font-size: var(--text-xs);
+      color: var(--error);
+      min-height: 1em;
+    }
+
+    /* ─── Stat strip ─────────────────────────────────────── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      padding: 0.9rem 1rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 1.25rem;
+    }
+    .stat-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin: 0;
+    }
+    .stat-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-xl);
+      font-weight: 500;
+      color: var(--fg);
+      margin: 0.1rem 0 0;
+    }
+    .stat-value.is-bad { color: var(--error); }
+    .stat-value.is-ok  { color: var(--success); }
+
+    /* ─── Double strand ───────────────────────────────────── */
+    .strands {
+      --cell: 1.6rem;
+      overflow-x: auto;
+      padding: 0.25rem 0;
+      font-family: var(--font-mono);
+    }
+
+    .strand-row {
+      display: grid;
+      grid-template-columns: 1rem 1fr 1rem;
+      align-items: center;
+      column-gap: 0.5rem;
+      min-width: min-content;
+    }
+
+    .strand-end {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      font-weight: 500;
+      justify-self: center;
+    }
+
+    .strand-bases, .pair-bars {
+      display: grid;
+      grid-template-columns: repeat(var(--n, 0), var(--cell));
+      min-width: min-content;
+    }
+
+    .base {
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+    .base.is-A { color: var(--base-a); }
+    .base.is-T { color: var(--base-t); }
+    .base.is-G { color: var(--base-g); }
+    .base.is-C { color: var(--base-c); }
+    .base.is-N { color: var(--base-n); }
+
+    .pair-bar {
+      text-align: center;
+      color: var(--fg-subtle);
+      font-size: 0.9rem;
+      opacity: 0.6;
+    }
+
+    .strand-truncated {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-top: 0.5rem;
+    }
+
+    /* ─── Derived sequences ───────────────────────────────── */
+    .derived-table {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 0.25rem 1rem;
+      align-items: baseline;
+      font-size: var(--text-sm);
+    }
+    .derived-table dt {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 0.55rem 0;
+    }
+    .derived-table dd {
+      margin: 0.5rem 0;
+      font-family: var(--font-mono);
+      letter-spacing: 0.04em;
+      overflow-x: auto;
+      white-space: nowrap;
+      padding-bottom: 2px;
+    }
+
+    /* ─── Base composition ────────────────────────────────── */
+    .composition-bar {
+      display: flex;
+      width: 100%;
+      height: 1.5rem;
+      background: var(--bg-inset);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .composition-seg {
+      height: 100%;
+      min-width: 0;
+      transition: flex-basis 240ms ease;
+    }
+    .composition-legend {
+      margin: 0.75rem 0 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.25rem;
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .composition-legend .dot {
+      display: inline-block;
+      width: 0.75rem;
+      height: 0.75rem;
+      border-radius: 2px;
+      margin-right: 0.4rem;
+      vertical-align: middle;
+    }
+    .composition-legend .pct {
+      font-family: var(--font-mono);
+      color: var(--fg-muted);
+      font-size: var(--text-xs);
+      margin-left: 0.3rem;
+    }
+
+    .empty-hint {
+      color: var(--fg-subtle);
+      font-style: italic;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="dna-explorer">
+
+  <header class="artifact-head">
+    <h1>DNA Explorer</h1>
+    <p>Type or paste a DNA sequence. See its complement, reverse, and reverse complement; its length, GC content, and base composition. Bases are colored with the same palette used everywhere else in the course.</p>
+  </header>
+
+  <section class="panel">
+    <label class="field-label" for="seq-input">DNA sequence</label>
+    <div class="seq-row">
+      <input id="seq-input" class="seq-input" type="text" spellcheck="false" autocomplete="off"
+             value="GATTACAGATTACAGATTACA"
+             aria-describedby="seq-error"
+             placeholder="Type letters A, T, G, C, N…">
+      <button id="random-btn" class="btn" type="button">Random</button>
+      <button id="clear-btn" class="btn" type="button">Clear</button>
+    </div>
+    <p class="error-note" id="seq-error" aria-live="polite"></p>
+  </section>
+
+  <div class="stats" aria-live="polite">
+    <div>
+      <p class="stat-label">Length</p>
+      <p class="stat-value" id="stat-length">0</p>
+    </div>
+    <div>
+      <p class="stat-label">GC content</p>
+      <p class="stat-value" id="stat-gc">—</p>
+    </div>
+    <div>
+      <p class="stat-label">AT content</p>
+      <p class="stat-value" id="stat-at">—</p>
+    </div>
+    <div>
+      <p class="stat-label">Tm (approx.)</p>
+      <p class="stat-value" id="stat-tm">—</p>
+    </div>
+  </div>
+
+  <section class="panel">
+    <p class="panel-label">Double strand (antiparallel)</p>
+    <div class="strands" id="strands" aria-label="Double-stranded DNA view">
+      <div class="strand-row">
+        <span class="strand-end">5'</span>
+        <div class="strand-bases" id="top-strand"></div>
+        <span class="strand-end">3'</span>
+      </div>
+      <div class="strand-row">
+        <span></span>
+        <div class="pair-bars" id="pair-bars"></div>
+        <span></span>
+      </div>
+      <div class="strand-row">
+        <span class="strand-end">3'</span>
+        <div class="strand-bases" id="bottom-strand"></div>
+        <span class="strand-end">5'</span>
+      </div>
+    </div>
+    <p class="strand-truncated" id="strand-truncated" hidden></p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Derived sequences</p>
+    <dl class="derived-table" id="derived">
+      <dt>Complement</dt>        <dd id="derived-complement"></dd>
+      <dt>Reverse</dt>            <dd id="derived-reverse"></dd>
+      <dt>Reverse complement</dt> <dd id="derived-revcomp"></dd>
+    </dl>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Base composition</p>
+    <div class="composition-bar" id="comp-bar" aria-hidden="true"></div>
+    <ul class="composition-legend" id="comp-legend"></ul>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const ALLOWED = /^[ACGTN]*$/i;
+  const VALID_RE = /[^ACGTN\s]/gi;
+
+  const COMPLEMENT = { A:'T', T:'A', G:'C', C:'G', N:'N' };
+
+  const $ = (id) => document.getElementById(id);
+
+  const input        = $('seq-input');
+  const errorEl      = $('seq-error');
+  const randomBtn    = $('random-btn');
+  const clearBtn     = $('clear-btn');
+  const topStrand    = $('top-strand');
+  const bottomStrand = $('bottom-strand');
+  const pairBars     = $('pair-bars');
+  const truncatedEl  = $('strand-truncated');
+  const lenEl        = $('stat-length');
+  const gcEl         = $('stat-gc');
+  const atEl         = $('stat-at');
+  const tmEl         = $('stat-tm');
+  const compBar      = $('comp-bar');
+  const compLegend   = $('comp-legend');
+  const derivedComp  = $('derived-complement');
+  const derivedRev   = $('derived-reverse');
+  const derivedRc    = $('derived-revcomp');
+
+  const DRAW_CAP = 200;
+
+  function sanitize(raw) {
+    const up = (raw || '').toUpperCase();
+    return up.replace(/[^ACGTN]/g, '');
+  }
+
+  function complement(s)   { return s.split('').map(b => COMPLEMENT[b] || 'N').join(''); }
+  function reverseStr(s)   { return s.split('').reverse().join(''); }
+  function revComplement(s){ return reverseStr(complement(s)); }
+
+  function gcContent(s) {
+    if (!s.length) return null;
+    let gc = 0, valid = 0;
+    for (const b of s) {
+      if (b === 'G' || b === 'C') gc++;
+      if (b !== 'N') valid++;
+    }
+    if (!valid) return null;
+    return (gc / valid) * 100;
+  }
+
+  // Wallace rule: Tm ≈ 2·(A+T) + 4·(G+C). Meaningful only for short (<14 nt) primers.
+  function wallaceTm(s) {
+    if (!s.length) return null;
+    let a=0,t=0,g=0,c=0;
+    for (const b of s) { if(b==='A')a++; else if(b==='T')t++; else if(b==='G')g++; else if(b==='C')c++; }
+    return 2*(a+t) + 4*(g+c);
+  }
+
+  function randomDna(n) {
+    const L = 'ACGT';
+    let out = '';
+    for (let i = 0; i < n; i++) out += L[Math.floor(Math.random() * 4)];
+    return out;
+  }
+
+  function setError(msg) {
+    errorEl.textContent = msg || '';
+    input.classList.toggle('is-invalid', !!msg);
+    input.setAttribute('aria-invalid', msg ? 'true' : 'false');
+  }
+
+  // Build a row of colored base spans in a grid of --n columns
+  function renderStrand(container, seq) {
+    container.style.setProperty('--n', seq.length);
+    container.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    for (const b of seq) {
+      const span = document.createElement('span');
+      span.className = 'base is-' + b;
+      span.textContent = b;
+      frag.appendChild(span);
+    }
+    container.appendChild(frag);
+  }
+
+  function renderPairBars(n) {
+    pairBars.style.setProperty('--n', n);
+    pairBars.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < n; i++) {
+      const span = document.createElement('span');
+      span.className = 'pair-bar';
+      span.textContent = '|';
+      frag.appendChild(span);
+    }
+    pairBars.appendChild(frag);
+  }
+
+  function renderComposition(counts, total) {
+    const order = ['A', 'T', 'G', 'C', 'N'];
+    compBar.innerHTML = '';
+    compLegend.innerHTML = '';
+
+    if (!total) {
+      compBar.setAttribute('aria-hidden', 'true');
+      const empty = document.createElement('li');
+      empty.className = 'empty-hint';
+      empty.textContent = 'Enter a sequence to see its composition.';
+      compLegend.appendChild(empty);
+      return;
+    }
+
+    order.forEach((b) => {
+      const n = counts[b] || 0;
+      if (!n) return;
+      const frac = n / total;
+      const seg = document.createElement('div');
+      seg.className = 'composition-seg';
+      seg.style.flexBasis = (frac * 100).toFixed(3) + '%';
+      seg.style.background = `var(--base-${b.toLowerCase()})`;
+      seg.setAttribute('aria-label', `${b}: ${n} (${(frac*100).toFixed(1)}%)`);
+      compBar.appendChild(seg);
+
+      const li = document.createElement('li');
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = `var(--base-${b.toLowerCase()})`;
+      const label = document.createElement('strong');
+      label.textContent = `${b}`;
+      const count = document.createTextNode(` ${n}`);
+      const pct = document.createElement('span');
+      pct.className = 'pct';
+      pct.textContent = `${(frac*100).toFixed(1)}%`;
+      li.appendChild(dot); li.appendChild(label); li.appendChild(count); li.appendChild(pct);
+      compLegend.appendChild(li);
+    });
+  }
+
+  function render(seq) {
+    // Stats
+    lenEl.textContent = `${seq.length} bp`;
+    const gc = gcContent(seq);
+    gcEl.textContent = gc === null ? '—' : `${gc.toFixed(1)}%`;
+    atEl.textContent = gc === null ? '—' : `${(100 - gc).toFixed(1)}%`;
+    const tm = wallaceTm(seq);
+    if (tm === null) tmEl.textContent = '—';
+    else tmEl.textContent = (seq.length <= 14 ? `${tm} °C` : `${tm} °C*`);
+    tmEl.title = seq.length > 14 ? 'Wallace rule is only meaningful for oligos ≤14 nt.' : '';
+
+    // Counts
+    const counts = { A:0, T:0, G:0, C:0, N:0 };
+    for (const b of seq) if (counts[b] !== undefined) counts[b]++;
+
+    // Double strand — cap at DRAW_CAP to avoid huge DOMs
+    const drawLen = Math.min(seq.length, DRAW_CAP);
+    const top = seq.slice(0, drawLen);
+    const bot = complement(top);
+    renderStrand(topStrand, top);
+    renderStrand(bottomStrand, bot);
+    renderPairBars(drawLen);
+
+    if (seq.length > DRAW_CAP) {
+      truncatedEl.hidden = false;
+      truncatedEl.textContent = `Showing first ${DRAW_CAP} bp of ${seq.length}. Stats below reflect the full sequence.`;
+    } else if (!seq.length) {
+      truncatedEl.hidden = false;
+      truncatedEl.textContent = 'Enter a sequence above to see the double-strand view.';
+    } else {
+      truncatedEl.hidden = true;
+      truncatedEl.textContent = '';
+    }
+
+    // Derived
+    derivedComp.textContent = seq ? complement(seq)    : '—';
+    derivedRev.textContent  = seq ? reverseStr(seq)    : '—';
+    derivedRc.textContent   = seq ? revComplement(seq) : '—';
+
+    // Composition
+    renderComposition(counts, seq.length);
+  }
+
+  function handleInputChange() {
+    const raw = input.value;
+    const clean = sanitize(raw);
+    // Determine if user typed anything invalid
+    const stripped = raw.replace(/\s+/g, '');
+    const invalid = stripped.toUpperCase().replace(/[ACGTN]/g, '');
+
+    if (raw !== clean) {
+      const pos = input.selectionStart;
+      const diff = raw.length - clean.length;
+      input.value = clean;
+      try { input.setSelectionRange(Math.max(0, pos - diff), Math.max(0, pos - diff)); } catch (_) {}
+    }
+    if (invalid.length) {
+      const unique = Array.from(new Set(invalid.split(''))).join(' ');
+      setError(`Ignored characters: ${unique}. Allowed: A, C, G, T, N.`);
+    } else {
+      setError('');
+    }
+    render(clean);
+  }
+
+  input.addEventListener('input', handleInputChange);
+  randomBtn.addEventListener('click', () => {
+    input.value = randomDna(30);
+    setError('');
+    render(input.value);
+  });
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    setError('');
+    render('');
+    input.focus();
+  });
+
+  render(sanitize(input.value));
+})();
+</script>
+
+</body>
+</html>

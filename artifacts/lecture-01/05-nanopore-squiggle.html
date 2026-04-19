@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nanopore Squiggle Decoder</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 60ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .seq-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .seq-input {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      letter-spacing: 0.04em;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      min-width: 0;
+    }
+    .seq-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 1.25rem;
+      align-items: flex-end;
+      margin-bottom: 1rem;
+    }
+    .control-field {
+      flex: 1 1 160px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    .control-field input[type="range"] { accent-color: var(--accent); }
+    .control-readout {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+    .playback {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .cycle-readout {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+    }
+
+    /* ─── Pore cartoon ───────────────────────────────────── */
+    .pore-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      overflow: hidden;
+    }
+    .pore-svg { width: 100%; height: 180px; display: block; }
+
+    /* Squiggle canvas */
+    .squiggle-wrap {
+      background: #0b0d10;
+      border-radius: var(--radius-sm);
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+    }
+    .squiggle-canvas {
+      width: 100%;
+      height: 200px;
+      display: block;
+    }
+
+    /* Basecaller output */
+    .bc-wrap {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .bc-row { display: flex; gap: 0.75rem; }
+    .bc-row-label {
+      color: var(--fg-subtle);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      min-width: 5.5rem;
+    }
+    .bc-row.template { border-bottom: 1px dashed var(--border); padding-bottom: 0.3rem; margin-bottom: 0.3rem; }
+    .bc-base.is-A { color: var(--base-a); }
+    .bc-base.is-T { color: var(--base-t); }
+    .bc-base.is-G { color: var(--base-g); }
+    .bc-base.is-C { color: var(--base-c); }
+    .bc-base.miscall {
+      background: #fdd9d5;
+      color: var(--error);
+      font-weight: 700;
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+    .bc-base.window {
+      outline: 1px solid var(--accent);
+      outline-offset: -1px;
+      border-radius: 2px;
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .example-strip { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.25rem; }
+    .example-strip .btn { font-family: var(--font-mono); font-size: var(--text-xs); padding: 0.35rem 0.65rem; }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="nanopore-squiggle">
+
+  <header class="artifact-head">
+    <h1>Nanopore Squiggle Decoder</h1>
+    <p>DNA threads through a ~1-nm pore; the bases currently inside partially block an ionic current, producing a stepped time series — the <strong>squiggle</strong>. A basecaller turns that signal back into a sequence. Here it's just a nearest-neighbour lookup over k-mers — real basecallers use deep learning for a reason.</p>
+  </header>
+
+  <section class="panel">
+    <label class="field-label" for="template">Template (this is what threads through the pore)</label>
+    <div class="seq-row">
+      <input id="template" class="seq-input" type="text" spellcheck="false" autocomplete="off"
+             value="GATTACAGATTACAGATTACAGA">
+      <button id="random-btn" class="btn" type="button">Random</button>
+    </div>
+    <div class="example-strip">
+      <button class="btn" data-ex="GATTACAGATTACAGATTACAGA">Mixed (default)</button>
+      <button class="btn" data-ex="AAAAAAAAAAAAAATTTTTT">Homopolymer — A₁₄T₆</button>
+      <button class="btn" data-ex="ACGTACGTACGTACGTACGT">Repeat — ACGT×5</button>
+      <button class="btn" data-ex="GCGCGCGCGCGCGCGCGCGC">GC alternate</button>
+    </div>
+
+    <div class="controls" style="margin-top: 1rem;">
+      <div class="control-field">
+        <label class="field-label" for="speed">Speed</label>
+        <input id="speed" type="range" min="1" max="10" value="5">
+        <div class="control-readout"><span>slow</span><span id="speed-read">5</span><span>fast</span></div>
+      </div>
+      <div class="control-field">
+        <label class="field-label" for="noise">Noise (pA)</label>
+        <input id="noise" type="range" min="0" max="15" step="0.5" value="3">
+        <div class="control-readout"><span>0</span><span id="noise-read">3.0</span><span>15</span></div>
+      </div>
+      <div class="playback">
+        <button id="play-btn" class="btn btn--primary" type="button">▶ Play</button>
+        <button id="pause-btn" class="btn" type="button" disabled>⏸ Pause</button>
+        <button id="step-btn" class="btn" type="button">⏭ Step</button>
+        <button id="reset-btn" class="btn" type="button">↺ Reset</button>
+        <span class="cycle-readout" id="position-readout"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Nanopore — 5 bases in the constriction</p>
+    <div class="pore-wrap">
+      <svg class="pore-svg" id="pore-svg" viewBox="0 0 800 180" preserveAspectRatio="xMidYMid meet" aria-label="Schematic of DNA translocating through a nanopore"></svg>
+    </div>
+    <p class="hint">The current level depends on <strong>all 5 bases</strong> inside the pore at once — so consecutive levels share 4 bases of context. That's the "5-mer model" most nanopore basecallers use.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Ionic current (scrolling)</p>
+    <div class="squiggle-wrap">
+      <canvas id="squiggle" class="squiggle-canvas" width="1100" height="200"></canvas>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Basecaller output vs template</p>
+    <div class="bc-wrap" id="bc-wrap"></div>
+    <p class="hint" id="bc-hint"></p>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  // ─── State ────────────────────────────────────────────
+  const state = {
+    template: 'GATTACAGATTACAGATTACAGA',
+    position: 0,       // 0 = first 5-mer window (positions 0..4)
+    playing: false,
+    timer: null,
+    speed: 5,
+    noise: 3,
+    levels: [],        // array of measured current levels so far
+    calls: [],         // array of called bases (center of each 5-mer)
+  };
+
+  const K = 5;                       // k-mer size
+  const CURRENT_MIN = 60;            // pA
+  const CURRENT_MAX = 120;
+  const SAMPLES_PER_STEP = 8;        // granularity of the squiggle trace per 5-mer step
+
+  // Precomputed table of all 4^5 = 1024 k-mers → deterministic pseudo-random currents
+  const KMERS = [];
+  const KMER_CURRENT = new Map();
+  (function buildKmers() {
+    const letters = ['A','C','G','T'];
+    function walk(prefix) {
+      if (prefix.length === K) {
+        KMERS.push(prefix);
+        KMER_CURRENT.set(prefix, kmerCurrent(prefix));
+        return;
+      }
+      for (const b of letters) walk(prefix + b);
+    }
+    walk('');
+  })();
+
+  function kmerCurrent(kmer) {
+    // Deterministic pseudo-random-ish map from k-mer string → current in [CURRENT_MIN, CURRENT_MAX]
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < kmer.length; i++) {
+      h ^= kmer.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    const frac = (h % 1000) / 1000;
+    return CURRENT_MIN + frac * (CURRENT_MAX - CURRENT_MIN);
+  }
+
+  // ─── DOM refs ────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+  const templateEl = $('template');
+  const randomBtn  = $('random-btn');
+  const speedEl    = $('speed');
+  const noiseEl    = $('noise');
+  const playBtn    = $('play-btn');
+  const pauseBtn   = $('pause-btn');
+  const stepBtn    = $('step-btn');
+  const resetBtn   = $('reset-btn');
+  const posRead    = $('position-readout');
+  const poreSvg    = $('pore-svg');
+  const squiggle   = $('squiggle');
+  const bcWrap     = $('bc-wrap');
+  const bcHint     = $('bc-hint');
+
+  // ─── Helpers ─────────────────────────────────────────
+  function sanitize(s) { return (s || '').toUpperCase().replace(/[^ACGT]/g, ''); }
+
+  function randomDna(n) {
+    const L = 'ACGT';
+    let out = '';
+    for (let i = 0; i < n; i++) out += L[Math.floor(Math.random() * 4)];
+    return out;
+  }
+
+  function gauss() {
+    const u = 1 - Math.random();
+    const v = 1 - Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function currentKmer() {
+    return state.template.slice(state.position, state.position + K);
+  }
+
+  function expectedCurrent(kmer) {
+    return KMER_CURRENT.get(kmer);
+  }
+
+  // Basecaller: given a measured mean current, find k-mer with the closest expected
+  // value. Emit that k-mer's center base as the call.
+  function basecall(measured) {
+    let best = null, bestDelta = Infinity;
+    for (const [kmer, cur] of KMER_CURRENT) {
+      const d = Math.abs(cur - measured);
+      if (d < bestDelta) { bestDelta = d; best = kmer; }
+    }
+    return best ? best[2] : '?';
+  }
+
+  function maxPosition() {
+    return Math.max(0, state.template.length - K);
+  }
+
+  // ─── Step the simulation ─────────────────────────────
+  function advance() {
+    const maxPos = maxPosition();
+    if (state.position > maxPos) return;
+
+    const kmer = currentKmer();
+    const expected = expectedCurrent(kmer);
+    // Generate SAMPLES_PER_STEP noisy samples around the expected level
+    const samples = [];
+    for (let i = 0; i < SAMPLES_PER_STEP; i++) {
+      samples.push(expected + state.noise * gauss());
+    }
+    const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
+
+    state.levels.push({ kmer, expected, samples, mean });
+    // Basecaller reports the center base of the best-matching k-mer
+    state.calls.push(basecall(mean));
+
+    state.position += 1;
+    render();
+
+    if (state.position > maxPos) stop();
+  }
+
+  function play() {
+    if (state.position > maxPosition()) resetSim();
+    state.playing = true;
+    updateButtons();
+    const delay = 600 - (state.speed - 1) * 55;  // 600ms slow … 110ms fast
+    state.timer = setInterval(advance, delay);
+  }
+
+  function stop() {
+    state.playing = false;
+    if (state.timer) { clearInterval(state.timer); state.timer = null; }
+    updateButtons();
+  }
+
+  function step() { stop(); advance(); }
+
+  function resetSim() {
+    stop();
+    state.position = 0;
+    state.levels = [];
+    state.calls = [];
+    render();
+  }
+
+  function updateButtons() {
+    const atEnd = state.position > maxPosition();
+    playBtn.disabled  = state.playing || atEnd;
+    pauseBtn.disabled = !state.playing;
+    stepBtn.disabled  = atEnd;
+  }
+
+  // ─── Render pore cartoon ─────────────────────────────
+  function renderPore() {
+    const W = 800, H = 180;
+    const mid = H / 2;
+    const poreHalfW = 60;
+    const poreTop = mid - 40;
+    const poreBot = mid + 40;
+    const cx = W / 2;
+
+    const kmer = state.template.slice(state.position, state.position + K).padEnd(K, ' ');
+    const before = state.template.slice(Math.max(0, state.position - 8), state.position);
+    const after  = state.template.slice(state.position + K, state.position + K + 8);
+
+    const baseColor = { A: '#c4342c', T: '#0d7377', G: '#b45309', C: '#2d7a3e' };
+
+    let svg = '';
+    // Membrane
+    svg += `<rect x="0" y="${mid - 55}" width="${cx - poreHalfW}" height="12" fill="#c4c1b6" />`;
+    svg += `<rect x="0" y="${mid + 43}" width="${cx - poreHalfW}" height="12" fill="#c4c1b6" />`;
+    svg += `<rect x="${cx + poreHalfW}" y="${mid - 55}" width="${W - cx - poreHalfW}" height="12" fill="#c4c1b6" />`;
+    svg += `<rect x="${cx + poreHalfW}" y="${mid + 43}" width="${W - cx - poreHalfW}" height="12" fill="#c4c1b6" />`;
+
+    // Pore walls
+    svg += `<path d="M ${cx - poreHalfW} ${mid - 55} L ${cx - poreHalfW} ${mid - 10} L ${cx - 18} ${mid} L ${cx - poreHalfW} ${mid + 10} L ${cx - poreHalfW} ${mid + 55}" fill="none" stroke="#8a8a85" stroke-width="2" />`;
+    svg += `<path d="M ${cx + poreHalfW} ${mid - 55} L ${cx + poreHalfW} ${mid - 10} L ${cx + 18} ${mid} L ${cx + poreHalfW} ${mid + 10} L ${cx + poreHalfW} ${mid + 55}" fill="none" stroke="#8a8a85" stroke-width="2" />`;
+
+    // Motor protein (ratchet) above the pore
+    svg += `<rect x="${cx - 24}" y="${mid - 68}" width="48" height="14" rx="4" fill="#1e3a8a" opacity="0.85" />`;
+    svg += `<text x="${cx}" y="${mid - 57}" font-family="Inter, sans-serif" font-size="9" text-anchor="middle" fill="#fff" font-weight="600">motor</text>`;
+
+    // 5 bases in the constriction (spaced vertically because DNA threads vertically through pore)
+    for (let i = 0; i < K; i++) {
+      const b = kmer[i];
+      if (!b.trim()) continue;
+      const bx = cx - 40 + i * 20;
+      svg += `<circle cx="${bx}" cy="${mid}" r="9" fill="${baseColor[b] || '#888'}" />`;
+      svg += `<text x="${bx}" y="${mid + 3.5}" font-family="JetBrains Mono, monospace" font-size="11" text-anchor="middle" fill="#fff" font-weight="700">${b}</text>`;
+    }
+
+    // Upstream bases (entering from left)
+    for (let i = 0; i < before.length; i++) {
+      const b = before[before.length - 1 - i];
+      const bx = cx - poreHalfW - 15 - i * 16;
+      if (bx < 10) continue;
+      svg += `<text x="${bx}" y="${mid - 25}" font-family="JetBrains Mono, monospace" font-size="12" text-anchor="middle" fill="${baseColor[b] || '#888'}" font-weight="500">${b}</text>`;
+    }
+    // Dotted line connecting them visually
+    svg += `<text x="${cx - poreHalfW - 140}" y="${mid - 11}" font-family="Inter, sans-serif" font-size="10" fill="#525252">⟵ entering</text>`;
+
+    // Downstream bases (exiting to right)
+    for (let i = 0; i < after.length; i++) {
+      const b = after[i];
+      const bx = cx + poreHalfW + 15 + i * 16;
+      if (bx > W - 10) break;
+      svg += `<text x="${bx}" y="${mid + 28}" font-family="JetBrains Mono, monospace" font-size="12" text-anchor="middle" fill="${baseColor[b] || '#888'}" font-weight="500">${b}</text>`;
+    }
+    svg += `<text x="${cx + poreHalfW + 140}" y="${mid + 13}" font-family="Inter, sans-serif" font-size="10" fill="#525252">exiting ⟶</text>`;
+
+    // Voltage labels
+    svg += `<text x="10" y="${mid - 65}" font-family="Inter, sans-serif" font-size="10" fill="#8a8a85">+V</text>`;
+    svg += `<text x="10" y="${mid + 70}" font-family="Inter, sans-serif" font-size="10" fill="#8a8a85">0V</text>`;
+
+    poreSvg.innerHTML = svg;
+  }
+
+  // ─── Render squiggle canvas ──────────────────────────
+  function renderSquiggle() {
+    const canvas = squiggle;
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth || 900;
+    const cssH = canvas.clientHeight || 200;
+    canvas.width  = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    // Axes background
+    ctx.fillStyle = '#0b0d10';
+    ctx.fillRect(0, 0, cssW, cssH);
+
+    // Y-axis gridlines (every 20 pA)
+    const padL = 40, padR = 10, padT = 10, padB = 24;
+    const plotW = cssW - padL - padR;
+    const plotH = cssH - padT - padB;
+
+    function yFor(pa) {
+      return padT + plotH * (1 - (pa - CURRENT_MIN) / (CURRENT_MAX - CURRENT_MIN));
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    for (let pa = CURRENT_MIN; pa <= CURRENT_MAX; pa += 20) {
+      const y = yFor(pa);
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(cssW - padR, y); ctx.stroke();
+      ctx.fillText(pa + ' pA', padL - 4, y + 3);
+    }
+    ctx.textAlign = 'left';
+    ctx.fillText('time →', padL, cssH - 6);
+
+    // Determine window of samples to display — last ~N steps
+    const DISPLAY_STEPS = 24;
+    const start = Math.max(0, state.levels.length - DISPLAY_STEPS);
+    const shown = state.levels.slice(start);
+    const totalSamples = shown.length * SAMPLES_PER_STEP;
+    if (!totalSamples) return;
+    const dx = plotW / Math.max(DISPLAY_STEPS * SAMPLES_PER_STEP, totalSamples);
+
+    // Draw expected-level steps (pale blue)
+    ctx.strokeStyle = 'rgba(37, 99, 235, 0.45)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    let xCursor = padL;
+    shown.forEach((lvl) => {
+      const y = yFor(lvl.expected);
+      ctx.moveTo(xCursor, y);
+      ctx.lineTo(xCursor + SAMPLES_PER_STEP * dx, y);
+      xCursor += SAMPLES_PER_STEP * dx;
+    });
+    ctx.stroke();
+
+    // Draw noisy samples (cobalt trace)
+    ctx.strokeStyle = '#60a5fa';
+    ctx.lineWidth = 1.25;
+    ctx.beginPath();
+    let first = true;
+    xCursor = padL;
+    shown.forEach((lvl) => {
+      lvl.samples.forEach((s) => {
+        const y = yFor(s);
+        if (first) { ctx.moveTo(xCursor, y); first = false; }
+        else       { ctx.lineTo(xCursor, y); }
+        xCursor += dx;
+      });
+    });
+    ctx.stroke();
+
+    // Highlight most-recent level (cobalt vertical bar)
+    if (shown.length) {
+      const lastStart = padL + (shown.length - 1) * SAMPLES_PER_STEP * dx;
+      const lastEnd = padL + shown.length * SAMPLES_PER_STEP * dx;
+      ctx.fillStyle = 'rgba(37, 99, 235, 0.12)';
+      ctx.fillRect(lastStart, padT, lastEnd - lastStart, plotH);
+
+      // Label the recent k-mer
+      const lvl = shown[shown.length - 1];
+      ctx.fillStyle = '#f4f3ee';
+      ctx.textAlign = 'center';
+      ctx.fillText(lvl.kmer, (lastStart + lastEnd) / 2, padT + 12);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  // ─── Render basecall comparison ──────────────────────
+  function renderBasecalls() {
+    bcWrap.innerHTML = '';
+    const template = state.template;
+    const maxPos = maxPosition();
+
+    // Template row — mark current window with outline
+    const tRow = document.createElement('div');
+    tRow.className = 'bc-row template';
+    const tLabel = document.createElement('span'); tLabel.className = 'bc-row-label'; tLabel.textContent = 'Template';
+    const tSeq = document.createElement('span');
+    for (let i = 0; i < template.length; i++) {
+      const sp = document.createElement('span');
+      sp.className = `bc-base is-${template[i]}`;
+      const windowStart = state.position;
+      if (i >= windowStart && i < windowStart + K && state.position <= maxPos) sp.classList.add('window');
+      sp.textContent = template[i];
+      tSeq.appendChild(sp);
+    }
+    tRow.append(tLabel, tSeq);
+    bcWrap.appendChild(tRow);
+
+    // Basecall row — offset by K/2 = 2 so calls align to the center base of each k-mer
+    const bRow = document.createElement('div');
+    bRow.className = 'bc-row';
+    const bLabel = document.createElement('span'); bLabel.className = 'bc-row-label'; bLabel.textContent = 'Basecall';
+    const bSeq = document.createElement('span');
+    const OFFSET = 2;
+    for (let i = 0; i < template.length; i++) {
+      const sp = document.createElement('span');
+      const callIdx = i - OFFSET;
+      if (callIdx >= 0 && callIdx < state.calls.length) {
+        const b = state.calls[callIdx];
+        const truth = template[i];
+        sp.className = `bc-base is-${b}`;
+        if (b !== truth) sp.classList.add('miscall');
+        sp.textContent = b;
+      } else {
+        sp.className = 'bc-base';
+        sp.style.color = 'var(--fg-subtle)';
+        sp.textContent = '·';
+      }
+      bSeq.appendChild(sp);
+    }
+    bRow.append(bLabel, bSeq);
+    bcWrap.appendChild(bRow);
+
+    // Hint: detect homopolymer in template
+    const runs = template.match(/(.)\1{3,}/g) || [];
+    if (runs.length) {
+      bcHint.innerHTML = `Notice the homopolymer (${runs[0]}). As those identical bases slide through the pore, consecutive 5-mers stay the same — the current is flat, and the basecaller can't count how many there are. That's the classic ONT indel error.`;
+    } else {
+      bcHint.textContent = 'Turn up the noise slider and watch the basecaller start making mistakes. The real Oxford Nanopore basecaller (Dorado) replaces this nearest-neighbour lookup with a deep neural network.';
+    }
+
+    // Position readout
+    posRead.textContent = `Position ${Math.min(state.position + 1, maxPos + 1)} / ${maxPos + 1}`;
+  }
+
+  function render() {
+    renderPore();
+    renderSquiggle();
+    renderBasecalls();
+  }
+
+  // ─── Control wiring ──────────────────────────────────
+  function updateReadouts() {
+    $('speed-read').textContent = speedEl.value;
+    $('noise-read').textContent = (+noiseEl.value).toFixed(1);
+  }
+
+  templateEl.addEventListener('input', () => {
+    templateEl.value = sanitize(templateEl.value);
+    state.template = templateEl.value || 'GATTACAGATTACAGATTACAGA';
+    resetSim();
+  });
+  randomBtn.addEventListener('click', () => {
+    templateEl.value = randomDna(24 + Math.floor(Math.random() * 12));
+    state.template = templateEl.value;
+    resetSim();
+  });
+  document.querySelectorAll('button[data-ex]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      templateEl.value = btn.dataset.ex;
+      state.template = btn.dataset.ex;
+      resetSim();
+    });
+  });
+  speedEl.addEventListener('input', () => {
+    state.speed = +speedEl.value;
+    updateReadouts();
+    if (state.playing) { stop(); play(); }
+  });
+  noiseEl.addEventListener('input', () => {
+    state.noise = +noiseEl.value;
+    updateReadouts();
+  });
+  playBtn.addEventListener('click', play);
+  pauseBtn.addEventListener('click', stop);
+  stepBtn.addEventListener('click', step);
+  resetBtn.addEventListener('click', resetSim);
+
+  window.addEventListener('resize', () => renderSquiggle());
+
+  updateReadouts();
+  render();
+})();
+</script>
+
+</body>
+</html>

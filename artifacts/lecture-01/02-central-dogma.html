@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Central Dogma Translator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    /* ─── Amino-acid category tokens (local to this artifact) ─────── */
+    :root {
+      --aa-hydrophobic: #f0e7cb;   /* warm tan   — A V L I M F W P */
+      --aa-polar:       #cfe5e6;   /* cool cyan  — S T N Q Y C     */
+      --aa-acidic:      #f3d6cf;   /* warm rose  — D E             */
+      --aa-basic:       #d5dff0;   /* cool blue  — K R H           */
+      --aa-special:     #e5dcec;   /* lavender   — G               */
+      --aa-stop:        #d9d5ca;   /* neutral    — * (STOP)        */
+    }
+
+    /* ─── Frame ──────────────────────────────────────────── */
+    body {
+      background: var(--bg);
+      padding: 2rem;
+    }
+    .artifact {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* ─── Head ───────────────────────────────────────────── */
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 60ch;
+    }
+
+    /* ─── Panels ─────────────────────────────────────────── */
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    /* ─── Controls ───────────────────────────────────────── */
+    .controls { display: grid; gap: 1rem; }
+
+    .field { display: flex; flex-direction: column; gap: 0.4rem; }
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+    }
+    .seq-row { display: flex; gap: 0.5rem; }
+    .seq-input {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      letter-spacing: 0.04em;
+      padding: 0.55rem 0.75rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      min-width: 0;
+    }
+    .seq-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+
+    .field-note {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0;
+      line-height: var(--leading-normal);
+    }
+    .field-note code {
+      font-family: var(--font-mono);
+      background: var(--bg-inset);
+      padding: 0.05em 0.3em;
+      border-radius: var(--radius-sm);
+      font-size: 0.95em;
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+      transition: background 120ms ease, border-color 120ms ease;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) {
+      background: var(--bg-inset);
+      border-color: var(--border-strong);
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .playback {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+      align-items: center;
+    }
+    .playback-buttons { display: flex; gap: 0.4rem; }
+    .playback-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+    }
+    .playback-group input[type="range"] {
+      width: 110px;
+      accent-color: var(--accent);
+    }
+    .frame-fieldset {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+    }
+    .frame-fieldset legend {
+      display: contents;
+    }
+    .frame-choices {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .frame-choices label {
+      padding: 0.35rem 0.6rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      cursor: pointer;
+      background: var(--bg-muted);
+      border-right: 1px solid var(--border);
+    }
+    .frame-choices label:last-child { border-right: 0; }
+    .frame-choices input {
+      position: absolute;
+      width: 1px; height: 1px;
+      margin: -1px; padding: 0;
+      overflow: hidden; clip: rect(0 0 0 0);
+      border: 0;
+    }
+    .frame-choices label:has(input:checked) {
+      background: var(--accent);
+      color: #ffffff;
+    }
+    .frame-choices label:focus-within {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: -2px;
+      z-index: 1;
+    }
+
+    /* ─── Status line ────────────────────────────────────── */
+    .status-line {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      padding: 0.75rem 1rem;
+      background: var(--bg-muted);
+      border-radius: var(--radius-sm);
+      margin-bottom: 1.25rem;
+      border: 1px solid var(--border);
+    }
+    .status-line strong { color: var(--fg); font-weight: 600; }
+
+    /* ─── Strands ────────────────────────────────────────── */
+    .strands {
+      --cell: 1.55rem;
+      overflow-x: auto;
+      padding: 0.25rem;
+    }
+
+    .strand-row {
+      display: grid;
+      grid-template-columns: 4rem 1rem 1fr 1rem;
+      column-gap: 0.5rem;
+      align-items: center;
+      margin: 0.35rem 0;
+      min-width: min-content;
+    }
+
+    .strand-row--proteins {
+      grid-template-columns: 4rem 1rem 1fr 1rem;
+      margin-top: 0.6rem;
+    }
+
+    .strand-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+      font-weight: 600;
+      justify-self: start;
+    }
+    .strand-end {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      font-weight: 500;
+      justify-self: center;
+    }
+
+    .strand-bases, .strand-proteins {
+      display: grid;
+      grid-template-columns: repeat(var(--n, 0), var(--cell));
+      gap: 0;
+      font-family: var(--font-mono);
+      min-width: min-content;
+    }
+
+    .base {
+      text-align: center;
+      font-weight: 500;
+      font-size: 1.05rem;
+      line-height: 1.4;
+      border-radius: var(--radius-sm);
+      transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+      position: relative;
+    }
+
+    .base.is-A { color: var(--base-a); }
+    .base.is-T { color: var(--base-t); }
+    .base.is-G { color: var(--base-g); }
+    .base.is-C { color: var(--base-c); }
+    .base.is-U { color: var(--base-u); }
+    .base.is-N { color: var(--base-n); }
+
+    /* Base states along the animation timeline */
+    .base.is-read     { opacity: 0.55; }
+    .base.is-active   { background: var(--accent-bg); outline: 1px solid var(--accent); outline-offset: -1px; }
+    .base.is-upcoming { opacity: 1; }
+    .base.in-start    { background: #eaf7ee; outline: 1px solid var(--success); outline-offset: -1px; }
+    .base.in-stop     { background: #fbeaea; outline: 1px solid var(--error); outline-offset: -1px; }
+    .base.is-offframe { opacity: 0.25; }
+
+    .base.is-partial {
+      background: repeating-linear-gradient(
+        45deg,
+        var(--bg-muted) 0 3px,
+        transparent 3px 6px
+      );
+    }
+
+    /* Protein amino-acid tiles */
+    .aa-slot {
+      grid-column: span 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0.35rem 0.25rem;
+      margin: 0 2px;
+      min-height: 2.8rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      background: var(--bg-muted);
+      transition: background 220ms ease, border-color 220ms ease, transform 220ms ease;
+    }
+
+    .aa-slot.is-placeholder { background: transparent; border: 1px dashed var(--border); }
+    .aa-slot.is-pending     { background: var(--bg-muted); }
+    .aa-slot.is-visible     { transform: none; }
+    .aa-slot.just-added     { animation: aa-pop 380ms ease; }
+    .aa-slot.is-current     { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+
+    .aa-1 {
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: 1.05rem;
+      line-height: 1;
+      color: var(--fg);
+    }
+    .aa-3 {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      letter-spacing: 0.04em;
+      margin-top: 2px;
+    }
+
+    .aa-cat-hydrophobic { background: var(--aa-hydrophobic); }
+    .aa-cat-polar       { background: var(--aa-polar); }
+    .aa-cat-acidic      { background: var(--aa-acidic); }
+    .aa-cat-basic       { background: var(--aa-basic); }
+    .aa-cat-special     { background: var(--aa-special); }
+    .aa-cat-stop        { background: var(--aa-stop); }
+    .aa-cat-stop .aa-1  { color: var(--error); }
+    .aa-cat-stop .aa-3  { color: var(--error); opacity: 0.75; }
+
+    @keyframes aa-pop {
+      0%   { transform: scale(0.88); opacity: 0.2; }
+      60%  { transform: scale(1.04); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ─── Annotations under strands ──────────────────────── */
+    .annotations {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.75rem;
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .annotation-dot {
+      display: inline-block;
+      width: 0.65rem;
+      height: 0.65rem;
+      border-radius: 50%;
+      margin-right: 0.4rem;
+      vertical-align: middle;
+    }
+    .dot-start { background: var(--success); }
+    .dot-stop  { background: var(--error); }
+    .dot-curr  { background: var(--accent); }
+
+    /* ─── Codon table ────────────────────────────────────── */
+    .codon-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .codon-head p {
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      margin: 0;
+      max-width: 55ch;
+    }
+
+    .codon-table-grid {
+      display: grid;
+      grid-template-columns: auto auto repeat(4, 1fr) auto;
+      border-collapse: collapse;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    .cth, .ctc {
+      background: var(--bg-elevated);
+      padding: 0.45rem 0.5rem;
+      font-size: var(--text-xs);
+    }
+
+    .cth-main {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      background: var(--bg-muted);
+      text-align: center;
+      font-weight: 600;
+    }
+    .cth-axis {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      background: var(--bg-muted);
+      text-align: center;
+      color: var(--fg);
+    }
+    .cth-axis-A, .cth-axis-3rd { writing-mode: horizontal-tb; }
+
+    .ctc { padding: 0; background: transparent; }
+
+    .codon-cell {
+      display: grid;
+      grid-template-rows: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+    }
+
+    .codon-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.25rem;
+      padding: 0.25rem 0.45rem;
+      background: var(--bg-elevated);
+      border: 0;
+      cursor: pointer;
+      text-align: left;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg);
+      transition: background 150ms ease, outline 150ms ease, transform 150ms ease;
+      position: relative;
+      outline: 2px solid transparent;
+      outline-offset: -2px;
+    }
+    .codon-btn:hover { filter: brightness(0.97); }
+    .codon-btn .codon-letters { letter-spacing: 0.04em; }
+    .codon-btn .aa-tag {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: var(--text-xs);
+      color: var(--fg);
+    }
+    .codon-btn.is-stop .aa-tag { color: var(--error); }
+
+    .codon-btn.is-highlighted {
+      outline: 2px solid var(--accent);
+      z-index: 2;
+    }
+    .codon-btn.is-current {
+      outline: 2px solid var(--accent);
+      animation: pulse 900ms ease-in-out infinite alternate;
+      z-index: 3;
+    }
+
+    @keyframes pulse {
+      from { box-shadow: 0 0 0 0 rgba(30, 58, 138, 0.0); }
+      to   { box-shadow: 0 0 0 5px rgba(30, 58, 138, 0.18); }
+    }
+
+    /* ─── Legend ─────────────────────────────────────────── */
+    .legend {
+      list-style: none;
+      padding: 0;
+      margin: 1rem 0 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.75rem;
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+    .legend li { display: flex; align-items: center; gap: 0.4rem; }
+    .legend-swatch {
+      width: 1.75rem;
+      height: 0.9rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+
+    /* ─── Responsive ─────────────────────────────────────── */
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .strand-row { grid-template-columns: 3rem 0.75rem 1fr 0.75rem; }
+      .strand-label { font-size: 0.625rem; }
+      .codon-table-grid { font-size: 0.7rem; }
+      .codon-btn { padding: 0.2rem 0.3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="central-dogma">
+
+  <header class="artifact-head">
+    <h1>Central Dogma Translator</h1>
+    <p>Watch a DNA sequence be transcribed into mRNA and translated codon by codon into a protein. Click any codon in the genetic-code table to highlight its synonymous codons — the redundancy of the code, made visible.</p>
+  </header>
+
+  <!-- ─── Controls ──────────────────────────────────────── -->
+  <section class="panel controls" aria-label="Controls">
+    <div class="field">
+      <label class="field-label" for="seq-input">DNA sequence (sense strand)</label>
+      <div class="seq-row">
+        <input id="seq-input" class="seq-input" type="text" spellcheck="false" autocomplete="off"
+               value="ATGGCTTTCGTTAAATAG"
+               aria-describedby="seq-note">
+        <button id="random-btn" class="btn" type="button">Random</button>
+      </div>
+      <p class="field-note" id="seq-note">
+        Letters accepted: <code>A</code>, <code>T</code>, <code>G</code>, <code>C</code>. In real transcription, RNA polymerase reads the <em>template</em> strand (the complement) 3'→5'; the mRNA that comes out matches the sense strand with <code>T</code>→<code>U</code>, which is what we show here.
+      </p>
+    </div>
+
+    <div class="playback">
+      <div class="playback-buttons">
+        <button id="play-btn"  class="btn btn--primary" type="button" aria-label="Play">▶ Play</button>
+        <button id="pause-btn" class="btn" type="button" aria-label="Pause" disabled>⏸ Pause</button>
+        <button id="step-btn"  class="btn" type="button" aria-label="Step one codon">⏭ Step</button>
+        <button id="reset-btn" class="btn" type="button" aria-label="Reset">↺ Reset</button>
+      </div>
+
+      <label class="playback-group">
+        <span>Speed</span>
+        <input id="speed" type="range" min="1" max="10" value="5" aria-label="Playback speed">
+      </label>
+
+      <fieldset class="frame-fieldset">
+        <legend>Frame</legend>
+        <div class="frame-choices" role="radiogroup" aria-label="Reading frame">
+          <label><input type="radio" name="frame" value="0" checked><span>+1</span></label>
+          <label><input type="radio" name="frame" value="1"><span>+2</span></label>
+          <label><input type="radio" name="frame" value="2"><span>+3</span></label>
+        </div>
+      </fieldset>
+    </div>
+  </section>
+
+  <!-- ─── Status ────────────────────────────────────────── -->
+  <div class="status-line" id="status-line" aria-live="polite"></div>
+
+  <!-- ─── Strand view ───────────────────────────────────── -->
+  <section class="panel" aria-label="Strands">
+    <p class="panel-label">Transcription &amp; translation</p>
+
+    <div class="strands" id="strands">
+      <div class="strand-row">
+        <span class="strand-label">DNA</span>
+        <span class="strand-end">5'</span>
+        <div class="strand-bases" id="dna-bases"></div>
+        <span class="strand-end">3'</span>
+      </div>
+      <div class="strand-row">
+        <span class="strand-label">mRNA</span>
+        <span class="strand-end">5'</span>
+        <div class="strand-bases" id="mrna-bases"></div>
+        <span class="strand-end">3'</span>
+      </div>
+      <div class="strand-row strand-row--proteins">
+        <span class="strand-label">Protein</span>
+        <span class="strand-end"></span>
+        <div class="strand-proteins" id="protein-row"></div>
+        <span class="strand-end"></span>
+      </div>
+    </div>
+
+    <div class="annotations" aria-hidden="true">
+      <span><span class="annotation-dot dot-curr"></span>Current codon</span>
+      <span><span class="annotation-dot dot-start"></span>Start (AUG)</span>
+      <span><span class="annotation-dot dot-stop"></span>Stop (UAA, UAG, UGA)</span>
+    </div>
+  </section>
+
+  <!-- ─── Codon table ───────────────────────────────────── -->
+  <section class="panel" aria-label="Genetic code">
+    <div class="codon-head">
+      <p class="panel-label" style="margin:0">Standard genetic code</p>
+      <p>Click a codon to highlight the others that code for the same amino acid. The active codon in playback pulses in cobalt.</p>
+    </div>
+    <div class="codon-table-grid" id="codon-grid"></div>
+
+    <ul class="legend">
+      <li><span class="legend-swatch" style="background: var(--aa-hydrophobic)"></span>Hydrophobic</li>
+      <li><span class="legend-swatch" style="background: var(--aa-polar)"></span>Polar</li>
+      <li><span class="legend-swatch" style="background: var(--aa-acidic)"></span>Acidic</li>
+      <li><span class="legend-swatch" style="background: var(--aa-basic)"></span>Basic</li>
+      <li><span class="legend-swatch" style="background: var(--aa-special)"></span>Special (Gly)</li>
+      <li><span class="legend-swatch" style="background: var(--aa-stop)"></span>Stop</li>
+    </ul>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  // ─── Genetic code (mRNA codons) ─────────────────────────
+  const GENETIC_CODE = {
+    UUU:'F', UUC:'F', UUA:'L', UUG:'L',
+    UCU:'S', UCC:'S', UCA:'S', UCG:'S',
+    UAU:'Y', UAC:'Y', UAA:'*', UAG:'*',
+    UGU:'C', UGC:'C', UGA:'*', UGG:'W',
+    CUU:'L', CUC:'L', CUA:'L', CUG:'L',
+    CCU:'P', CCC:'P', CCA:'P', CCG:'P',
+    CAU:'H', CAC:'H', CAA:'Q', CAG:'Q',
+    CGU:'R', CGC:'R', CGA:'R', CGG:'R',
+    AUU:'I', AUC:'I', AUA:'I', AUG:'M',
+    ACU:'T', ACC:'T', ACA:'T', ACG:'T',
+    AAU:'N', AAC:'N', AAA:'K', AAG:'K',
+    AGU:'S', AGC:'S', AGA:'R', AGG:'R',
+    GUU:'V', GUC:'V', GUA:'V', GUG:'V',
+    GCU:'A', GCC:'A', GCA:'A', GCG:'A',
+    GAU:'D', GAC:'D', GAA:'E', GAG:'E',
+    GGU:'G', GGC:'G', GGA:'G', GGG:'G',
+  };
+
+  const AA_THREE = {
+    A:'Ala', R:'Arg', N:'Asn', D:'Asp', C:'Cys',
+    E:'Glu', Q:'Gln', G:'Gly', H:'His', I:'Ile',
+    L:'Leu', K:'Lys', M:'Met', F:'Phe', P:'Pro',
+    S:'Ser', T:'Thr', W:'Trp', Y:'Tyr', V:'Val',
+    '*': 'STOP',
+  };
+
+  const AA_CATEGORY = {
+    A:'hydrophobic', V:'hydrophobic', L:'hydrophobic', I:'hydrophobic',
+    M:'hydrophobic', F:'hydrophobic', W:'hydrophobic', P:'hydrophobic',
+    S:'polar', T:'polar', N:'polar', Q:'polar', Y:'polar', C:'polar',
+    D:'acidic', E:'acidic',
+    K:'basic',  R:'basic',  H:'basic',
+    G:'special',
+    '*':'stop',
+  };
+
+  const BASES_RNA = ['U', 'C', 'A', 'G'];
+
+  // ─── State ──────────────────────────────────────────────
+  const state = {
+    dna: 'ATGGCTTTCGTTAAATAG',
+    frame: 0,
+    playing: false,
+    position: -1,      // index of most recently revealed codon; -1 = none
+    stopped: false,    // hit a STOP or ran out of codons
+    startShown: false, // we've annotated the first AUG
+    speed: 5,          // 1 slow … 10 fast
+    timer: null,
+    highlightAA: null, // AA letter whose synonymous codons are highlighted
+  };
+
+  // ─── DOM references ─────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+  const dnaEl     = $('dna-bases');
+  const mrnaEl    = $('mrna-bases');
+  const proteinEl = $('protein-row');
+  const statusEl  = $('status-line');
+  const seqInput  = $('seq-input');
+  const codonGrid = $('codon-grid');
+  const playBtn   = $('play-btn');
+  const pauseBtn  = $('pause-btn');
+  const stepBtn   = $('step-btn');
+  const resetBtn  = $('reset-btn');
+  const randomBtn = $('random-btn');
+  const speedEl   = $('speed');
+
+  // ─── Helpers ────────────────────────────────────────────
+  function sanitize(s) {
+    return (s || '').toUpperCase().replace(/[^ACGT]/g, '');
+  }
+
+  function toRNA(dna) {
+    return dna.replace(/T/g, 'U');
+  }
+
+  function getCodons(mrna, frame) {
+    const codons = [];
+    for (let i = frame; i + 2 < mrna.length; i += 3) {
+      const c = mrna.slice(i, i + 3);
+      const aa = GENETIC_CODE[c] || '?';
+      codons.push({
+        codon: c,
+        aa,
+        start: i,
+        isStart: c === 'AUG',
+        isStop: aa === '*',
+      });
+    }
+    return codons;
+  }
+
+  function randomDna(n = 24) {
+    const letters = 'ACGT';
+    let out = 'ATG';                          // kick off with a start codon
+    for (let i = 0; i < n - 6; i++) {
+      out += letters[Math.floor(Math.random() * 4)];
+    }
+    out += ['TAA', 'TAG', 'TGA'][Math.floor(Math.random() * 3)];
+    return out;
+  }
+
+  // Speed slider → ms per codon (ease curve)
+  function msPerCodon() {
+    const s = +state.speed;   // 1..10
+    // slow = 1200ms, fast = 120ms
+    return Math.round(1200 - ((s - 1) / 9) * (1200 - 120));
+  }
+
+  // ─── Render: strands ────────────────────────────────────
+  function renderStrands() {
+    const dna = state.dna;
+    const mrna = toRNA(dna);
+    const frame = state.frame;
+    const codons = getCodons(mrna, frame);
+
+    dnaEl.style.setProperty('--n', dna.length);
+    mrnaEl.style.setProperty('--n', mrna.length);
+    proteinEl.style.setProperty('--n', mrna.length);
+
+    dnaEl.innerHTML  = '';
+    mrnaEl.innerHTML = '';
+    proteinEl.innerHTML = '';
+
+    // Determine which codon is "current": the one just revealed (position)
+    const current = state.position >= 0 ? codons[state.position] : null;
+
+    // Revealed through position: bases are "read", codons up to & including are shown as protein
+    function baseState(i) {
+      if (i < frame) return 'offframe';
+      const idxInCodons = Math.floor((i - frame) / 3);
+      if (idxInCodons >= codons.length) return 'partial';
+      if (state.position < 0) return 'upcoming';
+      if (idxInCodons < state.position) return 'read';
+      if (idxInCodons === state.position) {
+        const c = codons[state.position];
+        if (c.isStop) return 'active-stop';
+        if (c.isStart && !state.startShown) return 'active-start';
+        return 'active';
+      }
+      return 'upcoming';
+    }
+
+    function renderBaseRow(parent, seq) {
+      const frag = document.createDocumentFragment();
+      for (let i = 0; i < seq.length; i++) {
+        const span = document.createElement('span');
+        const b = seq[i];
+        span.className = 'base is-' + b;
+        span.textContent = b;
+        const st = baseState(i);
+        if (st === 'offframe') span.classList.add('is-offframe');
+        else if (st === 'read') span.classList.add('is-read');
+        else if (st === 'active') span.classList.add('is-active');
+        else if (st === 'active-stop') span.classList.add('is-active', 'in-stop');
+        else if (st === 'active-start') span.classList.add('is-active', 'in-start');
+        else if (st === 'partial') span.classList.add('is-partial');
+        frag.appendChild(span);
+      }
+      parent.appendChild(frag);
+    }
+
+    renderBaseRow(dnaEl, dna);
+    renderBaseRow(mrnaEl, mrna);
+
+    // Protein row — one .aa-slot per codon; leading offset handled by a spacer cell
+    if (frame > 0) {
+      const spacer = document.createElement('span');
+      spacer.style.gridColumn = `span ${frame}`;
+      spacer.setAttribute('aria-hidden', 'true');
+      proteinEl.appendChild(spacer);
+    }
+    codons.forEach((c, i) => {
+      const slot = document.createElement('div');
+      const visible = state.position >= i;
+      slot.className = 'aa-slot';
+      slot.classList.add(visible ? 'is-visible' : 'is-pending');
+      if (visible) {
+        slot.classList.add('aa-cat-' + AA_CATEGORY[c.aa]);
+      }
+      if (i === state.position) {
+        slot.classList.add('is-current', 'just-added');
+      }
+      if (!visible) {
+        slot.classList.add('is-placeholder');
+      }
+      const letter = document.createElement('span');
+      letter.className = 'aa-1';
+      letter.textContent = visible ? (c.aa === '*' ? '■' : c.aa) : '·';
+      const three = document.createElement('span');
+      three.className = 'aa-3';
+      three.textContent = visible ? AA_THREE[c.aa] : '';
+      slot.appendChild(letter);
+      slot.appendChild(three);
+      slot.title = `Codon ${i + 1}: ${c.codon} → ${AA_THREE[c.aa]}${c.isStart ? ' (start)' : ''}${c.isStop ? ' (stop)' : ''}`;
+      proteinEl.appendChild(slot);
+    });
+
+    // Trailing partial bases (1 or 2) get a partial slot so they stay visually honest
+    const consumed = frame + codons.length * 3;
+    const trailing = mrna.length - consumed;
+    if (trailing > 0) {
+      const tail = document.createElement('span');
+      tail.style.gridColumn = `span ${trailing}`;
+      tail.setAttribute('aria-hidden', 'true');
+      proteinEl.appendChild(tail);
+    }
+
+    // Status line
+    renderStatus(codons, current);
+
+    // Pulse current codon in the table
+    renderCurrentCodonInTable(current);
+  }
+
+  function renderStatus(codons, current) {
+    const mrnaLen = state.dna.length;
+    const partial = (mrnaLen - state.frame) % 3;
+    const total = codons.length;
+    const aa = current
+      ? (current.isStop ? `STOP at codon ${state.position + 1}`
+        : `${current.codon} → ${AA_THREE[current.aa]} (${current.aa})`)
+      : 'Ready';
+
+    let hint = '';
+    if (!state.dna.length) {
+      hint = 'Enter a DNA sequence above.';
+    } else if (!codons.length) {
+      hint = `Frame +${state.frame + 1} leaves fewer than 3 bases — no codons.`;
+    } else if (partial) {
+      hint = `${partial} trailing ${partial === 1 ? 'base' : 'bases'} unused in this frame.`;
+    }
+
+    statusEl.innerHTML = `
+      <span><strong>Length:</strong> ${mrnaLen} bp</span>
+      <span><strong>Frame:</strong> +${state.frame + 1}</span>
+      <span><strong>Codons:</strong> ${total}</span>
+      <span><strong>Now:</strong> ${aa}</span>
+      ${hint ? `<span style="color: var(--fg-subtle)">${hint}</span>` : ''}
+    `;
+  }
+
+  // ─── Codon table ────────────────────────────────────────
+  function buildCodonTable() {
+    // Grid: col 1 = first-base axis label, col 2 = first-base letter,
+    //       cols 3-6 = one cell per second base, col 7 = third-base legend
+    codonGrid.innerHTML = '';
+
+    // Top row: SECOND BASE heading
+    codonGrid.append(gridCell('', 'cth cth-main', { colspan: 2 }));
+    codonGrid.append(gridCell('2nd base', 'cth cth-main', { colspan: 4 }));
+    codonGrid.append(gridCell('3rd', 'cth cth-main'));
+
+    // Second row: axis letters
+    codonGrid.append(gridCell('', 'cth cth-main'));
+    codonGrid.append(gridCell('', 'cth cth-main'));
+    BASES_RNA.forEach((b) => codonGrid.append(gridCell(b, 'cth cth-axis')));
+    codonGrid.append(gridCell('', 'cth cth-main'));
+
+    // Body: one first-base group per row
+    BASES_RNA.forEach((b1, rowIdx) => {
+      if (rowIdx === 0) {
+        // Only render the "1st base" axis label in the first row with rowspan=4
+        const axis = gridCell('1st', 'cth cth-main', { rowspan: 4 });
+        codonGrid.append(axis);
+      }
+      codonGrid.append(gridCell(b1, 'cth cth-axis'));
+      BASES_RNA.forEach((b2) => {
+        const cell = document.createElement('div');
+        cell.className = 'ctc';
+        const inner = document.createElement('div');
+        inner.className = 'codon-cell';
+        BASES_RNA.forEach((b3) => {
+          const codon = b1 + b2 + b3;
+          const aa = GENETIC_CODE[codon];
+          const cat = AA_CATEGORY[aa];
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'codon-btn aa-cat-' + cat + (aa === '*' ? ' is-stop' : '');
+          btn.dataset.codon = codon;
+          btn.dataset.aa = aa;
+          btn.innerHTML = `<span class="codon-letters">${codon}</span><span class="aa-tag">${aa === '*' ? '✕' : aa}</span>`;
+          btn.title = `${codon} → ${AA_THREE[aa]}`;
+          btn.addEventListener('click', () => {
+            state.highlightAA = (state.highlightAA === aa) ? null : aa;
+            applyHighlights();
+          });
+          inner.appendChild(btn);
+        });
+        cell.appendChild(inner);
+        codonGrid.append(cell);
+      });
+      codonGrid.append(gridCell(BASES_RNA.join(''), 'cth cth-axis cth-axis-3rd', { stack: true }));
+    });
+  }
+
+  function gridCell(text, cls, opts = {}) {
+    const el = document.createElement('div');
+    el.className = cls;
+    if (opts.colspan) el.style.gridColumn = 'span ' + opts.colspan;
+    if (opts.rowspan) el.style.gridRow = 'span ' + opts.rowspan;
+    if (opts.stack) {
+      el.style.display = 'flex';
+      el.style.flexDirection = 'column';
+      el.style.justifyContent = 'space-around';
+      el.style.lineHeight = '1.3';
+      el.textContent = '';
+      text.split('').forEach((ch) => {
+        const r = document.createElement('span');
+        r.textContent = ch;
+        el.appendChild(r);
+      });
+    } else {
+      el.textContent = text;
+    }
+    return el;
+  }
+
+  function applyHighlights() {
+    const aa = state.highlightAA;
+    document.querySelectorAll('.codon-btn').forEach((b) => {
+      b.classList.toggle('is-highlighted', !!aa && b.dataset.aa === aa);
+    });
+  }
+
+  function renderCurrentCodonInTable(current) {
+    document.querySelectorAll('.codon-btn.is-current').forEach((b) => b.classList.remove('is-current'));
+    if (!current) return;
+    const btn = codonGrid.querySelector(`.codon-btn[data-codon="${current.codon}"]`);
+    if (btn) btn.classList.add('is-current');
+  }
+
+  // ─── Playback ───────────────────────────────────────────
+  function codonsNow() {
+    return getCodons(toRNA(state.dna), state.frame);
+  }
+
+  function setButtons() {
+    const codons = codonsNow();
+    const atEnd = state.position >= codons.length - 1 || state.stopped;
+    playBtn.disabled  = state.playing || atEnd || codons.length === 0;
+    pauseBtn.disabled = !state.playing;
+    stepBtn.disabled  = atEnd || codons.length === 0;
+  }
+
+  function advance() {
+    const codons = codonsNow();
+    if (state.position >= codons.length - 1) {
+      state.stopped = true;
+      state.playing = false;
+      clearTimer();
+      setButtons();
+      renderStrands();
+      return;
+    }
+
+    // If currently the first AUG is "active" for the first time, we'll
+    // now move past it — mark it as "shown" so future frames don't re-annotate.
+    if (state.position >= 0) {
+      const cur = codons[state.position];
+      if (cur.isStart && !state.startShown) state.startShown = true;
+    }
+
+    state.position += 1;
+    const now = codons[state.position];
+    if (now && now.isStop) {
+      state.stopped = true;
+      state.playing = false;
+      clearTimer();
+    }
+    setButtons();
+    renderStrands();
+  }
+
+  function clearTimer() {
+    if (state.timer) {
+      clearInterval(state.timer);
+      state.timer = null;
+    }
+  }
+
+  function startTimer() {
+    clearTimer();
+    state.timer = setInterval(() => {
+      if (!state.playing) return;
+      advance();
+      if (!state.playing) return;        // advance may have stopped us
+      // adjust interval if speed changed
+      if (state.timer && state.timer._ms !== msPerCodon()) {
+        clearTimer();
+        startTimer();
+      }
+    }, msPerCodon());
+    state.timer._ms = msPerCodon();
+  }
+
+  function play() {
+    const codons = codonsNow();
+    if (state.stopped || state.position >= codons.length - 1 || !codons.length) return;
+    state.playing = true;
+    setButtons();
+    startTimer();
+  }
+
+  function pause() {
+    state.playing = false;
+    clearTimer();
+    setButtons();
+  }
+
+  function step() {
+    pause();
+    advance();
+  }
+
+  function reset() {
+    pause();
+    state.position = -1;
+    state.stopped = false;
+    state.startShown = false;
+    setButtons();
+    renderStrands();
+  }
+
+  // ─── Wiring ─────────────────────────────────────────────
+  function setDna(next) {
+    state.dna = sanitize(next);
+    seqInput.value = state.dna;
+    reset();
+  }
+
+  seqInput.addEventListener('input', () => {
+    const pos = seqInput.selectionStart;
+    const clean = sanitize(seqInput.value);
+    const diff = seqInput.value.length - clean.length;
+    state.dna = clean;
+    seqInput.value = clean;
+    try { seqInput.setSelectionRange(Math.max(0, pos - diff), Math.max(0, pos - diff)); } catch (_) {}
+    reset();
+  });
+
+  randomBtn.addEventListener('click', () => setDna(randomDna(24 + Math.floor(Math.random() * 12) * 3)));
+  playBtn.addEventListener('click', play);
+  pauseBtn.addEventListener('click', pause);
+  stepBtn.addEventListener('click', step);
+  resetBtn.addEventListener('click', reset);
+
+  document.querySelectorAll('input[name="frame"]').forEach((el) => {
+    el.addEventListener('change', () => {
+      state.frame = +el.value;
+      reset();
+    });
+  });
+
+  speedEl.addEventListener('input', () => {
+    state.speed = +speedEl.value;
+    if (state.playing) startTimer();
+  });
+
+  // Initial build
+  buildCodonTable();
+  reset();
+})();
+</script>
+
+</body>
+</html>

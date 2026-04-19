@@ -46,8 +46,8 @@ These are the sources of truth when adding content. Read the relevant one before
 | `markdown_resources/diagram-style-guide.md` | House style for SVG diagrams (colour, stroke, typography, arrows) |
 | `markdown_resources/figures-spec.md` | Per-lecture figure list with build-order recommendations |
 | `markdown_resources/lecture-01.md` | Source markdown for Lecture 1 content |
-| `fastq-anatomy-proof.html` | Canonical SVG reference — copy arrow markers and typography patterns from here |
-| `logo-proof-v2.html` | Logo visual reference; course mark is locked to Variant A3 |
+| `proof_html_resources/fastq-anatomy-proof.html` | Canonical SVG reference — copy arrow markers and typography patterns from here |
+| `proof_html_resources/logo-proof-v2.html` | Logo visual reference; course mark is locked to Variant A3 |
 
 ## Design system in one glance
 

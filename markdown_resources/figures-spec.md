@@ -341,7 +341,7 @@ Lecture 1 gets **12 custom SVG diagrams** and **up to 2 real photographs**. This
 **Placement**: §6.1 "The 4-line record"
 **Teaching goal**: Same as the proof file — annotated FASTQ record + Phred score decoding zoom panel.
 
-**Status**: **Already built as proof file** (`../fastq-anatomy-proof.html`). Extract the `<svg>` block from the proof, save as standalone `.svg`, and place in `diagrams/lecture-01/12-fastq-anatomy.svg`.
+**Status**: **Already built as proof file** (`../proof_html_resources/fastq-anatomy-proof.html`). Extract the `<svg>` block from the proof, save as standalone `.svg`, and place in `diagrams/lecture-01/12-fastq-anatomy.svg`.
 
 ---
 

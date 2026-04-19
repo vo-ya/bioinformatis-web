@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coverage Simulator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 60ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    .slider-row .slider-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+    .mean-readout {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      margin-left: auto;
+    }
+    .mean-readout strong {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+      overflow-x: auto;
+    }
+    .plot-wrap + .plot-wrap { margin-top: 0.75rem; }
+    .plot-svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .status-line {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      padding: 0.85rem 1rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-top: 1rem;
+    }
+    .status-line .label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin: 0;
+    }
+    .status-line .value {
+      font-family: var(--font-mono);
+      font-size: var(--text-lg);
+      color: var(--fg);
+      margin: 0.15rem 0 0;
+    }
+    .status-line .value.emphasis { color: var(--accent); }
+    .status-line .value.warn     { color: var(--warning); }
+    .status-line .value.bad      { color: var(--error); }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+    }
+    .legend-swatch {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 14px; height: 10px;
+      border-radius: 2px;
+    }
+    .legend-swatch .sw.bar { background: var(--accent-bg); border: 1px solid var(--accent); }
+    .legend-swatch .sw.poisson {
+      height: 0; width: 18px;
+      border: 0;
+      border-top: 2px dashed var(--fg-muted);
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .mean-readout { margin-left: 0; flex-basis: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="coverage-simulator">
+
+  <header class="artifact-head">
+    <h1>Coverage Simulator</h1>
+    <p>Thirty-fold coverage is a mean, not a promise. Drop reads onto the genome and watch uniformly random sampling behave like Poisson — then add non-uniformity and watch the dropouts appear while the mean barely moves.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Sampling parameters</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="L-input">Genome length L</label>
+          <span class="slider-value" id="L-value">1000</span>
+        </div>
+        <input id="L-input" type="range" min="500" max="5000" step="100" value="1000">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="r-input">Read length r</label>
+          <span class="slider-value" id="r-value">150</span>
+        </div>
+        <input id="r-input" type="range" min="50" max="500" step="10" value="150">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="N-input">Number of reads N</label>
+          <span class="slider-value" id="N-value">200</span>
+        </div>
+        <input id="N-input" type="range" min="50" max="1000" step="10" value="200">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="alpha-input">Non-uniformity α</label>
+          <span class="slider-value" id="alpha-value">0</span>
+        </div>
+        <input id="alpha-input" type="range" min="0" max="50" step="5" value="0">
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <button id="reroll-btn" class="btn btn--primary" type="button">Drop reads</button>
+      <button id="reset-btn"  class="btn"             type="button">Reset</button>
+      <span class="mean-readout">
+        expected mean coverage: <strong id="mean-expected">30.0×</strong>
+        <span style="color: var(--fg-subtle); margin-left: 0.5rem;">(N·r / L)</span>
+      </span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Pileup</p>
+    <div class="plot-wrap">
+      <svg id="pileup-svg" class="plot-svg" viewBox="0 0 1000 200" preserveAspectRatio="none" aria-label="Read pileup along genome"></svg>
+    </div>
+    <p class="plot-caption" id="pileup-caption">showing 60 of 200 reads · thin bars are individual reads, heavy bar at top is the reference</p>
+
+    <p class="panel-label" style="margin-top: 1.1rem;">Coverage depth along genome</p>
+    <div class="plot-wrap">
+      <svg id="depth-svg" class="plot-svg" viewBox="0 0 1000 140" preserveAspectRatio="none" aria-label="Coverage depth per genome position"></svg>
+    </div>
+    <p class="plot-caption">per-position depth · dashed line marks the expected mean</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Depth histogram</p>
+    <div class="plot-wrap">
+      <svg id="hist-svg" class="plot-svg" viewBox="0 0 1000 240" preserveAspectRatio="none" aria-label="Distribution of coverage depths across positions"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw bar"></span> observed fraction of positions at depth k</span>
+      <span class="legend-swatch"><span class="sw poisson"></span> Poisson(λ = observed mean) PMF</span>
+    </div>
+
+    <div class="status-line">
+      <div>
+        <p class="label">Observed mean</p>
+        <p class="value emphasis" id="stat-mean">—</p>
+      </div>
+      <div>
+        <p class="label">Std deviation</p>
+        <p class="value" id="stat-sd">—</p>
+      </div>
+      <div>
+        <p class="label">% positions at 0×</p>
+        <p class="value" id="stat-zero">—</p>
+      </div>
+      <div>
+        <p class="label">Dropout positions</p>
+        <p class="value" id="stat-dropouts">—</p>
+      </div>
+    </div>
+    <p class="hint">At α = 0 sampling is uniform and the histogram hugs the Poisson(λ) curve. As α climbs, reads concentrate around preferred regions; the mean stays put but zero-coverage positions explode and the distribution goes bimodal. That is why "30× average" is never a coverage guarantee — and why the Poisson assumption under-predicts real-world dropouts.</p>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  const LEl      = $('L-input');
+  const rEl      = $('r-input');
+  const NEl      = $('N-input');
+  const alphaEl  = $('alpha-input');
+  const LVal     = $('L-value');
+  const rVal     = $('r-value');
+  const NVal     = $('N-value');
+  const alphaVal = $('alpha-value');
+  const meanExp  = $('mean-expected');
+  const rerollBtn= $('reroll-btn');
+  const resetBtn = $('reset-btn');
+
+  const pileupSvg = $('pileup-svg');
+  const depthSvg  = $('depth-svg');
+  const histSvg   = $('hist-svg');
+  const pileupCap = $('pileup-caption');
+
+  const statMean     = $('stat-mean');
+  const statSd       = $('stat-sd');
+  const statZero     = $('stat-zero');
+  const statDropouts = $('stat-dropouts');
+
+  const DEFAULTS = { L: 1000, r: 150, N: 200, alpha: 0 };
+
+  const state = {
+    L: DEFAULTS.L,
+    r: DEFAULTS.r,
+    N: DEFAULTS.N,
+    alpha: DEFAULTS.alpha,   // slider value 0–50
+    starts: [],              // read start positions
+    depth: new Int32Array(DEFAULTS.L),
+    rafPending: false,
+  };
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Sampling ─────────────────────────────────────────────
+  //
+  // Non-uniform bias density:  f(x) ∝ 1 + a · sign(cos θ) · |cos θ|^(1/POW)
+  // where θ = 2π · FREQ · x / L. POW>1 sharpens peaks and widens troughs,
+  // which is what actually produces visible dropouts once the trough width
+  // exceeds the read length.
+  //
+  // Slider value s ∈ [0, 50] maps to a ∈ [0, 0.98] via a = 1 − (1 − s/50)²,
+  // so small slider nudges already bias reads noticeably and s≈40 starts
+  // producing ≥ 5% zero-coverage at the default (L, r, N) = (1000, 150, 200).
+
+  const BIAS_FREQ = 3;
+  const BIAS_POW  = 5;
+
+  function alphaCoef(sliderVal) {
+    const u = sliderVal / 50;
+    return Math.min(0.98, 1 - (1 - u) * (1 - u));
+  }
+
+  function sampleStart(L, r, a) {
+    // Uniform over valid starts [0, L − r] if alpha == 0.
+    const maxStart = L - r;
+    if (maxStart <= 0) return 0;
+    if (a <= 0) return Math.floor(Math.random() * (maxStart + 1));
+
+    // Accept/reject against bias density. Peak value of f is 1 + a.
+    const maxF = 1 + a;
+    const twoPiFoverL = (2 * Math.PI * BIAS_FREQ) / L;
+    const invPow = 1 / BIAS_POW;
+    for (let i = 0; i < 500; i++) {
+      const x = Math.random() * (maxStart + 1);
+      const c = Math.cos(twoPiFoverL * x);
+      const signed = Math.sign(c) * Math.pow(Math.abs(c), invPow);
+      const f = 1 + a * signed;
+      if (f <= 0) continue;
+      if (Math.random() * maxF < f) return Math.floor(x);
+    }
+    // Fallback — only reachable for pathological α ≈ 1.
+    return Math.floor(Math.random() * (maxStart + 1));
+  }
+
+  function dropReads() {
+    const { L, r, N } = state;
+    const a = alphaCoef(state.alpha);
+    const starts = new Array(N);
+    const depth = new Int32Array(L);
+    for (let i = 0; i < N; i++) {
+      const s = sampleStart(L, r, a);
+      starts[i] = s;
+      const end = Math.min(L, s + r);
+      for (let p = s; p < end; p++) depth[p]++;
+    }
+    state.starts = starts;
+    state.depth = depth;
+  }
+
+  // ── Stats ────────────────────────────────────────────────
+
+  function computeStats() {
+    const d = state.depth;
+    let sum = 0, sumSq = 0, zeros = 0, maxD = 0;
+    for (let i = 0; i < d.length; i++) {
+      const v = d[i];
+      sum += v;
+      sumSq += v * v;
+      if (v === 0) zeros++;
+      if (v > maxD) maxD = v;
+    }
+    const n = d.length;
+    const mean = n ? sum / n : 0;
+    const variance = n ? (sumSq / n) - mean * mean : 0;
+    const sd = Math.sqrt(Math.max(0, variance));
+    return { mean, sd, zeros, zeroFrac: n ? zeros / n : 0, maxD };
+  }
+
+  // Poisson PMF p(k; λ) via ratio recurrence; returns Float64Array of length kMax+1.
+  function poissonPMF(lambda, kMax) {
+    const arr = new Float64Array(kMax + 1);
+    if (lambda <= 0) { arr[0] = 1; return arr; }
+    let p = Math.exp(-lambda);
+    arr[0] = p;
+    for (let k = 0; k < kMax; k++) {
+      p = p * (lambda / (k + 1));
+      arr[k + 1] = p;
+    }
+    return arr;
+  }
+
+  // ── Rendering ────────────────────────────────────────────
+
+  function clear(svg) {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+  }
+
+  function el(tag, attrs) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  const W = 1000;          // SVG coordinate width
+  const PAD_L = 48;        // plot area padding
+  const PAD_R = 12;
+  const PAD_T = 10;
+  const PAD_B = 28;
+
+  function renderPileup() {
+    const svg = pileupSvg;
+    clear(svg);
+    const H = 200;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const plotX0 = PAD_L, plotX1 = W - PAD_R;
+    const plotW = plotX1 - plotX0;
+    const xOf = (pos) => plotX0 + (pos / state.L) * plotW;
+
+    // Reference bar
+    const refY = 22;
+    svg.appendChild(el('rect', {
+      x: plotX0, y: refY - 6,
+      width: plotW, height: 10,
+      fill: 'var(--fg)', rx: 2,
+    }));
+    svg.appendChild(el('text', {
+      x: plotX0 - 8, y: refY + 1,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-mono)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+    })).textContent = 'ref';
+
+    // X axis ticks (0, L/2, L)
+    const axisY = H - PAD_B + 4;
+    const ticks = [0, Math.round(state.L / 2), state.L];
+    for (const t of ticks) {
+      svg.appendChild(el('line', {
+        x1: xOf(t), x2: xOf(t),
+        y1: axisY, y2: axisY + 4,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      const tx = el('text', {
+        x: xOf(t), y: axisY + 16,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      });
+      tx.textContent = t.toString();
+      svg.appendChild(tx);
+    }
+
+    // Reads
+    const maxReads = 60;
+    const shown = Math.min(state.starts.length, maxReads);
+    const rowsAvailable = H - PAD_T - PAD_B - 18;
+    const rows = shown;
+    const rowStep = rows > 0 ? rowsAvailable / Math.max(rows, 1) : 0;
+    const rowY0 = 38;
+
+    // deterministically pick evenly-spaced indices across the read list
+    const step = state.starts.length > 0 ? state.starts.length / shown : 1;
+    for (let i = 0; i < shown; i++) {
+      const idx = Math.floor(i * step);
+      const s = state.starts[idx];
+      if (s === undefined) continue;
+      const x1 = xOf(s);
+      const x2 = xOf(Math.min(state.L, s + state.r));
+      const y  = rowY0 + i * rowStep;
+      svg.appendChild(el('line', {
+        x1, x2, y1: y, y2: y,
+        stroke: 'var(--accent)', 'stroke-width': 1.5,
+        'stroke-linecap': 'round',
+        opacity: 0.75,
+      }));
+    }
+
+    pileupCap.textContent = `showing ${shown} of ${state.starts.length} reads · thin bars are individual reads, heavy bar at top is the reference`;
+  }
+
+  function renderDepth(stats) {
+    const svg = depthSvg;
+    clear(svg);
+    const H = 140;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const plotX0 = PAD_L, plotX1 = W - PAD_R;
+    const plotY0 = PAD_T,  plotY1 = H - PAD_B;
+    const plotW = plotX1 - plotX0;
+    const plotH = plotY1 - plotY0;
+
+    const d = state.depth;
+    const L = state.L;
+    const yMax = Math.max(1, stats.maxD, Math.ceil(stats.mean * 2));
+    const xOf = (pos) => plotX0 + (pos / L) * plotW;
+    const yOf = (v)   => plotY1 - (v / yMax) * plotH;
+
+    // Y axis: 0 and yMax ticks
+    for (const v of [0, Math.round(yMax / 2), yMax]) {
+      const y = yOf(v);
+      svg.appendChild(el('line', {
+        x1: plotX0, x2: plotX1, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': v === 0 ? '' : '2 4',
+      }));
+      const t = el('text', {
+        x: plotX0 - 8, y: y + 4,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      });
+      t.textContent = v.toString() + '×';
+      svg.appendChild(t);
+    }
+
+    // Dashed line at expected mean
+    const expected = (state.N * state.r) / state.L;
+    if (expected > 0 && expected <= yMax) {
+      const y = yOf(expected);
+      svg.appendChild(el('line', {
+        x1: plotX0, x2: plotX1, y1: y, y2: y,
+        stroke: 'var(--accent)', 'stroke-width': 1,
+        'stroke-dasharray': '3 4',
+        opacity: 0.55,
+      }));
+    }
+
+    // Build filled area polygon. Downsample to ≤ W control points so SVG stays light.
+    const samples = Math.min(L, 500);
+    const pts = [];
+    pts.push(`${plotX0.toFixed(2)},${plotY1.toFixed(2)}`);
+    for (let i = 0; i < samples; i++) {
+      const pos = Math.floor((i / (samples - 1)) * (L - 1));
+      const v = d[pos];
+      pts.push(`${xOf(pos).toFixed(2)},${yOf(v).toFixed(2)}`);
+    }
+    pts.push(`${plotX1.toFixed(2)},${plotY1.toFixed(2)}`);
+
+    svg.appendChild(el('polygon', {
+      points: pts.join(' '),
+      fill: 'var(--bg-inset)',
+      stroke: 'var(--fg)',
+      'stroke-width': 1,
+      'stroke-linejoin': 'round',
+    }));
+
+    // X axis baseline
+    svg.appendChild(el('line', {
+      x1: plotX0, x2: plotX1, y1: plotY1, y2: plotY1,
+      stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+    // X axis ticks
+    const ticks = [0, Math.round(L / 2), L];
+    for (const t of ticks) {
+      const tx = el('text', {
+        x: xOf(t), y: plotY1 + 16,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      });
+      tx.textContent = t.toString();
+      svg.appendChild(tx);
+    }
+  }
+
+  function renderHistogram(stats) {
+    const svg = histSvg;
+    clear(svg);
+    const H = 240;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const plotX0 = PAD_L, plotX1 = W - PAD_R;
+    const plotY0 = PAD_T,  plotY1 = H - PAD_B;
+    const plotW = plotX1 - plotX0;
+    const plotH = plotY1 - plotY0;
+
+    // Histogram over depths 0..kMax
+    const d = state.depth;
+    const lambda = stats.mean;
+    const kMax = Math.max(1, stats.maxD, Math.ceil(lambda * 2.5));
+    const counts = new Int32Array(kMax + 1);
+    for (let i = 0; i < d.length; i++) {
+      const v = d[i];
+      if (v <= kMax) counts[v]++;
+    }
+    const total = d.length || 1;
+    const fracs = new Float64Array(kMax + 1);
+    for (let k = 0; k <= kMax; k++) fracs[k] = counts[k] / total;
+
+    // Poisson PMF overlay
+    const pmf = poissonPMF(lambda, kMax);
+    let yMaxFrac = 0;
+    for (let k = 0; k <= kMax; k++) {
+      if (fracs[k] > yMaxFrac) yMaxFrac = fracs[k];
+      if (pmf[k]   > yMaxFrac) yMaxFrac = pmf[k];
+    }
+    yMaxFrac = Math.max(yMaxFrac, 0.05);
+    // give headroom
+    yMaxFrac = yMaxFrac * 1.15;
+
+    const xOf = (k) => plotX0 + ((k + 0.5) / (kMax + 1)) * plotW;
+    const yOf = (f) => plotY1 - (f / yMaxFrac) * plotH;
+    const barW = (plotW / (kMax + 1)) * 0.82;
+
+    // Gridlines: 0, half, full
+    for (const f of [0, yMaxFrac / 2, yMaxFrac]) {
+      const y = yOf(f);
+      svg.appendChild(el('line', {
+        x1: plotX0, x2: plotX1, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': f === 0 ? '' : '2 4',
+      }));
+      const t = el('text', {
+        x: plotX0 - 8, y: y + 4,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      });
+      t.textContent = (f * 100).toFixed(f >= 0.1 ? 0 : 1) + '%';
+      svg.appendChild(t);
+    }
+
+    // Bars
+    for (let k = 0; k <= kMax; k++) {
+      const f = fracs[k];
+      if (f <= 0) continue;
+      const x = xOf(k) - barW / 2;
+      const y = yOf(f);
+      const h = plotY1 - y;
+      svg.appendChild(el('rect', {
+        x: x.toFixed(2), y: y.toFixed(2),
+        width: barW.toFixed(2), height: h.toFixed(2),
+        fill: 'var(--accent-bg)', stroke: 'var(--accent)',
+        'stroke-width': 1,
+      }));
+    }
+
+    // Poisson curve (dashed polyline through (k, pmf[k]))
+    const linePts = [];
+    for (let k = 0; k <= kMax; k++) {
+      linePts.push(`${xOf(k).toFixed(2)},${yOf(pmf[k]).toFixed(2)}`);
+    }
+    svg.appendChild(el('polyline', {
+      points: linePts.join(' '),
+      fill: 'none',
+      stroke: 'var(--fg-muted)',
+      'stroke-width': 1.5,
+      'stroke-dasharray': '5 4',
+    }));
+
+    // X axis baseline + ticks (every few k)
+    svg.appendChild(el('line', {
+      x1: plotX0, x2: plotX1, y1: plotY1, y2: plotY1,
+      stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+    const tickStep = kMax <= 10 ? 1 : kMax <= 30 ? 5 : kMax <= 60 ? 10 : 20;
+    for (let k = 0; k <= kMax; k += tickStep) {
+      svg.appendChild(el('line', {
+        x1: xOf(k), x2: xOf(k),
+        y1: plotY1, y2: plotY1 + 4,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      const t = el('text', {
+        x: xOf(k), y: plotY1 + 17,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      });
+      t.textContent = k.toString() + '×';
+      svg.appendChild(t);
+    }
+
+    // Axis labels
+    const xLab = el('text', {
+      x: (plotX0 + plotX1) / 2, y: H - 4,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+    });
+    xLab.textContent = 'coverage depth';
+    svg.appendChild(xLab);
+  }
+
+  // ── Update pipeline ──────────────────────────────────────
+
+  function updateReadouts(stats) {
+    LVal.textContent     = state.L.toString();
+    rVal.textContent     = state.r.toString();
+    NVal.textContent     = state.N.toString();
+    alphaVal.textContent = state.alpha.toString();
+    const expected = (state.N * state.r) / state.L;
+    meanExp.textContent = expected.toFixed(1) + '×';
+
+    statMean.textContent = stats.mean.toFixed(2) + '×';
+    statSd.textContent   = stats.sd.toFixed(2);
+
+    const zp = stats.zeroFrac * 100;
+    statZero.textContent = zp.toFixed(1) + '%';
+    statZero.classList.remove('warn', 'bad');
+    if      (zp >= 10) statZero.classList.add('bad');
+    else if (zp >= 3)  statZero.classList.add('warn');
+
+    statDropouts.textContent = stats.zeros.toString();
+    statDropouts.classList.remove('warn', 'bad');
+    if      (zp >= 10) statDropouts.classList.add('bad');
+    else if (zp >= 3)  statDropouts.classList.add('warn');
+  }
+
+  function readControls() {
+    state.L     = +LEl.value;
+    state.r     = Math.min(+rEl.value, state.L);   // r cannot exceed L
+    state.N     = +NEl.value;
+    state.alpha = +alphaEl.value;
+  }
+
+  function run() {
+    readControls();
+    dropReads();
+    const stats = computeStats();
+    updateReadouts(stats);
+    renderPileup();
+    renderDepth(stats);
+    renderHistogram(stats);
+  }
+
+  function requestRun() {
+    if (state.rafPending) return;
+    state.rafPending = true;
+    requestAnimationFrame(() => {
+      state.rafPending = false;
+      run();
+    });
+  }
+
+  // ── Wiring ───────────────────────────────────────────────
+
+  [LEl, rEl, NEl, alphaEl].forEach(el => {
+    el.addEventListener('input', requestRun);
+  });
+
+  rerollBtn.addEventListener('click', () => { run(); });
+
+  resetBtn.addEventListener('click', () => {
+    LEl.value     = DEFAULTS.L;
+    rEl.value     = DEFAULTS.r;
+    NEl.value     = DEFAULTS.N;
+    alphaEl.value = DEFAULTS.alpha;
+    run();
+  });
+
+  // Initial draw — demonstrates the teaching point without interaction.
+  run();
+})();
+</script>
+
+</body>
+</html>

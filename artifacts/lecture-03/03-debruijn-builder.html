@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>De Bruijn Graph Builder</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 62ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .seq-input {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      padding: 0.5rem 0.7rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .seq-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); outline: none; }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn--ghost {
+      background: transparent;
+      border: 1px dashed var(--border-strong);
+      color: var(--fg-muted);
+    }
+    .btn--ghost:hover:not(:disabled) { background: var(--bg-muted); color: var(--fg); }
+    .btn--icon {
+      padding: 0.25rem 0.55rem;
+      font-size: var(--text-sm);
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--fg-subtle);
+      line-height: 1;
+    }
+    .btn--icon:hover:not(:disabled) { background: var(--bg-muted); color: var(--error); border-color: var(--border-strong); }
+
+    .controls {
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .controls label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+    }
+    .controls input[type="range"] { accent-color: var(--accent); width: 120px; }
+    .controls .k-readout {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      min-width: 1.5em;
+      display: inline-block;
+      text-align: center;
+    }
+
+    .read-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .read-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .read-row .read-idx {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      min-width: 2.2em;
+    }
+
+    /* k-mer decomposition panel */
+    .kmer-block {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      line-height: 1.7;
+      padding: 0.6rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 0.55rem;
+    }
+    .kmer-block .read-header {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+    .kmer-block .read-header .read-seq {
+      font-family: var(--font-mono);
+      letter-spacing: 0.05em;
+      color: var(--fg);
+      text-transform: none;
+      margin-left: 0.5rem;
+      font-weight: 500;
+    }
+    .kmer-line .kmer { color: var(--accent); font-weight: 600; }
+    .kmer-line .arrow { color: var(--fg-subtle); margin: 0 0.4rem; }
+    .kmer-line .sep { color: var(--fg-subtle); margin: 0 0.4rem; }
+    .kmer-line .prefix, .kmer-line .suffix { color: var(--fg); }
+    .kmer-empty { color: var(--fg-subtle); font-style: italic; font-family: var(--font-sans); font-size: var(--text-xs); }
+
+    /* Graph panel */
+    .graph-wrap {
+      position: relative;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    svg.debruijn {
+      display: block;
+      width: 100%;
+      height: auto;
+      user-select: none;
+    }
+    .node-label {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      fill: var(--fg);
+      pointer-events: none;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+    .edge-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      fill: var(--fg-muted);
+      pointer-events: none;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+    .node-hit { cursor: pointer; }
+    .node-hit circle.node-circle {
+      fill: var(--bg-muted);
+      stroke: var(--fg);
+      stroke-width: 1.5;
+      transition: fill 0.12s ease, stroke 0.12s ease;
+    }
+    .node-hit.is-hover circle.node-circle {
+      fill: var(--accent-bg);
+      stroke: var(--accent);
+      stroke-width: 2;
+    }
+    .edge line.edge-line {
+      stroke: var(--accent);
+      stroke-width: 1.4;
+      opacity: 0.55;
+      transition: opacity 0.12s ease, stroke-width 0.12s ease;
+    }
+    .edge path.edge-path {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 1.4;
+      opacity: 0.55;
+      transition: opacity 0.12s ease, stroke-width 0.12s ease;
+    }
+    .edge.is-hover line.edge-line,
+    .edge.is-hover path.edge-path { opacity: 1; stroke-width: 2.2; }
+    .edge.is-hover text.edge-label { fill: var(--accent); font-weight: 600; }
+
+    .graph-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.7rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: 1.5;
+      color: var(--fg);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      max-width: 260px;
+      opacity: 0;
+      transform: translate(-50%, -100%);
+      transition: opacity 0.12s ease;
+      z-index: 10;
+    }
+    .graph-tooltip.is-visible { opacity: 1; }
+    .graph-tooltip .tt-head {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    .graph-tooltip .tt-node {
+      font-family: var(--font-mono);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .graph-tooltip .tt-row { margin-top: 0.2rem; }
+    .graph-tooltip .tt-dir {
+      font-family: var(--font-sans);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin-right: 0.35rem;
+    }
+
+    .status-line {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1rem;
+      padding: 0.85rem 1rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-top: 1rem;
+    }
+    .status-line .label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin: 0;
+    }
+    .status-line .value {
+      font-family: var(--font-mono);
+      font-size: var(--text-lg);
+      color: var(--fg);
+      margin: 0.15rem 0 0;
+    }
+    .status-line .value.emphasis { color: var(--accent); }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+    .hint code {
+      font-family: var(--font-mono);
+      background: var(--bg-muted);
+      padding: 0.05rem 0.3rem;
+      border-radius: 2px;
+      color: var(--fg);
+    }
+
+    .empty-state {
+      padding: 2rem 1rem;
+      text-align: center;
+      color: var(--fg-subtle);
+      font-size: var(--text-sm);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="debruijn-builder">
+
+  <header class="artifact-head">
+    <h1>De Bruijn Graph Builder</h1>
+    <p>Edit reads, slide <em>k</em>, and watch the graph reshape itself. Every edge is one k-mer; every node is one (k−1)-mer. Add a branching read to the defaults and a fork appears — that fork is exactly what "graph cleanup" algorithms have to resolve.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Reads (4–15 chars of ACGT, up to 8)</p>
+    <div class="read-list" id="read-list"></div>
+    <div class="controls" style="margin-bottom: 0.75rem;">
+      <button id="add-read-btn" class="btn btn--ghost" type="button">+ Add read</button>
+    </div>
+
+    <div class="controls">
+      <label>k
+        <input id="k-slider" type="range" min="2" max="6" value="4">
+        <span class="k-readout" id="k-readout">4</span>
+      </label>
+      <button id="rebuild-btn" class="btn btn--primary" type="button">Rebuild</button>
+      <button id="reset-btn"   class="btn" type="button">↺ Reset</button>
+    </div>
+    <p class="hint">Try adding <code>CGTAC</code> as a 4th read — the graph grows a fork at <code>CGT</code>. That branch is what "tip trimming" and "bubble popping" algorithms inherit as input.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">k-mer decomposition — one edge per k-mer, split into (k−1)-mer prefix and suffix</p>
+    <div id="kmer-panel"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">De Bruijn graph</p>
+    <div class="graph-wrap" id="graph-wrap">
+      <svg class="debruijn" id="graph-svg" viewBox="0 0 900 360" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"></path>
+          </marker>
+          <marker id="arrow-hover" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"></path>
+          </marker>
+        </defs>
+        <g id="edges-group"></g>
+        <g id="nodes-group"></g>
+      </svg>
+      <div class="graph-tooltip" id="graph-tooltip"></div>
+    </div>
+
+    <div class="status-line">
+      <div>
+        <p class="label">Reads</p>
+        <p class="value" id="stat-reads">0</p>
+      </div>
+      <div>
+        <p class="label">Distinct k-mers (edges)</p>
+        <p class="value emphasis" id="stat-edges">0</p>
+      </div>
+      <div>
+        <p class="label">Distinct (k−1)-mers (nodes)</p>
+        <p class="value emphasis" id="stat-nodes">0</p>
+      </div>
+      <div>
+        <p class="label">Branch points</p>
+        <p class="value" id="stat-branches">0</p>
+      </div>
+    </div>
+    <p class="hint">Hover any node to highlight its incoming and outgoing edges and see the (read, offset) pairs that produced them.</p>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  const readListEl  = $('read-list');
+  const addBtn      = $('add-read-btn');
+  const kSlider     = $('k-slider');
+  const kReadout    = $('k-readout');
+  const rebuildBtn  = $('rebuild-btn');
+  const resetBtn    = $('reset-btn');
+  const kmerPanel   = $('kmer-panel');
+  const svg         = $('graph-svg');
+  const edgesGroup  = $('edges-group');
+  const nodesGroup  = $('nodes-group');
+  const graphWrap   = $('graph-wrap');
+  const tooltip     = $('graph-tooltip');
+  const statReads   = $('stat-reads');
+  const statEdges   = $('stat-edges');
+  const statNodes   = $('stat-nodes');
+  const statBr      = $('stat-branches');
+
+  const DEFAULT_READS = ['ACGTCC', 'CGTCCA', 'GTCCAT'];
+  const MAX_READS = 8;
+  const MIN_LEN = 4, MAX_LEN = 15;
+
+  const VIEW_W = 900, VIEW_H = 360;
+  const NODE_R = 24;
+
+  const state = {
+    reads: DEFAULT_READS.slice(),
+    k: 4,
+    graph: { nodes: new Map(), edges: [] },
+    nodeElByLabel: new Map(),
+    edgeElsByKey: new Map(),          // key = from|to -> [el, el...]
+    edgesByNodeLabel: new Map(),      // label -> { inc: [edge], out: [edge] }
+  };
+
+  /* ─── Read inputs ────────────────────────────────────────── */
+
+  function sanitize(s) { return (s || '').toUpperCase().replace(/[^ACGT]/g, ''); }
+  function clamp(s) { return s.length > MAX_LEN ? s.slice(0, MAX_LEN) : s; }
+
+  function renderReadInputs() {
+    readListEl.innerHTML = '';
+    state.reads.forEach((read, i) => {
+      const row = document.createElement('div');
+      row.className = 'read-row';
+
+      const idx = document.createElement('span');
+      idx.className = 'read-idx';
+      idx.textContent = 'R' + (i + 1);
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'seq-input';
+      input.spellcheck = false;
+      input.value = read;
+      input.maxLength = MAX_LEN;
+      input.placeholder = 'ACGT…';
+      input.addEventListener('input', (e) => {
+        state.reads[i] = clamp(sanitize(e.target.value));
+        e.target.value = state.reads[i];
+        rebuild();
+      });
+
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'btn btn--icon';
+      rm.textContent = '×';
+      rm.title = 'Remove this read';
+      rm.disabled = state.reads.length <= 1;
+      rm.addEventListener('click', () => {
+        state.reads.splice(i, 1);
+        renderReadInputs();
+        rebuild();
+      });
+
+      row.appendChild(idx);
+      row.appendChild(input);
+      row.appendChild(rm);
+      readListEl.appendChild(row);
+    });
+    addBtn.disabled = state.reads.length >= MAX_READS;
+  }
+
+  addBtn.addEventListener('click', () => {
+    if (state.reads.length >= MAX_READS) return;
+    state.reads.push('');
+    renderReadInputs();
+    // Focus the new one
+    const rows = readListEl.querySelectorAll('.read-row input');
+    if (rows.length) rows[rows.length - 1].focus();
+  });
+
+  /* ─── Build de Bruijn graph ──────────────────────────────── */
+
+  function buildGraph() {
+    const k = state.k;
+    const nodes = new Map();        // label -> { label, x, y, deg: {in, out}, col, row }
+    const edgesMap = new Map();     // key = `${from}|${to}|${kmer}` -> edge
+    const edges = [];
+
+    const ensureNode = (label) => {
+      if (!nodes.has(label)) {
+        nodes.set(label, { label, x: 0, y: 0, inc: [], out: [] });
+      }
+      return nodes.get(label);
+    };
+
+    state.reads.forEach((read, readIdx) => {
+      if (read.length < k) return;
+      for (let i = 0; i <= read.length - k; i++) {
+        const kmer = read.substring(i, i + k);
+        const from = kmer.substring(0, k - 1);
+        const to   = kmer.substring(1);
+        const key  = `${from}|${to}|${kmer}`;
+
+        const fromNode = ensureNode(from);
+        const toNode   = ensureNode(to);
+
+        let edge = edgesMap.get(key);
+        if (!edge) {
+          edge = { from, to, kmer, sources: [] };
+          edgesMap.set(key, edge);
+          edges.push(edge);
+          fromNode.out.push(edge);
+          toNode.inc.push(edge);
+        }
+        edge.sources.push({ readIdx, offset: i });
+      }
+    });
+
+    return { nodes, edges };
+  }
+
+  /* ─── Layout ─────────────────────────────────────────────── */
+
+  // 1) BFS column assignment from in-degree-0 nodes.
+  // 2) Within each column, stagger rows up/down from the centerline.
+  // 3) If the graph has cycles or complex branching, fall back to a
+  //    small force-directed pass to untangle.
+
+  function layout(graph) {
+    const nodes = [...graph.nodes.values()];
+    if (!nodes.length) return;
+
+    const labelToNode = graph.nodes;
+    const col = new Map();        // label -> column index
+    const starts = nodes.filter(n => n.inc.length === 0);
+    const queue = [];
+
+    if (starts.length === 0) {
+      // cycle: pick lexicographically smallest
+      nodes.sort((a, b) => a.label < b.label ? -1 : 1);
+      col.set(nodes[0].label, 0);
+      queue.push(nodes[0]);
+    } else {
+      starts.sort((a, b) => a.label < b.label ? -1 : 1);
+      starts.forEach(n => { col.set(n.label, 0); queue.push(n); });
+    }
+
+    // BFS; a node's column is max(predecessor col + 1, its current col).
+    while (queue.length) {
+      const n = queue.shift();
+      const c = col.get(n.label);
+      for (const e of n.out) {
+        const t = labelToNode.get(e.to);
+        const prev = col.has(t.label) ? col.get(t.label) : -1;
+        const want = c + 1;
+        if (want > prev) {
+          col.set(t.label, want);
+          queue.push(t);
+        }
+      }
+    }
+
+    // Any unvisited (due to cycles reachable only internally): assign column 0+.
+    nodes.forEach(n => { if (!col.has(n.label)) col.set(n.label, 0); });
+
+    // Group nodes by column.
+    const colsMap = new Map();
+    nodes.forEach(n => {
+      const c = col.get(n.label);
+      if (!colsMap.has(c)) colsMap.set(c, []);
+      colsMap.get(c).push(n);
+    });
+    const maxCol = Math.max(...colsMap.keys());
+
+    // Assign positions
+    const padX = 60;
+    const innerW = VIEW_W - padX * 2;
+    const stepX = maxCol === 0 ? 0 : innerW / maxCol;
+    const centerY = VIEW_H / 2;
+
+    colsMap.forEach((list, c) => {
+      // Sort deterministically
+      list.sort((a, b) => a.label < b.label ? -1 : 1);
+      const x = padX + stepX * c;
+      if (list.length === 1) {
+        list[0].x = x;
+        list[0].y = centerY;
+      } else {
+        // stagger: center row, then alternate above/below
+        const spread = Math.min(VIEW_H - 100, 70 * (list.length - 1));
+        const top = centerY - spread / 2;
+        const step = spread / (list.length - 1);
+        list.forEach((n, i) => {
+          n.x = x;
+          n.y = top + step * i;
+        });
+      }
+    });
+
+    // If any node position collides with another OR graph has cycles,
+    // run a small force-directed pass.
+    const hasCycle = starts.length === 0 || detectCycle(graph);
+    const needsForce = hasCycle || nodes.length > 10;
+    if (needsForce) forceRefine(nodes, graph);
+  }
+
+  function detectCycle(graph) {
+    // DFS cycle detection
+    const color = new Map();  // 0=white, 1=gray, 2=black
+    const nodes = graph.nodes;
+    for (const [label] of nodes) color.set(label, 0);
+    let cyc = false;
+    function dfs(label) {
+      if (cyc) return;
+      color.set(label, 1);
+      const n = nodes.get(label);
+      for (const e of n.out) {
+        const c = color.get(e.to);
+        if (c === 1) { cyc = true; return; }
+        if (c === 0) dfs(e.to);
+      }
+      color.set(label, 2);
+    }
+    for (const [label, c] of color) {
+      if (c === 0) dfs(label);
+      if (cyc) return true;
+    }
+    return false;
+  }
+
+  function forceRefine(nodes, graph) {
+    // Simple force-directed pass: repulsion between all pairs, spring along edges.
+    // Keeps x anchored to BFS column but lets y drift.
+    const IDEAL = 90;
+    const K_REPEL = 2800;
+    const K_SPRING = 0.04;
+    const DAMP = 0.82;
+    const ITERS = 60;
+
+    const vy = new Map();
+    nodes.forEach(n => vy.set(n.label, 0));
+
+    for (let step = 0; step < ITERS; step++) {
+      const forces = new Map();
+      nodes.forEach(n => forces.set(n.label, 0));
+
+      // Repulsion
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j];
+          const dy = a.y - b.y;
+          const dx = a.x - b.x;
+          const d2 = dx * dx + dy * dy + 0.01;
+          const f = K_REPEL / d2;
+          const fy = (dy / Math.sqrt(d2)) * f;
+          forces.set(a.label, forces.get(a.label) + fy);
+          forces.set(b.label, forces.get(b.label) - fy);
+        }
+      }
+
+      // Spring along edges
+      for (const e of graph.edges) {
+        const a = graph.nodes.get(e.from);
+        const b = graph.nodes.get(e.to);
+        if (!a || !b) continue;
+        const dy = b.y - a.y;
+        const dx = b.x - a.x;
+        const d = Math.sqrt(dx * dx + dy * dy) + 0.01;
+        const f = K_SPRING * (d - IDEAL);
+        const fy = (dy / d) * f;
+        forces.set(a.label, forces.get(a.label) + fy);
+        forces.set(b.label, forces.get(b.label) - fy);
+      }
+
+      nodes.forEach(n => {
+        const nv = (vy.get(n.label) + forces.get(n.label)) * DAMP;
+        vy.set(n.label, nv);
+        n.y = Math.max(NODE_R + 10, Math.min(VIEW_H - NODE_R - 10, n.y + nv));
+      });
+    }
+  }
+
+  /* ─── Rendering ──────────────────────────────────────────── */
+
+  function renderKmerPanel(graph) {
+    kmerPanel.innerHTML = '';
+    const k = state.k;
+    let anyRendered = false;
+    state.reads.forEach((read, i) => {
+      const block = document.createElement('div');
+      block.className = 'kmer-block';
+
+      const hdr = document.createElement('div');
+      hdr.className = 'read-header';
+      hdr.innerHTML = `R${i + 1} <span class="read-seq">${read || '—'}</span>`;
+      block.appendChild(hdr);
+
+      if (read.length < k) {
+        const empty = document.createElement('div');
+        empty.className = 'kmer-empty';
+        empty.textContent = `Read shorter than k (${read.length} < ${k}) — no k-mers extracted.`;
+        block.appendChild(empty);
+      } else {
+        anyRendered = true;
+        for (let j = 0; j <= read.length - k; j++) {
+          const kmer = read.substring(j, j + k);
+          const pre  = kmer.substring(0, k - 1);
+          const suf  = kmer.substring(1);
+          const line = document.createElement('div');
+          line.className = 'kmer-line';
+          line.innerHTML =
+            `<span class="kmer">${kmer}</span>` +
+            `<span class="arrow">→</span>` +
+            `<span class="prefix">${pre}</span>` +
+            `<span class="sep">|</span>` +
+            `<span class="suffix">${suf}</span>`;
+          block.appendChild(line);
+        }
+      }
+      kmerPanel.appendChild(block);
+    });
+    if (!state.reads.length || !anyRendered) {
+      if (!state.reads.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'No reads. Add one above.';
+        kmerPanel.appendChild(empty);
+      }
+    }
+  }
+
+  function clearGroup(g) { while (g.firstChild) g.removeChild(g.firstChild); }
+
+  function renderGraph(graph) {
+    clearGroup(edgesGroup);
+    clearGroup(nodesGroup);
+    state.nodeElByLabel = new Map();
+    state.edgeElsByKey = new Map();
+    state.edgesByNodeLabel = new Map();
+
+    if (!graph.nodes.size) {
+      const t = document.createElementNS(SVG_NS, 'text');
+      t.setAttribute('x', VIEW_W / 2);
+      t.setAttribute('y', VIEW_H / 2);
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('class', 'edge-label');
+      t.textContent = 'No k-mers yet — add a read at least k characters long.';
+      edgesGroup.appendChild(t);
+      return;
+    }
+
+    // Group parallel edges between (from,to) pairs to offset them.
+    const parallelMap = new Map(); // "from|to" -> count
+    for (const e of graph.edges) {
+      const key = `${e.from}|${e.to}`;
+      parallelMap.set(key, (parallelMap.get(key) || 0) + 1);
+    }
+    const parallelIdx = new Map();
+
+    graph.edges.forEach((edge, idx) => {
+      const a = graph.nodes.get(edge.from);
+      const b = graph.nodes.get(edge.to);
+      if (!a || !b) return;
+
+      const pk = `${edge.from}|${edge.to}`;
+      const nParallel = parallelMap.get(pk) || 1;
+      const idxInPair = (parallelIdx.get(pk) || 0);
+      parallelIdx.set(pk, idxInPair + 1);
+
+      const isSelfLoop = edge.from === edge.to;
+      const isReverse = !isSelfLoop && graph.edges.some(e2 => e2.from === edge.to && e2.to === edge.from);
+      const gEl = document.createElementNS(SVG_NS, 'g');
+      gEl.setAttribute('class', 'edge');
+
+      let labelX, labelY;
+
+      if (isSelfLoop) {
+        // Draw as a loop above the node
+        const loopR = NODE_R * 0.9;
+        const cx = a.x, cy = a.y - NODE_R - loopR * 0.6;
+        const path = document.createElementNS(SVG_NS, 'path');
+        // Start on top-right of node, curve up & left, end on top-left
+        const sx = a.x + NODE_R * 0.4, sy = a.y - NODE_R * 0.92;
+        const ex = a.x - NODE_R * 0.4, ey = a.y - NODE_R * 0.92;
+        const d = `M ${sx} ${sy} C ${cx + loopR * 1.2} ${cy - loopR * 0.4}, ${cx - loopR * 1.2} ${cy - loopR * 0.4}, ${ex} ${ey}`;
+        path.setAttribute('d', d);
+        path.setAttribute('class', 'edge-path');
+        path.setAttribute('marker-end', 'url(#arrow)');
+        gEl.appendChild(path);
+        labelX = cx;
+        labelY = cy - loopR * 0.2;
+      } else {
+        // Straight line, possibly with a small perpendicular offset for parallel edges or reverse edges
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const ux = dx / len, uy = dy / len;
+        // perpendicular unit
+        const px = -uy, py = ux;
+        // offset magnitude: spread parallel edges, plus offset reverse edges
+        let off = 0;
+        if (nParallel > 1) {
+          off = (idxInPair - (nParallel - 1) / 2) * 10;
+        } else if (isReverse) {
+          off = 8; // consistent sign; the reverse edge will be drawn from the other endpoint
+        }
+
+        // Trim line to the node rims (so arrowhead lands on rim, not behind circle)
+        const sx = a.x + ux * NODE_R + px * off;
+        const sy = a.y + uy * NODE_R + py * off;
+        const ex = b.x - ux * NODE_R + px * off;
+        const ey = b.y - uy * NODE_R + py * off;
+
+        if (Math.abs(off) < 0.1) {
+          const line = document.createElementNS(SVG_NS, 'line');
+          line.setAttribute('x1', sx.toFixed(2));
+          line.setAttribute('y1', sy.toFixed(2));
+          line.setAttribute('x2', ex.toFixed(2));
+          line.setAttribute('y2', ey.toFixed(2));
+          line.setAttribute('class', 'edge-line');
+          line.setAttribute('marker-end', 'url(#arrow)');
+          gEl.appendChild(line);
+        } else {
+          // Slight quadratic curve through mid-offset for parallel/reverse
+          const mx = (a.x + b.x) / 2 + px * off * 2.2;
+          const my = (a.y + b.y) / 2 + py * off * 2.2;
+          const path = document.createElementNS(SVG_NS, 'path');
+          path.setAttribute('d', `M ${sx.toFixed(2)} ${sy.toFixed(2)} Q ${mx.toFixed(2)} ${my.toFixed(2)} ${ex.toFixed(2)} ${ey.toFixed(2)}`);
+          path.setAttribute('class', 'edge-path');
+          path.setAttribute('marker-end', 'url(#arrow)');
+          gEl.appendChild(path);
+        }
+        labelX = (sx + ex) / 2 + px * (off > 0 ? 8 : (off < 0 ? -8 : 0));
+        labelY = (sy + ey) / 2 + py * (off > 0 ? 8 : (off < 0 ? -8 : 0));
+        if (off === 0) {
+          // bias above line
+          labelX = (sx + ex) / 2 + px * 8;
+          labelY = (sy + ey) / 2 + py * 8;
+        }
+      }
+
+      const lbl = document.createElementNS(SVG_NS, 'text');
+      lbl.setAttribute('x', labelX.toFixed(2));
+      lbl.setAttribute('y', labelY.toFixed(2));
+      lbl.setAttribute('class', 'edge-label');
+      lbl.textContent = edge.kmer;
+      gEl.appendChild(lbl);
+
+      edgesGroup.appendChild(gEl);
+
+      // Register
+      const key = `${edge.from}|${edge.to}|${edge.kmer}`;
+      if (!state.edgeElsByKey.has(key)) state.edgeElsByKey.set(key, []);
+      state.edgeElsByKey.get(key).push(gEl);
+
+      // Node -> touching edges
+      [edge.from, edge.to].forEach(lab => {
+        if (!state.edgesByNodeLabel.has(lab)) state.edgesByNodeLabel.set(lab, { inc: [], out: [] });
+      });
+      state.edgesByNodeLabel.get(edge.from).out.push({ edge, gEl });
+      state.edgesByNodeLabel.get(edge.to).inc.push({ edge, gEl });
+    });
+
+    // Nodes (drawn after edges so circles sit on top)
+    for (const node of graph.nodes.values()) {
+      const g = document.createElementNS(SVG_NS, 'g');
+      g.setAttribute('class', 'node-hit');
+      g.setAttribute('data-label', node.label);
+
+      const circle = document.createElementNS(SVG_NS, 'circle');
+      circle.setAttribute('cx', node.x.toFixed(2));
+      circle.setAttribute('cy', node.y.toFixed(2));
+      circle.setAttribute('r', NODE_R);
+      circle.setAttribute('class', 'node-circle');
+      g.appendChild(circle);
+
+      const label = document.createElementNS(SVG_NS, 'text');
+      label.setAttribute('x', node.x.toFixed(2));
+      label.setAttribute('y', node.y.toFixed(2));
+      label.setAttribute('class', 'node-label');
+      label.textContent = node.label;
+      g.appendChild(label);
+
+      g.addEventListener('mouseenter', (e) => onNodeHover(node, true));
+      g.addEventListener('mouseleave', (e) => onNodeHover(node, false));
+
+      nodesGroup.appendChild(g);
+      state.nodeElByLabel.set(node.label, g);
+    }
+  }
+
+  /* ─── Hover interactions ─────────────────────────────────── */
+
+  function onNodeHover(node, entering) {
+    const nodeEl = state.nodeElByLabel.get(node.label);
+    if (!nodeEl) return;
+    if (entering) nodeEl.classList.add('is-hover');
+    else nodeEl.classList.remove('is-hover');
+
+    const touching = state.edgesByNodeLabel.get(node.label);
+    if (touching) {
+      [...touching.inc, ...touching.out].forEach(({ gEl }) => {
+        if (entering) gEl.classList.add('is-hover');
+        else gEl.classList.remove('is-hover');
+      });
+    }
+
+    if (entering) showTooltip(node);
+    else hideTooltip();
+  }
+
+  function showTooltip(node) {
+    const touching = state.edgesByNodeLabel.get(node.label) || { inc: [], out: [] };
+
+    const fmtSources = (edges) => edges.map(({ edge }) => {
+      const s = edge.sources.map(s => `R${s.readIdx + 1}@${s.offset}`).join(', ');
+      return `<div class="tt-row"><span class="tt-dir">${edge.kmer}</span>${s}</div>`;
+    }).join('');
+
+    const incHtml = touching.inc.length
+      ? `<div class="tt-head">In (${touching.inc.length})</div>${fmtSources(touching.inc)}`
+      : `<div class="tt-head">In</div><div class="tt-row" style="color:var(--fg-subtle)">none (start node)</div>`;
+    const outHtml = touching.out.length
+      ? `<div class="tt-head" style="margin-top:0.5rem">Out (${touching.out.length})</div>${fmtSources(touching.out)}`
+      : `<div class="tt-head" style="margin-top:0.5rem">Out</div><div class="tt-row" style="color:var(--fg-subtle)">none (end node)</div>`;
+
+    tooltip.innerHTML =
+      `<div class="tt-head">Node</div>` +
+      `<div class="tt-node">${node.label}</div>` +
+      incHtml + outHtml;
+
+    // Position: map SVG coords to wrapper-relative pixel coords
+    const svgRect = svg.getBoundingClientRect();
+    const wrapRect = graphWrap.getBoundingClientRect();
+    const scaleX = svgRect.width / VIEW_W;
+    const scaleY = svgRect.height / VIEW_H;
+    const offLeft = svgRect.left - wrapRect.left;
+    const offTop  = svgRect.top  - wrapRect.top;
+    const px = offLeft + node.x * scaleX;
+    const py = offTop  + (node.y - NODE_R - 8) * scaleY;
+    tooltip.style.left = px + 'px';
+    tooltip.style.top  = py + 'px';
+    tooltip.classList.add('is-visible');
+  }
+
+  function hideTooltip() { tooltip.classList.remove('is-visible'); }
+
+  /* ─── Orchestration ──────────────────────────────────────── */
+
+  function updateStats(graph) {
+    const validReads = state.reads.filter(r => r.length >= state.k).length;
+    statReads.textContent = `${validReads} / ${state.reads.length}`;
+    statEdges.textContent = graph.edges.length;
+    statNodes.textContent = graph.nodes.size;
+    let branches = 0;
+    for (const n of graph.nodes.values()) {
+      if (n.out.length > 1 || n.inc.length > 1) branches++;
+    }
+    statBr.textContent = branches;
+  }
+
+  function rebuild() {
+    state.k = +kSlider.value;
+    kReadout.textContent = state.k;
+
+    const graph = buildGraph();
+    state.graph = graph;
+    layout(graph);
+    renderKmerPanel(graph);
+    renderGraph(graph);
+    updateStats(graph);
+    hideTooltip();
+  }
+
+  function resetAll() {
+    state.reads = DEFAULT_READS.slice();
+    state.k = 4;
+    kSlider.value = '4';
+    kReadout.textContent = '4';
+    renderReadInputs();
+    rebuild();
+  }
+
+  /* ─── Wiring ─────────────────────────────────────────────── */
+
+  kSlider.addEventListener('input', () => {
+    kReadout.textContent = kSlider.value;
+    rebuild();
+  });
+  rebuildBtn.addEventListener('click', rebuild);
+  resetBtn.addEventListener('click', resetAll);
+
+  // initial
+  renderReadInputs();
+  rebuild();
+
+})();
+</script>
+
+</body>
+</html>

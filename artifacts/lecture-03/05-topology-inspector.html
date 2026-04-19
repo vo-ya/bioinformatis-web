@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assembly Topology Inspector</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 62ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .controls select {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.45rem 0.7rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+    }
+    .controls select:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+    .controls label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+    }
+
+    /* Graph view */
+    .graph-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    svg.graph {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: var(--bg-muted);
+    }
+    svg.graph .node circle {
+      fill: var(--bg-elevated);
+      stroke: var(--fg);
+      stroke-width: 1.5;
+    }
+    svg.graph .node text {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      fill: var(--fg);
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+    svg.graph .edge {
+      fill: none;
+      stroke: var(--fg);
+      stroke-width: 1.5;
+    }
+    svg.graph .edge-weight {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      fill: var(--fg-subtle);
+      text-anchor: middle;
+    }
+
+    /* Topology highlights */
+    svg.graph .tip circle { stroke: var(--warning); stroke-width: 2.5; }
+    svg.graph .tip text   { fill: var(--warning); }
+    svg.graph .edge.tip-edge { stroke: var(--warning); stroke-width: 2.5; }
+
+    svg.graph .bubble-bg { fill: var(--accent-bg); stroke: none; }
+    svg.graph .bubble circle { stroke: var(--accent); stroke-width: 2; }
+    svg.graph .bubble text   { fill: var(--accent); }
+    svg.graph .edge.bubble-edge { stroke: var(--accent); stroke-width: 2; }
+
+    svg.graph .tangle-bg { fill: #fdecea; stroke: var(--error); stroke-dasharray: 4 3; stroke-width: 1; }
+    svg.graph .tangle circle { stroke: var(--error); stroke-width: 2.5; }
+    svg.graph .tangle text   { fill: var(--error); }
+    svg.graph .edge.tangle-edge { stroke: var(--error); stroke-width: 2; }
+
+    svg.graph .flagged circle { fill: #fdecea; stroke: var(--error); stroke-dasharray: 3 2; }
+    svg.graph .flagged text   { fill: var(--error); }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-top: 0.75rem;
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+    .legend .swatch {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border-radius: 3px;
+      margin-right: 0.35rem;
+      vertical-align: middle;
+      border: 1px solid var(--border);
+    }
+    .swatch.tip    { background: transparent; border-color: var(--warning); }
+    .swatch.bubble { background: var(--accent-bg); border-color: var(--accent); }
+    .swatch.tangle { background: #fdecea; border-color: var(--error); }
+
+    /* Status / counts */
+    .status-line {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      padding: 0.85rem 1rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-top: 1rem;
+    }
+    .status-line .label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+    }
+    .status-line .value {
+      font-family: var(--font-mono);
+      font-size: var(--text-lg);
+      color: var(--fg);
+      margin-top: 0.15rem;
+    }
+    .status-line .value.emphasis { color: var(--accent); }
+    .status-line .value.warn  { color: var(--warning); }
+    .status-line .value.err   { color: var(--error); }
+
+    /* Contigs list */
+    .contigs {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .contigs li {
+      padding: 0.55rem 0.75rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 0.4rem;
+      display: flex;
+      gap: 0.75rem;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    .contigs .num {
+      color: var(--accent);
+      font-weight: 600;
+      min-width: 4.5rem;
+    }
+    .contigs .seq {
+      color: var(--fg);
+      word-break: break-all;
+      flex: 1;
+      min-width: 16ch;
+    }
+    .contigs .len {
+      color: var(--fg-subtle);
+      font-size: var(--text-xs);
+    }
+    .contigs-empty {
+      color: var(--fg-subtle);
+      font-style: italic;
+      font-family: var(--font-sans);
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .controls { gap: 0.35rem; }
+      .btn { padding: 0.45rem 0.7rem; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="topology-inspector">
+
+  <header class="artifact-head">
+    <h1>Assembly Topology Inspector</h1>
+    <p>Real assembly graphs are messy. Three patterns dominate the mess: <em>tips</em> (sequencing errors), <em>bubbles</em> (SNPs or hetero variants), and <em>tangles</em> (repeats). Load a preset, apply cleanups, and watch the graph collapse toward contigs. The order of operations is forgiving — the end state is what matters.</p>
+  </header>
+
+  <section class="panel">
+    <div class="controls">
+      <label>
+        <span class="field-label" style="margin:0 0.4rem 0 0; display:inline;">Preset</span>
+        <select id="preset">
+          <option value="clean">Clean assembly</option>
+          <option value="tip">One tip (sequencing error)</option>
+          <option value="bubble">One bubble (SNP)</option>
+          <option value="tangle">One tangle (repeat)</option>
+          <option value="everything" selected>Everything</option>
+        </select>
+      </label>
+      <button id="btn-tips"    class="btn btn--primary" type="button">Remove tips</button>
+      <button id="btn-bubbles" class="btn btn--primary" type="button">Collapse bubbles</button>
+      <button id="btn-tangles" class="btn btn--primary" type="button">Flag tangles</button>
+      <button id="btn-reset"   class="btn" type="button">↺ Reset</button>
+    </div>
+    <p class="hint">k-mer size k = 3 (for tip-length test). Each cleanup is idempotent — running it twice is a no-op. Try applying them in canonical order (tips → bubbles → tangles) vs the reverse on "Everything": the end state is the same, the intermediate graphs are not.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Assembly graph</p>
+    <div class="graph-wrap">
+      <svg id="graph" class="graph" viewBox="0 0 720 340" preserveAspectRatio="xMidYMid meet"
+           xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--fg)"/>
+          </marker>
+          <marker id="arrow-warn" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--warning)"/>
+          </marker>
+          <marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+          </marker>
+          <marker id="arrow-err" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--error)"/>
+          </marker>
+        </defs>
+        <g id="graph-bg"></g>
+        <g id="graph-edges"></g>
+        <g id="graph-nodes"></g>
+      </svg>
+    </div>
+    <div class="legend">
+      <span><span class="swatch tip"></span>tip (dead end)</span>
+      <span><span class="swatch bubble"></span>bubble (parallel paths)</span>
+      <span><span class="swatch tangle"></span>tangle (unresolvable)</span>
+    </div>
+
+    <div class="status-line">
+      <div>
+        <p class="label">Contigs</p>
+        <p class="value emphasis" id="stat-contigs">—</p>
+      </div>
+      <div>
+        <p class="label">Total length</p>
+        <p class="value" id="stat-length">—</p>
+      </div>
+      <div>
+        <p class="label">Tips</p>
+        <p class="value warn" id="stat-tips">0</p>
+      </div>
+      <div>
+        <p class="label">Bubbles</p>
+        <p class="value emphasis" id="stat-bubbles">0</p>
+      </div>
+      <div>
+        <p class="label">Tangles</p>
+        <p class="value err" id="stat-tangles">0</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Contig output</p>
+    <ul class="contigs" id="contig-list"></ul>
+    <p class="hint">Each contig is a maximal non-branching path through the current graph. Tangle-flagged nodes are unresolvable and break contigs at their boundary.</p>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  // ─────────────────────────────────────────────────────────────
+  // Graph presets — hand-designed. Each node has:
+  //   id, label (k-mer), x, y, type ('normal'|'tip'|'bubble'|'tangle')
+  // Each edge: from, to, weight (coverage), type
+  // ─────────────────────────────────────────────────────────────
+
+  const K = 3;
+
+  function node(id, label, x, y, type='normal') { return { id, label, x, y, type }; }
+  function edge(from, to, w=5, type='normal')    { return { from, to, w, type }; }
+
+  const PRESETS = {
+    clean: {
+      name: 'Clean assembly',
+      nodes: [
+        node('n1','ATG', 60,  170),
+        node('n2','TGC', 150, 170),
+        node('n3','GCA', 240, 170),
+        node('n4','CAT', 330, 170),
+        node('n5','ATC', 420, 170),
+        node('n6','TCG', 510, 170),
+        node('n7','CGA', 600, 170),
+        node('n8','GAT', 670, 170),
+      ],
+      edges: [
+        edge('n1','n2',8), edge('n2','n3',8), edge('n3','n4',8),
+        edge('n4','n5',8), edge('n5','n6',8), edge('n6','n7',8), edge('n7','n8',8),
+      ],
+    },
+
+    tip: {
+      name: 'One tip (sequencing error)',
+      nodes: [
+        node('n1','ATG', 60,  170),
+        node('n2','TGC', 150, 170),
+        node('n3','GCA', 240, 170),
+        node('n4','CAT', 330, 170),
+        node('n5','ATC', 420, 170),
+        node('n6','TCG', 510, 170),
+        node('n7','CGA', 600, 170),
+        // tip branch off n3
+        node('t1','GCT', 270, 90, 'tip'),
+        node('t2','CTA', 340, 55, 'tip'),
+      ],
+      edges: [
+        edge('n1','n2',8), edge('n2','n3',8), edge('n3','n4',8),
+        edge('n4','n5',8), edge('n5','n6',8), edge('n6','n7',8),
+        // tip has low coverage (error)
+        edge('n3','t1',2,'tip-edge'), edge('t1','t2',2,'tip-edge'),
+      ],
+    },
+
+    bubble: {
+      name: 'One bubble (SNP)',
+      nodes: [
+        node('n1','ATG', 60,  170),
+        node('n2','TGC', 150, 170),
+        node('n3','GCA', 240, 170),
+        // upper path (high coverage — reference allele)
+        node('a1','CAA', 330, 120, 'bubble'),
+        node('a2','AAT', 420, 120, 'bubble'),
+        // lower path (lower coverage — alt allele)
+        node('b1','CAG', 330, 220, 'bubble'),
+        node('b2','AGT', 420, 220, 'bubble'),
+        node('n6','ATC', 510, 170),
+        node('n7','TCG', 600, 170),
+        node('n8','CGA', 670, 170),
+      ],
+      edges: [
+        edge('n1','n2',9), edge('n2','n3',9),
+        edge('n3','a1',7,'bubble-edge'), edge('a1','a2',7,'bubble-edge'), edge('a2','n6',7,'bubble-edge'),
+        edge('n3','b1',3,'bubble-edge'), edge('b1','b2',3,'bubble-edge'), edge('b2','n6',3,'bubble-edge'),
+        edge('n6','n7',9), edge('n7','n8',9),
+      ],
+    },
+
+    tangle: {
+      name: 'One tangle (repeat)',
+      nodes: [
+        node('n1','ATG', 60,  170),
+        node('n2','TGC', 150, 170),
+        // tangle core
+        node('r1','GCG', 260, 120, 'tangle'),
+        node('r2','CGC', 360, 120, 'tangle'),
+        node('r3','GCT', 360, 220, 'tangle'),
+        node('r4','CTG', 260, 220, 'tangle'),
+        node('n7','TCA', 470, 170),
+        node('n8','CAT', 560, 170),
+        node('n9','ATG', 650, 170),
+      ],
+      edges: [
+        edge('n1','n2',8), edge('n2','r1',8,'tangle-edge'),
+        // dense cycle among r1..r4
+        edge('r1','r2',6,'tangle-edge'), edge('r2','r3',6,'tangle-edge'),
+        edge('r3','r4',6,'tangle-edge'), edge('r4','r1',6,'tangle-edge'),
+        edge('r2','r4',5,'tangle-edge'), edge('r1','r3',5,'tangle-edge'),
+        edge('r2','n7',6,'tangle-edge'),
+        edge('n7','n8',8), edge('n8','n9',8),
+      ],
+    },
+
+    everything: {
+      name: 'Everything',
+      nodes: [
+        node('n1','ATG', 40,  200),
+        node('n2','TGC', 115, 200),
+        // tip off n2
+        node('t1','GCG', 130, 115, 'tip'),
+        node('t2','CGA', 190, 75,  'tip'),
+        node('n3','GCA', 195, 200),
+        node('n4','CAT', 275, 200),
+        // bubble between n4 and n6
+        node('a1','ATA', 345, 150, 'bubble'),
+        node('a2','TAG', 410, 150, 'bubble'),
+        node('b1','ATT', 345, 250, 'bubble'),
+        node('b2','TTG', 410, 250, 'bubble'),
+        node('n6','AGC', 480, 200),
+        // tangle between n6 and n8
+        node('r1','GCC', 540, 150, 'tangle'),
+        node('r2','CCG', 605, 150, 'tangle'),
+        node('r3','CGG', 605, 250, 'tangle'),
+        node('r4','GGC', 540, 250, 'tangle'),
+        node('n8','GCT', 670, 200),
+        node('n9','CTA', 690, 115),
+      ],
+      edges: [
+        edge('n1','n2',8), edge('n2','n3',8), edge('n3','n4',8),
+        // tip
+        edge('n2','t1',2,'tip-edge'), edge('t1','t2',2,'tip-edge'),
+        // bubble
+        edge('n4','a1',7,'bubble-edge'), edge('a1','a2',7,'bubble-edge'), edge('a2','n6',7,'bubble-edge'),
+        edge('n4','b1',3,'bubble-edge'), edge('b1','b2',3,'bubble-edge'), edge('b2','n6',3,'bubble-edge'),
+        // tangle
+        edge('n6','r1',6,'tangle-edge'),
+        edge('r1','r2',5,'tangle-edge'), edge('r2','r3',5,'tangle-edge'),
+        edge('r3','r4',5,'tangle-edge'), edge('r4','r1',5,'tangle-edge'),
+        edge('r2','r4',4,'tangle-edge'), edge('r1','r3',4,'tangle-edge'),
+        edge('r3','n8',6,'tangle-edge'),
+        edge('n8','n9',6),
+      ],
+    },
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // State
+  // ─────────────────────────────────────────────────────────────
+  const state = {
+    presetKey: 'everything',
+    nodes: [],   // active nodes (may be filtered post-cleanup)
+    edges: [],
+    removedNodes: new Set(),  // for tips removal
+    collapsedBubbles: [],     // record which alt paths have been removed
+    flaggedTangles: new Set(),// node ids marked as unresolvable
+    contigBreaks: new Set(),  // edge keys "from|to" that must NOT be followed through a tangle boundary when extracting
+  };
+
+  function loadPreset(key) {
+    const p = PRESETS[key];
+    // deep clone so original presets remain pristine
+    state.presetKey = key;
+    state.nodes = p.nodes.map(n => ({...n}));
+    state.edges = p.edges.map(e => ({...e}));
+    state.removedNodes = new Set();
+    state.collapsedBubbles = [];
+    state.flaggedTangles = new Set();
+    state.contigBreaks = new Set();
+    render();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Graph helpers
+  // ─────────────────────────────────────────────────────────────
+  function activeNodes() {
+    return state.nodes.filter(n => !state.removedNodes.has(n.id));
+  }
+  function activeEdges() {
+    return state.edges.filter(e =>
+      !state.removedNodes.has(e.from) && !state.removedNodes.has(e.to)
+    );
+  }
+  function outEdges(id) {
+    return activeEdges().filter(e => e.from === id);
+  }
+  function inEdges(id) {
+    return activeEdges().filter(e => e.to === id);
+  }
+  function nodeById(id) { return state.nodes.find(n => n.id === id); }
+
+  // ─────────────────────────────────────────────────────────────
+  // Cleanup: removeTips(graph, k)
+  // A tip = a path of length ≤ 2k that terminates in a dead-end
+  // (final node has in-deg 1, out-deg 0). Walk back toward the
+  // junction, marking nodes for removal.
+  // ─────────────────────────────────────────────────────────────
+  function removeTips(k) {
+    const maxLen = 2 * k;
+    let changed = false;
+
+    // Iterate: a removal may expose a new dead-end upstream.
+    let guard = 20;
+    while (guard-- > 0) {
+      const deadEnds = activeNodes().filter(n =>
+        inEdges(n.id).length === 1 && outEdges(n.id).length === 0
+      );
+      let removedThisPass = false;
+
+      for (const end of deadEnds) {
+        // Walk back, collecting tip nodes until we hit a junction
+        // (in-deg != 1 OR out-deg > 1) or exceed 2k.
+        const chain = [end];
+        let cur = end;
+        while (chain.length <= maxLen) {
+          const preds = inEdges(cur.id);
+          if (preds.length !== 1) break;
+          const prev = nodeById(preds[0].from);
+          if (!prev) break;
+          const prevOut = outEdges(prev.id);
+          if (prevOut.length > 1) {
+            // prev is a junction — chain stops before it
+            break;
+          }
+          if (inEdges(prev.id).length !== 1 && inEdges(prev.id).length !== 0) {
+            // prev is also a junction (merge point)
+            break;
+          }
+          chain.push(prev);
+          cur = prev;
+        }
+        if (chain.length <= maxLen) {
+          // Remove the tip chain
+          for (const c of chain) state.removedNodes.add(c.id);
+          removedThisPass = true;
+          changed = true;
+        }
+      }
+      if (!removedThisPass) break;
+    }
+    return changed;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Cleanup: collapseBubbles(graph)
+  // Find a node X with ≥2 out-edges that both eventually converge
+  // at some Y via node-disjoint simple paths of modest length.
+  // Keep highest-weight path; remove interior nodes of losers.
+  // ─────────────────────────────────────────────────────────────
+  function collapseBubbles() {
+    let changed = false;
+    let guard = 10;
+    while (guard-- > 0) {
+      const bubble = findBubble();
+      if (!bubble) break;
+      // bubble = { X, Y, paths: [ {nodes:[...], weight:N, edges:[...] }, ... ] }
+      // Keep highest-weight path, remove interior nodes of others.
+      bubble.paths.sort((a, b) => b.weight - a.weight);
+      const [keep, ...drop] = bubble.paths;
+      for (const p of drop) {
+        // interior nodes = all except X and Y
+        for (const n of p.nodes) {
+          if (n !== bubble.X && n !== bubble.Y) {
+            state.removedNodes.add(n);
+          }
+        }
+      }
+      state.collapsedBubbles.push({ X: bubble.X, Y: bubble.Y, kept: keep.nodes });
+      changed = true;
+    }
+    return changed;
+  }
+
+  function findBubble() {
+    // For every node X with out-degree ≥ 2, BFS from each out-neighbour
+    // up to depth 6. Find the smallest Y reachable via 2+ disjoint paths.
+    const MAX_DEPTH = 6;
+    for (const X of activeNodes()) {
+      const outs = outEdges(X.id);
+      if (outs.length < 2) continue;
+
+      // Enumerate simple paths from X, stop at nodes with in-deg > 1
+      // (candidate merge Y). Each out-edge seeds one path family.
+      const pathsByFirst = outs.map(e => enumerateSimplePaths(X.id, e.to, MAX_DEPTH));
+
+      // Find a Y reached by ≥2 first-choices with node-disjoint interiors
+      const candYs = new Map();  // Y -> [ {nodes, weight, firstIdx}, ... ]
+      pathsByFirst.forEach((paths, idx) => {
+        for (const p of paths) {
+          const Y = p.nodes[p.nodes.length - 1];
+          if (Y === X.id) continue;
+          if (!candYs.has(Y)) candYs.set(Y, []);
+          candYs.get(Y).push({ ...p, firstIdx: idx });
+        }
+      });
+
+      for (const [Y, list] of candYs) {
+        // Need at least 2 paths from different first-choices
+        const byFirst = new Map();
+        for (const p of list) {
+          if (!byFirst.has(p.firstIdx)) byFirst.set(p.firstIdx, p);
+        }
+        if (byFirst.size < 2) continue;
+
+        // Require node-disjoint interiors pairwise
+        const chosen = Array.from(byFirst.values());
+        const interiors = chosen.map(p => new Set(p.nodes.slice(1, -1)));
+        let disjoint = true;
+        for (let i = 0; i < interiors.length && disjoint; i++) {
+          for (let j = i + 1; j < interiors.length && disjoint; j++) {
+            for (const v of interiors[i]) {
+              if (interiors[j].has(v)) { disjoint = false; break; }
+            }
+          }
+        }
+        if (!disjoint) continue;
+
+        // Avoid "bubbles" that are actually tangles (Y itself is in tangle region)
+        const yNode = nodeById(Y);
+        if (yNode && yNode.type === 'tangle') continue;
+        // Also skip if any interior is tangle — that's the tangle's job
+        const touchesTangle = chosen.some(p =>
+          p.nodes.slice(1, -1).some(id => nodeById(id)?.type === 'tangle')
+        );
+        if (touchesTangle) continue;
+
+        return { X: X.id, Y, paths: chosen };
+      }
+    }
+    return null;
+  }
+
+  function enumerateSimplePaths(fromX, startNext, maxDepth) {
+    // Return paths [X, ..., Y] where Y is the first node with in-deg ≥ 2
+    // reachable within maxDepth edges. (Stops once we hit such a Y.)
+    const out = [];
+    const visited = new Set([fromX]);
+    function dfs(cur, path, depth) {
+      if (depth > maxDepth) return;
+      const inDeg = inEdges(cur).length;
+      if (cur !== startNext && inDeg >= 2) {
+        // candidate Y — record path
+        const weight = pathWeight([fromX, ...path]);
+        out.push({ nodes: [fromX, ...path], weight });
+        return;
+      }
+      for (const e of outEdges(cur)) {
+        if (visited.has(e.to)) continue;
+        visited.add(e.to);
+        path.push(e.to);
+        dfs(e.to, path, depth + 1);
+        path.pop();
+        visited.delete(e.to);
+      }
+    }
+    visited.add(startNext);
+    dfs(startNext, [startNext], 1);
+    return out;
+  }
+
+  function pathWeight(nodeIds) {
+    let sum = 0;
+    for (let i = 0; i < nodeIds.length - 1; i++) {
+      const e = activeEdges().find(x => x.from === nodeIds[i] && x.to === nodeIds[i+1]);
+      if (e) sum += e.w;
+    }
+    return sum;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Cleanup: flagTangles(graph)
+  // Detect subgraphs with internal cycles AND multiple in/out edges.
+  // We cheat a bit: nodes pre-typed as 'tangle' ARE the tangle.
+  // Flag them as unresolvable; contigs break at their boundaries.
+  // ─────────────────────────────────────────────────────────────
+  function flagTangles() {
+    let changed = false;
+    for (const n of activeNodes()) {
+      if (n.type === 'tangle' && !state.flaggedTangles.has(n.id)) {
+        state.flaggedTangles.add(n.id);
+        changed = true;
+      }
+    }
+    // Register contig breaks at tangle boundaries
+    for (const e of activeEdges()) {
+      const fT = state.flaggedTangles.has(e.from);
+      const tT = state.flaggedTangles.has(e.to);
+      if (fT || tT) state.contigBreaks.add(`${e.from}|${e.to}`);
+    }
+    return changed;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Contig extraction — maximal non-branching paths
+  // Every internal node has in-deg 1, out-deg 1.
+  // Tangle-flagged nodes are skipped (they become singletons, dropped).
+  // ─────────────────────────────────────────────────────────────
+  function extractContigs() {
+    const contigs = [];
+    const usedEdge = new Set();
+
+    function edgeKey(e) { return `${e.from}|${e.to}`; }
+    function isInternal(id) {
+      if (state.flaggedTangles.has(id)) return false;
+      return inEdges(id).length === 1 && outEdges(id).length === 1;
+    }
+
+    // Start from non-internal nodes (branching / endpoints / flagged)
+    const nodes = activeNodes();
+    for (const v of nodes) {
+      if (isInternal(v.id) && !state.flaggedTangles.has(v.id)) continue;
+      if (state.flaggedTangles.has(v.id)) continue;  // don't start inside a flagged tangle
+      for (const e of outEdges(v.id)) {
+        if (usedEdge.has(edgeKey(e))) continue;
+        if (state.contigBreaks.has(edgeKey(e))) continue;  // don't cross into tangle
+        // Walk forward through internal nodes
+        const path = [v.id];
+        let curEdge = e;
+        while (true) {
+          if (state.contigBreaks.has(edgeKey(curEdge))) break;
+          usedEdge.add(edgeKey(curEdge));
+          path.push(curEdge.to);
+          if (!isInternal(curEdge.to)) break;
+          const nextOut = outEdges(curEdge.to);
+          if (nextOut.length !== 1) break;
+          curEdge = nextOut[0];
+          if (usedEdge.has(edgeKey(curEdge))) break;
+        }
+        contigs.push(pathToContig(path));
+      }
+    }
+    // Isolated nodes (no in/out edges, not flagged) become 1-mer contigs
+    for (const v of nodes) {
+      if (state.flaggedTangles.has(v.id)) continue;
+      if (inEdges(v.id).length === 0 && outEdges(v.id).length === 0) {
+        // Check not already included
+        if (!contigs.some(c => c.path.length === 1 && c.path[0] === v.id)) {
+          contigs.push(pathToContig([v.id]));
+        }
+      }
+    }
+    return contigs;
+  }
+
+  function pathToContig(pathIds) {
+    // Contig sequence: first node's full label, then append last char of each subsequent node
+    if (pathIds.length === 0) return { path: [], seq: '', len: 0 };
+    const labels = pathIds.map(id => nodeById(id).label);
+    let seq = labels[0];
+    for (let i = 1; i < labels.length; i++) {
+      seq += labels[i].slice(-1);
+    }
+    return { path: pathIds, seq, len: seq.length };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Topology counts (for status display) — based on CURRENT graph
+  // ─────────────────────────────────────────────────────────────
+  function countTopology() {
+    let tips = 0, bubbles = 0, tangles = 0;
+    // tips: dead-end chains still present
+    for (const n of activeNodes()) {
+      if (inEdges(n.id).length === 1 && outEdges(n.id).length === 0 && n.type === 'tip') tips++;
+    }
+    // bubbles: pending bubble not yet collapsed — count unique X anchors
+    const bubble = findBubble();
+    if (bubble) bubbles = 1;
+    // tangles: any active tangle-typed node not yet flagged
+    const unflagged = activeNodes().filter(n => n.type === 'tangle' && !state.flaggedTangles.has(n.id));
+    if (unflagged.length > 0) tangles = 1;
+    return { tips, bubbles, tangles };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Rendering
+  // ─────────────────────────────────────────────────────────────
+  const svg       = $('graph');
+  const gBg       = $('graph-bg');
+  const gEdges    = $('graph-edges');
+  const gNodes    = $('graph-nodes');
+  const contigEl  = $('contig-list');
+  const statC     = $('stat-contigs');
+  const statL     = $('stat-length');
+  const statTips  = $('stat-tips');
+  const statBub   = $('stat-bubbles');
+  const statTang  = $('stat-tangles');
+
+  function svgEl(name, attrs) {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', name);
+    for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
+    return el;
+  }
+
+  function render() {
+    gBg.innerHTML = '';
+    gEdges.innerHTML = '';
+    gNodes.innerHTML = '';
+
+    const nodes = activeNodes();
+    const edges = activeEdges();
+
+    // Background highlight rects for bubbles + tangles
+    const bubbleNodes = nodes.filter(n => n.type === 'bubble');
+    if (bubbleNodes.length) {
+      const r = bbox(bubbleNodes, 26);
+      gBg.appendChild(svgEl('rect', {
+        class: 'bubble-bg',
+        x: r.x, y: r.y, width: r.w, height: r.h, rx: 14
+      }));
+    }
+    const tangleNodes = nodes.filter(n => n.type === 'tangle');
+    if (tangleNodes.length) {
+      const r = bbox(tangleNodes, 26);
+      gBg.appendChild(svgEl('rect', {
+        class: 'tangle-bg',
+        x: r.x, y: r.y, width: r.w, height: r.h, rx: 14
+      }));
+    }
+
+    // Edges
+    for (const e of edges) {
+      const a = nodeById(e.from), b = nodeById(e.to);
+      if (!a || !b) continue;
+      const cls = classForEdge(e);
+      const markerEnd = edgeMarker(e);
+      const path = svgEl('path', {
+        class: `edge ${cls}`,
+        d: arrowPath(a, b),
+        'marker-end': `url(#${markerEnd})`,
+      });
+      gEdges.appendChild(path);
+    }
+
+    // Nodes
+    for (const n of nodes) {
+      const flagged = state.flaggedTangles.has(n.id);
+      const g = svgEl('g', {
+        class: `node ${n.type} ${flagged ? 'flagged' : ''}`,
+        transform: `translate(${n.x},${n.y})`,
+      });
+      g.appendChild(svgEl('circle', { r: 18 }));
+      const t = svgEl('text', {});
+      t.textContent = n.label;
+      g.appendChild(t);
+      gNodes.appendChild(g);
+    }
+
+    // Stats + contigs
+    const topo = countTopology();
+    statTips.textContent = topo.tips;
+    statBub.textContent = topo.bubbles;
+    statTang.textContent = topo.tangles;
+
+    const contigs = extractContigs();
+    // Sort by length descending
+    contigs.sort((a, b) => b.len - a.len);
+    statC.textContent = contigs.length;
+    statL.textContent = contigs.reduce((s, c) => s + c.len, 0) + ' bp';
+
+    contigEl.innerHTML = '';
+    if (contigs.length === 0) {
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="contigs-empty">No contigs — graph is empty or fully flagged.</span>';
+      contigEl.appendChild(li);
+    } else {
+      contigs.forEach((c, i) => {
+        const li = document.createElement('li');
+        const shown = c.seq.length > 50 ? c.seq.slice(0, 50) + '…' : c.seq;
+        li.innerHTML =
+          `<span class="num">contig ${i+1}</span>` +
+          `<span class="seq">${shown}</span>` +
+          `<span class="len">${c.len} bp</span>`;
+        contigEl.appendChild(li);
+      });
+    }
+  }
+
+  function classForEdge(e) {
+    // Use edge.type but dim if flagged
+    if (state.flaggedTangles.has(e.from) || state.flaggedTangles.has(e.to)) {
+      return 'tangle-edge';
+    }
+    return e.type === 'normal' ? '' : e.type;
+  }
+  function edgeMarker(e) {
+    if (state.flaggedTangles.has(e.from) || state.flaggedTangles.has(e.to)) return 'arrow-err';
+    if (e.type === 'tip-edge') return 'arrow-warn';
+    if (e.type === 'bubble-edge') return 'arrow-accent';
+    if (e.type === 'tangle-edge') return 'arrow-err';
+    return 'arrow';
+  }
+
+  function arrowPath(a, b) {
+    // Straight line from rim of a to rim of b (r=18)
+    const R = 18, PAD = 4;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len;
+    const x1 = a.x + ux * (R + 1);
+    const y1 = a.y + uy * (R + 1);
+    const x2 = b.x - ux * (R + PAD);
+    const y2 = b.y - uy * (R + PAD);
+    return `M ${x1} ${y1} L ${x2} ${y2}`;
+  }
+
+  function bbox(nodes, pad) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const n of nodes) {
+      if (n.x < minX) minX = n.x;
+      if (n.y < minY) minY = n.y;
+      if (n.x > maxX) maxX = n.x;
+      if (n.y > maxY) maxY = n.y;
+    }
+    return {
+      x: minX - pad, y: minY - pad,
+      w: (maxX - minX) + 2 * pad,
+      h: (maxY - minY) + 2 * pad,
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Wiring
+  // ─────────────────────────────────────────────────────────────
+  $('preset').addEventListener('change', (ev) => loadPreset(ev.target.value));
+  $('btn-tips').addEventListener('click',    () => { removeTips(K);      render(); });
+  $('btn-bubbles').addEventListener('click', () => { collapseBubbles();  render(); });
+  $('btn-tangles').addEventListener('click', () => { flagTangles();      render(); });
+  $('btn-reset').addEventListener('click',   () => loadPreset(state.presetKey));
+
+  // Initial load
+  loadPreset('everything');
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>k-mer Error Correction</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 62ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.35rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem 1.25rem;
+      align-items: end;
+    }
+    .controls-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    .slider-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .slider-field .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .slider-field input[type="range"] {
+      accent-color: var(--accent);
+      flex: 1;
+      min-width: 0;
+    }
+    .slider-field .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      min-width: 3.25rem;
+      text-align: right;
+    }
+
+    /* Histogram */
+    .hist-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem;
+      overflow-x: auto;
+    }
+    .hist-svg { display: block; width: 100%; height: auto; }
+    .hist-axis-label {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      fill: var(--fg-subtle);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .hist-tick {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      fill: var(--fg-muted);
+    }
+    .hist-bar {
+      fill: var(--accent-bg);
+      stroke: var(--accent);
+      stroke-width: 1;
+    }
+    .hist-bar--flagged {
+      fill: #fdecea;
+      stroke: var(--error);
+    }
+    .hist-grid {
+      stroke: var(--border);
+      stroke-width: 1;
+      stroke-dasharray: 2 3;
+    }
+    .hist-axis-line {
+      stroke: var(--border-strong);
+      stroke-width: 1;
+    }
+    .threshold-line {
+      stroke: var(--error);
+      stroke-width: 1.5;
+      stroke-dasharray: 5 4;
+    }
+    .threshold-label {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 600;
+      fill: var(--error);
+    }
+
+    .legend {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-top: 0.75rem;
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+    .legend-item { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .legend-swatch {
+      width: 14px; height: 10px; border-radius: 2px;
+      display: inline-block;
+      border: 1px solid var(--border-strong);
+    }
+    .legend-swatch.kept      { background: var(--accent-bg); border-color: var(--accent); }
+    .legend-swatch.flagged   { background: #fdecea; border-color: var(--error); }
+    .legend-line {
+      width: 16px; height: 0;
+      border-top: 1.5px dashed var(--error);
+      display: inline-block;
+    }
+
+    .status-line {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      padding: 0.85rem 1rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-top: 1rem;
+    }
+    .status-line .label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin: 0;
+    }
+    .status-line .value {
+      font-family: var(--font-mono);
+      font-size: var(--text-lg);
+      color: var(--fg);
+      margin: 0.15rem 0 0;
+    }
+    .status-line .value.emphasis { color: var(--accent); }
+    .status-line .value.flagged  { color: var(--error); }
+    .status-line .value.kept     { color: var(--success); }
+
+    /* Reads panel */
+    .reads-box {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      line-height: 1.6;
+    }
+    .read-row {
+      display: flex;
+      gap: 0.75rem;
+      align-items: baseline;
+      padding: 0.25rem 0;
+      border-bottom: 1px dashed var(--border);
+      white-space: nowrap;
+    }
+    .read-row:last-child { border-bottom: none; }
+    .read-idx {
+      color: var(--fg-subtle);
+      font-size: var(--text-xs);
+      min-width: 3.5rem;
+      flex-shrink: 0;
+    }
+    .read-seq {
+      letter-spacing: 0.02em;
+      overflow-x: auto;
+    }
+    .read-seq .err {
+      color: var(--error);
+      font-weight: 600;
+      background: #fdecea;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+    .read-seq .fix {
+      color: var(--success);
+      font-weight: 600;
+      background: #e6f4ea;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+    .read-seq .arrow {
+      color: var(--success);
+      font-weight: 700;
+      padding: 0 1px;
+    }
+    .read-tags {
+      margin-left: auto;
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      flex-shrink: 0;
+      padding-left: 0.75rem;
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .controls { grid-template-columns: 1fr 1fr; }
+      .status-line { grid-template-columns: 1fr 1fr; }
+      .read-row { flex-wrap: wrap; white-space: normal; }
+      .read-tags { margin-left: 0; padding-left: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="kmer-error-correction">
+
+  <header class="artifact-head">
+    <h1>k-mer Error Correction</h1>
+    <p>Every read brings some noise. Break reads into k-mers and the frequency spectrum splits into two populations: a tall peak around the mean coverage (true k-mers) and a spike at frequency 1–2 (errors). A threshold between them lets you flag likely errors. Drop coverage too low and the populations merge — no threshold can separate them.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Parameters</p>
+    <div class="controls">
+      <div class="slider-field">
+        <label class="field-label" for="cov-slider">Coverage ×</label>
+        <div class="slider-row">
+          <input id="cov-slider" type="range" min="5" max="60" value="30" step="1">
+          <span class="slider-value" id="cov-value">30×</span>
+        </div>
+      </div>
+      <div class="slider-field">
+        <label class="field-label" for="k-slider">k (k-mer length)</label>
+        <div class="slider-row">
+          <input id="k-slider" type="range" min="5" max="15" value="7" step="1">
+          <span class="slider-value" id="k-value">7</span>
+        </div>
+      </div>
+      <div class="slider-field">
+        <label class="field-label" for="err-slider">Error rate</label>
+        <div class="slider-row">
+          <input id="err-slider" type="range" min="0" max="50" value="10" step="1">
+          <span class="slider-value" id="err-value">1.0%</span>
+        </div>
+      </div>
+      <div class="slider-field">
+        <label class="field-label" for="thr-slider">Threshold</label>
+        <div class="slider-row">
+          <input id="thr-slider" type="range" min="1" max="20" value="3" step="1">
+          <span class="slider-value" id="thr-value">3</span>
+        </div>
+      </div>
+    </div>
+    <div class="controls-row">
+      <button id="regen-btn" class="btn btn--primary" type="button">↻ Re-generate reads</button>
+      <button id="reset-btn" class="btn" type="button">↺ Reset</button>
+    </div>
+    <p class="hint">Reference is a fixed 500 bp sequence generated from a seeded PRNG (hidden). Reads are 100 bp, sampled uniformly. Each base is independently corrupted at the chosen error rate.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">k-mer frequency spectrum (log y-axis)</p>
+    <div class="hist-wrap">
+      <svg id="hist-svg" class="hist-svg" viewBox="0 0 720 320" preserveAspectRatio="xMidYMid meet" role="img" aria-label="k-mer frequency histogram"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-item"><span class="legend-swatch flagged"></span>Below threshold — flagged as errors</span>
+      <span class="legend-item"><span class="legend-swatch kept"></span>Above threshold — kept as true k-mers</span>
+      <span class="legend-item"><span class="legend-line"></span>Threshold</span>
+    </div>
+
+    <div class="status-line">
+      <div>
+        <p class="label">Distinct k-mers</p>
+        <p class="value emphasis" id="stat-distinct">—</p>
+      </div>
+      <div>
+        <p class="label">Flagged (&lt; threshold)</p>
+        <p class="value flagged" id="stat-flagged">—</p>
+      </div>
+      <div>
+        <p class="label">Kept (≥ threshold)</p>
+        <p class="value kept" id="stat-kept">—</p>
+      </div>
+      <div>
+        <p class="label">Correctable</p>
+        <p class="value" id="stat-corrected">—</p>
+      </div>
+    </div>
+    <p class="hint" id="spectrum-hint">Default settings produce two distinct populations. Drag Coverage down to 5× — the peaks merge and any threshold misclassifies true k-mers.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Sample reads (showing first 10 of <span id="reads-total">—</span>)</p>
+    <div class="reads-box" id="reads-box"></div>
+    <p class="hint">Bases in red sit inside a k-mer below the threshold (flagged as an error). Bases in green with an arrow are corrections: the local error k-mer has exactly one Hamming-1 neighbour above threshold, so the base can be confidently repaired.</p>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const covSlider = $('cov-slider');
+  const kSlider   = $('k-slider');
+  const errSlider = $('err-slider');
+  const thrSlider = $('thr-slider');
+  const covValue  = $('cov-value');
+  const kValue    = $('k-value');
+  const errValue  = $('err-value');
+  const thrValue  = $('thr-value');
+  const regenBtn  = $('regen-btn');
+  const resetBtn  = $('reset-btn');
+  const histSvg   = $('hist-svg');
+  const statDistinct  = $('stat-distinct');
+  const statFlagged   = $('stat-flagged');
+  const statKept      = $('stat-kept');
+  const statCorrected = $('stat-corrected');
+  const readsBox      = $('reads-box');
+  const readsTotal    = $('reads-total');
+
+  // ─── Seeded PRNG (mulberry32) ──────────────────────────
+  function makeRng(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  const BASES = ['A', 'C', 'G', 'T'];
+  const REF_LEN = 500;
+  const READ_LEN = 100;
+  const REFERENCE_SEED = 0xC0FFEE;
+
+  // Generate a fixed reference from the seed.
+  function generateReference(seed, len) {
+    const rng = makeRng(seed);
+    const out = new Array(len);
+    for (let i = 0; i < len; i++) out[i] = BASES[(rng() * 4) | 0];
+    return out.join('');
+  }
+
+  // ─── State ─────────────────────────────────────────────
+  const state = {
+    reference: generateReference(REFERENCE_SEED, REF_LEN),
+    readsSeed: 0x1234ABCD,
+    reads: [],          // [{ startPos, seq, errors: [positionsInRead...] }]
+    kmerCounts: null,   // Map<string, number>
+    k: 7,
+    coverage: 30,
+    errorRate: 0.01,
+    threshold: 3,
+    maxFreq: 0,
+  };
+
+  // ─── Data generation ───────────────────────────────────
+  function generateReads(coverage, errorRate, seed) {
+    const ref = state.reference;
+    const refLen = ref.length;
+    const n = Math.max(1, Math.round((coverage * refLen) / READ_LEN));
+    const rng = makeRng(seed);
+    const reads = [];
+    for (let i = 0; i < n; i++) {
+      const startMax = refLen - READ_LEN;
+      const start = (rng() * (startMax + 1)) | 0;
+      const chars = new Array(READ_LEN);
+      const errors = [];
+      for (let j = 0; j < READ_LEN; j++) {
+        const base = ref[start + j];
+        if (rng() < errorRate) {
+          // Pick a different base uniformly from the remaining 3.
+          let alt = BASES[(rng() * 4) | 0];
+          while (alt === base) alt = BASES[(rng() * 4) | 0];
+          chars[j] = alt;
+          errors.push(j);
+        } else {
+          chars[j] = base;
+        }
+      }
+      reads.push({ startPos: start, seq: chars.join(''), errors });
+    }
+    return reads;
+  }
+
+  function countKmers(reads, k) {
+    const counts = new Map();
+    for (const r of reads) {
+      const s = r.seq;
+      const limit = s.length - k + 1;
+      for (let i = 0; i < limit; i++) {
+        const key = s.slice(i, i + k);
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+    }
+    return counts;
+  }
+
+  // Find all Hamming-1 neighbours of a k-mer that exist in the count table
+  // with frequency ≥ threshold. Return array of [neighbour, pos, base].
+  function correctableNeighbours(kmer, counts, threshold) {
+    const matches = [];
+    const chars = kmer.split('');
+    for (let i = 0; i < chars.length; i++) {
+      const orig = chars[i];
+      for (const b of BASES) {
+        if (b === orig) continue;
+        chars[i] = b;
+        const cand = chars.join('');
+        const c = counts.get(cand) || 0;
+        if (c >= threshold) matches.push({ cand, pos: i, base: b, count: c });
+      }
+      chars[i] = orig;
+    }
+    return matches;
+  }
+
+  // For a read, compute per-position markup:
+  //   - 'err' if the position is inside at least one flagged k-mer
+  //   - 'fix' if at least one flagged k-mer spanning this position has exactly
+  //     one Hamming-1 neighbour above threshold, and that neighbour differs at
+  //     this exact position
+  // Returns { chars: [{base, kind, replacement?}] , corrections: number }
+  function annotateRead(read, counts, k, threshold) {
+    const s = read.seq;
+    const flagged = new Array(s.length).fill(false);
+    const fixes = new Map();   // position -> replacement base
+    for (let i = 0; i + k <= s.length; i++) {
+      const km = s.slice(i, i + k);
+      const c = counts.get(km) || 0;
+      if (c < threshold) {
+        // Mark each position in this window as flagged
+        for (let j = i; j < i + k; j++) flagged[j] = true;
+        const neigh = correctableNeighbours(km, counts, threshold);
+        if (neigh.length === 1) {
+          const fixAt = i + neigh[0].pos;
+          // Only keep if unique across overlapping k-mers (first one wins)
+          if (!fixes.has(fixAt)) fixes.set(fixAt, neigh[0].base);
+        }
+      }
+    }
+    const chars = [];
+    let corrections = 0;
+    for (let i = 0; i < s.length; i++) {
+      if (fixes.has(i)) {
+        chars.push({ base: s[i], kind: 'fix', replacement: fixes.get(i) });
+        corrections++;
+      } else if (flagged[i]) {
+        chars.push({ base: s[i], kind: 'err' });
+      } else {
+        chars.push({ base: s[i], kind: 'ok' });
+      }
+    }
+    return { chars, corrections };
+  }
+
+  // ─── Rendering ─────────────────────────────────────────
+  function readSliderParams() {
+    state.coverage  = +covSlider.value;
+    state.k         = +kSlider.value;
+    state.errorRate = (+errSlider.value) / 1000;   // 0–50 -> 0%–5%
+    state.threshold = +thrSlider.value;
+    covValue.textContent = state.coverage + '×';
+    kValue.textContent   = state.k;
+    errValue.textContent = (state.errorRate * 100).toFixed(1) + '%';
+    thrValue.textContent = state.threshold;
+  }
+
+  function rebuildReadsAndCounts() {
+    state.reads = generateReads(state.coverage, state.errorRate, state.readsSeed);
+    state.kmerCounts = countKmers(state.reads, state.k);
+    let mx = 0;
+    for (const v of state.kmerCounts.values()) if (v > mx) mx = v;
+    state.maxFreq = mx;
+  }
+
+  function buildHistogram() {
+    const cov = state.coverage;
+    const upper = Math.max(cov + 20, state.maxFreq + 2, 12);
+    // One bin per integer frequency from 1 .. upper.
+    const bins = new Array(upper + 1).fill(0);
+    for (const v of state.kmerCounts.values()) {
+      const idx = v <= upper ? v : upper;
+      bins[idx]++;
+    }
+    return { bins, upper };
+  }
+
+  function renderHistogram() {
+    const { bins, upper } = buildHistogram();
+
+    // Axis geometry
+    const W = 720, H = 320;
+    const pad = { top: 20, right: 20, bottom: 48, left: 58 };
+    const plotW = W - pad.left - pad.right;
+    const plotH = H - pad.top - pad.bottom;
+
+    // Log scale: y = log10(count + 1) mapped to [0, 4]  (10^0 … 10^4)
+    const yMaxLog = 4;
+    const yToPixel = (count) => {
+      const logv = Math.log10(Math.max(1, count));
+      const clamped = Math.min(yMaxLog, logv);
+      return pad.top + plotH - (clamped / yMaxLog) * plotH;
+    };
+
+    // x: frequencies 0 .. upper   (bar width = plotW / (upper+1))
+    const barW = plotW / (upper + 1);
+
+    const threshold = state.threshold;
+    const parts = [];
+
+    // Grid + y-axis ticks at 10^0, 10^1, 10^2, 10^3, 10^4
+    for (let i = 0; i <= yMaxLog; i++) {
+      const y = pad.top + plotH - (i / yMaxLog) * plotH;
+      parts.push(`<line class="hist-grid" x1="${pad.left}" y1="${y}" x2="${pad.left + plotW}" y2="${y}"/>`);
+      parts.push(`<text class="hist-tick" x="${pad.left - 6}" y="${y + 3}" text-anchor="end">10${supDigit(i)}</text>`);
+    }
+
+    // x-axis ticks — every 5
+    const tickStep = upper > 40 ? 10 : 5;
+    for (let f = 0; f <= upper; f += tickStep) {
+      const x = pad.left + (f + 0.5) * barW;
+      parts.push(`<line class="hist-grid" x1="${x}" y1="${pad.top}" x2="${x}" y2="${pad.top + plotH}" stroke-dasharray="1 4"/>`);
+      parts.push(`<text class="hist-tick" x="${x}" y="${pad.top + plotH + 14}" text-anchor="middle">${f}</text>`);
+    }
+
+    // Axis lines
+    parts.push(`<line class="hist-axis-line" x1="${pad.left}" y1="${pad.top + plotH}" x2="${pad.left + plotW}" y2="${pad.top + plotH}"/>`);
+    parts.push(`<line class="hist-axis-line" x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top + plotH}"/>`);
+
+    // Axis labels
+    parts.push(`<text class="hist-axis-label" x="${pad.left + plotW / 2}" y="${H - 8}" text-anchor="middle">k-mer frequency</text>`);
+    parts.push(`<text class="hist-axis-label" x="${-(pad.top + plotH / 2)}" y="14" text-anchor="middle" transform="rotate(-90)">distinct k-mers</text>`);
+
+    // Bars
+    const bottomY = pad.top + plotH;
+    for (let f = 0; f <= upper; f++) {
+      const count = bins[f];
+      if (count <= 0) continue;
+      const y = yToPixel(count);
+      const h = Math.max(1, bottomY - y);
+      const x = pad.left + f * barW + 1;
+      const w = Math.max(1, barW - 2);
+      const cls = f < threshold ? 'hist-bar--flagged' : 'hist-bar';
+      parts.push(`<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${h}"><title>freq ${f}: ${count} distinct k-mers</title></rect>`);
+    }
+
+    // Threshold line (placed at x = threshold bin left edge)
+    const thrX = pad.left + threshold * barW;
+    parts.push(`<line class="threshold-line" x1="${thrX}" y1="${pad.top - 4}" x2="${thrX}" y2="${pad.top + plotH + 4}"/>`);
+    parts.push(`<text class="threshold-label" x="${thrX + 6}" y="${pad.top + 12}">threshold = ${threshold}</text>`);
+
+    histSvg.innerHTML = parts.join('');
+  }
+
+  function supDigit(d) {
+    const map = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
+    return map[d] || '^' + d;
+  }
+
+  function renderStats() {
+    let flagged = 0, kept = 0;
+    for (const v of state.kmerCounts.values()) {
+      if (v < state.threshold) flagged++;
+      else kept++;
+    }
+    const total = flagged + kept;
+    statDistinct.textContent = total.toLocaleString();
+    statFlagged.textContent  = flagged.toLocaleString();
+    statKept.textContent     = kept.toLocaleString();
+    readsTotal.textContent   = state.reads.length;
+  }
+
+  function renderReads() {
+    const parts = [];
+    let totalCorrections = 0;
+    const sample = state.reads.slice(0, 10);
+    sample.forEach((read, idx) => {
+      const ann = annotateRead(read, state.kmerCounts, state.k, state.threshold);
+      totalCorrections += ann.corrections;
+      let readCorrections = 0;
+      let flaggedChars = 0;
+      const spans = ann.chars.map((c) => {
+        if (c.kind === 'fix') {
+          readCorrections++;
+          flaggedChars++;
+          return `<span class="fix">${c.base}</span><span class="arrow">→</span><span class="fix">${c.replacement}</span>`;
+        } else if (c.kind === 'err') {
+          flaggedChars++;
+          return `<span class="err">${c.base}</span>`;
+        } else {
+          return c.base;
+        }
+      }).join('');
+      const tag = readCorrections
+        ? `${readCorrections} fix${readCorrections === 1 ? '' : 'es'}`
+        : (flaggedChars ? `${flaggedChars} flagged` : 'clean');
+      parts.push(
+        `<div class="read-row">` +
+        `<span class="read-idx">#${(idx + 1).toString().padStart(2, '0')}</span>` +
+        `<span class="read-seq">${spans}</span>` +
+        `<span class="read-tags">${tag}</span>` +
+        `</div>`
+      );
+    });
+
+    // Also count corrections across ALL reads for the stat line.
+    let allCorrections = 0;
+    for (const read of state.reads) {
+      const ann = annotateRead(read, state.kmerCounts, state.k, state.threshold);
+      allCorrections += ann.corrections;
+    }
+    statCorrected.textContent = allCorrections.toLocaleString();
+
+    readsBox.innerHTML = parts.join('') || '<span style="color: var(--fg-subtle); font-style: italic;">No reads.</span>';
+  }
+
+  function rerenderAll({ rebuild = true } = {}) {
+    readSliderParams();
+    if (rebuild) rebuildReadsAndCounts();
+    renderHistogram();
+    renderStats();
+    renderReads();
+  }
+
+  // ─── Events ────────────────────────────────────────────
+  // Re-generate reads & counts when coverage/k/errorRate changes.
+  covSlider.addEventListener('input', () => rerenderAll({ rebuild: true }));
+  kSlider.addEventListener('input',   () => rerenderAll({ rebuild: true }));
+  errSlider.addEventListener('input', () => rerenderAll({ rebuild: true }));
+  // Threshold only reshades — no need to regenerate data.
+  thrSlider.addEventListener('input', () => rerenderAll({ rebuild: false }));
+
+  regenBtn.addEventListener('click', () => {
+    state.readsSeed = (Math.random() * 0xFFFFFFFF) >>> 0;
+    rerenderAll({ rebuild: true });
+  });
+
+  resetBtn.addEventListener('click', () => {
+    covSlider.value = 30;
+    kSlider.value   = 7;
+    errSlider.value = 10;
+    thrSlider.value = 3;
+    state.readsSeed = 0x1234ABCD;
+    rerenderAll({ rebuild: true });
+  });
+
+  // Initial render
+  rerenderAll({ rebuild: true });
+})();
+</script>
+
+</body>
+</html>

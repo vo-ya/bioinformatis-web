@@ -57,7 +57,43 @@ Naming conventions:
 - **`figures-spec.md`** — one section per figure, in the order they appear in the lecture. Each section: file path, lecture anchor (§x.y), viewBox, purpose, content description, style notes, style guide §references. Follows the format of `lesson2_md_files/figures-spec.md`.
 - **`artifacts-spec.md`** — one section per artifact. Each: file path, lecture anchor, teaching purpose, UI layout (text sketch), student controls, what they see, target "aha moment", technical notes, acceptance criteria. Follows the format of `lesson2_md_files/artifacts-spec.md`.
 
-Phase A is done when these three files are in the folder and reference each other consistently (artifact count in `lecture-NN.md` matches artifact count in `artifacts-spec.md`; same for figures).
+### Phase A exit check — embed-marker consistency
+
+Before handing off to Phase B, verify that the three files agree with each other. This is the single most common source of downstream rework.
+
+**1. Artifact count matches.**
+
+- Count `**EMBED — Artifact #k: …**` markers in `lecture-NN.md`. Call this `N_a`.
+- Count top-level artifact sections (`## Artifact #k — …`) in `artifacts-spec.md`. Call this `M_a`.
+- **Require `N_a == M_a`.**
+
+**2. Figure count matches.**
+
+- Count `**FIGURE — Figure #k: …**` markers in `lecture-NN.md`. Call this `N_f`.
+- Count top-level figure sections (`## Figure k — …`) in `figures-spec.md`. Call this `M_f`.
+- **Require `N_f == M_f`.**
+
+**3. Numbering is contiguous from 1.**
+
+Both artifacts and figures are numbered `1..N` with no gaps. If the lecture text says "Artifact #3" but only Artifacts #1, #2, #4 exist in the spec, fix the spec or the lecture before proceeding.
+
+**4. Filename alignment.**
+
+Each EMBED marker in `lecture-NN.md` names a target path like `artifacts/lecture-NN/NN-name.html`. The corresponding section in `artifacts-spec.md` must declare the same filename under its `File:` field. Same rule for figures.
+
+**5. Section-anchor alignment.**
+
+Each artifact and figure names a `Lecture anchor:` (e.g. `§2.2 Suffix arrays`). That subsection must actually exist in `lecture-NN.md`. If the spec says `§3.4` but the lecture has no 3.4, fix before proceeding.
+
+**6. Callout sanity.**
+
+Skim `lecture-NN.md` once. Every callout uses one of the six labels in `lecture-style-guide.md` §4 — no invented types, no missing colons. The soft count targets (§B1 below) are not enforced here, but clearly off-target distributions (e.g. 20 EE framings or zero Intuition boxes) are cheap to flag now and expensive to rebalance later.
+
+**7. Top-matter exists.**
+
+`lecture-NN.md` has the Duration/Audience/File blockquote at the very top. File value matches `lectures/lecture-NN.html`.
+
+**If any of 1–7 fails, Phase A is not done.** Send the author back to the generator chat with the specific mismatch; do not start Phase B. A 5-minute fix here saves hours of rework in B2-B5.
 
 ---
 

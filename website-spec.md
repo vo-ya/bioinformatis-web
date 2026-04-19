@@ -73,10 +73,21 @@ bioinformatics-course/
 │   └── _shared/
 │       ├── artifact-theme.css          # Design tokens used by all artifacts
 │       └── resize.js                   # postMessage height auto-resize
+├── diagrams/
+│   ├── lecture-01/
+│   │   ├── 01-dna-double-helix.svg
+│   │   ├── 02-central-dogma-flow.svg
+│   │   ├── ...
+│   │   └── photos/                     # Curated real photographs (if any)
+│   │       └── novaseq-device.jpg
+│   ├── lecture-02/
+│   │   └── ...
+│   └── _shared/
+│       └── diagram-theme.css           # SVG design tokens (mirrors site vars)
 ├── assets/
 │   ├── styles.css                      # Site-wide styles
 │   ├── lecture.css                     # Lecture-page styles
-│   ├── images/                         # Figures, diagrams (shared)
+│   ├── images/                         # Site-level images (logo, etc.)
 │   └── data/                           # e.g. genome-cost.json if externalized
 └── README.md
 ```
@@ -102,6 +113,17 @@ Lecture pages link site CSS:
 <link rel="stylesheet" href="../assets/styles.css">
 <link rel="stylesheet" href="../assets/lecture.css">
 ```
+
+Embedding a diagram from a lecture page:
+
+```html
+<figure class="figure">
+  <img src="../diagrams/lecture-01/02-central-dogma-flow.svg" alt="...">
+  <figcaption>...</figcaption>
+</figure>
+```
+
+SVG diagrams are referenced as `<img src="...svg">` for simplicity (cacheable, no DOM bloat) unless a diagram needs to be interactive, in which case it's inlined. See `diagram-style-guide.md` for when to inline vs reference.
 
 All paths are relative — no absolute URLs — so the site works on any host subpath.
 

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FASTQ Record Anatomy — Style Proof</title>
+<style>
+  :root {
+    --bg:             #fcfcfa;
+    --bg-elevated:    #ffffff;
+    --bg-muted:       #f4f3ee;
+    --bg-inset:       #ebeae3;
+    --border:         #e5e3dc;
+    --border-strong:  #c4c1b6;
+    --fg:             #0a0a0a;
+    --fg-muted:       #525252;
+    --fg-subtle:      #8a8a85;
+    --accent:         #1e3a8a;
+    --accent-hover:   #1e40af;
+    --accent-bright:  #2563eb;
+    --accent-bg:      #eef2ff;
+    --base-a:         #c4342c;
+    --base-t:         #0d7377;
+    --base-g:         #b45309;
+    --base-c:         #2d7a3e;
+    --base-u:         #7c3aed;
+    --base-n:         #6b7280;
+
+    --font-serif: "Source Serif 4", "Charter", Georgia, serif;
+    --font-sans:  "Inter", system-ui, sans-serif;
+    --font-mono:  "JetBrains Mono", "SF Mono", Menlo, monospace;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    margin: 0;
+    padding: 48px 32px;
+    display: flex;
+    justify-content: center;
+  }
+  .figure-container {
+    max-width: 860px;
+    width: 100%;
+  }
+  .figure-title {
+    font-family: var(--font-serif);
+    font-size: 1.5rem;
+    line-height: 1.2;
+    margin: 0 0 4px 0;
+  }
+  .figure-subtitle {
+    color: var(--fg-muted);
+    font-size: 0.875rem;
+    margin: 0 0 24px 0;
+  }
+  svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .caption {
+    color: var(--fg-muted);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+<div class="figure-container">
+  <h2 class="figure-title">Anatomy of a FASTQ record</h2>
+  <p class="figure-subtitle">Four lines per read. The sequence and quality strings must have equal length.</p>
+
+  <svg viewBox="0 0 860 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+    <title id="title">FASTQ record anatomy</title>
+    <desc id="desc">A four-line FASTQ record with each line annotated, showing the header, sequence, separator, and quality string with Phred score decoding.</desc>
+
+    <defs>
+      <!-- Thin tapered arrow marker in accent color -->
+      <marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+      </marker>
+      <marker id="arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#525252"/>
+      </marker>
+    </defs>
+
+    <!-- Background panel for the record -->
+    <rect x="60" y="60" width="740" height="172" rx="6" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1.5"/>
+
+    <!-- Line numbers (left margin) -->
+    <text x="46" y="92"  font-family="Inter, sans-serif" font-size="11" fill="#8a8a85" text-anchor="end">1</text>
+    <text x="46" y="128" font-family="Inter, sans-serif" font-size="11" fill="#8a8a85" text-anchor="end">2</text>
+    <text x="46" y="164" font-family="Inter, sans-serif" font-size="11" fill="#8a8a85" text-anchor="end">3</text>
+    <text x="46" y="200" font-family="Inter, sans-serif" font-size="11" fill="#8a8a85" text-anchor="end">4</text>
+
+    <!-- LINE 1: Header -->
+    <text x="76" y="92" font-family="JetBrains Mono, monospace" font-size="14" fill="#0a0a0a">
+      <tspan font-weight="600" fill="#1e3a8a">@</tspan><tspan>HWI-D00360:5:H814YADXX:1:1101:1230:2106</tspan><tspan fill="#525252"> 1:N:0:ACAGTG</tspan>
+    </text>
+
+    <!-- LINE 2: Sequence — colored per base -->
+    <g font-family="JetBrains Mono, monospace" font-size="14" font-weight="500">
+      <text x="76" y="128">
+        <tspan fill="#b45309">G</tspan><tspan fill="#c4342c">A</tspan><tspan fill="#0d7377">T</tspan><tspan fill="#2d7a3e">C</tspan><tspan fill="#2d7a3e">C</tspan><tspan fill="#0d7377">T</tspan><tspan fill="#c4342c">A</tspan><tspan fill="#2d7a3e">C</tspan><tspan fill="#0d7377">T</tspan><tspan fill="#b45309">G</tspan><tspan fill="#c4342c">A</tspan><tspan fill="#c4342c">A</tspan><tspan fill="#2d7a3e">C</tspan><tspan fill="#b45309">G</tspan><tspan fill="#c4342c">A</tspan><tspan fill="#0d7377">T</tspan><tspan fill="#2d7a3e">C</tspan><tspan fill="#c4342c">A</tspan><tspan fill="#2d7a3e">C</tspan><tspan fill="#b45309">G</tspan><tspan fill="#c4342c">A</tspan><tspan fill="#2d7a3e">C</tspan><tspan fill="#0d7377">T</tspan><tspan fill="#c4342c">A</tspan><tspan fill="#b45309">G</tspan><tspan fill="#2d7a3e">C</tspan><tspan fill="#c4342c">A</tspan>
+      </text>
+    </g>
+
+    <!-- LINE 3: Separator -->
+    <text x="76" y="164" font-family="JetBrains Mono, monospace" font-size="14" fill="#1e3a8a" font-weight="600">+</text>
+
+    <!-- LINE 4: Quality -->
+    <text x="76" y="200" font-family="JetBrains Mono, monospace" font-size="14" fill="#0a0a0a">BBBFFFFFFFFFFFIIIIIIFFFFFFF</text>
+
+    <!-- ANNOTATION 1: Header line -->
+    <line x1="560" y1="92" x2="660" y2="92" stroke="#1e3a8a" stroke-width="1.5" marker-start="url(#arrow-accent)"/>
+    <text x="668" y="86" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#1e3a8a">Header line</text>
+    <text x="668" y="102" font-family="Inter, sans-serif" font-size="11" fill="#525252">Starts with @, read ID + optional description</text>
+
+    <!-- ANNOTATION 2: Sequence -->
+    <line x1="560" y1="128" x2="660" y2="128" stroke="#1e3a8a" stroke-width="1.5" marker-start="url(#arrow-accent)"/>
+    <text x="668" y="122" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#1e3a8a">Sequence</text>
+    <text x="668" y="138" font-family="Inter, sans-serif" font-size="11" fill="#525252">A / C / G / T / N, length = L</text>
+
+    <!-- ANNOTATION 3: Separator -->
+    <line x1="560" y1="164" x2="660" y2="164" stroke="#1e3a8a" stroke-width="1.5" marker-start="url(#arrow-accent)"/>
+    <text x="668" y="158" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#1e3a8a">Separator</text>
+    <text x="668" y="174" font-family="Inter, sans-serif" font-size="11" fill="#525252">Just a + (occasionally repeats the ID)</text>
+
+    <!-- ANNOTATION 4: Quality -->
+    <line x1="560" y1="200" x2="660" y2="200" stroke="#1e3a8a" stroke-width="1.5" marker-start="url(#arrow-accent)"/>
+    <text x="668" y="194" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#1e3a8a">Quality string</text>
+    <text x="668" y="210" font-family="Inter, sans-serif" font-size="11" fill="#525252">One ASCII char per base, length = L</text>
+
+    <!-- Length-match indicator: bracket under sequence and quality -->
+    <g stroke="#525252" stroke-width="1" fill="none">
+      <!-- bracket under sequence (line 2) -->
+      <path d="M 76 240 L 76 248 L 334 248 L 334 240" />
+      <!-- bracket under quality (line 4) — aligned to sequence -->
+    </g>
+
+    <!-- Zoom-in callout: one base + its quality char -->
+    <g transform="translate(60, 270)">
+      <rect x="0" y="0" width="740" height="130" rx="6" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1"/>
+
+      <text x="16" y="22" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.08em">ZOOM — POSITION 14</text>
+
+      <!-- base + quality char vertically stacked, large -->
+      <text x="32" y="72" font-family="JetBrains Mono, monospace" font-size="34" font-weight="500" fill="#b45309">G</text>
+      <text x="32" y="114" font-family="JetBrains Mono, monospace" font-size="34" font-weight="500" fill="#0a0a0a">I</text>
+
+      <!-- divider line -->
+      <line x1="96" y1="40" x2="96" y2="120" stroke="#c4c1b6" stroke-width="1"/>
+
+      <!-- derivation chain -->
+      <g font-family="Inter, sans-serif" font-size="12" fill="#0a0a0a">
+        <text x="116" y="58" font-weight="600">ASCII char</text>
+        <text x="210" y="58" font-family="JetBrains Mono, monospace">'I'</text>
+
+        <text x="116" y="78" font-weight="600">ASCII value</text>
+        <text x="210" y="78" font-family="JetBrains Mono, monospace">73</text>
+
+        <text x="116" y="98" font-weight="600">Phred score</text>
+        <text x="210" y="98" font-family="JetBrains Mono, monospace">Q = 73 − 33 = 40</text>
+
+        <text x="116" y="118" font-weight="600">P(error)</text>
+        <text x="210" y="118" font-family="JetBrains Mono, monospace">10</text>
+        <text x="226" y="112" font-family="JetBrains Mono, monospace" font-size="9">−Q/10</text>
+        <text x="254" y="118" font-family="JetBrains Mono, monospace">= 10</text>
+        <text x="282" y="112" font-family="JetBrains Mono, monospace" font-size="9">−4</text>
+        <text x="298" y="118" font-family="JetBrains Mono, monospace" fill="#525252">= 0.0001  (1 in 10,000)</text>
+      </g>
+
+      <!-- right side: Phred+33 formula box -->
+      <g transform="translate(500, 26)">
+        <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.08em">PHRED+33 ENCODING</text>
+        <text x="0" y="24" font-family="JetBrains Mono, monospace" font-size="13" fill="#0a0a0a">Q = ord(char) − 33</text>
+        <text x="0" y="46" font-family="JetBrains Mono, monospace" font-size="13" fill="#0a0a0a">P = 10</text>
+        <text x="44" y="40" font-family="JetBrains Mono, monospace" font-size="10">−Q/10</text>
+        <text x="0" y="76" font-family="Inter, sans-serif" font-size="11" fill="#525252" font-style="italic">Q30 ≈ 30 dB of confidence</text>
+        <text x="0" y="92" font-family="Inter, sans-serif" font-size="11" fill="#525252" font-style="italic">Q40 ≈ 99.99% accurate</text>
+      </g>
+    </g>
+  </svg>
+
+  <p class="caption">Every FASTQ record is four lines. Lines 2 and 4 must share the same length — one quality character per base. The Phred score Q encodes the probability that the base call is wrong; in the modern Phred+33 encoding (used by all current Illumina, PacBio, and ONT output), the ASCII value of the quality character minus 33 gives Q. Here, the character <code>I</code> at position 14 encodes Q = 40, meaning a 1-in-10,000 chance the base call is wrong.</p>
+</div>
+</body>
+</html>

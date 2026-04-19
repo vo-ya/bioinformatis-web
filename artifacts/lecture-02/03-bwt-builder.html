@@ -143,6 +143,11 @@
     <div class="controls">
       <button id="build-btn" class="btn btn--primary" type="button">Build BWT</button>
       <button id="animate-btn" class="btn" type="button">Animate sort</button>
+      <button id="step-btn" class="btn" type="button">Step sort</button>
+      <button id="reset-sort-btn" class="btn" type="button">Reset sort</button>
+      <label style="display: flex; align-items: center; gap: 0.4rem; font-size: var(--text-sm); color: var(--fg-muted);">
+        Speed <input id="speed" type="range" min="1" max="10" value="3" style="width: 100px; accent-color: var(--accent);">
+      </label>
     </div>
   </section>
 
@@ -181,30 +186,74 @@
   const inputEl = $('input-string');
   const buildBtn = $('build-btn');
   const animateBtn = $('animate-btn');
+  const stepBtn = $('step-btn');
+  const resetSortBtn = $('reset-sort-btn');
+  const speedEl = $('speed');
   const unsortedEl = $('unsorted');
   const sortedEl = $('sorted');
   const bwtEl = $('bwt-output');
 
-  let rotations = [];   // unsorted (in input order)
-  let sorted = [];      // sorted
+  let rotations = [];       // unsorted (in input order)
+  let sortedFinal = [];     // final sorted order
+  let working = [];         // current state of the sort-in-progress
+  let sortIdx = 1;          // outer insertion-sort index
+  let sortSubIdx = 0;       // inner swap counter
+  let animTimer = null;
 
   function sanitize(s) { return (s || '').toUpperCase().replace(/[^A-Z]/g, ''); }
 
   function build() {
+    stopAnimation();
     let t = sanitize(inputEl.value).slice(0, 12);
     if (!t) t = 'ACAACG';
     const s = t + '$';
     const n = s.length;
     rotations = [];
     for (let i = 0; i < n; i++) rotations.push({ str: s.slice(i) + s.slice(0, i), origin: i });
-    sorted = rotations.slice().sort((a, b) => a.str < b.str ? -1 : 1);
+    sortedFinal = rotations.slice().sort((a, b) => a.str < b.str ? -1 : 1);
+    // Default: show final sorted state (so the artifact is instructive on load).
+    working = sortedFinal.slice();
+    sortIdx = sortedFinal.length;   // sentinel: sort complete
+    sortSubIdx = 0;
     renderBoth();
     renderBwt();
   }
 
+  // Reset sort: show the unsorted order on the right panel and allow step-by-step sorting.
+  function resetSort() {
+    stopAnimation();
+    working = rotations.slice();
+    sortIdx = 1;
+    sortSubIdx = 0;
+    renderBoth();
+    renderBwt();
+  }
+
+  // Perform ONE swap of the insertion sort. Return true if a swap happened.
+  function stepSort() {
+    if (sortIdx >= working.length) return false;
+    const i = sortIdx;
+    if (sortSubIdx === 0) sortSubIdx = i;  // initialise inner pointer
+    const j = sortSubIdx;
+    if (j > 0 && working[j - 1].str > working[j].str) {
+      [working[j - 1], working[j]] = [working[j], working[j - 1]];
+      sortSubIdx = j - 1;
+    } else {
+      sortIdx = i + 1;
+      sortSubIdx = 0;
+    }
+    renderBoth();
+    renderBwt();
+    return true;
+  }
+
+  function stopAnimation() {
+    if (animTimer) { clearInterval(animTimer); animTimer = null; }
+  }
+
   function renderBoth() {
-    unsortedEl.innerHTML = rotations.map((r, i) => renderRow(r.str, `u-${r.origin}`)).join('');
-    sortedEl.innerHTML   = sorted.map((r, i) => renderRow(r.str, `s-${r.origin}`, true)).join('');
+    unsortedEl.innerHTML = rotations.map((r) => renderRow(r.str, r.origin, false)).join('');
+    sortedEl.innerHTML   = working.map((r) => renderRow(r.str, r.origin, true)).join('');
 
     // Cross-highlight on hover
     document.querySelectorAll('.rot-row').forEach(row => {
@@ -218,7 +267,7 @@
     });
   }
 
-  function renderRow(str, id, showFL) {
+  function renderRow(str, origin, showFL) {
     const chars = [];
     for (let k = 0; k < str.length; k++) {
       const c = str[k];
@@ -227,37 +276,43 @@
       if (showFL && k === str.length - 1) cls += ' last';
       chars.push(cls ? `<span class="${cls.trim()}">${c}</span>` : c);
     }
-    const origin = id.split('-')[1];
     return `<span class="rot-row" data-origin="${origin}">${chars.join('')}</span>`;
   }
 
   function renderBwt() {
-    const bwt = sorted.map(r => r.str[r.str.length - 1]).join('');
+    // Only show BWT when sort is complete (otherwise show a dash)
+    if (sortIdx < working.length) {
+      bwtEl.innerHTML = '<span style="color: var(--fg-subtle)">sorting…</span>';
+      return;
+    }
+    const bwt = working.map(r => r.str[r.str.length - 1]).join('');
     const chars = bwt.split('').map(c => c === '$' ? `<span style="color: var(--fg-subtle)">$</span>` : c).join('');
     bwtEl.innerHTML = chars;
   }
 
-  async function animateSort() {
-    // Reset sorted panel
-    sorted = rotations.slice();
-    renderBoth();
-    renderBwt();
-    // Simple insertion-sort animation: at each step, swap adjacent until sorted
-    for (let i = 1; i < sorted.length; i++) {
-      let j = i;
-      while (j > 0 && sorted[j - 1].str > sorted[j].str) {
-        [sorted[j - 1], sorted[j]] = [sorted[j], sorted[j - 1]];
-        renderBoth();
-        renderBwt();
-        await new Promise(r => setTimeout(r, 90));
-        j--;
-      }
-    }
+  function animateSort() {
+    stopAnimation();
+    resetSort();
+    const delay = () => 600 - (+speedEl.value - 1) * 55;  // 600ms slow … 100ms fast
+    animTimer = setInterval(() => {
+      const didSwap = stepSort();
+      if (!didSwap) stopAnimation();
+    }, delay());
   }
 
   inputEl.addEventListener('input', build);
   buildBtn.addEventListener('click', build);
   animateBtn.addEventListener('click', animateSort);
+  stepBtn.addEventListener('click', () => {
+    stopAnimation();
+    // If sort is complete or unstarted, begin fresh
+    if (sortIdx >= working.length) resetSort();
+    stepSort();
+  });
+  resetSortBtn.addEventListener('click', resetSort);
+  speedEl.addEventListener('input', () => {
+    if (animTimer) { stopAnimation(); animateSort(); }
+  });
 
   build();
 })();

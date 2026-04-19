@@ -239,18 +239,7 @@
 
           <p>A <strong>suffix</strong> of a string <em>R</em> is a substring that ends at the last character: for <code>R = BANANA$</code>, the suffixes are <code>BANANA$</code>, <code>ANANA$</code>, <code>NANA$</code>, <code>ANA$</code>, <code>NA$</code>, <code>A$</code>, and <code>$</code>. The trailing <code>$</code> is a sentinel character that compares less than every real character; its purpose is to force every suffix to be unique and to give us a clean place for lexicographic comparisons to terminate.</p>
 
-          <p>Here is the first idea that pays for itself. Sort the suffixes lexicographically. The result is a list of all positions in <em>R</em>, reordered so that if you look at the substring starting at each position, the substrings are in dictionary order. For <code>BANANA$</code>:</p>
-
-          <pre class="sequence-block">i   SA[i]   suffix
-0     6     $
-1     5     A$
-2     3     ANA$
-3     1     ANANA$
-4     0     BANANA$
-5     4     NA$
-6     2     NANA$</pre>
-
-          <p>The <strong>suffix array</strong> SA is the second column: [6, 5, 3, 1, 0, 4, 2]. It stores, for each rank in the sorted order, the position in <em>R</em> where that suffix begins.</p>
+          <p>Here is the first idea that pays for itself. Sort the suffixes lexicographically. The result is a list of all positions in <em>R</em>, reordered so that if you look at the substring starting at each position, the substrings are in dictionary order. The <strong>suffix array</strong> SA stores, for each rank in the sorted order, the position in <em>R</em> where that suffix begins — for <code>BANANA$</code>, SA = [6, 5, 3, 1, 0, 4, 2].</p>
 
           <figure class="figure figure--wide">
             <img src="../diagrams/lecture-02/03-suffix-array-structure.svg"
@@ -293,18 +282,7 @@
         <section id="sec-2-3">
           <h3>2.3 Hash maps and k-mer indices</h3>
 
-          <p>The second indexing approach drops sortedness and replaces it with hashing. Pick a length <em>k</em> — typically 12 to 30. Enumerate every <em>k</em>-mer in <em>R</em>, and store a map from each distinct <em>k</em>-mer to the list of positions where it occurs:</p>
-
-          <pre class="sequence-block">ACGTACGTAC  →  R
-AAA: []
-AAC: []
-...
-ACG: [0, 4]
-CGT: [1, 5]
-GTA: [2, 6]
-TAC: [3, 7]
-...
-TTT: []</pre>
+          <p>The second indexing approach drops sortedness and replaces it with hashing. Pick a length <em>k</em> — typically 12 to 30. Enumerate every <em>k</em>-mer in <em>R</em>, and store a map from each distinct <em>k</em>-mer to the list of positions where it occurs.</p>
 
           <figure class="figure figure--wide">
             <img src="../diagrams/lecture-02/04-hash-kmer-index.svg"

@@ -27,17 +27,22 @@ If any of these changes, all subsequent lectures inherit the change on the next 
 
 | Phase | Who | Output |
 |---|---|---|
-| **A — Inputs** | Author (a separate Claude chat, or hand-written) | Three per-lecture spec files |
+| **A — Inputs** | Author, via Claude chat **or** Claude Code | Three per-lecture spec files |
 | **B — Build**  | Claude Code | Lecture HTML · figures · artifacts · homepage promotion |
 | **C — Quality** | Claude Code + reviewer | Smoke test · review pass · commits · push |
 
-The AI never starts Phase B until Phase A is complete.
+The AI never starts Phase B until Phase A is complete — regardless of which channel produced Phase A.
 
 ---
 
 ## Phase A — Inputs (author-side)
 
-The author opens a separate Claude chat, provides a **theme** (one-line lecture topic) and a **list of things to cover** (topic outline), and has that chat produce the three per-lecture spec files. Those files are then dropped into this repo at:
+The author provides a **theme** (one-line lecture topic) and a **list of things to cover** (topic outline), and has an AI produce the three per-lecture spec files. This can happen in either of two places:
+
+- **(a) A separate Claude chat.** Useful when the author wants authoring context kept distinct from the code-generation context. The chat needs four files pasted in as context to know the conventions: `lecture-style-guide.md`, `diagram-style-guide.md`, this flow doc (at least Phase A and the exit check), and one previous lecture's `lecture-NN.md` as a format reference. Then give the chat the theme + topic list.
+- **(b) Claude Code itself.** Useful when you want one conversation from theme to shipped lecture. Claude Code already has the full repository context — all shared specs, both prior lecture .md files, and this flow doc — and does not need anything pasted in. Ask it to "do Phase A for Lesson N with topic X and bullets Y, Z, …", have it save the three files into `lessonN_md_files/`, run the exit check, and stop before Phase B starts.
+
+Either channel produces the same three files at the same location:
 
 ```
 markdown_resources/lessonN_md_files/

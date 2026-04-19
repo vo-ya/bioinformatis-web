@@ -17,24 +17,37 @@ Open <http://localhost:8000/>. Alternatives: `npx serve .` if you have Node, or 
 
 ```
 .
-├── index.html                      # Landing page
+├── index.html                            # Landing page
 ├── lectures/
-│   └── lecture-01.html             # Long-form lecture pages
+│   ├── lecture-01.html                   # Long-form lecture pages
+│   └── lecture-02.html
 ├── artifacts/
-│   ├── _shared/                    # Shared design tokens + postMessage resizer
-│   └── lecture-01/                 # One interactive artifact per .html file
+│   ├── _shared/                          # Shared design tokens + postMessage resizer
+│   ├── lecture-01/                       # 6 interactive HTML artifacts per lecture
+│   └── lecture-02/
 ├── diagrams/
-│   └── lecture-01/                 # Static SVG figures (12 per lecture)
-└── assets/
-    ├── styles.css                  # Site-wide tokens and landing page
-    └── lecture.css                 # Lecture-page layout, callouts, figures
+│   ├── lecture-01/                       # Static SVG figures (10-12 per lecture)
+│   └── lecture-02/
+├── assets/
+│   ├── styles.css                        # Site-wide tokens + homepage
+│   ├── lecture.css                       # Lecture-page layout, callouts, figures
+│   └── logo/                             # Mark, wordmark, favicon variants
+├── markdown_resources/                   # Specs + source-of-truth content
+│   ├── website-spec.md  homepage-spec.md  logo-spec.md
+│   ├── lecture-style-guide.md  diagram-style-guide.md
+│   ├── artifacts-spec.md  figures-spec.md  lecture-01.md      # Lecture 1 sources
+│   └── lesson2_md_files/                                      # Lecture 2 sources
+│       ├── artifacts-spec.md  figures-spec.md  lecture-02.md
+└── proof_html_resources/                 # Standalone-viewable design references
+    ├── fastq-anatomy-proof.html
+    └── logo-proof-v2.html
 ```
 
 Each lecture embeds its artifacts via `<iframe>` from `artifacts/lecture-NN/` and its figures via `<img>` from `diagrams/lecture-NN/`. All paths are relative — the site runs under any subpath.
 
 ## Specs & authoring guides
 
-These are the sources of truth when adding content. Read the relevant one before editing code. All spec and style-guide markdown lives under `markdown_resources/`; the two HTML proof files stay at the repo root because they double as standalone-viewable design references.
+These are the sources of truth when adding content. Read the relevant one before editing code.
 
 | File | Use for |
 |---|---|
@@ -42,10 +55,9 @@ These are the sources of truth when adding content. Read the relevant one before
 | `markdown_resources/homepage-spec.md` | Landing page layout and 16-card lecture list |
 | `markdown_resources/logo-spec.md` | Course mark and wordmark |
 | `markdown_resources/lecture-style-guide.md` | Voice, structure, callout types, and formatting for lecture prose |
-| `markdown_resources/artifacts-spec.md` | Per-artifact behaviour + UI specifications |
 | `markdown_resources/diagram-style-guide.md` | House style for SVG diagrams (colour, stroke, typography, arrows) |
-| `markdown_resources/figures-spec.md` | Per-lecture figure list with build-order recommendations |
-| `markdown_resources/lecture-01.md` | Source markdown for Lecture 1 content |
+| `markdown_resources/artifacts-spec.md` · `figures-spec.md` · `lecture-01.md` | Lecture 1 — behaviour specs and source content |
+| `markdown_resources/lesson2_md_files/` | Lecture 2 — behaviour specs and source content |
 | `proof_html_resources/fastq-anatomy-proof.html` | Canonical SVG reference — copy arrow markers and typography patterns from here |
 | `proof_html_resources/logo-proof-v2.html` | Logo visual reference; course mark is locked to Variant A3 |
 
@@ -59,9 +71,14 @@ These are the sources of truth when adding content. Read the relevant one before
 
 ## Current status
 
-- **Lecture 1 — Foundations: From Cells to Sequences to FASTQ.** Prose, six interactive artifacts, and twelve figures all shipped.
-- **Lecture 2+ —** not yet started.
+- **Lecture 1 — Foundations: From Cells to Sequences to FASTQ.** 3h 35min · 12 figures · 6 interactive tools. Shipped.
+- **Lecture 2 — Read Alignment: From Brute Force to FM Index and Back.** 3h 50min · 10 figures · 6 interactive tools. Shipped.
+- **Lectures 3–16** — placeholders on the homepage; not yet started.
+
+Lectures shipped so far: **2 of 16.** Interactive tools: **12.** Figures: **22.**
 
 ## License
 
-Apache 2.0. See `LICENSE`.
+Apache 2.0 (course code and tooling). See `LICENSE` for the full text.
+
+The course mark and wordmark carry their own identity restrictions — see `assets/logo/LICENSE.md`.

@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 420" role="img" aria-labelledby="t d">
+  <title id="t">Overlap graph construction</title>
+  <desc id="d">Five reads listed at left. A pairwise overlap matrix in the middle highlighting matching suffix-prefix cells. At right, the resulting overlap graph — one node per read, directed edges labeled with overlap length.</desc>
+
+  <defs>
+    <marker id="arrow-accent-07" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+  </defs>
+
+  <!-- ===== LEFT: reads ===== -->
+  <text x="30" y="30" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">READS</text>
+  <g font-family="JetBrains Mono, monospace" font-size="13" fill="#0a0a0a">
+    <text x="30" y="70" fill="#8a8a85">R1</text><text x="64" y="70">ACGTCC</text>
+    <text x="30" y="92" fill="#8a8a85">R2</text><text x="64" y="92">CGTCCA</text>
+    <text x="30" y="114" fill="#8a8a85">R3</text><text x="64" y="114">GTCCAT</text>
+    <text x="30" y="136" fill="#8a8a85">R4</text><text x="64" y="136">CCATAG</text>
+    <text x="30" y="158" fill="#8a8a85">R5</text><text x="64" y="158">CATAGC</text>
+  </g>
+
+  <!-- ===== MIDDLE: overlap matrix ===== -->
+  <text x="200" y="30" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">OVERLAP MATRIX · SUFFIX(i) = PREFIX(j)</text>
+  <g transform="translate(200 50)" font-family="JetBrains Mono, monospace" font-size="11">
+    <!-- Grid background -->
+    <rect x="0" y="0" width="280" height="180" fill="#f4f3ee" stroke="#c4c1b6" stroke-width="1"/>
+
+    <!-- Column headers R1..R5 -->
+    <g fill="#525252" text-anchor="middle">
+      <text x="70"  y="16">R1</text>
+      <text x="120" y="16">R2</text>
+      <text x="170" y="16">R3</text>
+      <text x="220" y="16">R4</text>
+      <text x="270" y="16">R5</text>
+    </g>
+    <!-- Row headers -->
+    <g fill="#525252">
+      <text x="16" y="48">R1</text>
+      <text x="16" y="78">R2</text>
+      <text x="16" y="108">R3</text>
+      <text x="16" y="138">R4</text>
+      <text x="16" y="168">R5</text>
+    </g>
+
+    <!-- Grid lines -->
+    <g stroke="#c4c1b6" stroke-width="0.5">
+      <line x1="40" y1="24" x2="40" y2="180"/>
+      <line x1="95" y1="24" x2="95" y2="180"/>
+      <line x1="145" y1="24" x2="145" y2="180"/>
+      <line x1="195" y1="24" x2="195" y2="180"/>
+      <line x1="245" y1="24" x2="245" y2="180"/>
+      <line x1="0" y1="24" x2="280" y2="24"/>
+      <line x1="0" y1="54" x2="280" y2="54"/>
+      <line x1="0" y1="84" x2="280" y2="84"/>
+      <line x1="0" y1="114" x2="280" y2="114"/>
+      <line x1="0" y1="144" x2="280" y2="144"/>
+    </g>
+
+    <!-- Highlighted cells for chained overlaps R1->R2, R2->R3, R3->R4, R4->R5 (all overlap 5) -->
+    <g fill="#eef2ff">
+      <rect x="95" y="24" width="50" height="30"/>   <!-- R1 × R2 -->
+      <rect x="145" y="54" width="50" height="30"/>  <!-- R2 × R3 -->
+      <rect x="195" y="84" width="50" height="30"/>  <!-- R3 × R4 -->
+      <rect x="245" y="114" width="35" height="30"/> <!-- R4 × R5 -->
+    </g>
+
+    <!-- Cell values -->
+    <g font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a" text-anchor="middle">
+      <text x="120" y="44" font-weight="600">5</text>
+      <text x="170" y="74" font-weight="600">5</text>
+      <text x="220" y="104" font-weight="600">5</text>
+      <text x="262" y="134" font-weight="600">5</text>
+    </g>
+
+    <!-- Non-matching cells (dots) -->
+    <g fill="#c4c1b6" text-anchor="middle">
+      <text x="70"  y="44">·</text>
+      <text x="170" y="44">·</text>
+      <text x="220" y="44">·</text>
+      <text x="262" y="44">·</text>
+      <text x="70"  y="74">·</text>
+      <text x="120" y="74">·</text>
+      <text x="220" y="74">·</text>
+      <text x="262" y="74">·</text>
+      <text x="70"  y="104">·</text>
+      <text x="120" y="104">·</text>
+      <text x="170" y="104">·</text>
+      <text x="262" y="104">·</text>
+      <text x="70"  y="134">·</text>
+      <text x="120" y="134">·</text>
+      <text x="170" y="134">·</text>
+      <text x="220" y="134">·</text>
+      <text x="70"  y="164">·</text>
+      <text x="120" y="164">·</text>
+      <text x="170" y="164">·</text>
+      <text x="220" y="164">·</text>
+      <text x="262" y="164">·</text>
+    </g>
+  </g>
+
+  <!-- ===== RIGHT: overlap graph ===== -->
+  <text x="540" y="30" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">OVERLAP GRAPH</text>
+
+  <g font-family="JetBrains Mono, monospace" font-size="12" font-weight="500" fill="#0a0a0a" text-anchor="middle">
+    <g fill="#f4f3ee" stroke="#0a0a0a" stroke-width="1.5">
+      <circle cx="560" cy="90" r="24"/>
+      <circle cx="640" cy="90" r="24"/>
+      <circle cx="720" cy="90" r="24"/>
+      <circle cx="800" cy="90" r="24"/>
+      <circle cx="680" cy="170" r="24"/>
+    </g>
+    <text x="560" y="94" fill="#0a0a0a">R1</text>
+    <text x="640" y="94" fill="#0a0a0a">R2</text>
+    <text x="720" y="94" fill="#0a0a0a">R3</text>
+    <text x="800" y="94" fill="#0a0a0a">R4</text>
+    <text x="680" y="174" fill="#0a0a0a">R5</text>
+  </g>
+  <g stroke="#1e3a8a" stroke-width="1.5" fill="none">
+    <line x1="584" y1="90" x2="616" y2="90" marker-end="url(#arrow-accent-07)"/>
+    <line x1="664" y1="90" x2="696" y2="90" marker-end="url(#arrow-accent-07)"/>
+    <line x1="744" y1="90" x2="776" y2="90" marker-end="url(#arrow-accent-07)"/>
+    <line x1="793" y1="108" x2="697" y2="154" marker-end="url(#arrow-accent-07)"/>
+  </g>
+  <g font-family="Inter, sans-serif" font-size="10" fill="#525252" text-anchor="middle">
+    <text x="600" y="82">5 bp</text>
+    <text x="680" y="82">5 bp</text>
+    <text x="760" y="82">5 bp</text>
+    <text x="766" y="138">5 bp</text>
+  </g>
+
+  <!-- Caption -->
+  <g transform="translate(430 370)">
+    <rect x="-340" y="0" width="680" height="34" rx="6" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1"/>
+    <text x="0" y="22" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#0a0a0a">One node per read; one edge per significant suffix → prefix overlap, labeled with overlap length.</text>
+  </g>
+
+  <!-- Note about graph shape -->
+  <text x="680" y="230" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#8a8a85">Ideal case: almost-linear chain · no branching</text>
+</svg>

@@ -222,7 +222,7 @@ diagrams/
 When creating a new diagram for a lecture:
 
 1. **Check `figures-spec.md`** for the lecture to find the spec for this figure.
-2. **Open the proof file** (`fastq-anatomy-proof.html`) to copy the marker/typography/color patterns.
+2. **Open the proof file** (`../fastq-anatomy-proof.html`) to copy the marker/typography/color patterns.
 3. **Build the SVG** following this style guide.
 4. **Save as** `diagrams/lecture-NN/NN-name.svg` with just the `<svg>...</svg>` (no wrapping HTML).
 5. **Verify**: open in a browser standalone — does it render cleanly? Is text legible? Are colors from the palette only?
@@ -262,4 +262,4 @@ Before saving a diagram as final:
 
 ## 15. Canonical Proof File
 
-The file `fastq-anatomy-proof.html` is the reference implementation of this style. When in doubt about arrow style, typography, kicker labels, callout boxes, or monospace integration, **copy patterns from that file directly**. It is the ground truth.
+The file `../fastq-anatomy-proof.html` is the reference implementation of this style. When in doubt about arrow style, typography, kicker labels, callout boxes, or monospace integration, **copy patterns from that file directly**. It is the ground truth.

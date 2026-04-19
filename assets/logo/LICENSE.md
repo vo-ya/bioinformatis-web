@@ -12,4 +12,4 @@ materials, in the favicon, in social preview images — is expressly
 permitted under the repository's Apache 2.0 license. Use elsewhere is
 not.
 
-Canonical geometry and usage rules are specified in `/logo-spec.md`.
+Canonical geometry and usage rules are specified in `markdown_resources/logo-spec.md`.

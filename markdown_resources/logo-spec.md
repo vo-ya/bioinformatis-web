@@ -2,7 +2,7 @@
 
 > **Purpose**: Build spec for the course mark and wordmark.
 > **Status**: FINAL — locked to Variant A3 (helix with base-colored rungs).
-> **Companion files**: `logo-proof-v2.html` (canonical visual reference — section "Variant A3"), `website-spec.md` (design system), `homepage-spec.md` (usage on landing page).
+> **Companion files**: `../logo-proof-v2.html` (canonical visual reference — section "Variant A3"), `website-spec.md` (design system), `homepage-spec.md` (usage on landing page).
 
 ---
 

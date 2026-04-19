@@ -34,16 +34,20 @@ Each lecture embeds its artifacts via `<iframe>` from `artifacts/lecture-NN/` an
 
 ## Specs & authoring guides
 
-These are the sources of truth when adding content. Read the relevant one before editing code.
+These are the sources of truth when adding content. Read the relevant one before editing code. All spec and style-guide markdown lives under `markdown_resources/`; the two HTML proof files stay at the repo root because they double as standalone-viewable design references.
 
 | File | Use for |
 |---|---|
-| `website-spec.md` | Site architecture, folder layout, design tokens, embedding contracts |
-| `lecture-style-guide.md` | Voice, structure, callout types, and formatting for lecture prose |
-| `artifacts-spec.md` | Per-artifact behaviour + UI specifications |
-| `diagram-style-guide.md` | House style for SVG diagrams (colour, stroke, typography, arrows) |
-| `figures-spec.md` | Per-lecture figure list with build-order recommendations |
+| `markdown_resources/website-spec.md` | Site architecture, folder layout, design tokens, embedding contracts |
+| `markdown_resources/homepage-spec.md` | Landing page layout and 16-card lecture list |
+| `markdown_resources/logo-spec.md` | Course mark and wordmark |
+| `markdown_resources/lecture-style-guide.md` | Voice, structure, callout types, and formatting for lecture prose |
+| `markdown_resources/artifacts-spec.md` | Per-artifact behaviour + UI specifications |
+| `markdown_resources/diagram-style-guide.md` | House style for SVG diagrams (colour, stroke, typography, arrows) |
+| `markdown_resources/figures-spec.md` | Per-lecture figure list with build-order recommendations |
+| `markdown_resources/lecture-01.md` | Source markdown for Lecture 1 content |
 | `fastq-anatomy-proof.html` | Canonical SVG reference — copy arrow markers and typography patterns from here |
+| `logo-proof-v2.html` | Logo visual reference; course mark is locked to Variant A3 |
 
 ## Design system in one glance
 

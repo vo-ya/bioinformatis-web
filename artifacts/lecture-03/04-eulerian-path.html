@@ -351,13 +351,13 @@
     },
 
     cycle: {
-      hint: 'Single cycle: balanced graph. Walk starts at ATG and ends back at ATG after four edges.',
+      hint: 'Single cycle: balanced graph. Walk starts at ATG, takes four edges, ends back at ATG. No splicing needed.',
       start: 'ATG',
       nodes: [
-        { id: 'ATG', x: 400, y:  80 },
-        { id: 'TGC', x: 620, y: 200 },
-        { id: 'GCA', x: 400, y: 320 },
-        { id: 'CAT', x: 180, y: 200 },
+        { id: 'ATG', x: 400, y:  70 },
+        { id: 'TGC', x: 620, y: 190 },
+        { id: 'GCA', x: 400, y: 310 },
+        { id: 'CAT', x: 180, y: 190 },
       ],
       edges: [
         { from: 'ATG', to: 'TGC', kmer: 'ATGC' },
@@ -368,42 +368,47 @@
     },
 
     splice: {
-      hint: 'Figure-eight: two cycles share node GA. Greedy walk from AT returns to AT before exhausting edges at GA. Hierholzer splices the second loop in at GA.',
-      start: 'AT',
+      hint: 'Figure-eight sharing node ATG. Start at CAT; the greedy walk consumes the first loop and returns to CAT before touching the second loop. Hierholzer identifies ATG as a splice node and inserts the second cycle there.',
+      start: 'CAT',
       nodes: [
-        { id: 'AT', x: 120, y: 200 },
-        { id: 'TG', x: 280, y: 200 },
-        { id: 'GA', x: 440, y: 200 },
-        { id: 'AC', x: 600, y: 100 },
-        { id: 'CG', x: 720, y: 260 },
+        { id: 'CAT', x:  80, y: 180 },
+        { id: 'ATG', x: 260, y: 180 },
+        { id: 'TGC', x: 380, y:  80 },
+        { id: 'GCA', x: 500, y: 180 },
+        { id: 'TGT', x: 380, y: 280 },
+        { id: 'GTA', x: 600, y: 280 },
+        { id: 'TAT', x: 720, y: 180 },
       ],
-      // Order at GA: GAT listed first so greedy walk picks it and gets stuck.
+      // Edge order at ATG: ATGC listed first so greedy walk finishes cycle 1 first,
+      // returning to CAT stuck, with ATG's remaining ATGT edge requiring a splice.
       edges: [
-        { from: 'AT', to: 'TG', kmer: 'ATG' },
-        { from: 'TG', to: 'GA', kmer: 'TGA' },
-        { from: 'GA', to: 'AT', kmer: 'GAT' },
-        { from: 'GA', to: 'AC', kmer: 'GAC' },
-        { from: 'AC', to: 'CG', kmer: 'ACG' },
-        { from: 'CG', to: 'GA', kmer: 'CGA' },
+        { from: 'CAT', to: 'ATG', kmer: 'CATG' },
+        { from: 'ATG', to: 'TGC', kmer: 'ATGC' },
+        { from: 'TGC', to: 'GCA', kmer: 'TGCA' },
+        { from: 'GCA', to: 'CAT', kmer: 'GCAT' },
+        { from: 'ATG', to: 'TGT', kmer: 'ATGT' },
+        { from: 'TGT', to: 'GTA', kmer: 'TGTA' },
+        { from: 'GTA', to: 'TAT', kmer: 'GTAT' },
+        { from: 'TAT', to: 'ATG', kmer: 'TATG' },
       ],
     },
 
     disconnected: {
-      hint: 'Two components. Walk finishes the first, but the second is unreachable. Algorithm reports failure — no Eulerian path exists.',
-      start: 'AA',
+      hint: 'Two separate components with no connecting edge. The walk finishes the first component, but edges in the second are unreachable. Algorithm halts and reports failure.',
+      start: 'AAC',
       nodes: [
-        { id: 'AA', x: 120, y: 120 },
-        { id: 'AC', x: 300, y: 120 },
-        { id: 'CC', x: 480, y: 120 },
-        { id: 'TT', x: 220, y: 280 },
-        { id: 'TG', x: 400, y: 280 },
-        { id: 'GG', x: 580, y: 280 },
+        { id: 'AAC', x: 120, y: 100 },
+        { id: 'ACC', x: 320, y: 100 },
+        { id: 'CCG', x: 520, y: 100 },
+        { id: 'TTG', x: 200, y: 280 },
+        { id: 'TGG', x: 400, y: 280 },
+        { id: 'GGA', x: 600, y: 280 },
       ],
       edges: [
-        { from: 'AA', to: 'AC', kmer: 'AAC' },
-        { from: 'AC', to: 'CC', kmer: 'ACC' },
-        { from: 'TT', to: 'TG', kmer: 'TTG' },
-        { from: 'TG', to: 'GG', kmer: 'TGG' },
+        { from: 'AAC', to: 'ACC', kmer: 'AACC' },
+        { from: 'ACC', to: 'CCG', kmer: 'ACCG' },
+        { from: 'TTG', to: 'TGG', kmer: 'TTGG' },
+        { from: 'TGG', to: 'GGA', kmer: 'TGGA' },
       ],
     },
   };
@@ -519,18 +524,18 @@
         return;
       }
 
-      // Stuck. Either done, need to splice, or failed.
+      // If we're in a splicing-walk and returned to the splice node, splice the subpath in first.
+      if (state.phase === 'splicing-walk' &&
+          state.current === state.pendingSubpathStart) {
+        performSplice(n);
+        return;
+      }
+
+      // Otherwise, either done, need to splice, or failed.
       if (unvisitedCount() === 0) {
         state.phase = 'done';
         logLine('done', `Step ${n}: at ${cur}. All ${state.edges.length} edges visited. Eulerian traversal complete.`);
         render();
-        return;
-      }
-
-      // If we're in a splicing-walk and returned to the splice node, splice the subpath in.
-      if (state.phase === 'splicing-walk' &&
-          state.current === state.pendingSubpathStart) {
-        performSplice(n);
         return;
       }
 

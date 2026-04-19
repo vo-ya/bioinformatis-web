@@ -12,6 +12,9 @@
 
   <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
 
+  <!-- KaTeX for inline / display math -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
@@ -121,6 +124,14 @@
     </details>
 
     <article class="lecture-prose">
+
+      <!-- ─── What this lecture teaches (moves strip) ───── -->
+      <ol class="lecture-moves" aria-label="The four moves this lecture teaches">
+        <li><span class="lecture-moves-num">1</span><span class="lecture-moves-label">Index the reference</span></li>
+        <li><span class="lecture-moves-num">2</span><span class="lecture-moves-label">Shrink the index (BWT)</span></li>
+        <li><span class="lecture-moves-num">3</span><span class="lecture-moves-label">Score approximate matches</span></li>
+        <li><span class="lecture-moves-num">4</span><span class="lecture-moves-label">Compose fast &amp; accurate</span></li>
+      </ol>
 
       <!-- ─── Learning objectives ─────────────────────────── -->
       <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
@@ -239,7 +250,7 @@
 
           <p>A <strong>suffix</strong> of a string <em>R</em> is a substring that ends at the last character: for <code>R = BANANA$</code>, the suffixes are <code>BANANA$</code>, <code>ANANA$</code>, <code>NANA$</code>, <code>ANA$</code>, <code>NA$</code>, <code>A$</code>, and <code>$</code>. The trailing <code>$</code> is a sentinel character that compares less than every real character; its purpose is to force every suffix to be unique and to give us a clean place for lexicographic comparisons to terminate.</p>
 
-          <p>Here is the first idea that pays for itself. Sort the suffixes lexicographically. The result is a list of all positions in <em>R</em>, reordered so that if you look at the substring starting at each position, the substrings are in dictionary order. The <strong>suffix array</strong> SA stores, for each rank in the sorted order, the position in <em>R</em> where that suffix begins — for <code>BANANA$</code>, SA = [6, 5, 3, 1, 0, 4, 2].</p>
+          <p>Here is the first idea that pays for itself. Sort the suffixes lexicographically. The result is a list of all positions in <em>R</em>, reordered so that if you look at the substring starting at each position, the substrings are in dictionary order. The <strong>suffix array</strong> SA stores, for each rank in the sorted order, the position in <em>R</em> where that suffix begins — for <code>BANANA$</code>, SA = [6, 5, 3, 1, 0, 4, 2]. Figure&nbsp;3 lays it out row by row.</p>
 
           <figure class="figure figure--wide">
             <img src="../diagrams/lecture-02/03-suffix-array-structure.svg"
@@ -282,7 +293,7 @@
         <section id="sec-2-3">
           <h3>2.3 Hash maps and k-mer indices</h3>
 
-          <p>The second indexing approach drops sortedness and replaces it with hashing. Pick a length <em>k</em> — typically 12 to 30. Enumerate every <em>k</em>-mer in <em>R</em>, and store a map from each distinct <em>k</em>-mer to the list of positions where it occurs.</p>
+          <p>The second indexing approach drops sortedness and replaces it with hashing. Pick a length <em>k</em> — typically 12 to 30. Enumerate every <em>k</em>-mer in <em>R</em>, and store a map from each distinct <em>k</em>-mer to the list of positions where it occurs. Figure&nbsp;4 shows the pattern on a small example.</p>
 
           <figure class="figure figure--wide">
             <img src="../diagrams/lecture-02/04-hash-kmer-index.svg"
@@ -324,6 +335,11 @@
           </aside>
 
           <p>The question that motivates the next section is: can we build an index that is (a) comparable in query speed, and (b) much smaller — ideally close to the size of the compressed reference itself? If yes, we can hold the index of a 3 Gb genome in a few gigabytes, run many aligners at once, and fit the whole pipeline inside a modest server. The answer is yes, and the construction is one of the most elegant algorithms in the field.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>What would it take to compress an index down to near the size of the reference itself? Not less information — the same information, stored in a representation where the positional structure we need for search is implicit rather than explicit. Audio does this with MP3: same signal, smaller file, because it's represented in a transform domain that throws out what perception doesn't need. The BWT does the string-domain version — it rearranges the reference into a form where substring search is cheap and storage is small, and a handful of auxiliary tables recover the positional information on demand.</p>
+          </aside>
         </section>
       </section>
 
@@ -411,6 +427,11 @@ G$ACAAC</pre>
             <figcaption>Figure 6. The LF mapping. Connectors show that the <em>i</em>-th occurrence of each character in L is the <em>i</em>-th occurrence in F. This invariant is what makes backward search work.</figcaption>
           </figure>
 
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>Sorting groups rows by what comes <em>after</em> them, because rotations that begin with the same suffix end up adjacent. So when you look down the L column and see the A's in some order, that order is the same as the order those A-ending rotations get when you rotate each one step right — which is exactly the order you see A's down the F column. LF is not magic; it's what happens when you sort a shift-invariant structure.</p>
+          </aside>
+
           <p>Given LF, reconstructing <em>R</em> from L is mechanical. Start at the <code>$</code> row of L. Follow LF from L to F: that lands you on the row whose F character is the one before <code>$</code> in <em>R</em> — which is the <em>last</em> character of <em>R</em>. Read that character, then follow LF from that row's L back to F, landing on the row whose F character is the second-to-last of <em>R</em>. Repeat. In |<em>R</em>| steps, you have read out <em>R</em> backward.</p>
 
           <pre class="code-block">Start: the row whose F = '$' (row 0).
@@ -435,20 +456,31 @@ Its L character is 'C'. Prepend it: "CG".
           <p>The search algorithm processes the read <strong>right-to-left</strong> — hence "backward" search. At each step, it maintains a half-open interval [<em>sp</em>, <em>ep</em>) of rows in the sorted matrix whose F-column prefix matches the portion of the read seen so far. Initially, <em>sp</em> = 0 and <em>ep</em> = |<em>R</em>| + 1 — the whole matrix. When you extend the match by one more character <em>c</em> on the left of what you've already matched, you update:</p>
 
           <div class="equation-block">
-            <em>sp</em><sub>new</sub> = <code>C</code>[<em>c</em>] + <code>rank</code>(<em>c</em>, <em>sp</em>)<br>
-            <em>ep</em><sub>new</sub> = <code>C</code>[<em>c</em>] + <code>rank</code>(<em>c</em>, <em>ep</em>)
+            $$ sp_{\text{new}} = C[c] + \operatorname{rank}(c, sp) \qquad ep_{\text{new}} = C[c] + \operatorname{rank}(c, ep) $$
           </div>
 
-          <p>If <em>sp</em><sub>new</sub> &lt; <em>ep</em><sub>new</sub>, the query so far matches somewhere; continue. If <em>sp</em><sub>new</sub> ≥ <em>ep</em><sub>new</sub>, the interval has collapsed to empty — the read is not in <em>R</em>, and you know exactly which character killed it.</p>
+          <p>If $sp_{\text{new}} &lt; ep_{\text{new}}$, the query so far matches somewhere; continue. If $sp_{\text{new}} \geq ep_{\text{new}}$, the interval has collapsed to empty — the read is not in <em>R</em>, and you know exactly which character killed it.</p>
 
-          <p>Walk through this on a small example. Search for <code>ACA</code> in <code>ACAACG$</code>. Process the query right-to-left: first <code>A</code>, then <code>C</code>, then <code>A</code>.</p>
+          <p>Walk through this on a small example. Search for <code>ACA</code> in <code>ACAACG$</code>, whose BWT is <code>L = GC$AAAC</code>. Process the query right-to-left:</p>
 
-          <ul>
-            <li>Start: [<em>sp</em>, <em>ep</em>) = [0, 7).</li>
-            <li>Extend by <code>A</code> (the last character of the query). <code>C[A] = 1</code> (only <code>$</code> is smaller). <code>rank(A, 0) = 0</code>, <code>rank(A, 7) = 3</code>. New interval: [1, 4). Three rows in F start with A.</li>
-            <li>Extend by <code>C</code>. <code>C[C] = 4</code> (<code>$</code> plus three As are smaller). With L = <code>GC$AAAC</code>, <code>rank(C, 1) = 0</code>, <code>rank(C, 4) = 1</code>. New interval: [4, 5). One row starts with CA.</li>
-            <li>Extend by <code>A</code>. <code>C[A] = 1</code>. <code>rank(A, 4) = 1</code>, <code>rank(A, 5) = 2</code>. New interval: [2, 3). One row.</li>
-          </ul>
+          <table>
+            <thead>
+              <tr>
+                <th>step</th>
+                <th>char</th>
+                <th>[<em>sp</em>, <em>ep</em>) before</th>
+                <th><em>C</em>[<em>c</em>]</th>
+                <th>rank(<em>c</em>, <em>sp</em>)&nbsp;·&nbsp;rank(<em>c</em>, <em>ep</em>)</th>
+                <th>[<em>sp</em>, <em>ep</em>) after</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>start</td><td>—</td>                <td>[0,&nbsp;7)</td><td>—</td><td>—</td>       <td>[0,&nbsp;7)</td></tr>
+              <tr><td>1</td>    <td><code>A</code></td>   <td>[0,&nbsp;7)</td><td>1</td><td>0&nbsp;·&nbsp;3</td><td>[1,&nbsp;4)</td></tr>
+              <tr><td>2</td>    <td><code>C</code></td>   <td>[1,&nbsp;4)</td><td>4</td><td>0&nbsp;·&nbsp;1</td><td>[4,&nbsp;5)</td></tr>
+              <tr><td>3</td>    <td><code>A</code></td>   <td>[4,&nbsp;5)</td><td>1</td><td>1&nbsp;·&nbsp;2</td><td>[2,&nbsp;3)</td></tr>
+            </tbody>
+          </table>
 
           <p>The final interval [2, 3) has size one — a single occurrence of <code>ACA</code> in the reference. Looking at the sorted rotation matrix row 2, the suffix there is <code>ACAACG$</code>, starting at position 0 of the original string. Stored alongside the FM index is a sparse suffix array that maps row indices back to positions, and position 0 is what we get.</p>
 
@@ -467,10 +499,6 @@ Its L character is 'C'. Prepend it: "CG".
                     title="FM-index backward search"></iframe>
           </figure>
 
-          <aside class="callout callout--info">
-            <span class="callout-label">EE framing</span>
-            <p>Backward search is a form of <strong>operating entirely in the transform domain</strong>. At no point does the algorithm decode the BWT back to the original string. It maintains state — the interval [<em>sp</em>, <em>ep</em>) — and updates it using cheap operations on auxiliary arrays, much the way a digital filter processes data in a transformed representation without ever materialising the signal. The "transform" here is the BWT; the "cheap operation" is <code>rank</code>. The invariant that makes it work is the LF property, which is the string-domain analog of Parseval's theorem in the sense that it's the structural property of the transform that guarantees the in-domain operation gives the right answer.</p>
-          </aside>
         </section>
 
         <section id="sec-3-4">
@@ -488,9 +516,8 @@ Its L character is 'C'. Prepend it: "CG".
             <figcaption>Figure 7. Dense vs. sparse rank arrays. Storing rank at every position is O(1) per query but O(|R| · |Σ|) memory; storing it every d-th position scales memory by 1/d and query time by d.</figcaption>
           </figure>
 
-          <aside class="callout callout--info">
-            <span class="callout-label">EE framing</span>
-            <p>This is the classic <strong>sparse sampling plus local interpolation</strong> pattern. It is the same trick used for storing transcendental functions in firmware: keep a table at coarse sample points, and fill in between with a Taylor series. The checkpoint interval <em>d</em> is the direct analog of the sample interval in the function table — you pay more memory for a finer sampling, you pay more compute for a coarser one, and the crossover depends on the cost ratio of the two resources on your hardware.</p>
+          <aside class="callout callout--note">
+            <p>Same pattern as storing transcendental functions in firmware: keep a table at coarse sample points and interpolate between them. The checkpoint interval <em>d</em> is the knob that trades memory for compute.</p>
           </aside>
 
           <aside class="callout callout--discussion">
@@ -506,6 +533,8 @@ Its L character is 'C'. Prepend it: "CG".
           <span class="part-kicker">Part 4 · 50 min</span>
           Score-Based Alignment
         </h2>
+
+        <p>We now have an index that answers exact-match queries in <em>O</em>(|<em>r</em>|) time using memory close to the compressed reference. But reads are noisy, and every sequenced read differs from its true position by at least a few bases — so exact-match isn't the problem we actually need to solve. The rest of the lecture builds the error-tolerant complement of the index, then composes the two.</p>
 
         <section id="sec-4-1">
           <h3>4.1 Why exact matching isn't enough</h3>
@@ -549,14 +578,21 @@ Reference: GATTACA</pre>
 
           <p>The algorithm fills a 2D matrix <em>H</em>, indexed by the prefixes of the two sequences. <em>H</em>[<em>i</em>][<em>j</em>] holds the best score achievable by a local alignment that ends at position <em>i</em> in the first sequence and position <em>j</em> in the second. The recurrence is:</p>
 
-          <pre class="equation-block" style="text-align: left; font-family: var(--font-mono); font-size: var(--text-sm);">H[i][j] = max {
-    0,
-    H[i−1][j−1] + s(a_i, b_j)   (diagonal: match or mismatch)
-    H[i−1][j]   + g              (up:       gap in sequence 2)
-    H[i][j−1]   + g              (left:     gap in sequence 1)
-}</pre>
+          <div class="equation-block">
+            $$ H[i][j] = \max \begin{cases}
+              0 \\
+              H[i-1][j-1] + s(a_i, b_j) & \text{(diagonal: match / mismatch)} \\
+              H[i-1][j] + g             & \text{(up: gap in sequence 2)} \\
+              H[i][j-1] + g             & \text{(left: gap in sequence 1)}
+            \end{cases} $$
+          </div>
 
-          <p>where <em>s</em>(<em>a</em><sub><em>i</em></sub>, <em>b</em><sub><em>j</em></sub>) is the match-or-mismatch score and <em>g</em> is the gap penalty. The <strong>0</strong> is what makes this local: it lets an alignment "restart" at any cell, effectively discarding any prefix that would have scored negative.</p>
+          <p>where $s(a_i, b_j)$ is the match-or-mismatch score and $g$ is the gap penalty.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>The <strong>0</strong> at the top of the recurrence is what makes the algorithm <em>local</em>. Without it, every cell inherits the best score reachable from the origin — any prefix that scores negative drags the whole alignment down with it. The zero floor lets an alignment forget its past and restart from any cell, so you end up finding the best-scoring <em>substring-pair</em> rather than the best end-to-end alignment. Delete the 0 and you have Needleman-Wunsch (global).</p>
+          </aside>
 
           <p>To find the best alignment, find the cell with the maximum value in <em>H</em> — that is the endpoint of the best local alignment. Then <strong>trace back</strong>: at each cell, you know which of the four candidates won the max, so you know which neighbour to step to. Keep stepping until you hit a 0. The path is the alignment.</p>
 
@@ -581,7 +617,7 @@ Reference: GATTACA</pre>
 
           <aside class="callout callout--info">
             <span class="callout-label">EE framing</span>
-            <p>This is <strong>Viterbi on a 2D trellis</strong>. A Viterbi decoder for a convolutional code maintains, at each time step and each state, the best path score ending in that state. The recurrence is: for each state, take the max over incoming transitions of (predecessor score + transition cost). When decoding is done, trace back from the best final state to recover the path. Smith-Waterman does exactly this, with "state" being (position in sequence 1, position in sequence 2) and "transition" being one of {match/mismatch, gap-up, gap-left}. The trellis is 2D instead of 1D because there are two sequences. The 0-floor makes it local instead of global. Otherwise identical algorithmic skeleton. If you have written a Viterbi decoder, you have written Smith-Waterman; you just haven't called it that.</p>
+            <p>This is <strong>Viterbi on a 2D trellis</strong>. State is (position in seq 1, position in seq 2); transitions are {diag, up, left}; the recurrence is the same max-over-predecessors-plus-transition-cost; the traceback is the same argmax path. The only difference from a convolutional-code Viterbi decoder is the trellis shape and the 0-floor that makes the alignment local.</p>
           </aside>
 
           <p>The cost of Smith-Waterman is <em>O</em>(|<em>r</em>| · |<em>R</em>|) in time, because every cell of the matrix must be filled, and <em>O</em>(|<em>r</em>| · |<em>R</em>|) in space if you need the traceback matrix (which you usually do). <strong>You cannot run this against the whole human genome for every read.</strong> A single read-vs-genome Smith-Waterman is 150 × 3 × 10⁹ ≈ 5 × 10¹¹ cells. Times a billion reads: 5 × 10²⁰ cell updates per dataset. That is the brute-force number from Part 1 all over again, with worse constants.</p>
@@ -655,16 +691,24 @@ Reference: GATTACA</pre>
             <figcaption>Figure 10. The whole lecture in one picture. A read enters, the FM index returns seeds, Smith-Waterman extends each candidate window, and one alignment wins. BWA-MEM, Bowtie2, and minimap2 differ in the knobs, not the skeleton.</figcaption>
           </figure>
 
-          <aside class="callout callout--info">
-            <span class="callout-label">EE framing</span>
-            <p>This is the <strong>coarse-to-fine search</strong> pattern at its purest. In radar, the coarse stage is a matched filter that flags potential targets; the fine stage runs an accurate tracking loop on each candidate. In GPS, the coarse stage is PRN code correlation to acquire; the fine stage is a tracking loop that locks onto the carrier. In Viterbi decoding with large state spaces, the coarse stage is beam search to prune paths; the fine stage is full recurrence on the surviving beam. The reason this pattern is everywhere is that the coarse detector is cheap per candidate but produces many candidates, while the fine estimator is expensive per candidate but produces a precise answer; multiplying a cheap-per-candidate stage by a small number of candidates and adding an expensive-per-candidate stage applied to them is how you buy precision without paying the full cost of the fine algorithm on the full search space.</p>
+          <aside class="callout callout--note">
+            <p>The <strong>coarse acquisition + fine tracking</strong> framing from §1.3 is exactly what is happening here — the FM index is the cheap coarse detector, Smith-Waterman is the expensive fine estimator, and the aligner pays for precision only on the candidates the detector flagged.</p>
           </aside>
         </section>
 
         <section id="sec-5-2">
           <h3>5.2 Seed-and-extend in real aligners</h3>
 
-          <p>Three aligners dominate the field. Each is a different set of choices within the seed-and-extend pattern.</p>
+          <p>Three aligners dominate the field. Each is a different set of choices within the seed-and-extend pattern — same skeleton, different knobs:</p>
+
+          <table>
+            <thead><tr><th>Aligner</th><th>Year</th><th>Seed type</th><th>Extension</th><th>Tuned for</th></tr></thead>
+            <tbody>
+              <tr><td><code>bwa mem</code></td>  <td>2013</td><td>SMEMs (variable-length)</td><td>Banded SW</td><td>Short reads</td></tr>
+              <tr><td><code>bowtie2</code></td>  <td>2012</td><td>Fixed-length (~22 bp)</td><td>SSE-accelerated SW</td><td>Short reads</td></tr>
+              <tr><td><code>minimap2</code></td> <td>2018</td><td>Minimizers + chaining</td><td>Banded SW</td><td>Long reads (also short)</td></tr>
+            </tbody>
+          </table>
 
           <p><strong><code>bwa mem</code></strong> (Heng Li, 2013) is the default short-read aligner for human genomes. It uses the FM index of the reference to find <strong>SMEMs</strong> — <strong>s</strong>uper-<strong>m</strong>aximal <strong>e</strong>xact <strong>m</strong>atches, which are exact matches between read and reference that cannot be extended further in either direction without introducing a mismatch, and that are not contained in any longer such match. SMEMs are variable-length: a clean region of the read produces one long SMEM, a noisy region produces several shorter ones. For each SMEM of sufficient length, <code>bwa mem</code> performs <strong>banded Smith-Waterman</strong> extension — a version of Smith-Waterman restricted to a diagonal band of the matrix, valid because the alignment cannot stray far from the seed diagonal if the error rate is modest. The banding brings extension cost down from <em>O</em>(|<em>r</em>| · <em>w</em>) (where <em>w</em> is the window size) to <em>O</em>(|<em>r</em>| · <em>b</em>) (where <em>b</em> is the band width, typically 100 or so — much smaller than <em>w</em>).</p>
 
@@ -825,6 +869,26 @@ Reference: GATTACA</pre>
     });
   })();
 
+  // KaTeX auto-render
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true  },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      // Wait for the auto-render script to finish loading
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
   // Heading anchor-link copy
   (function () {
     const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
@@ -847,6 +911,9 @@ Reference: GATTACA</pre>
     });
   })();
 </script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
 
 </body>
 </html>

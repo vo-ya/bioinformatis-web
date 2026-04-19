@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 2 — Read Alignment: From Brute Force to FM Index and Back</title>
+  <meta name="description" content="Read alignment at scale: brute force, suffix arrays, hash k-mer indices, the Burrows-Wheeler Transform and FM index, Smith-Waterman dynamic programming, CIGAR strings, and seed-and-extend.">
+
+  <meta property="og:title" content="Lecture 2 — Read Alignment">
+  <meta property="og:description" content="Read alignment at scale: BWT, FM index, Smith-Waterman, and seed-and-extend.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <!-- ─── TOC (desktop sticky sidebar) ──────────────────────── -->
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — The Alignment Problem</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Why align reads</a></li>
+          <li><a href="#sec-1-2">1.2 Formal statement and scale</a></li>
+          <li><a href="#sec-1-3">1.3 Exact vs. approximate</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Indexing the Reference</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 Brute force</a></li>
+          <li><a href="#sec-2-2">2.2 Suffix arrays</a></li>
+          <li><a href="#sec-2-3">2.3 Hash k-mer indices</a></li>
+          <li><a href="#sec-2-4">2.4 Tradeoffs</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — BWT and FM Index</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 The BWT</a></li>
+          <li><a href="#sec-3-2">3.2 Inverting the BWT</a></li>
+          <li><a href="#sec-3-3">3.3 Backward search</a></li>
+          <li><a href="#sec-3-4">3.4 Checkpoints</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Score-Based Alignment</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Why exact isn't enough</a></li>
+          <li><a href="#sec-4-2">4.2 Scoring</a></li>
+          <li><a href="#sec-4-3">4.3 Smith-Waterman</a></li>
+          <li><a href="#sec-4-4">4.4 CIGAR strings</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Seed-and-Extend</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 Two-step as a pattern</a></li>
+          <li><a href="#sec-5-2">5.2 Real aligners</a></li>
+          <li><a href="#sec-5-3">5.3 When things get hard</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <!-- ─── Lecture main ──────────────────────────────────────── -->
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36"
+              fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36"
+              fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 02</div>
+      <h1 class="lecture-title">Read Alignment: From Brute Force to FM Index and Back</h1>
+      <p class="lecture-subtitle">Indexing the reference, searching it efficiently, and turning seeds into accurate alignments.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">230 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — The Alignment Problem</a></li>
+        <li><a href="#part-2">Part 2 — Indexing the Reference</a></li>
+        <li><a href="#part-3">Part 3 — BWT and FM Index</a></li>
+        <li><a href="#part-4">Part 4 — Score-Based Alignment</a></li>
+        <li><a href="#part-5">Part 5 — Seed-and-Extend</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <!-- ─── Learning objectives ─────────────────────────── -->
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>State the read-alignment problem formally and estimate its computational scale for human sequencing.</li>
+          <li>Compare brute force, suffix-array binary search, and hash-based indexing in time and space.</li>
+          <li>Construct the Burrows-Wheeler Transform of a string and invert it using the LF mapping.</li>
+          <li>Perform backward search on an FM index by hand, and explain how checkpoints trade memory for time.</li>
+          <li>Fill out a Smith-Waterman dynamic-programming matrix and read off a CIGAR string from the traceback.</li>
+          <li>Explain why every production aligner (<code>bwa</code>, <code>bowtie2</code>, <code>minimap2</code>) is built on seed-and-extend, and identify the seed index and extension algorithm each uses.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 20 min</span>
+          The Alignment Problem
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Why align reads</h3>
+
+          <p>A sequencing run produces hundreds of millions of short strings of A, C, G, T — reads — and a quality score for each base. Lecture 1 ended there. That's the raw output, and by itself it's almost useless. Nothing downstream — variant calling, expression quantification, ChIP-seq peak finding, methylation analysis, structural variant detection — works on an unordered pile of 150-base-pair fragments. All of it needs the reads placed back onto a reference genome: "this read came from chromosome 3, position 47,291,108, matching with one mismatch."</p>
+
+          <p>That placement is <strong>read alignment</strong>. It is almost never the product of a bioinformatics pipeline — it is the substrate on which everything else runs. A modern genomics lab will generate terabytes of reads per week and spend most of its compute aligning them. Getting alignment right, and fast, is the bottleneck that determines whether the rest of the analysis is tractable.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-02/01-alignment-problem-overview.svg"
+                 alt="A long reference strand with short reads scattered across it at their aligned positions, annotated with an exact match, a mismatched read, and a read with a small insertion.">
+            <figcaption>Figure 1. A reference genome with a handful of reads placed against it — exact match, mismatched, and with a small insertion. Alignment is the problem of finding, for every read, the position it came from.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>A read is a puzzle piece. The reference is the picture on the box. Alignment is figuring out where each piece goes — with the complications that the box picture is three billion pixels long, you have a billion pieces, each piece has about one pixel wrong, and a few pieces are from a puzzle of a closely related picture.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 Formal statement and scale</h3>
+
+          <p>The problem, stated cleanly: given a reference string <em>R</em> over the alphabet {A, C, G, T} and a read <em>r</em>, find all positions <em>i</em> such that <code>R[i..i+|r|−1]</code> matches <em>r</em> within some edit distance <em>k</em>. For the human reference, |<em>R</em>| ≈ 3 × 10⁹; for an Illumina read, |<em>r</em>| ≈ 150; for a typical whole-genome run, you align about 10⁹ reads. Do the arithmetic once, out loud: that is roughly 3 × 10¹¹ candidate positions per read, times 10⁹ reads, gives 3 × 10²⁰ comparisons in the naive worst case. This does not fit in any time budget anyone has.</p>
+
+          <p>The scale is what forces everything that follows. If the genome were a kilobyte, brute force would be fine and this lecture would be ten minutes long. It isn't, so the algorithms we use are ones that were largely invented — or adapted — for exactly this problem, and they are beautiful.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>Read alignment is the string-domain analog of <strong>correlation search</strong> in radar or GPS. You have a known template (the read) and an unknown signal (the reference). You want the delay <em>i</em> at which the template best matches. The naive way is the sliding inner product at every lag; the fast way uses a transform that turns the problem into something cheap. The same trajectory — naive → clever transform — structures this entire lecture.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 Exact vs. approximate, and the shape of the solution</h3>
+
+          <p>Two complications separate read alignment from plain-string search. The first is that reads contain errors — sequencing noise at about 0.1–1% per base for Illumina, higher for long reads — and the genome you sequenced differs from the reference at about 1 base in 1,000 due to real biological variation. Exact match is the wrong target. The right target is "best approximate match," under some scoring scheme.</p>
+
+          <p>The second is that you have to do this a billion times against the same reference. The reference is fixed; the reads are not. This asymmetry is everything. Any work you can do once, on the reference, to speed up a billion subsequent queries is a good investment. Any work you do per-read had better be cheap.</p>
+
+          <p>Every production aligner exploits both facts the same way. They <strong>index</strong> the reference once, producing a data structure that supports fast exact lookup of short substrings — 20 to 30 bases, typically. They use that index to find candidate positions per read — <strong>seeds</strong> — then run a slower, accurate, error-tolerant algorithm on small windows around each seed to produce the final alignment. This two-phase structure — fast exact coarse detection, slow approximate fine estimation — is the <strong>seed-and-extend</strong> pattern, and it is what every real aligner does.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>This is the same decomposition as <strong>coarse acquisition + fine tracking</strong> in GPS. The coarse stage correlates against a short code to narrow the search to a few candidate delays; the fine stage runs an expensive tracking loop only on those candidates. Nobody runs the tracking loop over the full search space, because nobody has the compute. The same is true here.</p>
+          </aside>
+
+          <p>This lecture is organized by that split. Parts 2 and 3 build the fast exact index — first naively, then with suffix arrays, hash tables, and finally the Burrows-Wheeler/FM index that real aligners actually use. Part 4 builds the slow accurate extension algorithm — Smith-Waterman — and shows how its output is serialized into the CIGAR strings stored in BAM files. Part 5 composes the two.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 55 min</span>
+          Exact Matching: Indexing the Reference
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 Brute force and its complexity</h3>
+
+          <p>The simplest algorithm for finding a read in a reference is to slide the read along the reference one position at a time and, at each position, check every character for a match. It is correct. It is easy to write in six lines of Python. And at human-genome scale, it is hopeless.</p>
+
+          <pre class="code-block">for i in range(len(R) - len(r) + 1):
+    if R[i:i+len(r)] == r:
+        yield i</pre>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-02/02-brute-force-sliding.svg"
+                 alt="The read slides along the reference one position at a time, with character comparisons shown as ticks above each position — matches as dots, mismatches as crosses.">
+            <figcaption>Figure 2. Brute force, visualised. At every position the read is compared character-by-character. Matches are dots; mismatches are crosses. Runs across the genome, one position at a time.</figcaption>
+          </figure>
+
+          <p>The cost is <em>O</em>(|<em>R</em>| · |<em>r</em>|) in the worst case: at each of |<em>R</em>| − |<em>r</em>| + 1 positions, you may compare up to |<em>r</em>| characters. Real implementations exit early on mismatch, which helps on random text but not on repetitive genomes — and much of the human genome is repetitive. The exit-on-mismatch trick changes the constant, not the asymptotic.</p>
+
+          <p>Put numbers on it. For a 1 kb reference and a 100 bp read, you have roughly 900 × 100 ≈ 10⁵ character comparisons in the worst case. For the human genome at 3 Gb, you have roughly 3 × 10¹¹ character comparisons <strong>per read</strong>, times 10⁹ reads. Even at a billion comparisons per second per core, that is 3 × 10¹¹ core-seconds per dataset — about ten thousand CPU-years.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Brute-force aligner</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-02/01-brute-force.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-02/01-brute-force.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Brute-force aligner"></iframe>
+          </figure>
+
+          <p>Nobody uses brute force. The reason to see it clearly is that every algorithm to follow has to earn its complexity against this baseline. It also establishes the unit of account: <strong>character comparisons</strong>. Every index we build is a way to avoid doing them.</p>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 Suffix arrays and binary search</h3>
+
+          <p>A <strong>suffix</strong> of a string <em>R</em> is a substring that ends at the last character: for <code>R = BANANA$</code>, the suffixes are <code>BANANA$</code>, <code>ANANA$</code>, <code>NANA$</code>, <code>ANA$</code>, <code>NA$</code>, <code>A$</code>, and <code>$</code>. The trailing <code>$</code> is a sentinel character that compares less than every real character; its purpose is to force every suffix to be unique and to give us a clean place for lexicographic comparisons to terminate.</p>
+
+          <p>Here is the first idea that pays for itself. Sort the suffixes lexicographically. The result is a list of all positions in <em>R</em>, reordered so that if you look at the substring starting at each position, the substrings are in dictionary order. For <code>BANANA$</code>:</p>
+
+          <pre class="sequence-block">i   SA[i]   suffix
+0     6     $
+1     5     A$
+2     3     ANA$
+3     1     ANANA$
+4     0     BANANA$
+5     4     NA$
+6     2     NANA$</pre>
+
+          <p>The <strong>suffix array</strong> SA is the second column: [6, 5, 3, 1, 0, 4, 2]. It stores, for each rank in the sorted order, the position in <em>R</em> where that suffix begins.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-02/03-suffix-array-structure.svg"
+                 alt="The input string BANANA$ with its seven suffixes listed in sorted order, with the range whose suffixes start with ANA highlighted.">
+            <figcaption>Figure 3. The suffix array of <code>BANANA$</code>. The rows whose suffixes start with <code>ANA</code> form a contiguous range — which is why binary search works.</figcaption>
+          </figure>
+
+          <p>Now the second idea. A read <em>r</em> occurs at position <em>i</em> in <em>R</em> if and only if <em>r</em> is a prefix of the suffix of <em>R</em> starting at <em>i</em>. In the sorted list, all suffixes that share a prefix are contiguous — they form a block. So finding all occurrences of <em>r</em> in <em>R</em> reduces to finding the block of suffixes that begin with <em>r</em>. Since the list is sorted, we find the block's left and right boundaries with two binary searches, each of which performs at most log₂ |<em>R</em>| comparisons, each of which examines at most |<em>r</em>| characters. Total: <em>O</em>(|<em>r</em>| log |<em>R</em>|) per query.</p>
+
+          <p>For the human genome, log₂(3 × 10⁹) ≈ 32. With |<em>r</em>| = 150, that is about 4,800 character comparisons per read — against the 3 × 10¹¹ of brute force. Nearly eight orders of magnitude, for the cost of building the suffix array once.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Suffix array explorer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-02/02-suffix-array.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-02/02-suffix-array.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Suffix array explorer"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>The suffix array is a <strong>sorted lookup table</strong>; binary search is a <strong>successive approximation</strong> protocol on it. This is the same operation as a successive-approximation ADC, where each step halves the remaining range by one comparison against a precomputed reference. The SAR ADC converges in log₂ <em>N</em> steps from <em>N</em> levels; binary search converges in log₂ <em>N</em> steps from <em>N</em> positions. Not a metaphor — literally the same algorithm on a sorted array of values.</p>
+          </aside>
+
+          <p>The suffix array costs memory. Naively, it is |<em>R</em>| integers of position data. For the human genome at 3 Gb, with 4-byte integers, that is 12 GB — before you've stored <em>R</em> itself. There are tricks to shrink it (compressed suffix arrays, sparsification), but the uncompressed form is already a lot of RAM.</p>
+
+          <p>Construction itself is not free either. A naive sort of suffixes is <em>O</em>(|<em>R</em>|² log |<em>R</em>|) because string comparisons are <em>O</em>(|<em>R</em>|) worst case. The classical algorithms — DC3, SA-IS — bring this to <em>O</em>(|<em>R</em>|), which for the human genome takes minutes to tens of minutes and is done once.</p>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The suffix array was introduced by <strong>Manber and Myers</strong> in a 1990 paper that explicitly pitched it as a space-saving alternative to the suffix tree, which had dominated stringology since Weiner (1973). The suffix tree is asymptotically elegant — linear build, linear queries — but carries a large constant factor in memory. Manber and Myers's move was to ask whether you could give up the tree structure, keep only the sorted order of the leaves, and still get fast queries. The answer, with binary search, was yes. Every subsequent genome-scale indexing scheme has descended from this reduction.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Hash maps and k-mer indices</h3>
+
+          <p>The second indexing approach drops sortedness and replaces it with hashing. Pick a length <em>k</em> — typically 12 to 30. Enumerate every <em>k</em>-mer in <em>R</em>, and store a map from each distinct <em>k</em>-mer to the list of positions where it occurs:</p>
+
+          <pre class="sequence-block">ACGTACGTAC  →  R
+AAA: []
+AAC: []
+...
+ACG: [0, 4]
+CGT: [1, 5]
+GTA: [2, 6]
+TAC: [3, 7]
+...
+TTT: []</pre>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-02/04-hash-kmer-index.svg"
+                 alt="A short reference with a sliding k-mer window, feeding a hash table whose buckets hold lists of positions where each k-mer occurs.">
+            <figcaption>Figure 4. A k-mer hash index. Each k-mer is a key; the value is the list of positions where it occurs. Lookup is a single hash operation; memory is dominated by the list of positions.</figcaption>
+          </figure>
+
+          <p>To query, hash the first <em>k</em> characters of the read and look up the position list. Each position is a candidate — the read might occur there, or it might just share a <em>k</em>-mer there. You verify by checking the rest of the read. Lookup is <em>O</em>(1) per query; verification is the expensive part.</p>
+
+          <p>The memory cost is the catch. The hash table has up to 4<sup><em>k</em></sup> buckets, and across all buckets, the position lists sum to |<em>R</em>| entries. For <em>k</em> = 12, the bucket count is 4¹² ≈ 1.7 × 10⁷, which is manageable; for <em>k</em> = 15, it is 4¹⁵ ≈ 10⁹, which starts to hurt; beyond that, most buckets are empty and you switch to a hash table keyed by the bucket rather than an array of buckets.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>A hash table with 4<sup><em>k</em></sup> buckets is a <strong>content-addressable memory</strong> (CAM) over the space of <em>k</em>-mers. Network switches implement CAMs in silicon for exact-match forwarding lookups on MAC addresses or IP prefixes, for the same reason: one cycle from key to result, no sorted traversal, no comparison tree. The cost is that the CAM is huge if the key space is huge. Switch chip designers solve this with <strong>ternary CAMs</strong> and prefix matching; genome aligners solve it by choosing <em>k</em> carefully and by switching from dense tables to hash maps when 4<sup><em>k</em></sup> exceeds the number of distinct <em>k</em>-mers actually present.</p>
+          </aside>
+
+          <p>The choice of <em>k</em> is a knob that bioinformaticians tune constantly. Larger <em>k</em> means fewer false candidate positions per lookup (each <em>k</em>-mer is more specific), but also fewer <em>k</em>-mers in a read survive sequencing errors intact — a read of length 150 with one sequencing error covers 150 − <em>k</em> + 1 <em>k</em>-mers, of which <em>k</em> contain the error. So <em>k</em> = 20 gives 131 <em>k</em>-mers per read, 20 of which are destroyed by a single error, leaving 111 clean seeds. <em>k</em> = 100 would leave almost none. The right <em>k</em> balances specificity against robustness to error, and this balance is revisited explicitly in Part 5.</p>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Tradeoffs: where the memory goes</h3>
+
+          <p>Before moving to the BWT, take stock of what these two indexing schemes cost. For the human genome:</p>
+
+          <table>
+            <thead><tr><th>Index</th><th>Query time</th><th>Memory</th><th>Construction</th></tr></thead>
+            <tbody>
+              <tr><td>Brute force</td><td><em>O</em>(|<em>R</em>| · |<em>r</em>|) per read</td><td>|<em>R</em>| bytes</td><td>none</td></tr>
+              <tr><td>Suffix array</td><td><em>O</em>(|<em>r</em>| log |<em>R</em>|)</td><td>≈ 5|<em>R</em>| bytes</td><td><em>O</em>(|<em>R</em>|), minutes</td></tr>
+              <tr><td>Hash <em>k</em>-mer index</td><td><em>O</em>(|<em>r</em>|) amortised</td><td><em>O</em>(|<em>R</em>| + 4<sup><em>k</em></sup>) bytes</td><td><em>O</em>(|<em>R</em>|)</td></tr>
+            </tbody>
+          </table>
+
+          <p>The suffix array gives us logarithmic query time but costs 15–20 GB of RAM for human. The hash table gives us near-constant query time but costs a similar amount and has the 4<sup><em>k</em></sup> problem as <em>k</em> grows. Neither is crazy by 2020s server standards — a 64 GB workstation handles either — but they would both be painful on a laptop, and both preclude the common use case of running many alignment jobs in parallel on a shared machine.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>When you read a paper that says "we used a hash-based aligner" or "we used a suffix-tree aligner," the relevant axis to ask about is not speed — both are fast — but <strong>memory</strong>, and specifically memory per reference. This is what drove the field to the FM index: not a query-speed argument, a memory argument.</p>
+          </aside>
+
+          <p>The question that motivates the next section is: can we build an index that is (a) comparable in query speed, and (b) much smaller — ideally close to the size of the compressed reference itself? If yes, we can hold the index of a 3 Gb genome in a few gigabytes, run many aligners at once, and fit the whole pipeline inside a modest server. The answer is yes, and the construction is one of the most elegant algorithms in the field.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 60 min</span>
+          The Burrows-Wheeler Transform and the FM Index
+        </h2>
+
+        <aside class="callout callout--note">
+          <p><strong>This is the deepest technical block of the lecture.</strong> The BWT and its properties are the single idea in this lecture that generalises outside bioinformatics — compressed text indices, data compression, sequence databases, and half a dozen other fields use the same structure. If you leave today remembering one thing, make it this one.</p>
+        </aside>
+
+        <section id="sec-3-1">
+          <h3>3.1 The Burrows-Wheeler Transform</h3>
+
+          <p>The <strong>Burrows-Wheeler Transform</strong> (BWT) is a reversible permutation of a string. It was introduced by Michael Burrows and David Wheeler in a 1994 Digital Equipment Corporation technical report, originally as a preprocessing step for general-purpose compression — the core of <code>bzip2</code>. Its properties turned out to be useful for string search as well, and by the mid-2000s it had displaced suffix arrays as the default index structure in genome aligners.</p>
+
+          <p>Construction is simple enough to do by hand. Take the string <code>ACAACG$</code>. Write down all cyclic rotations:</p>
+
+          <pre class="sequence-block">ACAACG$
+CAACG$A
+AACG$AC
+ACG$ACA
+CG$ACAA
+G$ACAAC
+$ACAACG</pre>
+
+          <p>Now sort these rotations lexicographically — with <code>$</code> treated as smaller than every letter:</p>
+
+          <pre class="sequence-block">$ACAACG
+AACG$AC
+ACAACG$
+ACG$ACA
+CAACG$A
+CG$ACAA
+G$ACAAC</pre>
+
+          <p>The BWT is the <strong>last column</strong> of this sorted matrix — reading top to bottom: <code>GC$AAAC</code>. That's it. Sort all rotations of the string with <code>$</code> appended, take the last column, and you have the BWT.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-02/05-bwt-rotation-matrix.svg"
+                 alt="The unsorted rotations of ACAACG$ on top, the sorted rotations below, with F and L columns labeled and the BWT shown as the last column.">
+            <figcaption>Figure 5. Constructing the BWT of <code>ACAACG$</code>. Sort all cyclic rotations; the BWT is the last column (L), and the first column (F) is the alphabet in sorted order.</figcaption>
+          </figure>
+
+          <p>The first column of the sorted matrix is just the characters of the string in sorted order. It is traditionally called <strong>F</strong> (for "first"). The last column is the BWT, traditionally called <strong>L</strong> (for "last"). The name and single-letter notation will matter for everything that follows.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">BWT builder</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-02/03-bwt-builder.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-02/03-bwt-builder.html"
+                    class="artifact-frame" loading="lazy"
+                    title="BWT builder"></iframe>
+          </figure>
+
+          <p>Why does this help compression? Notice that in the sorted rotation matrix, rotations are grouped by the character that follows them. In the <code>ACAACG$</code> example, every rotation whose next character is an <code>A</code> ends up adjacent. The <em>previous</em> character of each of those rotations — the one that lands in column L — is drawn from the set of characters that precede an A in the original string. In natural language or in DNA, which character follows a given context is far from uniform: in English text, <code>h</code> very often follows <code>t</code>; in DNA, CpG contexts are depleted. That non-uniformity means L ends up with long runs of the same character — <code>AAA</code>, <code>GG</code>, <code>CC</code> — which run-length-encodes and Huffman-codes beautifully. That's why <code>bzip2</code> compresses well.</p>
+
+          <p>Why does this help search? That's the LF property, which we get to in a moment. The short answer is: the BWT is a representation of <em>R</em> that uses about the same space as <em>R</em> itself but, with a few small auxiliary arrays, supports exact-match queries of a read in <em>O</em>(|<em>r</em>|) time. No log |<em>R</em>| factor, and no 4<sup><em>k</em></sup> bucket table.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>The BWT is a <strong>reversible transform that moves the string into a domain where the operations we care about are cheap</strong>. Think about what the FFT does: it takes a signal from the time domain, where convolution is expensive, to the frequency domain, where convolution is pointwise multiplication. DCT and wavelet transforms do the same thing for different operations. The BWT is the string-domain analog: it takes the string from the "characters-in-order" domain, where substring search is expensive, to the "characters-sorted-by-right-context" domain, where substring search is cheap. Same pedagogical shape: transform, operate, done. There is even an inverse transform — Section 3.2.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Inverting the BWT: the LF mapping</h3>
+
+          <p>The BWT would be useless if it were a one-way function. It isn't. There is a property of the sorted-rotation matrix called the <strong>LF mapping</strong>, sometimes called the <strong>last-first property</strong>, that lets us reconstruct the original string from L alone (plus the knowledge of F, which is just L sorted).</p>
+
+          <p>Here is the property, stated plainly: <strong>the <em>i</em>-th occurrence of character <em>c</em> in L corresponds to the <em>i</em>-th occurrence of <em>c</em> in F.</strong> Not the <em>i</em>-th occurrence in positional order — the <em>i</em>-th occurrence when you walk down each column top to bottom.</p>
+
+          <p>Why is this true? Look at two rows of the sorted matrix that happen to end with <code>A</code> in column L. Since both rows start with the <em>same</em> cyclic rotation minus their last character, and since the matrix was sorted lexicographically, those two L-column <code>A</code>s correspond to two specific rotations of the original string that both happen to end with <code>A</code>. Their <em>preceding</em> rotations — obtained by rotating each one step to the right, which moves their L character to the F position — are themselves two adjacent rotations in the sorted matrix, in the same relative order. In other words, the order of <code>A</code>s down L matches the order of <code>A</code>s down F. This is the invariant. Work through a small example by hand once and it becomes obvious; describe it in words and it sounds mysterious.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-02/06-bwt-lf-mapping.svg"
+                 alt="The F and L columns of the sorted rotation matrix, with curved connectors showing that the i-th occurrence of each character in L corresponds to the i-th occurrence in F.">
+            <figcaption>Figure 6. The LF mapping. Connectors show that the <em>i</em>-th occurrence of each character in L is the <em>i</em>-th occurrence in F. This invariant is what makes backward search work.</figcaption>
+          </figure>
+
+          <p>Given LF, reconstructing <em>R</em> from L is mechanical. Start at the <code>$</code> row of L. Follow LF from L to F: that lands you on the row whose F character is the one before <code>$</code> in <em>R</em> — which is the <em>last</em> character of <em>R</em>. Read that character, then follow LF from that row's L back to F, landing on the row whose F character is the second-to-last of <em>R</em>. Repeat. In |<em>R</em>| steps, you have read out <em>R</em> backward.</p>
+
+          <pre class="code-block">Start: the row whose F = '$' (row 0).
+Its L character is 'G'. That's the last char of R (before '$').
+'G' is the 1st G in L. Go to the 1st G in F → row 6.
+Its L character is 'C'. Prepend it: "CG".
+'C' is the 1st C in L. Go to the 1st C in F → row 4.
+...</pre>
+
+          <p>Out comes <code>ACAACG</code> — the original string, reconstructed from L alone. The BWT is reversible.</p>
+
+          <p>For read alignment, we don't actually want to reconstruct <em>R</em> most of the time. We want to use the LF property for something more powerful: we want to use it to search.</p>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Backward search: the FM index</h3>
+
+          <p>The <strong>FM index</strong> — named by its inventors Paolo <strong>F</strong>erragina and Giovanni <strong>M</strong>anzini in 2000 — is the BWT plus a small number of auxiliary arrays, wired together so that exact-match queries can be answered by a procedure called <strong>backward search</strong>. It is the dominant index structure in modern genome aligners for one reason: it answers exact-match queries in <em>O</em>(|<em>r</em>|) time using memory proportional to the compressed reference.</p>
+
+          <p>The auxiliary arrays are two. First, <code>C[c]</code>: for each character <em>c</em> in the alphabet, the number of characters in <em>R</em> that are lexicographically smaller than <em>c</em>. This tells you where the block of rows in F whose first character is <em>c</em> begins. Second, <code>rank(c, i)</code>: the number of occurrences of character <em>c</em> in <code>L[0..i−1]</code>. This tells you, for any position in L, how many times each character has appeared up to that point.</p>
+
+          <p>The search algorithm processes the read <strong>right-to-left</strong> — hence "backward" search. At each step, it maintains a half-open interval [<em>sp</em>, <em>ep</em>) of rows in the sorted matrix whose F-column prefix matches the portion of the read seen so far. Initially, <em>sp</em> = 0 and <em>ep</em> = |<em>R</em>| + 1 — the whole matrix. When you extend the match by one more character <em>c</em> on the left of what you've already matched, you update:</p>
+
+          <div class="equation-block">
+            <em>sp</em><sub>new</sub> = <code>C</code>[<em>c</em>] + <code>rank</code>(<em>c</em>, <em>sp</em>)<br>
+            <em>ep</em><sub>new</sub> = <code>C</code>[<em>c</em>] + <code>rank</code>(<em>c</em>, <em>ep</em>)
+          </div>
+
+          <p>If <em>sp</em><sub>new</sub> &lt; <em>ep</em><sub>new</sub>, the query so far matches somewhere; continue. If <em>sp</em><sub>new</sub> ≥ <em>ep</em><sub>new</sub>, the interval has collapsed to empty — the read is not in <em>R</em>, and you know exactly which character killed it.</p>
+
+          <p>Walk through this on a small example. Search for <code>ACA</code> in <code>ACAACG$</code>. Process the query right-to-left: first <code>A</code>, then <code>C</code>, then <code>A</code>.</p>
+
+          <ul>
+            <li>Start: [<em>sp</em>, <em>ep</em>) = [0, 7).</li>
+            <li>Extend by <code>A</code> (the last character of the query). <code>C[A] = 1</code> (only <code>$</code> is smaller). <code>rank(A, 0) = 0</code>, <code>rank(A, 7) = 3</code>. New interval: [1, 4). Three rows in F start with A.</li>
+            <li>Extend by <code>C</code>. <code>C[C] = 4</code> (<code>$</code> plus three As are smaller). With L = <code>GC$AAAC</code>, <code>rank(C, 1) = 0</code>, <code>rank(C, 4) = 1</code>. New interval: [4, 5). One row starts with CA.</li>
+            <li>Extend by <code>A</code>. <code>C[A] = 1</code>. <code>rank(A, 4) = 1</code>, <code>rank(A, 5) = 2</code>. New interval: [2, 3). One row.</li>
+          </ul>
+
+          <p>The final interval [2, 3) has size one — a single occurrence of <code>ACA</code> in the reference. Looking at the sorted rotation matrix row 2, the suffix there is <code>ACAACG$</code>, starting at position 0 of the original string. Stored alongside the FM index is a sparse suffix array that maps row indices back to positions, and position 0 is what we get.</p>
+
+          <p>The whole search was three rank queries and three constant-time arithmetic updates. Three steps, because |<em>r</em>| = 3. The reference was never looked at during the search — only the BWT and the rank arrays were consulted.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">FM-index backward search</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-02/04-fm-backward-search.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-02/04-fm-backward-search.html"
+                    class="artifact-frame" loading="lazy"
+                    title="FM-index backward search"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>Backward search is a form of <strong>operating entirely in the transform domain</strong>. At no point does the algorithm decode the BWT back to the original string. It maintains state — the interval [<em>sp</em>, <em>ep</em>) — and updates it using cheap operations on auxiliary arrays, much the way a digital filter processes data in a transformed representation without ever materialising the signal. The "transform" here is the BWT; the "cheap operation" is <code>rank</code>. The invariant that makes it work is the LF property, which is the string-domain analog of Parseval's theorem in the sense that it's the structural property of the transform that guarantees the in-domain operation gives the right answer.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Checkpoints: the space–time tradeoff made explicit</h3>
+
+          <p>There is a problem hidden in Section 3.3. Computing <code>rank(c, i)</code> on demand requires scanning L from the beginning up to position <em>i</em> and counting, which is <em>O</em>(|<em>R</em>|) — worse than brute force per query. Storing <code>rank</code> fully precomputed for every position of L and every character costs <em>O</em>(|<em>R</em>| · |Σ|) — for the human genome and a 4-character DNA alphabet, that is 12 GB of 32-bit integers, and we're back to suffix-array-scale memory. Neither extreme works.</p>
+
+          <p>The FM-index implementation every production aligner uses takes the middle path. Precompute and store <code>rank</code> at every <em>d</em>-th position of L — say, every 32 or every 128 — and count the residue on the fly from the nearest stored checkpoint. Memory is divided by <em>d</em>; query cost is multiplied by <em>d</em> (with a small constant per character of scan, typically implemented with SIMD POPCNT instructions so the scan is bytes per nanosecond). The knob is explicit: you pick <em>d</em> to balance RAM against latency.</p>
+
+          <p>For the human genome, <em>d</em> = 128 is typical. Memory for the rank arrays drops from 12 GB to under 100 MB, and the extra scan adds a nanosecond or two per character of read. The index as a whole — BWT, C-table, sparse suffix array, sparse rank arrays — fits in about 4 GB for a human reference. <code>bwa index</code> produces it; <code>bwa mem</code> uses it.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-02/07-fm-checkpoints-tradeoff.svg"
+                 alt="Two stacked rank-array schematics — one dense, one sparse — with a small memory-vs-query-cost plot showing the tradeoff curve.">
+            <figcaption>Figure 7. Dense vs. sparse rank arrays. Storing rank at every position is O(1) per query but O(|R| · |Σ|) memory; storing it every d-th position scales memory by 1/d and query time by d.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>This is the classic <strong>sparse sampling plus local interpolation</strong> pattern. It is the same trick used for storing transcendental functions in firmware: keep a table at coarse sample points, and fill in between with a Taylor series. The checkpoint interval <em>d</em> is the direct analog of the sample interval in the function table — you pay more memory for a finer sampling, you pay more compute for a coarser one, and the crossover depends on the cost ratio of the two resources on your hardware.</p>
+          </aside>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>If you increased <em>d</em> from 128 to 1024, what happens to memory, query time, and the optimal read length the index is good at? (Memory drops 8×; query time rises because you scan up to 1024 bytes of BWT per rank query; for short reads this is fine because the overhead is bounded per character; for very long reads the constant factor matters less than the memory savings.)</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 50 min</span>
+          Score-Based Alignment
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 Why exact matching isn't enough</h3>
+
+          <p>Everything in Parts 2 and 3 was exact matching. Given a read and a reference, report the positions where the read occurs verbatim. That is useful for some things — finding known primers, counting k-mer occurrences — but it is not what you want as the final output of a genome aligner. Reads have errors. Reads have real variants. Reads have small insertions and deletions. An exact-match-only aligner would reject almost every read that has anything biologically interesting about it.</p>
+
+          <p>Concrete numbers. Illumina sequencing has a per-base error rate of about 0.1–1%, dominated by substitutions with a tail of indels. A 150 bp read therefore has a sequencing-error-induced mismatch at expected rate of 0.15 to 1.5 bases per read — most reads have at least one. On top of that, a human individual differs from the GRCh38 reference at roughly 1 in 1,000 positions due to real biological variation (SNVs), plus roughly 1 in 5,000 positions for small indels, plus occasional larger structural differences. Any aligner worth using must tolerate at least a handful of differences per read.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>It is tempting to think "just allow up to <em>k</em> mismatches in the FM index" and be done. This is the <strong><em>k</em>-mismatch backward search</strong> variant, and it does exist. It works for small <em>k</em> — <em>k</em> = 1 or <em>k</em> = 2 — but the branching factor of the search grows as <code>C(|r|, k) · |Σ|^k</code>, and it does not handle insertions or deletions at all. For realistic error budgets, you need a different tool.</p>
+          </aside>
+
+          <p>What we need is a definition of "best approximate match," and an algorithm that finds it. The definition comes from <strong>scoring</strong>; the algorithm is <strong>dynamic programming</strong>.</p>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 Scoring: matches, mismatches, gaps</h3>
+
+          <p>An alignment between two strings is a way of writing them one above the other, inserting gap characters (<code>-</code>) so they end up the same length and each column has either a pair of characters or a character paired with a gap. For example:</p>
+
+          <pre class="sequence-block">Read:      GA-TACA
+Reference: GATTACA</pre>
+
+          <p>Here the read has a gap at position 2 (a deletion in the read relative to the reference, or equivalently an insertion in the reference — which you mean depends on which string you call the query). Columns with two matching characters are <strong>matches</strong>; columns with two mismatching characters are <strong>mismatches</strong>; columns with a gap are <strong>indels</strong>.</p>
+
+          <p>A <strong>scoring scheme</strong> assigns a number to each type of column. The simplest scheme has three parameters: a match reward (say, +2), a mismatch penalty (say, −1), and a gap penalty (say, −2). The score of an alignment is the sum of its column scores. The <strong>best alignment</strong> is the one with the highest score.</p>
+
+          <p>More realistic schemes use <strong>affine gap penalties</strong>: a larger <strong>gap-open</strong> penalty to start a run of gaps, and a smaller <strong>gap-extend</strong> penalty for each additional gap. This reflects the biology: when real indels happen, they are often several bases long, so a run of five gaps should not cost five times the price of one. Typical numbers for DNA alignment are match +1, mismatch −4, gap-open −6, gap-extend −1. For protein alignment, the match/mismatch pair is replaced by a full 20 × 20 substitution matrix — BLOSUM62 is the standard — because not all amino acid substitutions are equally plausible.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>The scoring scheme is a <strong>log-likelihood model</strong> in disguise. If each column of an alignment is an independent observation drawn from a probability distribution — match with probability <em>p</em><sub>m</sub>, mismatch with some lower probability, indel with some lower probability still — then the log-likelihood of the alignment is a weighted sum of column counts. The "match reward" is the log-odds of a match relative to a mismatch under that model. Affine gap penalties correspond to a geometric-length model for indels, which is approximately correct for real biological indels. The dynamic programming we are about to do is, in every meaningful sense, maximum-likelihood decoding under a generative error model — it just predates that language by a decade.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Smith-Waterman: local alignment by dynamic programming</h3>
+
+          <p>The <strong>Smith-Waterman</strong> algorithm, introduced by Temple Smith and Michael Waterman in 1981, finds the highest-scoring <strong>local</strong> alignment between two sequences — the best-scoring pair of substrings, one from each, under your chosen scoring scheme. Its global counterpart is <strong>Needleman-Wunsch</strong> (1970), which forces the entire strings to align end-to-end. For read alignment we almost always want local: the read should align to <em>some</em> window of the reference, not to the whole three-billion-base thing.</p>
+
+          <p>The algorithm fills a 2D matrix <em>H</em>, indexed by the prefixes of the two sequences. <em>H</em>[<em>i</em>][<em>j</em>] holds the best score achievable by a local alignment that ends at position <em>i</em> in the first sequence and position <em>j</em> in the second. The recurrence is:</p>
+
+          <pre class="equation-block" style="text-align: left; font-family: var(--font-mono); font-size: var(--text-sm);">H[i][j] = max {
+    0,
+    H[i−1][j−1] + s(a_i, b_j)   (diagonal: match or mismatch)
+    H[i−1][j]   + g              (up:       gap in sequence 2)
+    H[i][j−1]   + g              (left:     gap in sequence 1)
+}</pre>
+
+          <p>where <em>s</em>(<em>a</em><sub><em>i</em></sub>, <em>b</em><sub><em>j</em></sub>) is the match-or-mismatch score and <em>g</em> is the gap penalty. The <strong>0</strong> is what makes this local: it lets an alignment "restart" at any cell, effectively discarding any prefix that would have scored negative.</p>
+
+          <p>To find the best alignment, find the cell with the maximum value in <em>H</em> — that is the endpoint of the best local alignment. Then <strong>trace back</strong>: at each cell, you know which of the four candidates won the max, so you know which neighbour to step to. Keep stepping until you hit a 0. The path is the alignment.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-02/08-smith-waterman-matrix.svg"
+                 alt="A filled 8×8 Smith-Waterman matrix for two short strings, with the global maximum cell highlighted and the traceback path drawn as arrows from the max back to a zero.">
+            <figcaption>Figure 8. A filled Smith-Waterman matrix. The global maximum is the endpoint of the best local alignment; the traceback path, walked back to a zero, reconstructs it.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Smith-Waterman matrix</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-02/05-smith-waterman.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-02/05-smith-waterman.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Smith-Waterman matrix"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>This is <strong>Viterbi on a 2D trellis</strong>. A Viterbi decoder for a convolutional code maintains, at each time step and each state, the best path score ending in that state. The recurrence is: for each state, take the max over incoming transitions of (predecessor score + transition cost). When decoding is done, trace back from the best final state to recover the path. Smith-Waterman does exactly this, with "state" being (position in sequence 1, position in sequence 2) and "transition" being one of {match/mismatch, gap-up, gap-left}. The trellis is 2D instead of 1D because there are two sequences. The 0-floor makes it local instead of global. Otherwise identical algorithmic skeleton. If you have written a Viterbi decoder, you have written Smith-Waterman; you just haven't called it that.</p>
+          </aside>
+
+          <p>The cost of Smith-Waterman is <em>O</em>(|<em>r</em>| · |<em>R</em>|) in time, because every cell of the matrix must be filled, and <em>O</em>(|<em>r</em>| · |<em>R</em>|) in space if you need the traceback matrix (which you usually do). <strong>You cannot run this against the whole human genome for every read.</strong> A single read-vs-genome Smith-Waterman is 150 × 3 × 10⁹ ≈ 5 × 10¹¹ cells. Times a billion reads: 5 × 10²⁰ cell updates per dataset. That is the brute-force number from Part 1 all over again, with worse constants.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Smith-Waterman is the <strong>wrong algorithm to run on the whole reference</strong>. This is why Part 5 exists. In practice, you only ever run Smith-Waterman on small windows of reference that an index has already flagged as candidates — a few hundred base pairs per candidate position. That brings the cost per read down to something that fits in microseconds.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 CIGAR strings: the alignment as a string</h3>
+
+          <p>The output of Smith-Waterman is a path through a matrix. That path, serialised as a sequence of edit operations, is what gets stored in an alignment file. The serialisation format is the <strong>CIGAR string</strong>, defined as part of the SAM/BAM specification.</p>
+
+          <p>A CIGAR string is a sequence of <code>&lt;length&gt;&lt;operation&gt;</code> tokens. The operations are:</p>
+
+          <ul>
+            <li><code>M</code> — <strong>alignment match</strong> (can be either a sequence match or mismatch; ambiguous but still widely used)</li>
+            <li><code>=</code> — sequence match (explicit)</li>
+            <li><code>X</code> — sequence mismatch (explicit)</li>
+            <li><code>I</code> — insertion relative to reference (base in read, not in reference)</li>
+            <li><code>D</code> — deletion relative to reference (base in reference, not in read)</li>
+            <li><code>S</code> — soft clip (read bases that were not aligned, but are still stored in the BAM record)</li>
+            <li><code>H</code> — hard clip (read bases that were trimmed off entirely)</li>
+            <li><code>N</code> — skipped region (used for RNA-seq, where introns produce large "deletions" that are not really deletions)</li>
+            <li><code>P</code> — padding (multi-alignment use, rarely seen)</li>
+          </ul>
+
+          <p>So a CIGAR of <code>4=1X2=2D3=1I3=</code> reads as: four matches, one mismatch, two matches, two deletions (from the reference), three matches, one insertion (into the read), three matches. That uniquely encodes the alignment path modulo the sequences themselves.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-02/09-cigar-rle-diagram.svg"
+                 alt="Three rows showing the raw traceback symbol sequence, the same sequence with runs bracketed and labeled, and the final CIGAR string — plus an EE framing callout identifying CIGAR as RLE.">
+            <figcaption>Figure 9. CIGAR is run-length encoding of the traceback. Raw operation sequence on top; runs bracketed beneath; the final CIGAR string at the bottom.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>The CIGAR string is <strong>run-length encoding</strong> of the edit-operation sequence. The raw traceback is a sequence over a small alphabet (<code>M</code>, <code>I</code>, <code>D</code>, sometimes more); many real alignments have long runs of <code>M</code> interrupted by short <code>I</code>/<code>D</code> segments. RLE compresses this beautifully. The same move is used in raster image formats (RLE of scan lines), in fax transmission, and in low-level video codecs. CIGAR is to alignment what scan-line RLE is to a monochrome image. Nothing more, nothing less.</p>
+          </aside>
+
+          <p>CIGAR strings are what every downstream tool reads. Variant callers walk them to align pileups across reads. Expression quantifiers count them to assign reads to transcripts. Visualisation tools use them to render alignment tracks in IGV or JBrowse. If there is a single artifact of the alignment step that the rest of the field actually touches, it is the CIGAR field of the BAM record — column 6, if you are reading SAM text.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>The <code>M</code> operation is ambiguous — it matches either <code>=</code> or <code>X</code>. Older tools emit <code>M</code> and never emit the explicit <code>=</code>/<code>X</code>. Newer tools sometimes emit <code>=</code>/<code>X</code>, sometimes <code>M</code>, depending on flags. If you are writing a tool that counts mismatches, do not assume that <code>M</code> means match. Always check both the CIGAR operation and the <code>MD</code> tag in the BAM record, which encodes mismatches separately. This confusion has caused real bugs in published pipelines.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 35 min</span>
+          Putting It Together: Seed-and-Extend
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 Two-step alignment as a design pattern</h3>
+
+          <p>Parts 2 and 3 gave us an index that answers exact-match queries in <em>O</em>(|<em>r</em>|) time. Part 4 gave us an algorithm that produces optimal approximate alignments in <em>O</em>(|<em>r</em>| · |<em>R</em>|) time. Neither, on its own, is what you want. The index is fast but intolerant of errors; Smith-Waterman is accurate but unusably slow against a whole genome. Compose them.</p>
+
+          <p>The composition is <strong>seed-and-extend</strong>. In one sentence: use the fast index to find short exact matches of the read against the reference (<strong>seeds</strong>), then run Smith-Waterman only on small windows around those seeds to produce the final approximate alignment. Every production aligner — <code>bwa</code>, <code>bowtie2</code>, <code>minimap2</code>, <code>novoalign</code>, <code>gem</code>, you name it — works this way. Their differences are in the knobs.</p>
+
+          <p>The logic is worth saying out loud. A 150 bp read with a 1% error rate has 1 or 2 errors on average. For any <em>k</em> shorter than the spacing between errors, <em>some</em> <em>k</em>-mer of the read is error-free. That error-free <em>k</em>-mer will match exactly in the reference at the read's true position. The index finds it. Smith-Waterman on a window around that position then produces the full alignment including the errors.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-02/10-seed-and-extend-pipeline.svg"
+                 alt="Horizontal flow from a 50 bp read to seeds found by an FM index, candidate positions on a reference track, Smith-Waterman extension windows around each seed, and the winning alignment with its CIGAR string — plus a three-row comparison of BWA-MEM, Bowtie2, and minimap2 at the bottom.">
+            <figcaption>Figure 10. The whole lecture in one picture. A read enters, the FM index returns seeds, Smith-Waterman extends each candidate window, and one alignment wins. BWA-MEM, Bowtie2, and minimap2 differ in the knobs, not the skeleton.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>This is the <strong>coarse-to-fine search</strong> pattern at its purest. In radar, the coarse stage is a matched filter that flags potential targets; the fine stage runs an accurate tracking loop on each candidate. In GPS, the coarse stage is PRN code correlation to acquire; the fine stage is a tracking loop that locks onto the carrier. In Viterbi decoding with large state spaces, the coarse stage is beam search to prune paths; the fine stage is full recurrence on the surviving beam. The reason this pattern is everywhere is that the coarse detector is cheap per candidate but produces many candidates, while the fine estimator is expensive per candidate but produces a precise answer; multiplying a cheap-per-candidate stage by a small number of candidates and adding an expensive-per-candidate stage applied to them is how you buy precision without paying the full cost of the fine algorithm on the full search space.</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Seed-and-extend in real aligners</h3>
+
+          <p>Three aligners dominate the field. Each is a different set of choices within the seed-and-extend pattern.</p>
+
+          <p><strong><code>bwa mem</code></strong> (Heng Li, 2013) is the default short-read aligner for human genomes. It uses the FM index of the reference to find <strong>SMEMs</strong> — <strong>s</strong>uper-<strong>m</strong>aximal <strong>e</strong>xact <strong>m</strong>atches, which are exact matches between read and reference that cannot be extended further in either direction without introducing a mismatch, and that are not contained in any longer such match. SMEMs are variable-length: a clean region of the read produces one long SMEM, a noisy region produces several shorter ones. For each SMEM of sufficient length, <code>bwa mem</code> performs <strong>banded Smith-Waterman</strong> extension — a version of Smith-Waterman restricted to a diagonal band of the matrix, valid because the alignment cannot stray far from the seed diagonal if the error rate is modest. The banding brings extension cost down from <em>O</em>(|<em>r</em>| · <em>w</em>) (where <em>w</em> is the window size) to <em>O</em>(|<em>r</em>| · <em>b</em>) (where <em>b</em> is the band width, typically 100 or so — much smaller than <em>w</em>).</p>
+
+          <p><strong><code>bowtie2</code></strong> (Ben Langmead and Steven Salzberg, 2012) also uses an FM index but with <strong>fixed-length seeds</strong> — typically 22 bp — extracted at regular intervals along the read. Its extension phase is SSE-accelerated Smith-Waterman, exploiting the CPU's vector instructions to compute 8 or 16 cells of the DP matrix in parallel using stripe-based data layout. The relevant paper is Farrar (2007), which turned what used to be a four-order-of-magnitude-slower algorithm into one that runs at memory bandwidth.</p>
+
+          <p><strong><code>minimap2</code></strong> (Heng Li, 2018) is the de facto standard for long reads — PacBio HiFi, Oxford Nanopore — and also handles short reads. Its seeds are <strong>minimizers</strong>: for each sliding window of length <em>w</em> in the reference and the read, take the lexicographically smallest <em>k</em>-mer in the window as a representative. This sparsifies the <em>k</em>-mer index by a factor of roughly <em>w</em>, cutting memory and I/O, while keeping the property that homologous regions share minimizers with high probability. <code>minimap2</code> then <strong>chains</strong> minimizer hits — grouping colinear seeds into approximate alignments before running banded Smith-Waterman to fill in exact base-level details. Chaining is essential for long reads because a 10 kb read has dozens of minimizer hits, most of which should be colinear if the read is a true match, and the chain structure tells you the approximate alignment before you spend compute on the DP.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Seed-and-extend visualiser</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-02/06-seed-and-extend.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-02/06-seed-and-extend.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Seed-and-extend visualiser"></iframe>
+          </figure>
+
+          <p>The three aligners share their skeleton and differ in their index (BWT-backed in <code>bwa</code> and <code>bowtie2</code>, hash-backed in <code>minimap2</code>), their seed definition (SMEMs, fixed-<em>k</em>, minimizers), their extension (banded SW, SSE-accelerated SW, chain-then-banded-SW), and the reads they are tuned for (short, short, long). The right aligner for a dataset is usually the one whose tuning matches the data — <code>bwa mem</code> or <code>bowtie2</code> for Illumina, <code>minimap2</code> for long reads. But the structure is shared.</p>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The FM index became practical for genome alignment with the 2009 paper by <strong>Langmead, Trapnell, Pop, and Salzberg</strong> introducing Bowtie, which demonstrated that BWT-backed short-read alignment could run at hundreds of megabases per CPU-minute in under 2 GB of RAM. Li and Durbin's <strong>BWA</strong>, also 2009, was a parallel development with a slightly different design. Both papers share the core idea of applying Ferragina-Manzini's 2000 FM-index construction to the specific problem of mapping short Illumina reads to mammalian genomes. The field-wide transition from hash-based aligners (<code>MAQ</code>, <code>ELAND</code>) to BWT-based aligners happened in roughly 2009–2011 and has not been undone.</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 When things get hard</h3>
+
+          <p>Seed-and-extend works well for reads that have a single true position in the reference and a handful of errors. Most reads are like that. But several cases are not, and a real aligner has to handle them honestly.</p>
+
+          <p><strong>Multi-mapping reads</strong> come from <strong>repeats</strong> — sequences that occur multiple times in the genome. A read that falls entirely inside a SINE or LINE repeat element, which together cover about 45% of the human genome, has many equally good alignments. The aligner reports one and assigns it a low <strong>mapping quality</strong> (MAPQ), which encodes a phred-scaled estimate of the probability that the reported position is wrong. MAPQ 0 means "I picked one of several equally good positions at random." Downstream tools usually filter on MAPQ to avoid drawing conclusions from reads that could have come from anywhere.</p>
+
+          <p><strong>Structural variants</strong> produce reads whose alignment is not contiguous. A read that spans a deletion breakpoint in the sample matches the reference on one side of the deletion for part of its length and on the other side for the rest; no single contiguous Smith-Waterman window aligns the whole thing. Aligners handle this with <strong>soft-clipping</strong> — reporting an alignment for the part that fits, and flagging the rest (with <code>S</code> in the CIGAR) as unaligned-but-present — or by reporting a <strong>split alignment</strong> as a supplementary record. Both mechanisms exist in SAM/BAM for historical reasons; both are used in practice.</p>
+
+          <p><strong>Chimeric reads</strong> are the more pathological version of the structural-variant case: a read that is literally a hybrid of two genomic regions, usually the result of a library-prep artifact rather than a real biological event. These look like structural variants to the aligner, and distinguishing the two requires signal from many reads and is a job for the variant caller, not the aligner.</p>
+
+          <p><strong>Bisulfite-converted reads</strong>, <strong>methylated reads</strong>, <strong>RNA-seq reads that span splice junctions</strong>, and <strong>ancient-DNA reads with characteristic damage patterns</strong> all need specialised aligners (<code>bismark</code>, <code>methylpy</code>, <code>STAR</code>, <code>HISAT2</code>, <code>mapDamage</code>) that modify seed-and-extend in specific ways. The core pattern is preserved; the scoring model, the seed definition, or the handling of clipped bases change.</p>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>If a read has two reported alignments with identical scores, which should the aligner emit — and with what MAPQ? (Answers: emitting one at random with MAPQ 0 is the standard move; emitting both as primary is ambiguous and downstream tools can't handle it; emitting one as primary and the other as secondary with a flag set is valid if the caller explicitly wants all alignments; the honest answer is that there is no free lunch, and the ambiguity has to be represented somewhere for downstream tools to make sense of it.)</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup" class="lecture-wrapup">
+        <h2>
+          <span class="part-kicker">Wrap-up · 10 min</span>
+          Takeaways, homework, and next lecture
+        </h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Alignment scale forces indexing.</strong> Brute force is correct and unusable; every real aligner earns its speed against that baseline.</li>
+          <li><strong>The BWT is a reversible transform that moves the string into a domain where exact-match search is cheap</strong> — the string-domain analog of moving a signal into the frequency domain for convolution.</li>
+          <li><strong>The FM index is the BWT plus a rank table, with checkpoints trading memory for query time.</strong> Under the knob, exact-match queries cost <em>O</em>(|<em>r</em>|) time in memory close to the compressed reference.</li>
+          <li><strong>Smith-Waterman is Viterbi on a 2D trellis.</strong> It produces optimal local alignments, and its output — serialised as a CIGAR string — is the run-length encoding of the traceback path.</li>
+          <li><strong>Seed-and-extend composes the fast-but-intolerant index with the slow-but-accurate DP.</strong> Every production aligner you will use is a variant of this pattern. The differences are in the seed definition, the extension banding, and the tuning for read length.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Alignments are a substrate for variant calling — figuring out where a sample differs from the reference at the base level, and distinguishing real variants from sequencing errors and alignment artifacts. That is Lecture 3.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Download the <em>E. coli</em> K-12 reference genome (~4.6 Mb) and 10,000 simulated 150 bp reads from it — use <code>wgsim</code> or equivalent, with default error rate. You can get the reference from <a href="https://www.ncbi.nlm.nih.gov/nuccore/U00096.3" target="_blank" rel="noopener">ncbi.nlm.nih.gov/nuccore/U00096.3</a>.</li>
+          <li>Implement naive brute-force alignment in Python, and a suffix-array-based exact-match aligner. Time both, aligning your 10,000 reads to the reference. Plot time per read as a function of reference size (downsample the reference to 10 kb, 100 kb, 1 Mb, full).</li>
+          <li>By hand, construct the BWT of <code>BANANA$</code> and verify it is <code>ANNB$AA</code>. Then by hand, use backward search to find all occurrences of <code>ANA</code> in <code>BANANA$</code>. Show every (<em>sp</em>, <em>ep</em>) pair at every step.</li>
+          <li>By hand, fill the Smith-Waterman matrix for reference <code>GATTACA</code> vs. read <code>GCATGCA</code> with match +2, mismatch −1, gap −2. Find the optimal local alignment and write out its CIGAR string.</li>
+          <li>Install <code>bwa</code> and <code>samtools</code>. Align your 10,000 simulated reads to the <em>E. coli</em> reference with <code>bwa mem</code>. Use <code>samtools view</code> to inspect the CIGAR strings of the first 20 alignments. Pick one with an indel and one with a soft-clip and explain, in one sentence each, what the alignment is reporting.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Ferragina, P., &amp; Manzini, G. (2000). Opportunistic data structures with applications. <em>Proceedings of the 41st Annual Symposium on Foundations of Computer Science</em>, 390–398.</li>
+          <li>Smith, T. F., &amp; Waterman, M. S. (1981). Identification of common molecular subsequences. <em>Journal of Molecular Biology</em> 147, 195–197.</li>
+          <li>Burrows, M., &amp; Wheeler, D. J. (1994). A block-sorting lossless data compression algorithm. <em>Digital SRC Research Report 124</em>.</li>
+          <li>Li, H., &amp; Durbin, R. (2009). Fast and accurate short read alignment with Burrows-Wheeler transform. <em>Bioinformatics</em> 25, 1754–1760.</li>
+          <li>Langmead, B., &amp; Salzberg, S. L. (2012). Fast gapped-read alignment with Bowtie 2. <em>Nature Methods</em> 9, 357–359.</li>
+          <li>Li, H. (2018). Minimap2: pairwise alignment for nucleotide sequences. <em>Bioinformatics</em> 34, 3094–3100.</li>
+          <li>Langmead, B. Teaching materials for BWT / FM-index, Johns Hopkins: <a href="https://langmead-lab.org/teaching-materials/" target="_blank" rel="noopener">langmead-lab.org/teaching-materials</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — The Alignment Problem</td><td>20&nbsp;min</td><td>0:20</td></tr>
+            <tr><td>Part 2 — Exact Matching: Indexing</td><td>55&nbsp;min</td><td>1:15</td></tr>
+            <tr><td>Part 3 — BWT and FM Index</td><td>60&nbsp;min</td><td>2:15</td></tr>
+            <tr><td>Part 4 — Score-Based Alignment</td><td>50&nbsp;min</td><td>3:05</td></tr>
+            <tr><td>Part 5 — Seed-and-Extend</td><td>35&nbsp;min</td><td>3:40</td></tr>
+            <tr><td>Wrap-up</td><td>10&nbsp;min</td><td>3:50</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 50min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  // Scroll-progress bar
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  // TOC current-section highlighting
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+
+    const targets = Array.from(byId.keys())
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+
+    targets.forEach(t => io.observe(t));
+  })();
+
+  // Iframe auto-resize (listens for postMessage from artifacts)
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) {
+          f.style.height = d.height + 'px';
+        }
+      });
+    });
+  })();
+
+  // Heading anchor-link copy
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+</body>
+</html>

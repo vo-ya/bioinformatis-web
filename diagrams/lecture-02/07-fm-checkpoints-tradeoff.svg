@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 360" role="img" aria-labelledby="t d">
+  <title id="t">FM-index checkpoints tradeoff</title>
+  <desc id="d">Two schematics of the rank-array storage strategy: a dense version with a value stored at every position of L, and a sparse version with values stored every d-th position and a scan filling in between. A small memory-versus-query-cost plot illustrates the continuous knob between them.</desc>
+
+  <!-- Kicker -->
+  <text x="40" y="30" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#8a8a85" letter-spacing="0.12em">
+    CHECKPOINTS · TRADE MEMORY FOR QUERY TIME
+  </text>
+
+  <!-- ─── Left half: dense vs sparse schematics ─── -->
+
+  <!-- Dense -->
+  <text x="40" y="70" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">Dense rank arrays</text>
+  <text x="40" y="84" font-family="Inter, sans-serif" font-size="10" fill="#525252">rank stored at every position — O(|R| · |Σ|) memory, O(1) query</text>
+
+  <g>
+    <line x1="40" y1="110" x2="420" y2="110" stroke="#0a0a0a" stroke-width="2"/>
+    <!-- 20 tick positions, all filled -->
+    <g fill="#1e3a8a">
+      <circle cx="50"  cy="110" r="3"/>
+      <circle cx="70"  cy="110" r="3"/>
+      <circle cx="90"  cy="110" r="3"/>
+      <circle cx="110" cy="110" r="3"/>
+      <circle cx="130" cy="110" r="3"/>
+      <circle cx="150" cy="110" r="3"/>
+      <circle cx="170" cy="110" r="3"/>
+      <circle cx="190" cy="110" r="3"/>
+      <circle cx="210" cy="110" r="3"/>
+      <circle cx="230" cy="110" r="3"/>
+      <circle cx="250" cy="110" r="3"/>
+      <circle cx="270" cy="110" r="3"/>
+      <circle cx="290" cy="110" r="3"/>
+      <circle cx="310" cy="110" r="3"/>
+      <circle cx="330" cy="110" r="3"/>
+      <circle cx="350" cy="110" r="3"/>
+      <circle cx="370" cy="110" r="3"/>
+      <circle cx="390" cy="110" r="3"/>
+      <circle cx="410" cy="110" r="3"/>
+    </g>
+  </g>
+
+  <!-- Sparse -->
+  <text x="40" y="160" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">Sparse rank arrays (checkpointed every d)</text>
+  <text x="40" y="174" font-family="Inter, sans-serif" font-size="10" fill="#525252">rank stored every d positions — memory ÷ d, query O(d)</text>
+
+  <g>
+    <line x1="40" y1="200" x2="420" y2="200" stroke="#0a0a0a" stroke-width="2"/>
+    <!-- sparse checkpoints at every 5th tick -->
+    <g fill="#1e3a8a">
+      <circle cx="50"  cy="200" r="4"/>
+      <circle cx="150" cy="200" r="4"/>
+      <circle cx="250" cy="200" r="4"/>
+      <circle cx="350" cy="200" r="4"/>
+    </g>
+    <!-- empty tick marks between checkpoints -->
+    <g stroke="#8a8a85" stroke-width="1">
+      <line x1="70"  y1="196" x2="70"  y2="204"/>
+      <line x1="90"  y1="196" x2="90"  y2="204"/>
+      <line x1="110" y1="196" x2="110" y2="204"/>
+      <line x1="130" y1="196" x2="130" y2="204"/>
+      <line x1="170" y1="196" x2="170" y2="204"/>
+      <line x1="190" y1="196" x2="190" y2="204"/>
+      <line x1="210" y1="196" x2="210" y2="204"/>
+      <line x1="230" y1="196" x2="230" y2="204"/>
+      <line x1="270" y1="196" x2="270" y2="204"/>
+      <line x1="290" y1="196" x2="290" y2="204"/>
+      <line x1="310" y1="196" x2="310" y2="204"/>
+      <line x1="330" y1="196" x2="330" y2="204"/>
+      <line x1="370" y1="196" x2="370" y2="204"/>
+      <line x1="390" y1="196" x2="390" y2="204"/>
+      <line x1="410" y1="196" x2="410" y2="204"/>
+    </g>
+    <!-- Bracket "scan on the fly" over one inter-checkpoint span -->
+    <g stroke="#525252" stroke-width="1" fill="none">
+      <path d="M 70 216 L 70 224 L 130 224 L 130 216"/>
+    </g>
+    <text x="100" y="240" font-family="Inter, sans-serif" font-size="10" fill="#525252" text-anchor="middle">scan on the fly</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(40 270)">
+    <circle cx="4" cy="0" r="3" fill="#1e3a8a"/>
+    <text x="14" y="4" font-family="Inter, sans-serif" font-size="10" fill="#525252">stored rank value</text>
+    <line x1="130" y1="-3" x2="130" y2="3" stroke="#8a8a85" stroke-width="1"/>
+    <text x="140" y="4" font-family="Inter, sans-serif" font-size="10" fill="#525252">position whose rank is computed on demand</text>
+  </g>
+
+  <!-- ─── Right half: memory vs query plot ─── -->
+  <g transform="translate(500 70)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">Tradeoff curve</text>
+    <!-- Axes -->
+    <g stroke="#c4c1b6" stroke-width="1" fill="none">
+      <line x1="0" y1="30" x2="0" y2="200"/>
+      <line x1="0" y1="200" x2="300" y2="200"/>
+    </g>
+    <text x="-10" y="34" font-family="Inter, sans-serif" font-size="10" fill="#8a8a85" text-anchor="end">query</text>
+    <text x="-10" y="46" font-family="Inter, sans-serif" font-size="10" fill="#8a8a85" text-anchor="end">cost</text>
+    <text x="-10" y="58" font-family="Inter, sans-serif" font-size="10" fill="#8a8a85" text-anchor="end">(ns)</text>
+
+    <text x="300" y="220" font-family="Inter, sans-serif" font-size="10" fill="#8a8a85" text-anchor="end">memory (bytes/base)</text>
+
+    <!-- Dashed curve connecting the two regimes -->
+    <path d="M 30 50 C 100 60, 180 180, 270 185"
+          fill="none" stroke="#525252" stroke-width="1" stroke-dasharray="4 3"/>
+
+    <!-- Two labelled points -->
+    <g>
+      <!-- dense: bottom-right (low query cost, high memory) -->
+      <circle cx="270" cy="185" r="5" fill="#1e3a8a"/>
+      <text x="262" y="170" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" text-anchor="end">dense (d=1)</text>
+      <text x="262" y="184" font-family="Inter, sans-serif" font-size="9" fill="#525252" text-anchor="end">&lt;1 ns query · 4 B/base</text>
+
+      <!-- sparse: top-left (high query cost, low memory) -->
+      <circle cx="30" cy="50" r="5" fill="#1e3a8a"/>
+      <text x="40" y="46" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a">sparse (d=128)</text>
+      <text x="40" y="60" font-family="Inter, sans-serif" font-size="9" fill="#525252">tens of ns · &lt;0.05 B/base</text>
+    </g>
+  </g>
+</svg>

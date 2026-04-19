@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seed-and-Extend Visualiser</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0; max-width: 60ch; }
+
+    .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .panel-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+    .field-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: var(--fg-muted); display: block; margin-bottom: 0.4rem; }
+    .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.5rem 0.9rem; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg); cursor: pointer; }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .controls select, .controls input[type="range"] {
+      font-family: var(--font-sans); font-size: var(--text-sm);
+      padding: 0.35rem 0.6rem; background: var(--bg-muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+    }
+    .controls input[type="range"] { accent-color: var(--accent); width: 140px; padding: 0; }
+
+    /* Read and reference tracks */
+    .read-display {
+      font-family: var(--font-mono); font-size: 1rem; letter-spacing: 0.1em;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 0.75rem 1rem;
+      overflow-x: auto; white-space: nowrap;
+    }
+    .read-display .label {
+      font-family: var(--font-sans); font-weight: 600;
+      font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--fg-subtle); margin-right: 0.75rem;
+    }
+
+    .ref-track {
+      position: relative; height: 56px;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); margin-top: 0.75rem;
+      overflow: hidden;
+    }
+    .ref-track .strip {
+      position: absolute; left: 0; right: 0; top: 18px; height: 20px;
+      background: repeating-linear-gradient(90deg, #ebeae3 0 2px, transparent 2px 20px);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .ref-track .label-left, .ref-track .label-right {
+      position: absolute; top: 4px;
+      font-family: var(--font-mono); font-size: 0.7rem; color: var(--fg-subtle);
+    }
+    .ref-track .label-left { left: 8px; }
+    .ref-track .label-right { right: 8px; }
+    .seed-hit {
+      position: absolute; top: 16px; width: 8px; height: 24px;
+      background: var(--accent); border-radius: 2px; cursor: default;
+    }
+    .seed-hit.winner { background: var(--success); box-shadow: 0 0 0 3px #d9edd9; }
+    .seed-hit .tip {
+      position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      background: var(--fg); color: #fff; font-size: 10px; padding: 2px 4px;
+      border-radius: 2px; white-space: nowrap; opacity: 0; pointer-events: none;
+      font-family: var(--font-mono);
+    }
+    .seed-hit:hover .tip { opacity: 1; }
+    .ext-window {
+      position: absolute; top: 42px; height: 8px;
+      background: #eef2ff; border: 1px solid var(--accent);
+      border-radius: 1px;
+    }
+
+    .seed-list {
+      margin-top: 1rem;
+      font-family: var(--font-mono); font-size: var(--text-sm);
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 0.75rem 1rem;
+    }
+    .seed-list-row {
+      display: grid; grid-template-columns: auto 1fr auto auto; gap: 1rem;
+      padding: 0.3rem 0; border-bottom: 1px solid var(--border);
+    }
+    .seed-list-row:last-child { border-bottom: 0; }
+    .seed-list-row .pos { color: var(--fg-muted); }
+    .seed-list-row .score { color: var(--accent); font-weight: 600; }
+    .seed-list-row.winner .score { color: var(--success); }
+    .seed-list-row.loser  { color: var(--fg-subtle); }
+
+    .result {
+      margin-top: 1rem; padding: 0.75rem 1rem;
+      background: var(--bg-inset); border-left: 3px solid var(--success);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+    .result.neutral { border-left-color: var(--border-strong); background: var(--bg-muted); color: var(--fg-muted); }
+    .result .label { font-family: var(--font-sans); font-weight: 600; font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-subtle); }
+    .result .cigar { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: 600; color: var(--success); }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="seed-and-extend">
+  <header class="artifact-head">
+    <h1>Seed-and-Extend Visualiser</h1>
+    <p>The fast-but-intolerant index produces seeds; the slow-but-accurate DP extends them. Pick a scenario, find seeds, watch extensions compete, and see one alignment win.</p>
+  </header>
+
+  <section class="panel">
+    <div class="controls" style="margin-bottom: 0.75rem;">
+      <label class="field-label" for="scenario" style="margin: 0;">Scenario</label>
+      <select id="scenario">
+        <option value="clean">Clean match (no errors)</option>
+        <option value="snv">1 SNV + 2 bp indel</option>
+        <option value="repeat">Repetitive region (multi-mapping)</option>
+      </select>
+      <label class="field-label" style="margin: 0 0 0 1rem;">Seed length <span id="k-readout">12</span></label>
+      <input id="k-slider" type="range" min="8" max="18" step="1" value="12">
+    </div>
+
+    <div class="controls">
+      <button id="find-btn"   class="btn btn--primary" type="button">1 · Find seeds</button>
+      <button id="extend-btn" class="btn" type="button" disabled>2 · Extend</button>
+      <button id="report-btn" class="btn" type="button" disabled>3 · Report</button>
+      <button id="reset-btn"  class="btn" type="button">↺ Reset</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Read (50 bp, with the chosen edit pattern applied)</p>
+    <div class="read-display"><span class="label">read</span><span id="read-display"></span></div>
+
+    <p class="panel-label" style="margin-top: 1rem;">Reference (~400 bp)</p>
+    <div class="ref-track" id="ref-track">
+      <div class="strip"></div>
+      <span class="label-left" id="ref-left">0</span>
+      <span class="label-right" id="ref-right">400</span>
+    </div>
+
+    <p class="panel-label" style="margin-top: 1rem;">Seed hits &amp; extension scores</p>
+    <div class="seed-list" id="seed-list">
+      <span style="color: var(--fg-subtle); font-style: italic;">Press "Find seeds" to populate.</span>
+    </div>
+
+    <div class="result neutral" id="result-block">
+      <span class="label">Winner · </span>
+      <span style="font-family: var(--font-sans); font-size: var(--text-sm);" id="result-text">Not yet.</span>
+      <span class="cigar" id="result-cigar" style="margin-left: 0.75rem;"></span>
+    </div>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const scenarioEl = $('scenario');
+  const kSlider    = $('k-slider');
+  const kReadout   = $('k-readout');
+  const findBtn    = $('find-btn');
+  const extendBtn  = $('extend-btn');
+  const reportBtn  = $('report-btn');
+  const resetBtn   = $('reset-btn');
+  const readDisp   = $('read-display');
+  const refTrack   = $('ref-track');
+  const seedList   = $('seed-list');
+  const resultBlock = $('result-block');
+  const resultText  = $('result-text');
+  const resultCigar = $('result-cigar');
+
+  // Hardcoded 400 bp reference (a single excerpt, A/C/G/T).
+  const REFERENCE = 'GATTACAGATTACAGATCCGATCGCATGCATGCATGCATCCTTAGGAACCAAGGTTCCAAGGTTCCAAGGTTCCAAGGTTCCAACCGGTTGGAACCTTAACCGGTTAACCTTGGAACCGATTCGATCGATCAGCTAGCTAGGCATAGCATAGCATAGCATAGCATAGGATTACAGATCCGATCGATTCAGGATTACAGCATCCTAGGACTAGGACTAGGCATACCAATAGCATAGCATAGCATAGCAGGACGATTACAGCATGGATCGATCGATCCGATCGATCGATCGATTAGCTAGCATCGATCGATCCGATCGATCGATCGATTAGCTAGCATCGATCGATCCGATCGATCGATCAGGATTACGATCGATCAG';
+
+  // Return the reference's true position where the read was "born" for each scenario
+  function scenario(kind) {
+    if (kind === 'clean') {
+      // Take 50 bp starting at pos 160
+      const start = 160;
+      return { start, read: REFERENCE.slice(start, start + 50), truePos: start, cigar: '50=' };
+    }
+    if (kind === 'snv') {
+      // 50 bp from pos 160 but with 1 SNV + 2 bp indel
+      const start = 160;
+      let base = REFERENCE.slice(start, start + 52); // grab extra for indel
+      // Introduce 1 SNV at pos 10 of read
+      let arr = base.split('');
+      arr[10] = arr[10] === 'A' ? 'C' : 'A';
+      // Introduce 2 bp deletion at pos 25 (remove 2 chars)
+      arr.splice(25, 2);
+      return { start, read: arr.slice(0, 50).join(''), truePos: start, cigar: '10=1X14=2D23=' };
+    }
+    if (kind === 'repeat') {
+      // The reference has multiple occurrences of "CATAGCATAGCATAGCAT" — pick a read from one.
+      // 50 bp from pos 133 lands inside the repeat region.
+      const start = 133;
+      return { start, read: REFERENCE.slice(start, start + 50), truePos: start, cigar: '50=' };
+    }
+  }
+
+  const state = {
+    kind: 'clean',
+    k: 12,
+    scen: null,
+    seeds: [],   // [{pos, score, cigar, isWinner}]
+    stage: 0,    // 0 = initial, 1 = seeds found, 2 = extended, 3 = reported
+  };
+
+  function reset() {
+    state.kind = scenarioEl.value;
+    state.k    = +kSlider.value;
+    state.scen = scenario(state.kind);
+    state.seeds = [];
+    state.stage = 0;
+    renderRead();
+    renderTrack();
+    renderSeeds();
+    renderResult();
+    findBtn.disabled = false;
+    extendBtn.disabled = true;
+    reportBtn.disabled = true;
+  }
+
+  function renderRead() {
+    const scen = state.scen;
+    readDisp.innerHTML = scen.read.split('').map((c, i) => {
+      let color = 'var(--fg)';
+      if (state.kind === 'snv') {
+        if (i === 10) color = 'var(--error)';      // mismatch
+        if (i >= 24 && i <= 25) color = 'var(--warning)'; // near indel
+      }
+      return `<span style="color:${color}">${c}</span>`;
+    }).join('');
+  }
+
+  function renderTrack() {
+    // Clear previous seed markers and ext windows
+    refTrack.querySelectorAll('.seed-hit, .ext-window').forEach(e => e.remove());
+  }
+
+  // Find seeds: slide k-mers of the read through the reference and flag exact matches
+  function findSeeds() {
+    const read = state.scen.read, k = state.k;
+    const hits = new Map();   // position → array of k-mer offsets matched
+    for (let offset = 0; offset <= read.length - k; offset++) {
+      const kmer = read.slice(offset, offset + k);
+      let from = 0;
+      while (true) {
+        const pos = REFERENCE.indexOf(kmer, from);
+        if (pos === -1) break;
+        // Project back to where the read would have started if this k-mer matched at `pos`:
+        const projected = pos - offset;
+        if (projected >= 0 && projected + read.length <= REFERENCE.length) {
+          if (!hits.has(projected)) hits.set(projected, 0);
+          hits.set(projected, hits.get(projected) + 1);
+        }
+        from = pos + 1;
+      }
+    }
+    // Keep the top 6 candidate positions (by hit count)
+    const candidates = Array.from(hits.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([pos, count]) => ({ pos, kmerHits: count, score: null, cigar: null, isWinner: false }));
+    state.seeds = candidates;
+    state.stage = 1;
+
+    // Render on the track
+    state.seeds.forEach(s => {
+      const x = (s.pos / REFERENCE.length) * 100;
+      const marker = document.createElement('div');
+      marker.className = 'seed-hit';
+      marker.style.left = `calc(${x}% - 4px)`;
+      const tip = document.createElement('span');
+      tip.className = 'tip';
+      tip.textContent = `pos ${s.pos} · ${s.kmerHits} hit${s.kmerHits === 1 ? '' : 's'}`;
+      marker.appendChild(tip);
+      refTrack.appendChild(marker);
+    });
+    renderSeeds();
+    findBtn.disabled = true;
+    extendBtn.disabled = state.seeds.length === 0;
+  }
+
+  // Local-alignment score over the window (±30 bp) around each seed position.
+  function localScore(read, refWindow) {
+    // Simple Smith-Waterman with match +2, mismatch −1, gap −2. Small DP.
+    const m = read.length, n = refWindow.length;
+    const H = Array.from({length: m + 1}, () => new Int32Array(n + 1));
+    const P = Array.from({length: m + 1}, () => new Uint8Array(n + 1));  // 0 none, 1 diag, 2 up, 3 left
+    let maxV = 0, maxI = 0, maxJ = 0;
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        const sv = H[i-1][j-1] + (read[i-1] === refWindow[j-1] ? 2 : -1);
+        const uv = H[i-1][j]   - 2;
+        const lv = H[i][j-1]   - 2;
+        let best = 0, ptr = 0;
+        if (sv > best) { best = sv; ptr = 1; }
+        if (uv > best) { best = uv; ptr = 2; }
+        if (lv > best) { best = lv; ptr = 3; }
+        H[i][j] = best; P[i][j] = ptr;
+        if (best > maxV) { maxV = best; maxI = i; maxJ = j; }
+      }
+    }
+    // Traceback to build CIGAR
+    const ops = [];
+    let i = maxI, j = maxJ;
+    while (i > 0 && j > 0 && H[i][j] > 0) {
+      const p = P[i][j];
+      if (p === 1) { ops.push(read[i-1] === refWindow[j-1] ? '=' : 'X'); i--; j--; }
+      else if (p === 2) { ops.push('I'); i--; }
+      else if (p === 3) { ops.push('D'); j--; }
+      else break;
+    }
+    ops.reverse();
+    // RLE to CIGAR
+    let cur = '', cnt = 0; const cig = [];
+    for (const op of ops) {
+      if (op === cur) cnt++;
+      else { if (cur) cig.push(cnt + cur); cur = op; cnt = 1; }
+    }
+    if (cur) cig.push(cnt + cur);
+    return { score: maxV, cigar: cig.join('') };
+  }
+
+  function extend() {
+    const read = state.scen.read;
+    state.seeds.forEach(s => {
+      const from = Math.max(0, s.pos - 30);
+      const to   = Math.min(REFERENCE.length, s.pos + read.length + 30);
+      const win  = REFERENCE.slice(from, to);
+      const { score, cigar } = localScore(read, win);
+      s.score = score;
+      s.cigar = cigar;
+    });
+    // Pick winner: highest score (ties broken by lowest pos)
+    const best = state.seeds.slice().sort((a, b) => b.score - a.score || a.pos - b.pos)[0];
+    state.seeds.forEach(s => { s.isWinner = (s === best); });
+    state.stage = 2;
+
+    // Draw extension windows around each seed
+    refTrack.querySelectorAll('.seed-hit').forEach((el, i) => {
+      if (state.seeds[i].isWinner) el.classList.add('winner');
+    });
+    state.seeds.forEach(s => {
+      const startX = (Math.max(0, s.pos - 30) / REFERENCE.length) * 100;
+      const endX   = (Math.min(REFERENCE.length, s.pos + read.length + 30) / REFERENCE.length) * 100;
+      const ext = document.createElement('div');
+      ext.className = 'ext-window';
+      ext.style.left = `${startX}%`;
+      ext.style.width = `${endX - startX}%`;
+      refTrack.appendChild(ext);
+    });
+
+    renderSeeds();
+    extendBtn.disabled = true;
+    reportBtn.disabled = false;
+  }
+
+  function report() {
+    const winner = state.seeds.find(s => s.isWinner);
+    state.stage = 3;
+    renderResult(winner);
+    reportBtn.disabled = true;
+  }
+
+  function renderSeeds() {
+    if (!state.seeds.length) {
+      if (state.stage >= 1) {
+        seedList.innerHTML = `<span style="color: var(--warning); font-style: italic;">No seeds found — k = ${state.k} may be too large. Try a smaller seed length.</span>`;
+      } else {
+        seedList.innerHTML = '<span style="color: var(--fg-subtle); font-style: italic;">Press "Find seeds" to populate.</span>';
+      }
+      return;
+    }
+    seedList.innerHTML = state.seeds.map(s => {
+      const rowCls = s.isWinner ? 'winner' : (state.stage >= 2 ? 'loser' : '');
+      return `<div class="seed-list-row ${rowCls}">
+        <span>pos <strong>${s.pos}</strong></span>
+        <span class="pos">${s.kmerHits} k-mer${s.kmerHits === 1 ? '' : 's'} matched</span>
+        <span class="score">${s.score != null ? 'score ' + s.score : '—'}</span>
+        <span class="pos">${s.cigar || ''}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderResult(winner) {
+    if (!winner) {
+      resultBlock.className = 'result neutral';
+      resultText.textContent = 'Not yet.';
+      resultCigar.textContent = '';
+      return;
+    }
+    const correct = (winner.pos === state.scen.truePos);
+    resultBlock.className = 'result';
+    resultText.innerHTML = `Reported alignment at <strong>pos ${winner.pos}</strong> · score ${winner.score} · ` +
+      (correct ? '✓ matches true position' : '✗ NOT the true position (' + state.scen.truePos + ')');
+    resultCigar.textContent = winner.cigar;
+  }
+
+  scenarioEl.addEventListener('change', reset);
+  kSlider.addEventListener('input', () => { kReadout.textContent = kSlider.value; reset(); });
+  findBtn.addEventListener('click', findSeeds);
+  extendBtn.addEventListener('click', extend);
+  reportBtn.addEventListener('click', report);
+  resetBtn.addEventListener('click', reset);
+
+  reset();
+})();
+</script>
+
+</body>
+</html>

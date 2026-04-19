@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FM-Index Backward Search</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0; max-width: 60ch; }
+
+    .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .panel-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+    .field-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: var(--fg-muted); display: block; margin-bottom: 0.4rem; }
+
+    .seq-input, select {
+      font-family: var(--font-mono); font-size: var(--text-sm);
+      padding: 0.45rem 0.65rem; background: var(--bg-muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+    }
+    .seq-input { width: 100%; }
+    .seq-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+
+    .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.5rem 0.9rem; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg); cursor: pointer; }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+
+    .ref-block {
+      font-family: var(--font-mono); font-size: 1rem; letter-spacing: 0.1em;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 0.75rem 1rem;
+      overflow-x: auto;
+    }
+    .ref-block .dollar { color: var(--fg-subtle); }
+    .ref-block .label {
+      font-family: var(--font-sans); font-weight: 600;
+      font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--fg-subtle); margin-right: 0.75rem;
+    }
+
+    /* Query row */
+    .query-row {
+      display: flex; gap: 3px; margin: 0.5rem 0 1rem;
+      font-family: var(--font-mono); font-size: 1.25rem; letter-spacing: 0.1em;
+    }
+    .query-char {
+      width: 2rem; height: 2rem; text-align: center; line-height: 2rem;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--bg-muted); color: var(--fg);
+    }
+    .query-char.current { background: var(--accent); color: #fff; font-weight: 600; }
+    .query-char.processed { background: var(--bg-inset); color: var(--fg-muted); }
+
+    /* FM state */
+    .fm-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.5rem 1.5rem;
+      align-items: baseline;
+      font-family: var(--font-mono); font-size: var(--text-sm);
+      margin: 0.5rem 0;
+    }
+    .fm-grid .key {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--fg-subtle); font-weight: 600;
+    }
+    .fm-grid .value { letter-spacing: 0.08em; }
+    .fm-grid .value .dollar { color: var(--fg-subtle); }
+
+    .interval {
+      background: #eef2ff; border: 1px solid var(--accent);
+      border-radius: var(--radius-sm); padding: 0.5rem 0.75rem;
+      font-family: var(--font-mono); font-size: var(--text-lg);
+      color: var(--accent); font-weight: 600;
+    }
+    .interval.empty { background: #fdd9d5; border-color: var(--error); color: var(--error); }
+
+    .formula {
+      background: var(--bg-muted); padding: 0.5rem 0.75rem;
+      border-radius: var(--radius-sm); font-family: var(--font-mono);
+      font-size: var(--text-sm); color: var(--fg); margin: 0.5rem 0;
+    }
+    .formula strong { color: var(--accent); }
+
+    .history {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 0.75rem 1rem;
+      font-family: var(--font-mono); font-size: var(--text-sm);
+      margin-top: 0.75rem; max-height: 180px; overflow-y: auto;
+    }
+    .history-row { display: grid; grid-template-columns: 2.5rem 1fr; gap: 0.75rem; padding: 0.15rem 0; border-bottom: 1px solid var(--border); }
+    .history-row:last-child { border-bottom: 0; }
+    .history-row .tag { color: var(--accent); font-weight: 600; }
+
+    .result {
+      margin-top: 1rem; padding: 0.75rem 1rem;
+      border-left: 3px solid var(--accent); background: #eef2ff;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      font-size: var(--text-sm);
+    }
+    .result.empty { border-left-color: var(--error); background: #fdeeee; color: var(--error); }
+    .result.neutral { border-left-color: var(--border-strong); background: var(--bg-muted); color: var(--fg-muted); }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="fm-backward-search">
+  <header class="artifact-head">
+    <h1>FM-Index Backward Search</h1>
+    <p>Watch the interval <code>[sp, ep)</code> contract as the query is processed right-to-left. The reference is never looked at — only the BWT, the <code>C</code>-table, and the rank array.</p>
+  </header>
+
+  <section class="panel">
+    <div class="controls" style="margin-bottom: 0.75rem;">
+      <label class="field-label" for="ref-preset" style="margin: 0;">Preset</label>
+      <select id="ref-preset">
+        <option value="ACAACG">ACAACG (canonical BWT example)</option>
+        <option value="GATTACA">GATTACA</option>
+        <option value="MISSISSIPPI">MISSISSIPPI</option>
+        <option value="ABRACADABRA">ABRACADABRA</option>
+      </select>
+    </div>
+    <label class="field-label" for="ref-input">Reference (≤ 20 chars, $ appended)</label>
+    <input id="ref-input" class="seq-input" type="text" spellcheck="false" value="ACAACG" maxlength="20">
+
+    <div style="margin-top: 0.75rem;">
+      <label class="field-label" for="query-input">Query</label>
+      <input id="query-input" class="seq-input" type="text" spellcheck="false" value="ACA" maxlength="12">
+    </div>
+
+    <div class="controls" style="margin-top: 0.75rem;">
+      <button id="reset-btn" class="btn btn--primary" type="button">Reset &amp; start</button>
+      <button id="step-btn"  class="btn" type="button">Step ←</button>
+      <button id="auto-btn"  class="btn" type="button">Run to finish</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Index state</p>
+
+    <div class="ref-block">
+      <span class="label">T</span><span id="ref-display"></span>
+    </div>
+    <div class="fm-grid" style="margin-top: 0.75rem;">
+      <span class="key">F</span><span class="value" id="f-display"></span>
+      <span class="key">L (= BWT)</span><span class="value" id="l-display"></span>
+      <span class="key">C[c]</span><span class="value" id="c-display"></span>
+    </div>
+
+    <p class="panel-label" style="margin-top: 1rem;">Query (processed right-to-left)</p>
+    <div class="query-row" id="query-row"></div>
+
+    <p class="panel-label">Current interval [sp, ep)</p>
+    <div class="interval" id="interval-display">[0, 0)</div>
+
+    <p class="panel-label" style="margin-top: 1rem;">Update formula</p>
+    <div class="formula" id="formula">
+      sp' = C[c] + rank(c, sp)<br>
+      ep' = C[c] + rank(c, ep)
+    </div>
+
+    <p class="panel-label" style="margin-top: 1rem;">History</p>
+    <div class="history" id="history"></div>
+
+    <div class="result" id="result"></div>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const refPreset = $('ref-preset');
+  const refEl     = $('ref-input');
+  const queryEl   = $('query-input');
+  const resetBtn  = $('reset-btn');
+  const stepBtn   = $('step-btn');
+  const autoBtn   = $('auto-btn');
+  const refDisp   = $('ref-display');
+  const fDisp     = $('f-display');
+  const lDisp     = $('l-display');
+  const cDisp     = $('c-display');
+  const queryRow  = $('query-row');
+  const intervalDisp = $('interval-display');
+  const formulaEl = $('formula');
+  const historyEl = $('history');
+  const resultEl  = $('result');
+
+  let T = '';         // reference + $
+  let SA = [];        // suffix array
+  let F = '';         // first column (sorted T)
+  let L = '';         // BWT
+  let C = {};         // C-table
+  let alphabet = [];  // sorted unique chars
+  let query = '';
+  let idx = 0;        // index into query, decreasing (we process right-to-left)
+  let sp = 0, ep = 0;
+  let history = [];
+
+  function buildIndex(inputStr) {
+    inputStr = (inputStr || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 20);
+    if (!inputStr) inputStr = 'ACAACG';
+    T = inputStr + '$';
+    const n = T.length;
+    // Suffix array via sort of rotations (small input, fine)
+    SA = [];
+    for (let i = 0; i < n; i++) SA.push(i);
+    SA.sort((a, b) => {
+      const A = T.slice(a) + T.slice(0, a), B = T.slice(b) + T.slice(0, b);
+      return A < B ? -1 : 1;
+    });
+    // F = sorted chars of T; L = BWT (char before SA[i] cyclically)
+    F = SA.map(i => T[i]).join('');
+    L = SA.map(i => T[(i - 1 + n) % n]).join('');
+
+    // Alphabet and C-table
+    const uniq = new Set(T);
+    alphabet = Array.from(uniq).sort();
+    C = {};
+    let cum = 0;
+    for (const c of alphabet) {
+      C[c] = cum;
+      cum += T.split(c).length - 1;
+    }
+  }
+
+  function rank(c, i) {
+    let count = 0;
+    for (let k = 0; k < i; k++) if (L[k] === c) count++;
+    return count;
+  }
+
+  function reset() {
+    buildIndex(refEl.value);
+    query = (queryEl.value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 12);
+    idx = query.length;    // will decrement; processing right-to-left
+    sp = 0;
+    ep = T.length;
+    history = [];
+    history.push({ kind: 'start', sp, ep, query });
+    renderAll();
+  }
+
+  function step() {
+    if (idx <= 0) return;
+    if (sp >= ep) return;  // already collapsed
+
+    idx--;
+    const c = query[idx];
+    const sp0 = sp, ep0 = ep;
+    const Cc = C[c];
+    if (Cc === undefined) {
+      sp = ep = 0;  // character not in reference
+      history.push({ kind: 'step', c, sp0, ep0, notInAlpha: true, sp, ep });
+    } else {
+      const rSp = rank(c, sp0);
+      const rEp = rank(c, ep0);
+      sp = Cc + rSp;
+      ep = Cc + rEp;
+      history.push({ kind: 'step', c, sp0, ep0, rSp, rEp, Cc, sp, ep });
+    }
+
+    renderAll();
+  }
+
+  async function runAll() {
+    while (idx > 0 && sp < ep) {
+      step();
+      await new Promise(r => setTimeout(r, 280));
+    }
+  }
+
+  function renderAll() {
+    // Reference
+    refDisp.innerHTML = T.split('').map(c => c === '$' ? '<span class="dollar">$</span>' : c).join(' ');
+
+    // F and L (formatted with row indices)
+    const nrows = SA.length;
+    const rowStrs = [];
+    for (let i = 0; i < nrows; i++) {
+      const inRange = (i >= sp && i < ep);
+      const cls = inRange ? 'background: #eef2ff; padding: 0 2px; border-radius: 2px;' : '';
+      rowStrs.push(`<span style="display:inline-block; width:1.5ch; text-align:center; ${cls}">${SA[i]}</span>`);
+    }
+    fDisp.innerHTML = '<span style="color: var(--fg-subtle); margin-right: 0.5rem">rows:</span>' + Array.from({length: nrows}, (_, i) => `<span style="display:inline-block; width:1.5ch; text-align:center; color: var(--fg-subtle); font-size: 0.75rem">${i}</span>`).join('') + '<br>' +
+      '<span style="color: var(--fg-subtle); margin-right: 0.85rem">F:</span>' + F.split('').map((c, i) => {
+        const inRange = (i >= sp && i < ep);
+        const base = c === '$' ? 'color: var(--fg-subtle)' : '';
+        const highlight = inRange ? 'background: #eef2ff; border-radius: 2px;' : '';
+        return `<span style="display:inline-block; width:1.5ch; text-align:center; ${base}; ${highlight}">${c}</span>`;
+      }).join('');
+
+    lDisp.innerHTML = '<span style="color: var(--fg-subtle); margin-right: 0.6rem">L:</span>' + L.split('').map(c => {
+      const base = c === '$' ? 'color: var(--fg-subtle)' : '';
+      return `<span style="display:inline-block; width:1.5ch; text-align:center; ${base}">${c}</span>`;
+    }).join('');
+
+    // C table
+    cDisp.innerHTML = alphabet.map(c => {
+      const disp = c === '$' ? '$' : c;
+      return `${disp}=${C[c]}`;
+    }).join(' &nbsp; ');
+
+    // Query row
+    queryRow.innerHTML = query.split('').map((c, i) => {
+      let cls = '';
+      if (i === idx - 1 && history.length > 1) cls = 'current';
+      else if (i >= idx) cls = 'processed';
+      return `<span class="query-char ${cls}">${c}</span>`;
+    }).join('');
+
+    // Interval
+    intervalDisp.textContent = `[${sp}, ${ep})`;
+    intervalDisp.classList.toggle('empty', sp >= ep);
+
+    // History
+    historyEl.innerHTML = history.map(h => {
+      if (h.kind === 'start') {
+        return `<div class="history-row"><span class="tag">START</span><span>[${h.sp}, ${h.ep}) — process "${h.query}" right-to-left</span></div>`;
+      } else if (h.notInAlpha) {
+        return `<div class="history-row"><span class="tag">${h.c}</span><span>character not in reference → collapse</span></div>`;
+      } else {
+        return `<div class="history-row"><span class="tag">${h.c}</span><span>sp' = C[${h.c}] + rank(${h.c}, ${h.sp0}) = ${h.Cc} + ${h.rSp} = ${h.sp} &nbsp; · &nbsp; ep' = ${h.Cc} + rank(${h.c}, ${h.ep0}) = ${h.Cc} + ${h.rEp} = ${h.ep} &nbsp; → &nbsp; [${h.sp}, ${h.ep})</span></div>`;
+      }
+    }).join('');
+
+    // Formula with substituted values (for current step)
+    if (history.length > 1) {
+      const h = history[history.length - 1];
+      if (h.notInAlpha) {
+        formulaEl.innerHTML = `<strong>"${h.c}"</strong> is not in the reference alphabet — interval collapses.`;
+      } else {
+        formulaEl.innerHTML = `sp' = C[<strong>${h.c}</strong>] + rank(<strong>${h.c}</strong>, ${h.sp0}) = ${h.Cc} + ${h.rSp} = <strong>${h.sp}</strong><br>` +
+                              `ep' = C[<strong>${h.c}</strong>] + rank(<strong>${h.c}</strong>, ${h.ep0}) = ${h.Cc} + ${h.rEp} = <strong>${h.ep}</strong>`;
+      }
+    } else {
+      formulaEl.innerHTML = 'sp\' = C[c] + rank(c, sp)<br>ep\' = C[c] + rank(c, ep)';
+    }
+
+    // Result
+    if (idx > 0 && sp >= ep) {
+      resultEl.className = 'result empty';
+      resultEl.textContent = `Query collapsed after character "${query[idx]}" — not in reference.`;
+    } else if (idx === 0 && sp < ep) {
+      const positions = [];
+      for (let i = sp; i < ep; i++) positions.push(SA[i]);
+      positions.sort((a, b) => a - b);
+      resultEl.className = 'result';
+      resultEl.innerHTML = `<strong>Found</strong> ${ep - sp} occurrence${ep - sp === 1 ? '' : 's'} of "${query}" at position${ep - sp === 1 ? '' : 's'} <strong>${positions.join(', ')}</strong>.`;
+    } else {
+      resultEl.className = 'result neutral';
+      resultEl.textContent = `${idx} character${idx === 1 ? '' : 's'} left to process.`;
+    }
+  }
+
+  refPreset.addEventListener('change', () => {
+    refEl.value = refPreset.value;
+    reset();
+  });
+  refEl.addEventListener('input', reset);
+  queryEl.addEventListener('input', reset);
+  resetBtn.addEventListener('click', reset);
+  stepBtn.addEventListener('click', step);
+  autoBtn.addEventListener('click', runAll);
+
+  reset();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smith-Waterman Matrix</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0; max-width: 60ch; }
+
+    .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .panel-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+    .field-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: var(--fg-muted); display: block; margin-bottom: 0.4rem; }
+    .seq-input { font-family: var(--font-mono); font-size: var(--text-sm); padding: 0.45rem 0.65rem; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); letter-spacing: 0.05em; width: 220px; }
+    .seq-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+    .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.5rem 0.9rem; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg); cursor: pointer; }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .score-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 0.75rem; margin-top: 0.75rem;
+    }
+    .score-field { display: flex; flex-direction: column; gap: 0.25rem; }
+    .score-field input {
+      font-family: var(--font-mono); font-size: var(--text-sm);
+      padding: 0.4rem 0.6rem; background: var(--bg-muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+    }
+
+    /* Matrix */
+    .matrix-wrap {
+      overflow-x: auto;
+      padding: 0.5rem 0;
+    }
+    table.sw {
+      border-collapse: collapse;
+      font-family: var(--font-mono); font-size: var(--text-sm);
+    }
+    table.sw th, table.sw td {
+      width: 42px; height: 34px;
+      text-align: center; vertical-align: middle;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+    table.sw th {
+      background: var(--bg-inset); font-weight: 600;
+      font-family: var(--font-mono); font-size: var(--text-sm);
+    }
+    table.sw td { background: var(--bg-elevated); cursor: default; }
+    table.sw td.filled { color: var(--fg); }
+    table.sw td.zero { color: var(--fg-subtle); }
+    table.sw td:hover { background: #eef2ff; outline: 1px solid var(--accent); outline-offset: -1px; }
+    table.sw td.max {
+      outline: 2.5px solid var(--accent); outline-offset: -2.5px;
+      font-weight: 700;
+    }
+    table.sw td.trace {
+      background: #eef2ff; color: var(--accent); font-weight: 700;
+    }
+    table.sw td .arrow {
+      position: absolute; top: 2px; right: 2px;
+      font-size: 0.65rem; color: var(--accent); font-weight: 700;
+    }
+
+    .hover-card {
+      margin-top: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono); font-size: var(--text-sm);
+      min-height: 3em;
+    }
+    .hover-card.active { background: #eef2ff; border-color: var(--accent); }
+    .hover-card .cand { display: inline-block; margin-right: 1rem; }
+    .hover-card .winner { font-weight: 700; color: var(--accent); }
+
+    .output {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem; align-items: center;
+      margin-top: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-inset); border-radius: var(--radius-sm);
+    }
+    .output .align {
+      font-family: var(--font-mono); font-size: var(--text-base);
+      line-height: 1.6; letter-spacing: 0.15em; color: var(--fg);
+    }
+    .output .cigar {
+      font-family: var(--font-mono); font-size: var(--text-xl);
+      font-weight: 600; color: var(--accent);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .seq-input { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="smith-waterman">
+  <header class="artifact-head">
+    <h1>Smith-Waterman Matrix</h1>
+    <p>Fill the local-alignment DP matrix cell by cell. Hover any cell to see the four-way max. The traceback from the global maximum reconstructs the best local alignment and its CIGAR.</p>
+  </header>
+
+  <section class="panel">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+      <div>
+        <label class="field-label" for="ref-input">Reference</label>
+        <input id="ref-input" class="seq-input" type="text" spellcheck="false" value="GATTACA" maxlength="15">
+      </div>
+      <div>
+        <label class="field-label" for="query-input">Query</label>
+        <input id="query-input" class="seq-input" type="text" spellcheck="false" value="GCATGCA" maxlength="15">
+      </div>
+    </div>
+
+    <div class="score-grid">
+      <div class="score-field">
+        <label class="field-label">Match</label>
+        <input id="s-match" type="number" value="2" step="1">
+      </div>
+      <div class="score-field">
+        <label class="field-label">Mismatch</label>
+        <input id="s-mismatch" type="number" value="-1" step="1">
+      </div>
+      <div class="score-field">
+        <label class="field-label">Gap</label>
+        <input id="s-gap" type="number" value="-2" step="1">
+      </div>
+    </div>
+
+    <div class="controls" style="margin-top: 0.75rem;">
+      <button id="fill-btn"     class="btn btn--primary" type="button">Fill matrix</button>
+      <button id="step-btn"     class="btn" type="button">Step-fill</button>
+      <button id="traceback-btn" class="btn" type="button">Traceback</button>
+      <button id="reset-btn"    class="btn" type="button">Reset</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Matrix</p>
+    <div class="matrix-wrap">
+      <table class="sw" id="sw-table"></table>
+    </div>
+
+    <div class="hover-card" id="hover-card">Hover any cell to see the four-way max derivation.</div>
+
+    <p class="panel-label" style="margin-top: 1rem;">Best local alignment</p>
+    <div class="output">
+      <div class="align" id="align-display">—</div>
+      <div><span style="font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-subtle); font-weight: 600;">CIGAR</span> &nbsp; <span class="cigar" id="cigar-display">—</span></div>
+    </div>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const refEl = $('ref-input');
+  const qEl   = $('query-input');
+  const sMatch = $('s-match');
+  const sMiss  = $('s-mismatch');
+  const sGap   = $('s-gap');
+  const fillBtn  = $('fill-btn');
+  const stepBtn  = $('step-btn');
+  const tbBtn    = $('traceback-btn');
+  const resetBtn = $('reset-btn');
+  const tableEl  = $('sw-table');
+  const hoverCard = $('hover-card');
+  const alignEl   = $('align-display');
+  const cigarEl   = $('cigar-display');
+
+  let ref = '', q = '';
+  let H = [];       // score matrix
+  let PTR = [];     // pointer: 'D' diag, 'U' up, 'L' left, '' zero
+  let stepI = 0, stepJ = 0;  // next cell to fill in step mode
+  let filled = false;
+  let tracePath = []; // list of {i,j}
+  let maxCell = {i:0, j:0, v:0};
+
+  function sanitize(s) { return (s || '').toUpperCase().replace(/[^A-Z]/g, ''); }
+  function s(a, b) { return a === b ? +sMatch.value : +sMiss.value; }
+  function g() { return +sGap.value; }
+
+  function reset() {
+    ref = sanitize(refEl.value).slice(0, 15);
+    q   = sanitize(qEl.value).slice(0, 15);
+    const rows = q.length + 1, cols = ref.length + 1;
+    H = Array.from({length: rows}, () => Array(cols).fill(null));
+    PTR = Array.from({length: rows}, () => Array(cols).fill(''));
+    // Row/col 0 are zeros
+    for (let i = 0; i < rows; i++) H[i][0] = 0;
+    for (let j = 0; j < cols; j++) H[0][j] = 0;
+    stepI = 1; stepJ = 1;
+    filled = false;
+    tracePath = [];
+    maxCell = {i: 0, j: 0, v: 0};
+    render();
+  }
+
+  function fillOne() {
+    if (filled) return false;
+    const i = stepI, j = stepJ;
+    const sv = H[i-1][j-1] + s(q[i-1], ref[j-1]);
+    const uv = H[i-1][j]   + g();
+    const lv = H[i][j-1]   + g();
+    let best = 0, ptr = '';
+    if (sv > best) { best = sv; ptr = 'D'; }
+    if (uv > best) { best = uv; ptr = 'U'; }
+    if (lv > best) { best = lv; ptr = 'L'; }
+    H[i][j] = best;
+    PTR[i][j] = ptr;
+    if (best > maxCell.v) maxCell = {i, j, v: best};
+
+    stepJ++;
+    if (stepJ > ref.length) { stepJ = 1; stepI++; }
+    if (stepI > q.length) filled = true;
+    return true;
+  }
+
+  function fillAll() {
+    while (fillOne()) {}
+    render();
+  }
+
+  function stepFill() {
+    fillOne();
+    render();
+  }
+
+  function traceback() {
+    if (!filled) fillAll();
+    tracePath = [];
+    let i = maxCell.i, j = maxCell.j;
+    while (i > 0 && j > 0 && H[i][j] > 0) {
+      tracePath.push({i, j, ptr: PTR[i][j]});
+      const p = PTR[i][j];
+      if (p === 'D')      { i--; j--; }
+      else if (p === 'U') { i--; }
+      else if (p === 'L') { j--; }
+      else break;
+    }
+    renderTraceback();
+  }
+
+  function deriveAlignment() {
+    // Reconstruct the aligned strings + CIGAR ops from tracePath (in reverse order)
+    const path = tracePath.slice().reverse();
+    let qAlign = '', rAlign = '';
+    let ops = [];
+    for (const step of path) {
+      const {i, j, ptr} = step;
+      if (ptr === 'D') {
+        qAlign += q[i-1]; rAlign += ref[j-1];
+        ops.push(q[i-1] === ref[j-1] ? '=' : 'X');
+      } else if (ptr === 'U') {
+        qAlign += q[i-1]; rAlign += '-';
+        ops.push('I');
+      } else if (ptr === 'L') {
+        qAlign += '-'; rAlign += ref[j-1];
+        ops.push('D');
+      }
+    }
+    // Build CIGAR (RLE over ops)
+    const cigar = [];
+    let cur = '', cnt = 0;
+    for (const op of ops) {
+      if (op === cur) cnt++;
+      else {
+        if (cur) cigar.push(cnt + cur);
+        cur = op; cnt = 1;
+      }
+    }
+    if (cur) cigar.push(cnt + cur);
+    return { qAlign, rAlign, cigar: cigar.join('') || '—' };
+  }
+
+  function render() {
+    const rows = q.length + 1, cols = ref.length + 1;
+    const header = ['<tr><th></th><th>\'\'</th>' + Array.from(ref).map(c => `<th>${c}</th>`).join('') + '</tr>'];
+    const body = [];
+    for (let i = 0; i < rows; i++) {
+      const cells = [];
+      cells.push(`<th>${i === 0 ? "''" : q[i-1]}</th>`);
+      for (let j = 0; j < cols; j++) {
+        const v = H[i][j];
+        let cls = '';
+        let content = '';
+        if (v === null) { cls = 'zero'; content = ''; }
+        else {
+          cls = v === 0 ? 'zero' : 'filled';
+          content = v;
+        }
+        if (filled && i === maxCell.i && j === maxCell.j) cls += ' max';
+        if (tracePath.some(p => p.i === i && p.j === j)) cls += ' trace';
+        cells.push(`<td class="${cls}" data-i="${i}" data-j="${j}">${content}</td>`);
+      }
+      body.push(`<tr>${cells.join('')}</tr>`);
+    }
+    tableEl.innerHTML = header.concat(body).join('');
+
+    // Hover wiring
+    tableEl.querySelectorAll('td').forEach(td => {
+      td.addEventListener('mouseenter', () => {
+        const i = +td.dataset.i, j = +td.dataset.j;
+        if (i === 0 || j === 0 || H[i][j] === null) {
+          hoverCard.className = 'hover-card';
+          hoverCard.textContent = 'Row 0 and column 0 are zero. Hover a filled cell.';
+          return;
+        }
+        const sv = H[i-1][j-1] + s(q[i-1], ref[j-1]);
+        const uv = H[i-1][j]   + g();
+        const lv = H[i][j-1]   + g();
+        const ptr = PTR[i][j];
+        const pick = (v, who) => `<span class="cand ${ptr===who ? 'winner' : ''}">${v}</span>`;
+        hoverCard.className = 'hover-card active';
+        hoverCard.innerHTML = `H[${i}][${j}] = max ( 0 , ` +
+          `${pick(sv, 'D')} <span style="color: var(--fg-subtle)">(↖ diag, s=${q[i-1]===ref[j-1] ? '+'+(+sMatch.value) : sMiss.value})</span>, ` +
+          `${pick(uv, 'U')} <span style="color: var(--fg-subtle)">(↑ up, gap)</span>, ` +
+          `${pick(lv, 'L')} <span style="color: var(--fg-subtle)">(← left, gap)</span> ) = <strong>${H[i][j]}</strong>`;
+      });
+      td.addEventListener('mouseleave', () => {
+        hoverCard.className = 'hover-card';
+        hoverCard.textContent = 'Hover any cell to see the four-way max derivation.';
+      });
+    });
+  }
+
+  function renderTraceback() {
+    render();
+    if (!tracePath.length) { alignEl.innerHTML = '—'; cigarEl.textContent = '—'; return; }
+    const { qAlign, rAlign, cigar } = deriveAlignment();
+    alignEl.innerHTML = `<span style="color: var(--fg-muted); font-size: 0.85em;">query:</span> ${qAlign}<br>` +
+                       `<span style="color: var(--fg-muted); font-size: 0.85em;">ref:  </span> ${rAlign}`;
+    cigarEl.textContent = cigar;
+  }
+
+  refEl.addEventListener('input', reset);
+  qEl.addEventListener('input', reset);
+  sMatch.addEventListener('input', reset);
+  sMiss.addEventListener('input', reset);
+  sGap.addEventListener('input', reset);
+  fillBtn.addEventListener('click', fillAll);
+  stepBtn.addEventListener('click', stepFill);
+  tbBtn.addEventListener('click', traceback);
+  resetBtn.addEventListener('click', reset);
+
+  reset();
+  fillAll();
+  traceback();
+})();
+</script>
+
+</body>
+</html>

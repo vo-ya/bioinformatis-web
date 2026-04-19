@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suffix Array Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 60ch;
+    }
+
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+    @media (max-width: 860px) { .panels { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+    .seq-input {
+      width: 100%;
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      padding: 0.55rem 0.75rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      letter-spacing: 0.05em;
+    }
+    .seq-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 0.75rem;
+    }
+
+    /* SA table */
+    .sa-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      margin-top: 0.75rem;
+    }
+    .sa-table th {
+      text-align: left;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid var(--border-strong);
+      font-weight: 600;
+    }
+    .sa-table td {
+      padding: 0.35rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      transition: background 150ms ease;
+    }
+    .sa-table tr.lo td    { background: var(--bg-muted); }
+    .sa-table tr.hi td    { background: var(--bg-muted); }
+    .sa-table tr.mid td   { background: #eef2ff; outline: 1px solid var(--accent); outline-offset: -2px; }
+    .sa-table tr.match td { background: #d9edd9; }
+    .sa-table tr.prompt-col td { font-family: var(--font-sans); color: var(--fg-subtle); font-style: italic; }
+
+    .sa-table .suffix-match { color: var(--success); font-weight: 600; }
+    .sa-table .suffix-pre   { color: var(--fg-subtle); }
+
+    .trace {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      margin-top: 0.75rem;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .trace p { margin: 0 0 0.25rem; }
+    .trace .tag { color: var(--accent); font-weight: 600; }
+    .trace .kv  { color: var(--fg-muted); }
+
+    .result {
+      margin-top: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: #eef2ff;
+      border-left: 3px solid var(--accent);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .result.empty { background: var(--bg-muted); border-left-color: var(--border-strong); color: var(--fg-muted); }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="suffix-array">
+
+  <header class="artifact-head">
+    <h1>Suffix Array Explorer</h1>
+    <p>Build a suffix array by sorting the suffixes of a short string, then binary-search it. Watch <code>lo</code>, <code>mid</code>, <code>hi</code> converge on the range of suffixes that start with your query — the read is a <em>prefix of a range</em> of suffixes.</p>
+  </header>
+
+  <div class="panels">
+
+    <!-- ─── Build panel ─── -->
+    <section class="panel">
+      <p class="panel-label">Build</p>
+      <label class="field-label" for="input-string">Input string (≤ 20 chars, $ appended automatically)</label>
+      <input id="input-string" class="seq-input" type="text" spellcheck="false" value="BANANA" maxlength="20">
+      <div class="controls">
+        <button id="build-btn" class="btn btn--primary" type="button">Build SA</button>
+      </div>
+
+      <p class="hint">Each suffix begins at a different position in the string. Sort them lexicographically; the suffix array stores the starting position of each sorted suffix.</p>
+
+      <table class="sa-table" id="sa-table">
+        <thead><tr><th>i</th><th>SA[i]</th><th>suffix</th></tr></thead>
+        <tbody id="sa-body"></tbody>
+      </table>
+    </section>
+
+    <!-- ─── Query panel ─── -->
+    <section class="panel">
+      <p class="panel-label">Query</p>
+      <label class="field-label" for="query-input">Pattern</label>
+      <input id="query-input" class="seq-input" type="text" spellcheck="false" value="ANA" maxlength="10">
+      <div class="controls">
+        <button id="search-btn" class="btn btn--primary" type="button">Search</button>
+        <button id="step-btn"   class="btn" type="button">Step</button>
+        <button id="reset-search-btn" class="btn" type="button">Reset</button>
+      </div>
+
+      <div class="trace" id="trace" aria-live="polite">
+        <p style="color: var(--fg-subtle); font-style: italic; margin: 0;">Binary-search trace will appear here.</p>
+      </div>
+      <div class="result" id="result"></div>
+    </section>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const inputEl  = $('input-string');
+  const queryEl  = $('query-input');
+  const saBody   = $('sa-body');
+  const buildBtn = $('build-btn');
+  const searchBtn= $('search-btn');
+  const stepBtn  = $('step-btn');
+  const resetSearchBtn = $('reset-search-btn');
+  const trace    = $('trace');
+  const resultEl = $('result');
+
+  const state = {
+    text: '',      // input + $
+    sa: [],        // the suffix array
+    suffixes: [],  // list of suffix strings, in SA order
+    search: null,  // {lo, hi, mid, pattern, done, left, right}
+  };
+
+  function sanitize(s) {
+    return (s || '').toUpperCase().replace(/[^ACGTNB-Z]/g, '');
+  }
+
+  function build() {
+    let t = sanitize(inputEl.value).slice(0, 20);
+    if (!t) t = 'BANANA';
+    state.text = t + '$';
+    const n = state.text.length;
+    const sa = [];
+    for (let i = 0; i < n; i++) sa.push(i);
+    // Lexicographic sort by suffix
+    sa.sort((a, b) => {
+      const A = state.text.slice(a), B = state.text.slice(b);
+      return A < B ? -1 : (A > B ? 1 : 0);
+    });
+    state.sa = sa;
+    state.suffixes = sa.map(i => state.text.slice(i));
+    state.search = null;
+    renderTable();
+    renderTrace();
+    renderResult();
+  }
+
+  function renderTable() {
+    saBody.innerHTML = '';
+    state.sa.forEach((pos, i) => {
+      const tr = document.createElement('tr');
+      tr.id = 'row-' + i;
+      // Highlight class from state.search
+      const s = state.search;
+      if (s && !s.done) {
+        if (i === s.lo)  tr.classList.add('lo');
+        if (i === s.hi)  tr.classList.add('hi');
+        if (i === s.mid) tr.classList.add('mid');
+      } else if (s && s.done && i >= s.left && i <= s.right && s.left <= s.right) {
+        tr.classList.add('match');
+      }
+      // suffix with matching-prefix highlighted
+      const suf = state.suffixes[i];
+      let sufHtml;
+      if (state.search && suf.startsWith(state.search.pattern)) {
+        sufHtml = `<span class="suffix-match">${state.search.pattern}</span>${suf.slice(state.search.pattern.length)}`;
+      } else {
+        sufHtml = suf;
+      }
+      tr.innerHTML = `<td>${i}</td><td>${pos}</td><td>${sufHtml}</td>`;
+      saBody.appendChild(tr);
+    });
+  }
+
+  function startSearch() {
+    if (!state.sa.length) return;
+    const p = sanitize(queryEl.value);
+    if (!p) return;
+    const n = state.sa.length;
+    state.search = {
+      pattern: p,
+      // Find LEFT boundary: first row whose suffix ≥ pattern
+      lo: 0, hi: n,
+      mid: Math.floor(n / 2),
+      phase: 'left',
+      left: -1, right: -1,
+      done: false,
+      steps: [],
+    };
+    state.search.steps.push({kind: 'start', pattern: p, lo: 0, hi: n, mid: state.search.mid});
+    renderTable(); renderTrace(); renderResult();
+  }
+
+  function stepSearch() {
+    const s = state.search;
+    if (!s || s.done) return;
+
+    const pat = s.pattern;
+    const n = state.sa.length;
+
+    if (s.phase === 'left') {
+      if (s.lo >= s.hi) {
+        // left boundary found
+        s.left = s.lo;
+        s.phase = 'right';
+        s.lo = 0; s.hi = n;
+        s.mid = Math.floor(n / 2);
+        s.steps.push({kind: 'phase-switch', left: s.left, lo: 0, hi: n, mid: s.mid});
+      } else {
+        const mid = Math.floor((s.lo + s.hi) / 2);
+        s.mid = mid;
+        const suf = state.suffixes[mid];
+        // Compare suf to pattern
+        const cmp = suf < pat ? -1 : 0;    // we want first suf ≥ pat
+        s.steps.push({kind: 'left', lo: s.lo, hi: s.hi, mid: mid, suf: suf, cmp});
+        if (cmp < 0) s.lo = mid + 1;
+        else         s.hi = mid;
+      }
+    } else if (s.phase === 'right') {
+      if (s.lo >= s.hi) {
+        s.right = s.lo - 1;
+        s.done = true;
+        s.steps.push({kind: 'done', left: s.left, right: s.right});
+      } else {
+        const mid = Math.floor((s.lo + s.hi) / 2);
+        s.mid = mid;
+        const suf = state.suffixes[mid];
+        // First suf that does NOT start with pat (where suf >= pat + next-char-bigger)
+        const startsWith = suf.startsWith(pat);
+        s.steps.push({kind: 'right', lo: s.lo, hi: s.hi, mid: mid, suf: suf, startsWith});
+        if (startsWith) s.lo = mid + 1;
+        else {
+          if (suf < pat) s.lo = mid + 1;  // still too small (shouldn't happen after left)
+          else           s.hi = mid;
+        }
+      }
+    }
+
+    renderTable(); renderTrace(); renderResult();
+  }
+
+  function runSearch() {
+    startSearch();
+    let guard = 0;
+    while (state.search && !state.search.done && guard++ < 200) {
+      stepSearch();
+    }
+  }
+
+  function renderTrace() {
+    trace.innerHTML = '';
+    if (!state.search) {
+      trace.innerHTML = '<p style="color: var(--fg-subtle); font-style: italic; margin: 0;">Binary-search trace will appear here.</p>';
+      return;
+    }
+    state.search.steps.forEach((st) => {
+      const p = document.createElement('p');
+      if (st.kind === 'start') {
+        p.innerHTML = `<span class="tag">START</span> pattern=<strong>${st.pattern}</strong> lo=${st.lo} hi=${st.hi} mid=${st.mid}`;
+      } else if (st.kind === 'left') {
+        p.innerHTML = `<span class="tag">LEFT</span> <span class="kv">mid=</span>${st.mid} · suffix="<strong>${st.suf}</strong>" · ${st.cmp < 0 ? 'lt pattern → lo = mid+1' : 'ge pattern → hi = mid'}`;
+      } else if (st.kind === 'phase-switch') {
+        p.innerHTML = `<span class="tag">LEFT FOUND</span> left=${st.left} · begin RIGHT search [0, ${st.hi})`;
+      } else if (st.kind === 'right') {
+        p.innerHTML = `<span class="tag">RIGHT</span> <span class="kv">mid=</span>${st.mid} · suffix="<strong>${st.suf}</strong>" · ${st.startsWith ? 'starts with pattern → lo = mid+1' : 'past pattern → hi = mid'}`;
+      } else if (st.kind === 'done') {
+        p.innerHTML = `<span class="tag">DONE</span> range = [${st.left}, ${st.right}]`;
+      }
+      trace.appendChild(p);
+    });
+    trace.scrollTop = trace.scrollHeight;
+  }
+
+  function renderResult() {
+    if (!state.search || !state.search.done) {
+      resultEl.textContent = '';
+      resultEl.className = 'result empty';
+      return;
+    }
+    const s = state.search;
+    if (s.left > s.right) {
+      resultEl.className = 'result empty';
+      resultEl.textContent = `Pattern "${s.pattern}" not found in the suffix array.`;
+      return;
+    }
+    const positions = [];
+    for (let i = s.left; i <= s.right; i++) positions.push(state.sa[i]);
+    positions.sort((a, b) => a - b);
+    resultEl.className = 'result';
+    resultEl.innerHTML = `
+      <strong>Range [${s.left}, ${s.right}]</strong> — ${positions.length} occurrence${positions.length === 1 ? '' : 's'} of "<strong>${s.pattern}</strong>"
+      at position${positions.length === 1 ? '' : 's'} <strong>${positions.join(', ')}</strong> in the input.
+    `;
+  }
+
+  function resetSearch() {
+    state.search = null;
+    renderTable(); renderTrace(); renderResult();
+  }
+
+  inputEl.addEventListener('input', () => { state.search = null; });
+  buildBtn.addEventListener('click', build);
+  searchBtn.addEventListener('click', runSearch);
+  stepBtn.addEventListener('click', () => { if (!state.search) startSearch(); else stepSearch(); });
+  resetSearchBtn.addEventListener('click', resetSearch);
+
+  build();
+})();
+</script>
+
+</body>
+</html>

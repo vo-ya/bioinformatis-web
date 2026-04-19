@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 300" role="img" aria-labelledby="t d">
+  <title id="t">Brute-force sliding-window alignment</title>
+  <desc id="d">Three rows showing the query sliding across the reference by one position at a time. Above each row, per-character comparison ticks — dots for matches, small crosses for mismatches. A bracket at the bottom totals the comparisons for the three positions and labels the cost as scaling with the full length of the reference.</desc>
+
+  <defs>
+    <marker id="arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#525252"/>
+    </marker>
+  </defs>
+
+  <!-- Kicker -->
+  <text x="40" y="30" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#8a8a85" letter-spacing="0.12em">
+    BRUTE FORCE · O(|R| · |r|)
+  </text>
+
+  <!-- Reference row repeated at top for context -->
+  <text x="40" y="58" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-weight="500">Reference</text>
+  <text x="120" y="58" font-family="JetBrains Mono, monospace" font-size="13" fill="#0a0a0a">GATTACAGATTACA</text>
+
+  <!-- Row 1: query at position 0 -->
+  <g transform="translate(0 90)">
+    <text x="40" y="14" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-weight="500">Pos 0</text>
+    <text x="120" y="14" font-family="JetBrains Mono, monospace" font-size="13" fill="#1e3a8a">TACAGA</text>
+    <!-- compare ticks above each char -->
+    <g stroke-width="1" fill="#b91c1c" stroke="#b91c1c">
+      <path d="M 121 -4 L 127 2 M 127 -4 L 121 2"/>
+    </g>
+    <g stroke="#0a0a0a" stroke-width="1" fill="#0a0a0a">
+      <circle cx="132" cy="-1" r="1.5"/>
+    </g>
+    <g stroke-width="1" stroke="#b91c1c" fill="#b91c1c">
+      <path d="M 137 -4 L 143 2 M 143 -4 L 137 2"/>
+      <path d="M 145 -4 L 151 2 M 151 -4 L 145 2"/>
+    </g>
+    <text x="210" y="14" font-family="Inter, sans-serif" font-size="10" fill="#525252">× no match, 4 comparisons before exit</text>
+  </g>
+
+  <!-- Arrow "shift +1" between row 1 and row 2 -->
+  <g>
+    <line x1="80" y1="115" x2="80" y2="135" stroke="#525252" stroke-width="1" marker-end="url(#arrow-muted)"/>
+    <text x="90" y="130" font-family="Inter, sans-serif" font-size="10" fill="#525252">shift +1</text>
+  </g>
+
+  <!-- Row 2: query at position 1 -->
+  <g transform="translate(0 150)">
+    <text x="40" y="14" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-weight="500">Pos 1</text>
+    <text x="128" y="14" font-family="JetBrains Mono, monospace" font-size="13" fill="#1e3a8a">TACAGA</text>
+    <g stroke-width="1" fill="#b91c1c" stroke="#b91c1c">
+      <path d="M 129 -4 L 135 2 M 135 -4 L 129 2"/>
+    </g>
+    <text x="218" y="14" font-family="Inter, sans-serif" font-size="10" fill="#525252">× 1 comparison, early exit</text>
+  </g>
+
+  <!-- Arrow "shift +1" -->
+  <g>
+    <line x1="80" y1="175" x2="80" y2="195" stroke="#525252" stroke-width="1" marker-end="url(#arrow-muted)"/>
+    <text x="90" y="190" font-family="Inter, sans-serif" font-size="10" fill="#525252">shift +1</text>
+  </g>
+
+  <!-- Row 3: query at position 2 — matches here -->
+  <g transform="translate(0 210)">
+    <text x="40" y="14" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-weight="500">Pos 2</text>
+    <text x="136" y="14" font-family="JetBrains Mono, monospace" font-size="13" fill="#1e3a8a">TACAGA</text>
+    <g stroke="#0a0a0a" stroke-width="1" fill="#0a0a0a">
+      <circle cx="140" cy="-1" r="1.5"/>
+      <circle cx="148" cy="-1" r="1.5"/>
+      <circle cx="156" cy="-1" r="1.5"/>
+      <circle cx="164" cy="-1" r="1.5"/>
+      <circle cx="172" cy="-1" r="1.5"/>
+      <circle cx="180" cy="-1" r="1.5"/>
+    </g>
+    <text x="218" y="14" font-family="Inter, sans-serif" font-size="10" fill="#15803d" font-weight="600">✓ full match at pos 2, 6 comparisons</text>
+  </g>
+
+  <!-- Total bracket -->
+  <g transform="translate(0 250)">
+    <path d="M 120 16 L 120 24 L 300 24 L 300 16" stroke="#525252" stroke-width="1" fill="none"/>
+    <text x="210" y="46" font-family="Inter, sans-serif" font-size="11" fill="#525252" text-anchor="middle">
+      <tspan fill="#0a0a0a" font-weight="600">11 comparisons</tspan> for 3 positions
+    </text>
+    <text x="310" y="46" font-family="Inter, sans-serif" font-size="11" fill="#525252">· · ·  × (|R| − |r| + 1) total positions  =  O(|R| · |r|) comparisons</text>
+  </g>
+
+  <!-- Legend bottom -->
+  <g transform="translate(40 282)" font-family="Inter, sans-serif" font-size="10" fill="#525252">
+    <circle cx="4" cy="0" r="1.5" fill="#0a0a0a"/>
+    <text x="12" y="4">match</text>
+    <g stroke="#b91c1c" stroke-width="1" fill="none">
+      <path d="M 82 -4 L 90 4 M 90 -4 L 82 4"/>
+    </g>
+    <text x="100" y="4">mismatch</text>
+  </g>
+</svg>

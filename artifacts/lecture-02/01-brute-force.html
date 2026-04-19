@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brute-Force Aligner</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 60ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+    .seq-input, textarea.seq-input {
+      width: 100%;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      padding: 0.55rem 0.75rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .seq-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .controls label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+    }
+    .controls input[type="range"] { accent-color: var(--accent); width: 120px; }
+
+    /* Alignment visual */
+    .align-view {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      line-height: 1.4;
+      letter-spacing: 0.05em;
+      min-height: 120px;
+    }
+    .align-row { white-space: pre; position: relative; }
+    .align-row .ref-base { color: var(--fg); }
+    .align-row .ref-base.compared { background: #eef2ff; border-radius: 2px; }
+    .align-row .query-base { color: var(--accent); font-weight: 600; }
+    .align-row .query-base.match    { background: #d9edd9; color: var(--success); border-radius: 2px; }
+    .align-row .query-base.mismatch { background: #fdd9d5; color: var(--error);   border-radius: 2px; }
+    .align-row .query-base.pending  { opacity: 0.55; }
+
+    .status-line {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      padding: 0.85rem 1rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-top: 1rem;
+    }
+    .status-line .label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+    }
+    .status-line .value {
+      font-family: var(--font-mono);
+      font-size: var(--text-lg);
+      color: var(--fg);
+      margin-top: 0.15rem;
+    }
+    .status-line .value.emphasis { color: var(--accent); }
+
+    .matches {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      margin-top: 0.75rem;
+      color: var(--fg);
+    }
+    .matches-none { color: var(--fg-subtle); font-style: italic; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="brute-force">
+
+  <header class="artifact-head">
+    <h1>Brute-Force Aligner</h1>
+    <p>The read slides along the reference one position at a time and compares every character. Watch the comparison counter climb. Every algorithm in the rest of this lecture has to earn its complexity against this baseline.</p>
+  </header>
+
+  <section class="panel">
+    <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+      <div>
+        <label class="field-label" for="ref-input">Reference (≤ 2000 chars)</label>
+        <textarea id="ref-input" class="seq-input" rows="2" spellcheck="false">AAGCTCAGTCGATCGATCGATCAGTCGATCGATCAGTCGATCAGTCGATCGATCAGTCGATCAGATCGATCGATCAGTCGATCAGATCGATCGATCAGTCGATCAG</textarea>
+      </div>
+      <div>
+        <label class="field-label" for="query-input">Query (5–50 chars)</label>
+        <input id="query-input" class="seq-input" type="text" spellcheck="false" value="ATCGATCAG">
+      </div>
+    </div>
+
+    <div class="controls" style="margin-top: 1rem;">
+      <button id="play-btn"  class="btn btn--primary" type="button">▶ Play</button>
+      <button id="pause-btn" class="btn" type="button" disabled>⏸ Pause</button>
+      <button id="step-btn"  class="btn" type="button">⏭ Step</button>
+      <button id="reset-btn" class="btn" type="button">↺ Reset</button>
+      <label>Speed <input id="speed" type="range" min="1" max="10" value="6"></label>
+      <label><input id="early-exit" type="checkbox"> Early exit on mismatch</label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Alignment view (position <span id="pos-readout">0</span> / <span id="pos-max">—</span>)</p>
+    <div class="align-view" id="align-view"></div>
+
+    <div class="status-line">
+      <div>
+        <p class="label">Position</p>
+        <p class="value" id="stat-position">0</p>
+      </div>
+      <div>
+        <p class="label">Comparisons</p>
+        <p class="value emphasis" id="stat-comparisons">0</p>
+      </div>
+      <div>
+        <p class="label">Matches found</p>
+        <p class="value" id="stat-matches">0</p>
+      </div>
+      <div>
+        <p class="label">Extrapolated cost</p>
+        <p class="value" id="stat-extrapolation">—</p>
+      </div>
+    </div>
+    <p class="matches" id="match-list"></p>
+    <p class="hint">Extrapolated cost scales the observed rate to a 3 Gb reference and 10⁹ reads — the brute-force worst case for a human genome run.</p>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const refEl      = $('ref-input');
+  const queryEl    = $('query-input');
+  const playBtn    = $('play-btn');
+  const pauseBtn   = $('pause-btn');
+  const stepBtn    = $('step-btn');
+  const resetBtn   = $('reset-btn');
+  const speedEl    = $('speed');
+  const earlyExit  = $('early-exit');
+  const view       = $('align-view');
+  const statPos    = $('stat-position');
+  const statCmp    = $('stat-comparisons');
+  const statMatches= $('stat-matches');
+  const statExtra  = $('stat-extrapolation');
+  const matchList  = $('match-list');
+  const posReadout = $('pos-readout');
+  const posMax     = $('pos-max');
+
+  const state = {
+    ref: '',
+    query: '',
+    pos: 0,             // current sliding-window start
+    cmpCount: 0,
+    matches: [],
+    playing: false,
+    timer: null,
+    cmpOffset: 0,       // how many chars compared at current position
+    finishedAtCurrentPos: false,
+  };
+
+  function sanitize(s) { return (s || '').toUpperCase().replace(/[^ACGT]/g, ''); }
+  function clamp(s, max) { return s.length > max ? s.slice(0, max) : s; }
+
+  function reset() {
+    stop();
+    state.ref = clamp(sanitize(refEl.value), 2000);
+    state.query = clamp(sanitize(queryEl.value), 50);
+    state.pos = 0;
+    state.cmpCount = 0;
+    state.matches = [];
+    state.cmpOffset = 0;
+    state.finishedAtCurrentPos = false;
+    render();
+  }
+
+  function advance() {
+    if (!state.query.length || state.query.length > state.ref.length) return stop();
+    const maxPos = state.ref.length - state.query.length;
+    if (state.pos > maxPos) return stop();
+
+    // Advance through ONE position — tally all comparisons for it.
+    // (With a slider speed of 1 we do a whole position per tick for animation pacing.)
+    const q = state.query, r = state.ref, start = state.pos;
+    let matched = true;
+    const limit = q.length;
+    for (let k = 0; k < limit; k++) {
+      state.cmpCount++;
+      if (r[start + k] !== q[k]) {
+        matched = false;
+        if (earlyExit.checked) break;
+      }
+    }
+    if (matched) state.matches.push(start);
+
+    state.pos += 1;
+    if (state.pos > maxPos) stop();
+    render();
+  }
+
+  function play() {
+    if (state.playing) return;
+    const maxPos = state.ref.length - state.query.length;
+    if (state.pos > maxPos) reset();
+    state.playing = true;
+    updateButtons();
+    const delay = 400 - (+speedEl.value - 1) * 40;  // 400ms slow … 40ms fast
+    state.timer = setInterval(advance, delay);
+  }
+
+  function stop() {
+    state.playing = false;
+    if (state.timer) { clearInterval(state.timer); state.timer = null; }
+    updateButtons();
+  }
+
+  function step() { stop(); advance(); }
+
+  function updateButtons() {
+    const atEnd = state.pos > state.ref.length - state.query.length;
+    playBtn.disabled  = state.playing || atEnd;
+    pauseBtn.disabled = !state.playing;
+    stepBtn.disabled  = atEnd;
+  }
+
+  function render() {
+    const r = state.ref, q = state.query, pos = state.pos;
+    const maxPos = Math.max(0, r.length - q.length);
+    posReadout.textContent = pos;
+    posMax.textContent     = maxPos;
+    statPos.textContent    = pos;
+    statCmp.textContent    = state.cmpCount.toLocaleString();
+    statMatches.textContent = state.matches.length;
+
+    // Build per-character spans for the reference (length up to ~400 chars renders OK)
+    const refSpans = [];
+    for (let i = 0; i < r.length; i++) {
+      const inWindow = i >= pos && i < pos + q.length;
+      refSpans.push(`<span class="ref-base${inWindow ? ' compared' : ''}">${r[i]}</span>`);
+    }
+
+    // Build query line: offset by pos spaces, each char coloured against ref
+    const querySpans = [];
+    for (let i = 0; i < pos; i++) querySpans.push(' ');
+    for (let k = 0; k < q.length; k++) {
+      const rc = r[pos + k];
+      const cls = rc === undefined ? 'pending' : (rc === q[k] ? 'match' : 'mismatch');
+      querySpans.push(`<span class="query-base ${cls}">${q[k]}</span>`);
+    }
+
+    // Remaining ref slack after query
+    for (let i = pos + q.length; i < r.length; i++) querySpans.push(' ');
+
+    view.innerHTML = `
+      <div class="align-row">${refSpans.join('')}</div>
+      <div class="align-row">${querySpans.join('')}</div>
+    `;
+
+    // Match list
+    if (state.matches.length) {
+      matchList.innerHTML = '<strong>Matches:</strong> ' + state.matches.slice(0, 20).map(p => `pos ${p}`).join(' · ') +
+        (state.matches.length > 20 ? ` … (+${state.matches.length - 20})` : '');
+    } else if (state.pos > 0) {
+      matchList.innerHTML = '<span class="matches-none">No matches yet.</span>';
+    } else {
+      matchList.innerHTML = '<span class="matches-none">No matches reported yet — press Play.</span>';
+    }
+
+    // Extrapolation: scale cmps/position to human-genome scale (|R|=3e9, |r|=150 effectively)
+    if (state.pos > 0) {
+      const cmpPerPos = state.cmpCount / state.pos;
+      const humanPositions = 3e9;
+      const cmpPerRead  = cmpPerPos * humanPositions;
+      const cmpTotal    = cmpPerRead * 1e9;  // 1 billion reads
+      const cpuYears    = cmpTotal / 1e9 / 3.15576e7;  // at 1 billion comps/sec/core
+      statExtra.textContent = `≈ ${formatCPU(cpuYears)}`;
+    } else {
+      statExtra.textContent = '—';
+    }
+
+    updateButtons();
+  }
+
+  function formatCPU(years) {
+    if (years >= 1e3) return `${(years/1e3).toFixed(1)}k CPU-yrs`;
+    if (years >= 1)   return `${Math.round(years)} CPU-yrs`;
+    return `${Math.round(years * 365)} CPU-days`;
+  }
+
+  // Wiring
+  [refEl, queryEl].forEach(el => el.addEventListener('input', () => {
+    reset();
+  }));
+  speedEl.addEventListener('input', () => {
+    if (state.playing) { stop(); play(); }
+  });
+  earlyExit.addEventListener('change', reset);
+  playBtn.addEventListener('click', play);
+  pauseBtn.addEventListener('click', stop);
+  stepBtn.addEventListener('click', step);
+  resetBtn.addEventListener('click', reset);
+
+  reset();
+})();
+</script>
+
+</body>
+</html>

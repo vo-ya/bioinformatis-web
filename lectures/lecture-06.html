@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 6 — Differential Expression and Count Statistics</title>
+  <meta name="description" content="Differential expression for bulk RNA-seq: the negative-binomial GLM, empirical-Bayes dispersion shrinkage, Wald vs LRT testing, Benjamini–Hochberg FDR control, and gene-set enrichment with ORA and GSEA.">
+
+  <meta property="og:title" content="Lecture 6 — Differential Expression">
+  <meta property="og:description" content="From count matrices to DE gene lists and enrichments: NB GLMs, dispersion shrinkage, FDR, and GSEA.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — The DE Problem</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 What we're asking</a></li>
+          <li><a href="#sec-1-2">1.2 Why t-tests fail</a></li>
+          <li><a href="#sec-1-3">1.3 What the noise model needs</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — NB &amp; the GLM</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 NB in depth</a></li>
+          <li><a href="#sec-2-2">2.2 The NB GLM</a></li>
+          <li><a href="#sec-2-3">2.3 Size factors &amp; log-FC</a></li>
+          <li><a href="#sec-2-4">2.4 Biological vs technical</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — DESeq2 &amp; edgeR</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 The DE pipeline</a></li>
+          <li><a href="#sec-3-2">3.2 Dispersion MLE</a></li>
+          <li><a href="#sec-3-3">3.3 EB shrinkage</a></li>
+          <li><a href="#sec-3-4">3.4 Wald vs LRT</a></li>
+          <li><a href="#sec-3-5">3.5 limma-voom</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Multiple Testing</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 20,000 tests</a></li>
+          <li><a href="#sec-4-2">4.2 Bonferroni vs BH</a></li>
+          <li><a href="#sec-4-3">4.3 FDR &amp; q-values</a></li>
+          <li><a href="#sec-4-4">4.4 Independent filtering</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Gene List to Biology</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 ORA</a></li>
+          <li><a href="#sec-5-2">5.2 GSEA</a></li>
+          <li><a href="#sec-5-3">5.3 Pathway databases</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 06</div>
+      <h1 class="lecture-title">Differential Expression and Count Statistics</h1>
+      <p class="lecture-subtitle">Fitting the negative-binomial GLM at 20,000-test scale — dispersion shrinkage, Wald vs LRT, FDR, and gene-set enrichment.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — The DE Problem</a></li>
+        <li><a href="#part-2">Part 2 — NB &amp; the GLM</a></li>
+        <li><a href="#part-3">Part 3 — DESeq2 &amp; edgeR</a></li>
+        <li><a href="#part-4">Part 4 — Multiple Testing</a></li>
+        <li><a href="#part-5">Part 5 — Gene List to Biology</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Four moves:</em>
+        <span class="lecture-tagline-beat">fit the NB GLM</span>,
+        <span class="lecture-tagline-beat">shrink dispersion</span>,
+        <span class="lecture-tagline-beat">control FDR</span>,
+        <span class="lecture-tagline-beat">read the enrichment</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Explain why a t-test on RNA-seq counts produces unreliable p-values, and state the two properties of the count distribution that break it.</li>
+          <li>Write down the negative-binomial generalised linear model that DESeq2 and edgeR fit, and identify the role of the size-factor offset.</li>
+          <li>Describe the dispersion-estimation pipeline: gene-wise MLE, fitted mean–dispersion trend, empirical-Bayes shrinkage.</li>
+          <li>Pick the right test — Wald vs likelihood-ratio — for a given DE question.</li>
+          <li>Explain why Benjamini–Hochberg controls FDR at 20k-gene scale, and contrast it with Bonferroni.</li>
+          <li>Interpret a p-value histogram: what a healthy DE analysis should look like, and what the failure modes are.</li>
+          <li>Pick between ORA and GSEA given a DE result, and describe what each actually tests.</li>
+          <li>Sketch a DE workflow end-to-end, from the count matrix produced by Lecture 5 to an annotated gene list.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 25 min</span>
+          The DE Problem
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 What we're asking</h3>
+
+          <p>"Differential expression" is the question a biologist usually wants to answer: given RNA-seq counts from samples under two or more conditions, which genes are expressed at measurably different levels between the conditions? The output is a list of genes, each with a log-fold-change estimate and a confidence statement.</p>
+
+          <p>Mechanically, differential expression is a gene-by-gene hypothesis test with thousands of tests run in parallel. For each gene:</p>
+
+          <ul>
+            <li>H₀: expression is the same in both conditions.</li>
+            <li>H₁: expression differs by some non-zero amount.</li>
+          </ul>
+
+          <p>The output you give a biologist is a <strong>volcano plot</strong>: log₂ fold change on the x-axis, −log₁₀ adjusted p-value on the y-axis. Genes far from the origin are "differentially expressed" (large effect, high confidence). Genes near the origin are not.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-06/01-volcano-anatomy.svg"
+                 alt="A volcano plot with about 2000 gene points; the four significance-and-effect quadrants labeled; canonical thresholds padj < 0.05 and |log2FC| > 1 drawn as dashed lines; five example genes highlighted and labeled.">
+            <figcaption>Figure 1. Anatomy of a volcano plot. Every DE result is a scatter in (effect, confidence) space; thresholds on both axes carve the plane into "hit" and "non-hit" regions.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Volcano Plot Explorer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-06/01-volcano-explorer.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-06/01-volcano-explorer.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Volcano Plot Explorer"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>A volcano plot answers two questions for every gene at once: how big is the effect (horizontal position) and how certain are we (vertical position)? The whole of this lecture is about how the vertical axis — the adjusted p-value — gets computed honestly. Getting the horizontal axis wrong is a small problem; getting the vertical axis wrong turns every DE analysis into a random-number generator.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 Why t-tests fail on counts</h3>
+
+          <p>A reasonable first instinct: "I have counts in two conditions; run a t-test per gene." This fails for three reasons rooted in the data.</p>
+
+          <p><strong>Reason 1: counts are integers, not normals.</strong> A Student's t-test assumes data are drawn from a normal distribution with a common variance parameter. Counts violate both — they're non-negative integers, they have a hard floor at zero, and their variance is a <em>function</em> of their mean (bigger counts mean bigger variance, §1.3). Low-count genes are the ones most affected, and low-count genes are the ones most often relevant to biology.</p>
+
+          <p><strong>Reason 2: too few replicates.</strong> A typical bulk RNA-seq study has 3–6 replicates per condition. That's not enough to estimate the per-gene variance reliably with a t-test — the sample standard deviation from 3 numbers has a roughly 40% relative error. With 20,000 genes tested, thousands of them will have a <em>spuriously small</em> sample variance and will look "highly significant" purely by chance. A test that is correct only on average becomes spectacularly wrong when you run it 20,000 times and pick the "winners."</p>
+
+          <p><strong>Reason 3: the mean–variance relationship.</strong> In real RNA-seq data, the variance of a gene's counts grows roughly quadratically with its mean (the NB model from Lecture 5 §4.4). A t-test assumes homoscedastic variance. On RNA-seq data, the t-test will underestimate variance for highly expressed genes and overestimate it for lowly expressed genes — producing p-values that are systematically wrong in opposite directions depending on gene expression level.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-06/02-t-test-failure.svg"
+                 alt="Left panel: a low-count gene histogram compared to a normal distribution of the same mean, showing skew and zero-spike that the normal cannot represent. Right panel: the resulting p-value histogram under the null for a t-test on count data, non-uniform and biased toward false positives.">
+            <figcaption>Figure 2. Why a t-test is the wrong detector for RNA-seq counts. The distribution is not normal, and the resulting p-values are systematically wrong under the null.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>RNA-seq counts are photon-counting-style observations with additional multiplicative noise. The right detection statistic is not the same as for Gaussian-noise channels — you need a likelihood-ratio test built against the correct noise distribution, not a fixed-variance t-test. Using a t-test on counts is like using a matched-filter detector assuming white noise when the actual noise is 1/f shot noise: the detector runs, it produces numbers, and the numbers are wrong in systematic ways.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 What the noise model needs to capture</h3>
+
+          <p>The DE noise model has to represent three empirical facts:</p>
+
+          <ol>
+            <li><strong>Discrete integer counts with a zero floor.</strong> A gene with true mean 0.3 reads per sample will have many samples with exactly 0 observed reads. A Gaussian model can't represent that.</li>
+            <li><strong>Variance grows with the mean.</strong> Low-count genes have variance near their mean (Poisson-like at very low counts); high-count genes have variance much larger than their mean (overdispersion).</li>
+            <li><strong>The overdispersion is structured.</strong> Genes of similar expression level tend to have similar overdispersion. This is the hook that lets empirical Bayes work (§3.3).</li>
+          </ol>
+
+          <p>The <strong>negative binomial</strong> distribution captures all three at the cost of one extra parameter beyond the Poisson: a per-gene <strong>dispersion</strong> α that sets the quadratic-variance term. That's the model DESeq2 and edgeR fit. The rest of the lecture is how to fit it well with only a few replicates.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>"Just use more replicates" is sometimes the right answer, but it rarely rescues a study whose replicate count was set by budget. At n = 2–3 per condition you have almost no power to estimate dispersion per gene; you're going to have to share information across genes (§3.3). Any method that doesn't share information will be over-confident on some genes and under-confident on others, with no principled way to predict which.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 45 min</span>
+          Negative Binomial and the GLM
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 The NB model in more depth</h3>
+
+          <p>Lecture 5 §4.4 introduced the NB as an overdispersed Poisson — a Poisson whose rate parameter is itself drawn from a gamma distribution. Writing that out:</p>
+
+          <div class="equation-block">
+            $$ Y_{ig} \sim \text{NB}(\mu_{ig}, \alpha_g) $$
+          </div>
+
+          <p>with mean E[Y] = μ and variance Var[Y] = μ + α·μ². The dispersion α is per-gene (not per-sample, not per-condition) because it's a property of how noisily that particular gene is expressed, and it's the thing we'll spend most of §3 estimating.</p>
+
+          <p>Three important special cases:</p>
+
+          <ul>
+            <li><strong>α = 0</strong> gives the Poisson. Observed at very low counts where there isn't much to be overdispersed about.</li>
+            <li><strong>Small α</strong> (~0.01) gives near-Poisson behaviour. Typical for highly-expressed housekeeping genes with tight biological control.</li>
+            <li><strong>Large α</strong> (~0.3) gives heavy overdispersion. Typical for genes with bursty expression or strong biological variability.</li>
+          </ul>
+
+          <p>A typical RNA-seq dataset has dispersions spanning two orders of magnitude across the 20,000 genes. The mean-dispersion relationship follows a predictable pattern: low-mean genes have high dispersion (the α·μ² term is small but Poisson-like floor dominates the noise), medium-mean genes have moderate dispersion, high-mean genes have low dispersion (tight biological control on the highly-expressed genes).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-06/03-mean-dispersion.svg"
+                 alt="Log-log scatter of per-gene mean on the x-axis against per-gene dispersion on the y-axis, showing a downward-sloping cloud of about 2000 points with a fitted trend line overlaid.">
+            <figcaption>Figure 3. The mean–dispersion relationship in real RNA-seq data. High-mean genes have low dispersion; low-mean genes have high dispersion. This structure is what makes empirical-Bayes shrinkage possible.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>The dispersion parameter is the noise-floor characterisation of each gene's expression channel. High-dispersion genes are noisy signal sources where even a big effect is hard to distinguish from fluctuation; low-dispersion genes are clean channels where small effects are visible. The DE problem is detection on a channel whose noise level you have to estimate from the same few samples you're trying to detect in — with 20,000 channels to estimate jointly.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 The NB generalised linear model</h3>
+
+          <p>DESeq2 and edgeR fit a <strong>generalised linear model</strong> (GLM) per gene. The canonical form, for gene g and sample i:</p>
+
+          <div class="equation-block">
+            $$ \log \mu_{ig} = \log s_i + \beta_{0,g} + \beta_{1,g} \cdot x_i $$
+          </div>
+
+          <p>where:</p>
+
+          <ul>
+            <li>μ<sub>ig</sub> is the expected count for gene g in sample i.</li>
+            <li>s<sub>i</sub> is the size factor for sample i (from DESeq2's median-of-ratios, Lecture 5 §4.3).</li>
+            <li>x<sub>i</sub> is the condition indicator (0 for control, 1 for treatment).</li>
+            <li>β<sub>0,g</sub> is the gene's baseline log-expression.</li>
+            <li>β<sub>1,g</sub> is the <strong>log-fold-change</strong> for gene g between conditions — the thing we want to test against zero.</li>
+          </ul>
+
+          <p>More generally, x<sub>i</sub> can be a full design matrix with multiple coefficients (batch, sex, condition, treatment × time interactions, etc.). The GLM machinery is exactly the same as in linear regression, but with the log-link function and the NB likelihood.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-06/04-nb-glm-design.svg"
+                 alt="A six-sample toy dataset: sample table with condition and batch columns, design matrix with intercept/condition/batch columns, one gene's counts, the log-link GLM equation, and the fitted coefficients with standard errors.">
+            <figcaption>Figure 4. The NB GLM in practice. Design matrix + gene counts + log-link equation produce fitted coefficients whose condition column is the log-fold change.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>The NB GLM is maximum-likelihood inference with a log-link — structurally identical to logistic regression (Bernoulli likelihood + logit link) or Poisson regression (Poisson likelihood + log link). The dispersion α replaces the scale parameter you'd have in OLS. Every DE tool that ends in "-seq2" or "-R" ultimately fits this model; they differ in how they estimate α and which likelihood-ratio or Wald form they use for testing.</p>
+          </aside>
+
+          <p>The practical consequence: once the GLM is fit, every DE question becomes "is some linear combination of β coefficients significantly different from zero?" — which is just a standard hypothesis test.</p>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Size factors and log-fold change</h3>
+
+          <p>The size factor s<sub>i</sub> in the GLM is an <strong>offset</strong>, not a coefficient. We treat it as known (it was estimated from the full count matrix in Lecture 5 §4.3). In log space:</p>
+
+          <div class="equation-block">
+            $$ \log \mu_{ig} = \log s_i + \beta_{0,g} + \beta_{1,g} \cdot x_i $$
+          </div>
+
+          <p>the log s<sub>i</sub> term shifts the prediction up for samples with deeper libraries and down for samples with shallower ones, leaving the β coefficients to carry the <em>composition-normalised</em> expression change. Without the offset, β₁ would conflate "more reads in this sample" with "more expression of this gene" — exactly the composition confounding that §4.3 of Lecture 5 was designed to remove.</p>
+
+          <p>The coefficient β<sub>1,g</sub>, after the offset has absorbed depth, is the <strong>log-fold change</strong> between conditions:</p>
+
+          <div class="equation-block">
+            $$ \beta_{1,g} = \log\left(\frac{\mu_{g,\text{treated}}}{\mu_{g,\text{control}}}\right) $$
+          </div>
+
+          <p>converting to log₂ base (the biologist's convention) by dividing by log(2): <code>log2FC = β₁ / log(2)</code>.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>A size factor is not a per-gene multiplier. It's a per-sample multiplier applied to <em>all</em> genes in that sample. Think of it as each sample's "sequencing depth in composition-adjusted units." A sample with size factor 1.2 sequenced 20% more reads than the population average; every gene's prediction in that sample is scaled up by 1.2× before comparing to observations. Size factors are the bridge between a count and a comparable-across-samples abundance.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Biological versus technical variance</h3>
+
+          <p>Overdispersion in RNA-seq is not a single thing. It has two sources, and distinguishing them matters for experimental design.</p>
+
+          <p><strong>Technical variance</strong> comes from the library-prep and sequencing pipeline: pipetting error, polyadenylation bias, fragmentation noise, PCR duplicates that weren't marked, sequencer calibration drift. This is the component that shrinks with more reads per sample (higher depth).</p>
+
+          <p><strong>Biological variance</strong> comes from real expression differences between replicate samples — in animal experiments, slight differences in genetic background, circadian phase, cage environment. Even in "identical" cell-line samples, there's cell-cycle phase heterogeneity and clone-to-clone drift. This is the component that shrinks only with more biological replicates, never with more reads.</p>
+
+          <p>In practice, biological variance dominates for medium-to-highly-expressed genes, and technical variance dominates for low-count genes. The consequence for experiment design: if your effect is large and your genes are highly expressed, 3 replicates suffice; if your effect is small or you care about low-count genes (transcription factors, regulators), you need 6+ replicates. More reads per sample doesn't fix the problem.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>The replicate question is unforgiving. Published DE analyses with 2 replicates per condition are common and mostly unreliable. DESeq2 and edgeR still run on n=2, but the dispersion estimates are noise, the empirical-Bayes shrinkage does its best, and the p-values come out with wide and often miscalibrated confidence intervals. If you see "n=2 per group" in a methods section, treat the gene list as exploratory and prioritise follow-up validation.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 60 min</span>
+          DESeq2 and edgeR Mechanics
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 The DE pipeline, end to end</h3>
+
+          <p>Both DESeq2 and edgeR follow the same conceptual flow, differing mostly in the details of dispersion estimation:</p>
+
+          <pre class="sequence-block">count matrix (from L5)
+    ↓
+estimate size factors                 (callback: L5 §4.3, median of ratios)
+    ↓
+estimate gene-wise dispersion         (§3.2)
+    ↓
+fit a mean–dispersion trend           (§3.3)
+    ↓
+shrink gene-wise dispersions toward the trend (empirical Bayes)
+    ↓
+fit NB GLM per gene using shrunk dispersion   (§2.2)
+    ↓
+test β coefficients (Wald or LRT)     (§3.4)
+    ↓
+raw p-values (one per gene)
+    ↓
+multiple-testing adjustment           (BH, §4)
+    ↓
+filtered / annotated gene list        (§5)</pre>
+
+          <p>Every substantive disagreement between DESeq2 and edgeR is about how steps 3–5 are done. The rest is bookkeeping.</p>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Per-gene dispersion estimation</h3>
+
+          <p>Given the counts for gene g across n samples and the fitted intercept β<sub>0,g</sub>, the per-gene maximum-likelihood estimate of α<sub>g</sub> is the value that makes the observed counts most probable under the NB model. Computed by a couple of iterations of Newton-Raphson on the NB log-likelihood; in code, DESeq2 uses <code>nbinomDispEstimate</code>, edgeR uses <code>estimateGLMCommonDisp</code>.</p>
+
+          <p>At n = 3–6 samples per condition, this estimator is essentially garbage. A single-gene dispersion MLE with 3–6 observations has a confidence interval that spans more than two orders of magnitude. That's why the next step is critical.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-06/05-dispersion-mle.svg"
+                 alt="Left: three replicates per condition showing a log-likelihood surface for dispersion that is broad and flat, with a wide confidence interval. Right: twenty replicates per condition showing a tight peak and narrow confidence interval. Side-by-side contrast.">
+            <figcaption>Figure 5. Per-gene dispersion MLE from few samples. Three replicates produce an essentially flat log-likelihood in α; twenty replicates produce a tight peak. Statistical sharing is what rescues small-n designs.</figcaption>
+          </figure>
+
+          <p>Two details that matter:</p>
+
+          <ul>
+            <li><strong>Pooling across conditions matters</strong>: for dispersion, we pool residuals from <em>all</em> samples of a gene (not just one condition), because we assume the dispersion is the same in both conditions. Only the mean differs.</li>
+            <li><strong>Outliers bite hard</strong>: a single aberrant count in a gene with 3 replicates per condition will inflate the gene-wise MLE by an order of magnitude. DESeq2 replaces such outliers with an imputed count using Cook's distance.</li>
+          </ul>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>The gene-wise dispersion estimate from 3 replicates is not a reliable number on its own. If you see a per-gene dispersion value reported in a DE pipeline output, it's probably the <em>shrunk</em> estimate (post §3.3), not the raw MLE. If it's the raw MLE, treat it with deep suspicion.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Empirical-Bayes shrinkage toward the fitted trend</h3>
+
+          <p>Here is the central statistical idea of DESeq2 and edgeR, and the reason they work on 3-replicate studies.</p>
+
+          <p><strong>The empirical observation</strong>: if you plot per-gene mean against per-gene (raw, MLE) dispersion for all 20,000 genes in a dataset, the points form a clear downward-sloping cloud. Low-expression genes have high dispersion on average; high-expression genes have low dispersion on average. This trend is real and it's consistent across datasets.</p>
+
+          <p><strong>The algorithmic move</strong>: fit a parametric trend through the cloud (DESeq2 uses a regression of the form <code>dispersion = α₀ + α₁/mean</code>; edgeR uses a cubic-smoothing-spline variant). Then, for each gene, "shrink" its raw MLE toward the trend line. Genes that disagree strongly with the trend (real outliers) are shrunk less; genes close to the trend are shrunk more. The result is a per-gene dispersion estimate that is informed by both its own data and the global trend — an <strong>empirical-Bayes</strong> estimator.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-06/06-eb-shrinkage.svg"
+                 alt="Mean-vs-dispersion scatter with raw MLE values as outlined circles and shrunk estimates as filled dots; grey arrows connect each raw value to its shrunk counterpart; a fitted trend line passes through the cloud. Three example genes are labeled showing variable shrinkage.">
+            <figcaption>Figure 6. Empirical-Bayes dispersion shrinkage. Raw per-gene MLEs (outlined circles) are pulled toward the fitted mean–dispersion trend to produce the shrunk estimates (filled dots). Trend-consistent genes shrink a lot; outliers resist.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Dispersion Shrinkage Visualizer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-06/02-dispersion-shrinkage.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-06/02-dispersion-shrinkage.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Dispersion Shrinkage Visualizer"></iframe>
+          </figure>
+
+          <p>The statistical payoff: the shrunk estimator has much smaller variance than the raw MLE for genes near the trend, at the cost of a small bias toward the trend for genes that are genuinely atypical. In large-scale testing that tradeoff is strongly favourable — the variance reduction buys calibrated p-values, the small bias doesn't qualitatively change which genes are significant.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>Empirical-Bayes shrinkage is regularisation toward a learned prior. The "prior" is the fitted mean–dispersion trend, learned from the data. Shrinking each gene's MLE toward the prior is the frequentist analog of ridge regression: trade a tiny amount of bias for a big reduction in variance. The same structural move shows up in James-Stein estimation (shrink k≥3 means toward their grand mean), BLUP estimation in genetics, and every hierarchical Bayesian model ever written. What makes the RNA-seq application distinctive is that the prior is itself empirical — fitted from the data being tested, not specified up front.</p>
+          </aside>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The DESeq2 paper (Love, Huber, Anders 2014) packaged this approach into a single R function call. It wasn't the first EB-dispersion method — edgeR had a version in 2010, DSS in 2013 — but it was the first that became the community default. Its p-value calibration on realistic data was the thing that won out. As of 2024, the vast majority of published bulk RNA-seq DE analyses are DESeq2.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Hypothesis tests — Wald and LRT</h3>
+
+          <p>With the GLM fit (β̂<sub>1,g</sub>) and its standard error (SE(β̂<sub>1,g</sub>)) in hand, the DE test for gene g against the null H₀: β<sub>1,g</sub> = 0 has two canonical forms.</p>
+
+          <p><strong>Wald test.</strong> Compute the z-statistic and its p-value:</p>
+
+          <div class="equation-block">
+            $$ z_g = \frac{\hat\beta_{1,g}}{\text{SE}(\hat\beta_{1,g})}, \qquad p_g = 2 \cdot \Phi(-|z_g|) $$
+          </div>
+
+          <p>Simple, fast, asymptotically valid. Works well for single-coefficient tests (two-condition comparisons). The default in DESeq2.</p>
+
+          <p><strong>Likelihood-ratio test (LRT).</strong> Fit the full model (with β<sub>1,g</sub>) and the reduced model (without β<sub>1,g</sub>). Compute:</p>
+
+          <div class="equation-block">
+            $$ \lambda_g = 2 \cdot (\ell_g^{\text{full}} - \ell_g^{\text{reduced}}) \sim \chi^2_1 $$
+          </div>
+
+          <p>where ℓ is the log-likelihood. The LRT is more robust for <strong>complex</strong> hypotheses — testing multiple coefficients jointly (a condition × time interaction, a factor with three levels), and for small-sample cases where the Wald approximation can be off. Used in DESeq2 with <code>test="LRT"</code> and in edgeR's <code>glmQLFTest</code>.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-06/07-wald-vs-lrt.svg"
+                 alt="Top half: a normal density with Wald z-score marked and tails shaded; caption about asking whether beta-hat is far from zero. Bottom half: two overlapping log-likelihood surfaces with the full-model and reduced-model maxima labeled and their difference marked; a chi-square reference distribution; decision table on the right.">
+            <figcaption>Figure 7. Wald vs LRT. Wald asks "is β̂ far from zero relative to SE?"; LRT asks "does removing β₁ hurt the fit?". They agree for simple cases; LRT wins for complex hypotheses and small n.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">NB GLM Fitter</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-06/03-nb-glm-fitter.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-06/03-nb-glm-fitter.html"
+                    class="artifact-frame" loading="lazy"
+                    title="NB GLM Fitter"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>The Wald test asks "is this coefficient far from zero relative to its own uncertainty?" The LRT asks "does removing this coefficient materially hurt the fit?" They agree for simple cases and big datasets. They diverge when the model is curved near the maximum (Wald's linear approximation breaks), or when multiple coefficients should be tested jointly (Wald would need a quadratic form; LRT handles it directly).</p>
+          </aside>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>You are analysing a time-course RNA-seq experiment with 4 time points and want to test "any difference across time" per gene. Would you use Wald or LRT, and why? (LRT, applied to the time-factor as a whole. Wald would test each pairwise comparison separately and you'd have to correct for those; LRT tests the joint null "all β<sub>t</sub> = 0" in one shot with one p-value per gene.)</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 limma-voom: the variance-stabilising alternative</h3>
+
+          <p><strong>limma-voom</strong> (Law, Chen, Shi, Smyth 2014) is a different approach that ends at the same place: a per-gene p-value and log-fold change.</p>
+
+          <p>The core idea: transform the count data so it <em>looks</em> Gaussian-enough for standard limma linear models to work. The transformation has two steps:</p>
+
+          <ol>
+            <li><strong>Log-CPM</strong> the counts (Lecture 5 §4.2). Now the values are on an approximately additive scale.</li>
+            <li>Voom weighting — compute a precision weight per (sample, gene) cell, estimated from the empirical mean–variance relationship. Small counts get small weights; high counts get large weights. Feed weighted log-CPMs into limma's standard linear-model + empirical-Bayes testing framework.</li>
+          </ol>
+
+          <p>The output: linear-model β coefficients, moderated t-statistics, and p-values — all the machinery of classical microarray analysis, applied to transformed RNA-seq counts. Benchmarks consistently show limma-voom is competitive with DESeq2 and edgeR on most datasets; it's especially fast on large cohorts (thousands of samples) where the GLM-based tools slow down.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>Voom's variance stabilisation is a <em>preprocessing</em> trick rather than a new likelihood. It transforms the data onto a scale where a constant-variance Gaussian model is approximately right, then applies constant-variance Gaussian inference. This is the same philosophy as the Anscombe transform for Poisson data or the Box-Cox family of power transforms — when the noise has a known variance function, transform the data to stabilise variance, then use off-the-shelf tools. The tradeoff: you lose some efficiency (the transform isn't perfect; the subsequent test is using an approximate distribution), but you gain huge computational and methodological simplicity.</p>
+          </aside>
+
+          <p>Pragmatic rule for 2024: for small experiments (n ≤ 20 per condition), DESeq2 is the default. For large cohorts (n ≥ 50 per condition) or genome-scale studies (GWAS-like designs on expression), limma-voom scales better and gives equivalent answers.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 40 min</span>
+          Multiple Testing at Gene Scale
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 The problem at 20,000 tests</h3>
+
+          <p>A standard DESeq2 run tests around 20,000 genes in parallel. Even if every gene were truly null (no differential expression at all), an α = 0.05 per-test threshold would produce 20,000 × 0.05 = 1,000 "significant" genes purely by chance. No biologist will believe that any single raw p-value &lt; 0.05 result means anything in this regime — and rightly so.</p>
+
+          <p>A useful way to visualise what's going on: <strong>the p-value histogram.</strong> Under the null hypothesis, p-values are uniformly distributed on [0, 1]. In a real DE analysis most genes are null, but some fraction has real effects. The histogram should look like: a flat uniform region (the nulls), with a spike near zero (the real effects). If the histogram has a spike near 1 (U-shape) or a systematic slope, the p-values are miscalibrated — a sign of model misspecification.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-06/08-pvalue-histogram.svg"
+                 alt="Three p-value histograms side by side: healthy (flat bulk with spike near 0), no-signal (entirely flat), and miscalibrated (U-shape or slope suggesting model problems).">
+            <figcaption>Figure 8. The p-value histogram diagnostic. Healthy DE has a flat bulk plus a spike near zero. Any other shape signals trouble in the model, not in the biology.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>The p-value histogram tells you everything about a DE analysis in one glance. Healthy histograms mean the testing framework is well-calibrated and there's real signal. U-shapes or slopes mean the p-values themselves are wrong — and no amount of multiple-testing correction will save you. Always plot the histogram before reporting results.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 Bonferroni vs Benjamini–Hochberg</h3>
+
+          <p>Two canonical ways to control false positives when running many tests.</p>
+
+          <p><strong>Bonferroni</strong> controls the <strong>family-wise error rate (FWER)</strong>: the probability of making <em>any</em> false discovery at all. With m tests at per-test level α, Bonferroni rejects only those with <code>p ≤ α/m</code>. For 20,000 genes at α = 0.05 Bonferroni, the per-gene threshold is 2.5 × 10⁻⁶. Highly conservative — you'll get a handful of very-strong hits and miss most real effects.</p>
+
+          <p><strong>Benjamini–Hochberg (BH)</strong> controls the <strong>false-discovery rate (FDR)</strong>: the expected <em>fraction</em> of false discoveries among those rejected. Sort p-values ascending, p<sub>(1)</sub> ≤ p<sub>(2)</sub> ≤ … ≤ p<sub>(m)</sub>. Find the largest k such that <code>p₍ₖ₎ ≤ (k/m)·α</code>. Reject the k hypotheses corresponding to the smallest k p-values.</p>
+
+          <p>BH's interpretation: "of the ~500 genes on my gene list, I'm willing to accept that up to 5% are false positives in exchange for not missing the 95%." That's an acceptable trade for biological follow-up where wet-lab validation will filter false hits.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-06/09-bh-procedure.svg"
+                 alt="Two panels plotting sorted p-values against rank with the Benjamini-Hochberg line overlaid: left panel high-signal scenario with the line crossing at rank ~450 giving many rejections, right panel low-signal scenario with very few rejections.">
+            <figcaption>Figure 9. The Benjamini–Hochberg procedure. Find the largest rank where the sorted p-value sits below the BH line; reject everything up to and including that rank. Interpretation: the rejected set contains ≤ α fraction of false positives in expectation.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">FDR Simulator</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-06/04-fdr-simulator.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-06/04-fdr-simulator.html"
+                    class="artifact-frame" loading="lazy"
+                    title="FDR Simulator"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>FDR control is detection theory with a controlled false-alarm <em>rate</em> rather than a controlled false-alarm <em>probability</em>. Bonferroni is Neyman–Pearson with a single-test-level threshold adapted for m independent tests — guarantees that the probability of any false positive across the whole experiment is ≤ α. BH's FDR is closer to the radar-engineering concept of "keep the fraction of false alarms in the detection list below a controlled rate" — more useful in regimes where you're going to follow up on the detections anyway and a few false positives are tolerable. Both have their applications; DE analysis almost always uses FDR.</p>
+          </aside>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The Benjamini–Hochberg procedure was published in 1995 as a theoretical proposal for controlling FDR. It wasn't used much in biology until high-throughput data (microarrays, genotyping arrays) made m-scale testing common around 2000. By 2010 BH was ubiquitous in genomics; by 2024 it's the default in every DE tool without exception.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 FDR interpretation and q-values</h3>
+
+          <p>A single number from a DE tool's output matters: <strong>padj</strong> (DESeq2) or <strong>FDR</strong> (edgeR) — the BH-adjusted p-value. It has a specific meaning:</p>
+
+          <blockquote>
+            <p><em>If you reject all genes with padj ≤ q, then (in expectation) q · (number of rejections) of them are false positives.</em></p>
+          </blockquote>
+
+          <p>So at padj ≤ 0.05, if the gene list has 500 entries, ~25 are expected false positives.</p>
+
+          <p>The <strong>q-value</strong> (Storey 2003) is a refinement: it estimates the proportion of null hypotheses π₀ directly from the p-value distribution (the uniform-like "flat" region), which lets it give a slightly less conservative estimate than BH. For most RNA-seq DE work the BH/padj number and the Storey q-value agree to within a few percent; the distinction matters more in dense-signal regimes than typical bulk RNA-seq.</p>
+
+          <p><strong>Practical rule</strong>: report padj (BH) everywhere. Report q-value in addition if you're doing methodological benchmarking. Don't report raw p-values without an FDR-adjusted companion — raw p-values at large m are meaningless without the adjustment.</p>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Independent filtering and weighted FDR</h3>
+
+          <p>One last refinement that DESeq2 applies by default: <strong>independent filtering.</strong></p>
+
+          <p>The idea: genes with extremely low total counts have <em>zero</em> chance of being significant even if their effect is large — the variance is so high that no test can discriminate the effect from noise. Including them in the multiple-testing adjustment wastes power. So DESeq2 filters them out <em>before</em> running BH, using a data-dependent threshold that maximises the number of rejections.</p>
+
+          <p>The filter criterion must be independent of the test statistic under the null, to avoid biasing p-values. Mean count (or more robust variants) satisfies this.</p>
+
+          <p>The result: the effective m for BH is smaller — sometimes by 30–50%. The BH threshold is less conservative. More true positives survive.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>If you're reading DESeq2 output and see genes with NA in the padj column — they were filtered out by independent filtering. This is usually fine; they were almost certainly going to be non-significant anyway. But check: the "filtered" genes column should be mostly low-count, and if you see high-count genes with NA padj, something has gone wrong.</p>
+          </aside>
+
+          <p>More sophisticated approaches (<strong>Independent Hypothesis Weighting</strong>, IHW; Ignatiadis et al. 2016) generalise this: weight each p-value by an independently-estimated signal covariate (such as gene length or mean expression). Used sparingly in RNA-seq; common in large-cohort studies where the extra power matters.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 30 min</span>
+          From Gene List to Biology
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 Over-representation analysis (ORA)</h3>
+
+          <p>A DE analysis produces a list of "significant" genes. That list is rarely meaningful on its own — a biologist wants to know which <em>pathways</em> or <em>processes</em> those genes point to. The simplest approach: <strong>over-representation analysis (ORA)</strong>.</p>
+
+          <p>Given a curated gene set (say "G2/M cell-cycle genes", 127 genes annotated from MSigDB), and your list of DE genes (say 500 genes), ask: "Is the overlap between these two sets larger than expected by chance?"</p>
+
+          <p>Mechanically, this is a 2×2 contingency test:</p>
+
+          <table>
+            <thead><tr><th></th><th>in gene set</th><th>not in gene set</th><th>total</th></tr></thead>
+            <tbody>
+              <tr><td>DE gene</td><td>42</td><td>458</td><td>500</td></tr>
+              <tr><td>not DE</td><td>85</td><td>19,415</td><td>19,500</td></tr>
+              <tr><td>total</td><td>127</td><td>19,873</td><td>20,000</td></tr>
+            </tbody>
+          </table>
+
+          <p>Fisher's exact test (or the asymptotic chi-square equivalent) gives a p-value for over-representation. Do this for thousands of gene sets (all of MSigDB, all GO terms), apply BH correction to the resulting p-values, and report the ones with significant enrichment.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-06/10-ora-fisher.svg"
+                 alt="A two-by-two contingency table for gene-set enrichment with numbers, the hypergeometric distribution underlying Fisher's exact test, and the resulting p-value for G2/M cell-cycle enrichment.">
+            <figcaption>Figure 10. ORA via Fisher's exact test. The 2×2 contingency of (DE, in-set) counts is compared to the hypergeometric null; the tail beyond observed overlap gives the enrichment p-value.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">ORA Contingency Explorer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-06/05-ora-contingency.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-06/05-ora-contingency.html"
+                    class="artifact-frame" loading="lazy"
+                    title="ORA Contingency Explorer"></iframe>
+          </figure>
+
+          <p>ORA is cheap and intuitive. It has two big drawbacks: (1) it requires a hard threshold for "DE" (loses information from sub-threshold genes), (2) it treats all genes above threshold as equivalent (a gene with log₂FC = 6 counts the same as one with log₂FC = 0.6).</p>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Gene-set enrichment analysis (GSEA)</h3>
+
+          <p><strong>GSEA</strong> (Subramanian et al. 2005) solves both ORA problems by using the full ranked gene list, not a thresholded subset.</p>
+
+          <p>Algorithm sketch:</p>
+
+          <ol>
+            <li>Rank all 20,000 genes by some continuous DE statistic (signed log₂FC / -log₁₀p, or a signed Wald z-score).</li>
+            <li>For each gene set S of interest, walk down the ranked list computing a running-sum statistic: +1 weight when you hit a gene in S, −1 weight when you don't (normalised by set size). The running sum goes up when you're enriched for set genes, down when you're not.</li>
+            <li>The <strong>enrichment score (ES)</strong> is the maximum deviation from zero along the walk.</li>
+            <li>Estimate statistical significance by permutation — shuffle gene labels, recompute ES many times, build the null distribution.</li>
+          </ol>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-06/11-gsea-running-sum.svg"
+                 alt="A ranked gene list rendered as a horizontal strip at the bottom with set-gene tick marks; a running-sum curve above it peaking at the point of maximum enrichment; the ES labeled; inset with permutation null histogram and the observed ES marked.">
+            <figcaption>Figure 11. GSEA's running-sum statistic. Walk down the ranked list; add a +weight at set-genes, subtract a -weight at non-set genes; the peak deviation from zero is the enrichment score. Permutation gives the null.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">GSEA Running-Sum Simulator</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-06/06-gsea-running-sum.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-06/06-gsea-running-sum.html"
+                    class="artifact-frame" loading="lazy"
+                    title="GSEA Running-Sum Simulator"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>GSEA's running-sum statistic is a CUSUM (cumulative sum) detector — the same test used for change-point detection in time-series monitoring. The "change" it detects is a sub-population of labeled elements clustered somewhere in the ranked list. The permutation test makes it nonparametric: no assumption on the null distribution of the ES, just empirical calibration via shuffling. The same algorithmic idea shows up in signal-processing literature as the "rank-sum runs test."</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Pathway databases and interpretation caveats</h3>
+
+          <p>The quality of any enrichment analysis is bounded by the quality of the gene sets it runs against. Major sources:</p>
+
+          <ul>
+            <li><strong>MSigDB</strong> (Molecular Signatures Database, Broad Institute). The single most widely used collection. Hallmark gene sets (H), curated gene sets (C1–C7), motif-based (C3), cancer-focused (C6), immune-focused (C7). ~25,000 gene sets total.</li>
+            <li><strong>GO (Gene Ontology).</strong> A controlled vocabulary of biological processes, molecular functions, and cellular components, each with its associated gene set. Universal; hierarchical (e.g. "immune response" has many child categories).</li>
+            <li><strong>KEGG</strong> (Kyoto Encyclopedia of Genes and Genomes). Manually curated metabolic and signaling pathways, each with a gene list. Smaller but higher-quality than GO.</li>
+            <li><strong>Reactome.</strong> Human-curated pathways, more detailed biochemistry than KEGG. Popular in European labs.</li>
+            <li><strong>WikiPathways.</strong> Community-curated pathways, edited like Wikipedia.</li>
+          </ul>
+
+          <p>Pragmatic rules:</p>
+
+          <ul>
+            <li>Start with MSigDB Hallmarks (50 high-level gene sets) for a quick overview.</li>
+            <li>Use the larger C2 / C7 collections for specific biological questions.</li>
+            <li>Always report which database version you used — they update annually, and results shift.</li>
+            <li>Be wary of hits with fewer than 5 genes overlapping — even if significant, the biology is thin.</li>
+          </ul>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>A DESeq2 analysis returns ~800 DE genes (FDR &lt; 0.05). GSEA reports strong enrichment (FDR &lt; 0.01) for both "inflammatory response" and "interferon-γ response" — two related but distinct immune gene sets. What's the right way to report this? (Report both. Don't collapse them — they describe different molecular programs, and their distinction may be biologically meaningful. Also look at whether the same genes are driving both hits, or different ones. If a single core set of cytokine genes is responsible for both enrichments, the "story" is about those genes, not about the pathways.)</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup" class="lecture-wrapup">
+        <h2>
+          <span class="part-kicker">Wrap-up · 10 min</span>
+          Takeaways, homework, and next lecture
+        </h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>DE is gene-by-gene hypothesis testing at 20,000-test scale with few replicates.</strong> Every step of the pipeline exists because naive approaches (t-test per gene, Bonferroni correction, no dispersion sharing) fail at this scale.</li>
+          <li><strong>The negative-binomial GLM is the backbone.</strong> DESeq2 and edgeR differ in implementation details but fit the same model: log μ = offset + β·x, with NB likelihood and gene-specific dispersion α.</li>
+          <li><strong>Empirical-Bayes shrinkage of dispersion is why DE works on 3 replicates.</strong> Sharing information across genes via the mean-dispersion trend turns a noisy per-gene estimate into a calibrated one. Without this shrinkage, the analysis is uncalibrated.</li>
+          <li><strong>FDR via Benjamini–Hochberg is the right multiple-testing framework.</strong> Bonferroni is too conservative; FDR gives you a list with a controlled fraction of false positives, which is what biological follow-up needs.</li>
+          <li><strong>The p-value histogram is the universal diagnostic.</strong> Flat bulk with near-zero spike = healthy. Any other shape = something is wrong with your model or design.</li>
+          <li><strong>Interpretation requires gene sets, not individual genes.</strong> A list of 500 DE genes tells you almost nothing; an ORA or GSEA run against MSigDB tells you which molecular programs are shifting. Use the enrichment layer as the reporting unit, not the individual-gene layer.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Single-cell RNA-seq fundamentals: droplet protocols, UMIs, the transition from bulk to per-cell resolution, dimensionality reduction with PCA and UMAP, clustering and cell-type annotation.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Download a published bulk RNA-seq dataset with at least 3 replicates per condition (GEO accession GSE52778 works — airway smooth muscle treated with dexamethasone, 4 vs 4). Run DESeq2 end-to-end. Report: number of DE genes at padj &lt; 0.05, distribution of log₂FC values, and a screenshot of the p-value histogram.</li>
+          <li>Take the DE result from problem 1. Plot the volcano. What fraction of DE genes has |log₂FC| &gt; 1? Do those genes have smaller or larger raw p-values on average than the rest of the DE set?</li>
+          <li>Implement the BH procedure by hand on a sorted p-value list from your DESeq2 output. Verify your hand-computed padj matches DESeq2's output. At what rank does the BH line touch the sorted p-values for FDR = 0.05?</li>
+          <li>Run GSEA against MSigDB Hallmarks on the DE result. Report the top 5 hallmark gene sets by enrichment score. Compare ORA (Fisher's exact on DE-genes-only) against GSEA (running-sum on the full ranked list). Which method identifies more hits? Are they the same hits?</li>
+          <li>Analyse a simulated dataset where you know the ground truth. Use the FDR Simulator artifact with 20,000 genes, 500 true positives, modest effect size, and 3 replicates. At FDR = 0.05, what fraction of rejected genes are true positives (precision)? What fraction of true positives are rejected (power)? How does this compare to Bonferroni at α = 0.05?</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Love, M. I., Huber, W., &amp; Anders, S. (2014). Moderated estimation of fold change and dispersion for RNA-seq data with DESeq2. <em>Genome Biology</em> 15, 550.</li>
+          <li>Robinson, M. D., McCarthy, D. J., &amp; Smyth, G. K. (2010). edgeR: a Bioconductor package for differential expression analysis of digital gene expression data. <em>Bioinformatics</em> 26, 139–140.</li>
+          <li>Law, C. W., Chen, Y., Shi, W., &amp; Smyth, G. K. (2014). voom: Precision weights unlock linear model analysis tools for RNA-seq read counts. <em>Genome Biology</em> 15, R29.</li>
+          <li>Benjamini, Y., &amp; Hochberg, Y. (1995). Controlling the false discovery rate: a practical and powerful approach to multiple testing. <em>JRSS Series B</em> 57, 289–300.</li>
+          <li>Subramanian, A., Tamayo, P., Mootha, V. K., et al. (2005). Gene set enrichment analysis: a knowledge-based approach for interpreting genome-wide expression profiles. <em>PNAS</em> 102, 15545–15550.</li>
+          <li>Liberzon, A., Birger, C., Thorvaldsdóttir, H., et al. (2015). The Molecular Signatures Database (MSigDB) Hallmark gene set collection. <em>Cell Systems</em> 1, 417–425.</li>
+          <li>DESeq2 vignette: <a href="https://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.html" target="_blank" rel="noopener">bioconductor.org</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — The DE Problem</td>                    <td>25&nbsp;min</td><td>0:25</td></tr>
+            <tr><td>Part 2 — Negative Binomial and the GLM</td>     <td>45&nbsp;min</td><td>1:10</td></tr>
+            <tr><td>Part 3 — DESeq2 and edgeR Mechanics</td>         <td>60&nbsp;min</td><td>2:10</td></tr>
+            <tr><td>Part 4 — Multiple Testing at Gene Scale</td>     <td>40&nbsp;min</td><td>2:50</td></tr>
+            <tr><td>Part 5 — From Gene List to Biology</td>          <td>30&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                     <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys())
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) {
+          f.style.height = d.height + 'px';
+        }
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

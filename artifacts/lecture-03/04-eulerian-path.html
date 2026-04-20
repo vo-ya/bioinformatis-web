@@ -26,7 +26,7 @@
       font-size: var(--text-sm);
       line-height: var(--leading-relaxed);
       margin: 0;
-      max-width: 60ch;
+      max-width: 62ch;
     }
 
     .panel {
@@ -57,16 +57,58 @@
       margin-bottom: 0.4rem;
     }
 
-    select.seq-input {
+    select.seq-input, input.seq-input {
       font-family: var(--font-sans);
       font-size: var(--text-sm);
       padding: 0.55rem 0.75rem;
       background: var(--bg-muted);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
-      min-width: 260px;
     }
-    select.seq-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+    select.seq-input { min-width: 260px; }
+
+    textarea.edge-input {
+      width: 100%;
+      min-height: 140px;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      padding: 0.6rem 0.8rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      line-height: 1.5;
+      resize: vertical;
+    }
+    textarea.edge-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+
+    .source-toggle {
+      display: inline-flex;
+      gap: 0;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 2px;
+      margin-bottom: 0.75rem;
+    }
+    .source-toggle button {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.45rem 0.9rem;
+      background: transparent;
+      border: 0;
+      color: var(--fg-muted);
+      cursor: pointer;
+      border-radius: calc(var(--radius-sm) - 1px);
+    }
+    .source-toggle button.active {
+      background: var(--bg-elevated);
+      color: var(--accent);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
 
     .btn {
       font-family: var(--font-sans);
@@ -93,6 +135,71 @@
       flex-wrap: wrap;
     }
 
+    /* Feasibility badge */
+    .feasibility {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      padding: 0.9rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-top: 0.75rem;
+      font-size: var(--text-sm);
+      line-height: 1.5;
+    }
+    .feasibility.ok {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #064e3b;
+    }
+    .feasibility.err {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #7f1d1d;
+    }
+    .feasibility .icon {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
+    .feasibility .body strong { display: block; margin-bottom: 0.15rem; }
+    .feasibility .body code {
+      font-family: var(--font-mono);
+      font-size: 0.92em;
+      background: rgba(255,255,255,0.6);
+      padding: 0 0.25rem;
+      border-radius: 2px;
+    }
+
+    /* Degree table */
+    .degree-table {
+      margin-top: 0.75rem;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+    .degree-table th, .degree-table td {
+      padding: 0.3rem 0.7rem;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+    .degree-table th {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 10px;
+      color: var(--fg-subtle);
+      border-bottom: 1px solid var(--border-strong);
+    }
+    .degree-table td.node-col { text-align: left; font-weight: 600; }
+    .degree-table tr.start td { color: var(--accent); }
+    .degree-table tr.end   td { color: var(--warning); }
+    .degree-table tr.bad   td { color: var(--error); }
+
     /* Graph SVG */
     .graph-wrap {
       background: var(--bg-muted);
@@ -112,10 +219,13 @@
       stroke-width: 1.5;
       transition: fill 120ms ease, stroke 120ms ease, stroke-width 120ms ease;
     }
+    .node-circle.start  { stroke: var(--accent);  stroke-dasharray: 4 3; }
+    .node-circle.end    { stroke: var(--warning); stroke-dasharray: 4 3; }
     .node-circle.current {
       fill: var(--accent-bg);
       stroke: var(--accent);
       stroke-width: 3;
+      stroke-dasharray: none;
     }
     .node-label {
       font-family: var(--font-mono);
@@ -128,17 +238,17 @@
     }
     .edge-line {
       fill: none;
-      stroke-width: 2;
+      stroke-width: 1.8;
       transition: stroke 150ms ease, stroke-width 150ms ease;
     }
     .edge-unvisited { stroke: var(--border-strong); }
     .edge-visited {
       stroke: var(--accent);
-      stroke-width: 2.75;
+      stroke-width: 2.6;
     }
     .edge-label {
       font-family: var(--font-mono);
-      font-size: 11px;
+      font-size: 10px;
       fill: var(--fg-muted);
       text-anchor: middle;
       dominant-baseline: central;
@@ -191,10 +301,37 @@
     }
     .trace-log .step-idx { color: var(--fg-subtle); }
     .trace-log .step-extend { color: var(--fg); }
+    .trace-log .step-backtrack { color: var(--fg-muted); }
     .trace-log .step-splice { color: var(--accent); font-weight: 600; }
     .trace-log .step-fail   { color: var(--error); font-weight: 600; }
     .trace-log .step-done   { color: var(--success); font-weight: 600; }
     .trace-log div + div { margin-top: 0.1rem; }
+
+    /* Result banner */
+    .result-banner {
+      margin-top: 1rem;
+      padding: 0.9rem 1.1rem;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      line-height: 1.5;
+    }
+    .result-banner.success {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #064e3b;
+    }
+    .result-banner.failure {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #7f1d1d;
+    }
+    .result-banner .contig {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      margin-top: 0.35rem;
+      word-break: break-all;
+    }
 
     .hint {
       font-size: var(--text-xs);
@@ -202,6 +339,26 @@
       margin-top: 0.5rem;
       line-height: var(--leading-relaxed);
     }
+
+    .legend {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend span.swatch {
+      display: inline-block;
+      width: 14px;
+      height: 6px;
+      vertical-align: middle;
+      margin-right: 0.35rem;
+      border-radius: 2px;
+    }
+    .legend .sw-unvisited { background: var(--border-strong); }
+    .legend .sw-visited   { background: var(--accent); }
 
     @media (max-width: 720px) {
       body { padding: 1rem; }
@@ -217,85 +374,105 @@
 
   <header class="artifact-head">
     <h1>Eulerian Path Finder</h1>
-    <p>Hierholzer's algorithm stitches an Eulerian traversal out of partial cycles. Watch the walk start greedily, get stuck, splice in a side tour at an intermediate node, and finish with every edge consumed exactly once.</p>
+    <p>Check whether a directed graph has an Eulerian path or circuit, then watch Hierholzer's algorithm walk it step by step. Use a preset, or paste your own edges. The analyzer names the exact reason a graph fails — a node with imbalance &gt; 1, too many unbalanced nodes, or disconnection.</p>
   </header>
 
+  <!-- Source + input ------------------------------------------------- -->
   <section class="panel">
-    <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
-      <div>
-        <label class="field-label" for="preset">De Bruijn graph</label>
-        <select id="preset" class="seq-input">
-          <option value="linear">Linear chain — 8 nodes, 7 edges, no cycles</option>
-          <option value="cycle">Single cycle — one loop through every edge</option>
-          <option value="splice" selected>Requires splicing — greedy walk gets stuck</option>
-          <option value="disconnected">Disconnected (fails) — two components</option>
-        </select>
+    <p class="panel-label">Graph source</p>
+
+    <div class="source-toggle" role="tablist" aria-label="Graph source">
+      <button id="src-preset" class="active" type="button" role="tab" aria-selected="true">Preset</button>
+      <button id="src-custom"            type="button" role="tab" aria-selected="false">Custom edges</button>
+    </div>
+
+    <div id="preset-pane">
+      <label class="field-label" for="preset-select">Choose a graph</label>
+      <select id="preset-select" class="seq-input"></select>
+      <p id="preset-hint" class="hint"></p>
+    </div>
+
+    <div id="custom-pane" hidden>
+      <label class="field-label" for="edge-input">One edge per line. Format: <code>FROM -&gt; TO</code> (k-mer label optional third field)</label>
+      <textarea id="edge-input" class="edge-input" spellcheck="false"></textarea>
+      <p class="hint">Nodes are any strings (<code>ACG</code>, <code>A</code>, <code>node42</code>). Multiple edges between the same nodes are fine. If a k-mer isn't supplied, the edge label is the <code>FROM</code> node concatenated with the last character of the <code>TO</code> node.</p>
+      <div class="controls" style="margin-top: 0.6rem;">
+        <button id="analyze-btn" class="btn btn--primary" type="button">Analyze graph</button>
+        <button id="example-btn" class="btn" type="button">Load example</button>
       </div>
     </div>
 
-    <div class="controls" style="margin-top: 1rem;">
-      <button id="step-btn"  class="btn btn--primary" type="button">Step</button>
-      <button id="play-btn"  class="btn" type="button">Play</button>
-      <button id="pause-btn" class="btn" type="button" disabled>Pause</button>
-      <button id="reset-btn" class="btn" type="button">Reset</button>
+    <!-- Feasibility report -->
+    <div id="feasibility" class="feasibility" hidden></div>
+
+    <!-- Degree table (collapsible) -->
+    <details id="degree-details" style="margin-top: 0.75rem;" hidden>
+      <summary style="font-family: var(--font-sans); font-size: var(--text-xs); color: var(--fg-muted); cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600;">Degree table</summary>
+      <div id="degree-table-wrap"></div>
+    </details>
+  </section>
+
+  <!-- Playback controls ---------------------------------------------- -->
+  <section class="panel">
+    <p class="panel-label">Walk</p>
+    <div class="controls">
+      <button id="play-btn"    class="btn btn--primary" type="button">▶ Play</button>
+      <button id="pause-btn"   class="btn"              type="button" disabled>⏸ Pause</button>
+      <button id="step-btn"    class="btn"              type="button">⏭ Step</button>
+      <button id="reset-btn"   class="btn"              type="button">↺ Reset walk</button>
+      <button id="complete-btn" class="btn"             type="button">⏩ Run to end</button>
+    </div>
+    <p class="hint">Hierholzer's walks greedily until stuck, then backtracks through the stack to find a node with unvisited edges and splices a new subpath in. Edges used are shown in cobalt; unvisited edges in gray. Dashed node outline marks the detected start (cobalt) or end (amber) of an Eulerian path.</p>
+    <div class="legend">
+      <span><span class="swatch sw-unvisited"></span>unvisited edge</span>
+      <span><span class="swatch sw-visited"></span>visited edge</span>
+      <span>start <span style="display:inline-block;width:12px;height:12px;border:2px dashed var(--accent);border-radius:50%;vertical-align:middle;margin-left:3px;"></span></span>
+      <span>end <span style="display:inline-block;width:12px;height:12px;border:2px dashed var(--warning);border-radius:50%;vertical-align:middle;margin-left:3px;"></span></span>
     </div>
   </section>
 
+  <!-- Graph visualization -------------------------------------------- -->
   <section class="panel">
     <p class="panel-label">Graph</p>
     <div class="graph-wrap">
-      <svg id="graph" class="graph" viewBox="0 0 800 360" preserveAspectRatio="xMidYMid meet" aria-label="De Bruijn graph">
+      <svg id="graph-svg" class="graph" viewBox="0 0 820 360" preserveAspectRatio="xMidYMid meet">
         <defs>
-          <marker id="arrow-unvisited" viewBox="0 0 10 10" refX="9" refY="5"
-                  markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="#c4c1b6"></path>
+          <marker id="arrow-unvisited" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#c4c1b6"/>
           </marker>
-          <marker id="arrow-visited" viewBox="0 0 10 10" refX="9" refY="5"
-                  markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="#1e3a8a"></path>
+          <marker id="arrow-visited" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
           </marker>
         </defs>
-        <g id="edges"></g>
-        <g id="nodes"></g>
       </svg>
     </div>
 
     <div class="status-line">
       <div>
-        <p class="label">Unvisited edges</p>
-        <p class="value emphasis" id="stat-unvisited">0 / 0</p>
+        <p class="label">Phase</p>
+        <p class="value" id="stat-phase">—</p>
       </div>
       <div>
         <p class="label">Current node</p>
-        <p class="value" id="stat-current">—</p>
+        <p class="value emphasis" id="stat-current">—</p>
       </div>
       <div>
-        <p class="label">Path length</p>
-        <p class="value" id="stat-pathlen">0</p>
+        <p class="label">Unvisited edges</p>
+        <p class="value" id="stat-unvisited">— / —</p>
       </div>
       <div>
-        <p class="label">Status</p>
-        <p class="value" id="stat-phase">ready</p>
+        <p class="label">Walk stack</p>
+        <p class="value" id="stat-stack">—</p>
       </div>
     </div>
 
-    <div class="status-line">
-      <div style="grid-column: 1 / -1;">
-        <p class="label">Current path</p>
-        <p class="value" id="stat-path">—</p>
-      </div>
-      <div style="grid-column: 1 / -1;">
-        <p class="label">Assembled contig</p>
-        <p class="value emphasis" id="stat-contig">—</p>
-      </div>
-    </div>
-
-    <p class="hint" id="preset-hint">Pick a preset and press Step. Each step either extends the walk by one edge, identifies a splice node, or splices a completed subpath into the main path.</p>
+    <div id="result-banner" class="result-banner" hidden></div>
   </section>
 
+  <!-- Trace log ------------------------------------------------------ -->
   <section class="panel">
-    <p class="panel-label">Trace log</p>
-    <div class="trace-log" id="trace-log"></div>
+    <p class="panel-label">Algorithm trace</p>
+    <div id="trace" class="trace-log">Pick a preset or paste edges and analyze — the walk will appear here.</div>
   </section>
 </main>
 
@@ -305,555 +482,840 @@
 (() => {
   'use strict';
 
+  // ────────────────────────────────────────────────────────────────
+  // DOM
+  // ────────────────────────────────────────────────────────────────
   const $ = (id) => document.getElementById(id);
-  const presetEl    = $('preset');
-  const stepBtn     = $('step-btn');
+  const srcPresetBtn = $('src-preset');
+  const srcCustomBtn = $('src-custom');
+  const presetPane   = $('preset-pane');
+  const customPane   = $('custom-pane');
+  const presetSelect = $('preset-select');
+  const presetHint   = $('preset-hint');
+  const edgeInput    = $('edge-input');
+  const analyzeBtn   = $('analyze-btn');
+  const exampleBtn   = $('example-btn');
+  const feasibilityEl = $('feasibility');
+  const degreeDetails = $('degree-details');
+  const degreeTableWrap = $('degree-table-wrap');
+
   const playBtn     = $('play-btn');
   const pauseBtn    = $('pause-btn');
+  const stepBtn     = $('step-btn');
   const resetBtn    = $('reset-btn');
-  const edgesG      = $('edges');
-  const nodesG      = $('nodes');
-  const statUnv     = $('stat-unvisited');
-  const statCurrent = $('stat-current');
-  const statPathLen = $('stat-pathlen');
-  const statPhase   = $('stat-phase');
-  const statPath    = $('stat-path');
-  const statContig  = $('stat-contig');
-  const traceLog    = $('trace-log');
-  const presetHint  = $('preset-hint');
+  const completeBtn = $('complete-btn');
 
-  // ─── Preset graph definitions ────────────────────────────────────
-  // Each preset supplies: nodes [{id,label,x,y}], edges [{from,to,kmer}],
-  // start node, and a descriptive hint.
+  const svg        = $('graph-svg');
+  const statPhase  = $('stat-phase');
+  const statCurrent= $('stat-current');
+  const statUnvisited = $('stat-unvisited');
+  const statStack  = $('stat-stack');
+  const resultBanner = $('result-banner');
+  const traceEl    = $('trace');
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ────────────────────────────────────────────────────────────────
+  // Presets. Each: name, hint, edges [{from,to,kmer?}], optional fixed layout {node: {x,y}}.
+  // ────────────────────────────────────────────────────────────────
   const PRESETS = {
-    linear: {
-      hint: 'Linear chain: one edge per step, no cycles, no splicing required. Start at ACG and walk to TGA.',
-      start: 'ACG',
-      nodes: [
-        { id: 'ACG', x:  60, y: 180 },
-        { id: 'CGT', x: 160, y: 180 },
-        { id: 'GTA', x: 260, y: 180 },
-        { id: 'TAC', x: 360, y: 180 },
-        { id: 'ACC', x: 460, y: 180 },
-        { id: 'CCT', x: 560, y: 180 },
-        { id: 'CTG', x: 660, y: 180 },
-        { id: 'TGA', x: 760, y: 180 },
-      ],
+    linear_path: {
+      name: 'Linear chain — Eulerian PATH',
+      hint: 'Two nodes unbalanced by ±1: start ACG (out-deg = in-deg + 1), end ACC (in-deg = out-deg + 1). Straight walk, no splicing needed.',
       edges: [
-        { from: 'ACG', to: 'CGT', kmer: 'ACGT' },
-        { from: 'CGT', to: 'GTA', kmer: 'CGTA' },
-        { from: 'GTA', to: 'TAC', kmer: 'GTAC' },
-        { from: 'TAC', to: 'ACC', kmer: 'TACC' },
-        { from: 'ACC', to: 'CCT', kmer: 'ACCT' },
-        { from: 'CCT', to: 'CTG', kmer: 'CCTG' },
-        { from: 'CTG', to: 'TGA', kmer: 'CTGA' },
+        ['ACG','CGT','ACGT'], ['CGT','GTA','CGTA'], ['GTA','TAC','GTAC'],
+        ['TAC','ACC','TACC'], ['ACC','CCT','ACCT'], ['CCT','CTG','CCTG'],
+        ['CTG','TGA','CTGA']
       ],
+      layout: {
+        ACG:{x: 80,y:180}, CGT:{x:180,y:180}, GTA:{x:280,y:180}, TAC:{x:380,y:180},
+        ACC:{x:480,y:180}, CCT:{x:580,y:180}, CTG:{x:680,y:180}, TGA:{x:780,y:180}
+      }
     },
-
     cycle: {
-      hint: 'Single cycle: balanced graph. Walk starts at ATG, takes four edges, ends back at ATG. No splicing needed.',
-      start: 'ATG',
-      nodes: [
-        { id: 'ATG', x: 400, y:  70 },
-        { id: 'TGC', x: 620, y: 190 },
-        { id: 'GCA', x: 400, y: 310 },
-        { id: 'CAT', x: 180, y: 190 },
-      ],
+      name: 'Cycle — Eulerian CIRCUIT (no splicing)',
+      hint: 'Every node is balanced (in-deg = out-deg). Any start node works; the walk returns to it after consuming all edges.',
       edges: [
-        { from: 'ATG', to: 'TGC', kmer: 'ATGC' },
-        { from: 'TGC', to: 'GCA', kmer: 'TGCA' },
-        { from: 'GCA', to: 'CAT', kmer: 'GCAT' },
-        { from: 'CAT', to: 'ATG', kmer: 'CATG' },
+        ['ATG','TGC','ATGC'], ['TGC','GCA','TGCA'], ['GCA','CAT','GCAT'], ['CAT','ATG','CATG']
       ],
+      layout: { ATG:{x:400,y:80}, TGC:{x:600,y:200}, GCA:{x:400,y:320}, CAT:{x:200,y:200} }
     },
-
-    splice: {
-      hint: 'Figure-eight sharing node ATG. Start at CAT; the greedy walk consumes the first loop and returns to CAT before touching the second loop. Hierholzer identifies ATG as a splice node and inserts the second cycle there.',
-      start: 'CAT',
-      nodes: [
-        { id: 'CAT', x:  80, y: 180 },
-        { id: 'ATG', x: 260, y: 180 },
-        { id: 'TGC', x: 380, y:  80 },
-        { id: 'GCA', x: 500, y: 180 },
-        { id: 'TGT', x: 380, y: 280 },
-        { id: 'GTA', x: 600, y: 280 },
-        { id: 'TAT', x: 720, y: 180 },
-      ],
-      // Edge order at ATG: ATGC listed first so greedy walk finishes cycle 1 first,
-      // returning to CAT stuck, with ATG's remaining ATGT edge requiring a splice.
+    circuit_splice: {
+      name: 'Figure-8 — Eulerian CIRCUIT (needs splicing)',
+      hint: 'Two cycles meet at node ATG. Greedy walk from CAT closes cycle 1 and returns to CAT with two edges unvisited at ATG. Hierholzer backtracks, splices cycle 2 in at ATG, finishes.',
       edges: [
-        { from: 'CAT', to: 'ATG', kmer: 'CATG' },
-        { from: 'ATG', to: 'TGC', kmer: 'ATGC' },
-        { from: 'TGC', to: 'GCA', kmer: 'TGCA' },
-        { from: 'GCA', to: 'CAT', kmer: 'GCAT' },
-        { from: 'ATG', to: 'TGT', kmer: 'ATGT' },
-        { from: 'TGT', to: 'GTA', kmer: 'TGTA' },
-        { from: 'GTA', to: 'TAT', kmer: 'GTAT' },
-        { from: 'TAT', to: 'ATG', kmer: 'TATG' },
+        ['CAT','ATG','CATG'], ['ATG','TGC','ATGC'], ['TGC','GCA','TGCA'], ['GCA','CAT','GCAT'],
+        ['ATG','TGT','ATGT'], ['TGT','GTA','TGTA'], ['GTA','TAT','GTAT'], ['TAT','ATG','TATG']
       ],
+      layout: {
+        CAT:{x: 80,y:180}, ATG:{x:260,y:180}, TGC:{x:380,y: 80}, GCA:{x:500,y:180},
+        TGT:{x:380,y:280}, GTA:{x:600,y:280}, TAT:{x:720,y:180}
+      }
     },
-
+    path_splice: {
+      name: 'Path with detour — Eulerian PATH (needs splicing)',
+      hint: 'Start AAA (out=in+1) and end TTT (in=out+1); an inner loop hangs off node CCC. The greedy walk reaches TTT before taking the loop; Hierholzer splices the loop in at CCC.',
+      edges: [
+        ['AAA','AAT','AAAT'], ['AAT','ATC','AATC'], ['ATC','TCC','ATCC'], ['TCC','CCC','TCCC'],
+        ['CCC','CCT','CCCT'], ['CCT','CTT','CCTT'], ['CTT','TTT','CTTT'],
+        ['CCC','CGC','CCGC'], ['CGC','GCC','CGCC'], ['GCC','CCC','GCCC']
+      ],
+      layout: {
+        AAA:{x: 60,y:200}, AAT:{x:170,y:200}, ATC:{x:280,y:200}, TCC:{x:380,y:200},
+        CCC:{x:460,y:200}, CCT:{x:560,y:200}, CTT:{x:660,y:200}, TTT:{x:760,y:200},
+        CGC:{x:460,y:100}, GCC:{x:560,y: 80}
+      }
+    },
     disconnected: {
-      hint: 'Two separate components with no connecting edge. The walk finishes the first component, but edges in the second are unreachable. Algorithm halts and reports failure.',
-      start: 'AAC',
-      nodes: [
-        { id: 'AAC', x: 120, y: 100 },
-        { id: 'ACC', x: 320, y: 100 },
-        { id: 'CCG', x: 520, y: 100 },
-        { id: 'TTG', x: 200, y: 280 },
-        { id: 'TGG', x: 400, y: 280 },
-        { id: 'GGA', x: 600, y: 280 },
-      ],
+      name: 'Disconnected — FAILS (connectivity)',
+      hint: 'Two separate 3-cycles. Every node is balanced, so the degree test passes — but no single walk can reach both components. The connectivity check is the one that rejects this.',
       edges: [
-        { from: 'AAC', to: 'ACC', kmer: 'AACC' },
-        { from: 'ACC', to: 'CCG', kmer: 'ACCG' },
-        { from: 'TTG', to: 'TGG', kmer: 'TTGG' },
-        { from: 'TGG', to: 'GGA', kmer: 'TGGA' },
+        // Cycle 1: ACG → CGT → GTA → ACG (each node in=out=1)
+        ['ACG','CGT','ACGT'], ['CGT','GTA','CGTA'], ['GTA','ACG','GTAC'],
+        // Cycle 2: TTC → TCA → CAT → TTC (each node in=out=1)
+        ['TTC','TCA','TTCA'], ['TCA','CAT','TCAT'], ['CAT','TTC','CATT']
       ],
+      layout: {
+        ACG:{x:120,y:100}, CGT:{x:260,y: 80}, GTA:{x:200,y:200},
+        TTC:{x:500,y:100}, TCA:{x:640,y: 80}, CAT:{x:580,y:200}
+      }
     },
+    imbalanced: {
+      name: 'Imbalance > 1 — FAILS',
+      hint: 'Node CGT has out-degree 3 but in-degree 1 — an imbalance of +2. Euler\u2019s condition demands every node have imbalance 0 (circuit) or at most one node at +1 and one at −1 (path). Analysis rejects this immediately.',
+      edges: [
+        ['ACG','CGT','ACGT'], ['CGT','GTA','CGTA'], ['CGT','GTT','CGTT'], ['CGT','GTC','CGTC'],
+        ['GTA','TAC','GTAC'], ['GTT','TTA','GTTA'], ['GTC','TCA','GTCA']
+      ],
+      layout: {
+        ACG:{x: 80,y:180}, CGT:{x:240,y:180},
+        GTA:{x:400,y: 80}, GTT:{x:400,y:180}, GTC:{x:400,y:280},
+        TAC:{x:560,y: 80}, TTA:{x:560,y:180}, TCA:{x:560,y:280}
+      }
+    }
   };
 
-  // ─── State ───────────────────────────────────────────────────────
-  const state = {
-    presetKey:   'splice',
-    nodes:       [],               // [{id,x,y}]
-    edges:       [],               // [{id,from,to,kmer,visited}]
-    adj:         new Map(),        // node id -> array of edge ids (in order)
-    adjCursor:   new Map(),        // node id -> next edge index
-    path:        [],               // array of node ids
-    edgePath:    [],               // array of edge ids (length = path.length-1)
-    current:     null,             // current node id (head of walk)
-    spliceIdx:   -1,               // index into path where splice will happen
-    pendingSubpath: null,          // { pathNodes, pathEdges } to splice in
-    pendingSubpathStart: null,     // node id we started the subpath from
-    stepCount:   0,
-    phase:       'start',          // start | walking | stuck | finding-splice | splicing-walk | splicing | done | failed
-    playing:     false,
-    timer:       null,
-  };
-
-  // ─── Graph construction ──────────────────────────────────────────
-  function loadPreset(key) {
-    stop();
-    const p = PRESETS[key];
-    state.presetKey = key;
-    state.nodes = p.nodes.map(n => ({ ...n }));
-    state.edges = p.edges.map((e, i) => ({
-      id: `e${i}`,
-      from: e.from,
-      to:   e.to,
-      kmer: e.kmer,
-      visited: false,
-    }));
-    state.adj = new Map();
-    state.nodes.forEach(n => state.adj.set(n.id, []));
-    state.edges.forEach(e => state.adj.get(e.from).push(e.id));
-    state.adjCursor = new Map();
-    state.nodes.forEach(n => state.adjCursor.set(n.id, 0));
-
-    state.path = [p.start];
-    state.edgePath = [];
-    state.current = p.start;
-    state.spliceIdx = -1;
-    state.pendingSubpath = null;
-    state.pendingSubpathStart = null;
-    state.stepCount = 0;
-    state.phase = 'walking';
-    presetHint.textContent = p.hint;
-    traceLog.innerHTML = '';
-    logLine('info', `Preset loaded: ${key}. Start node = ${p.start}. ${state.edges.length} edges total.`);
-    drawGraph();
-    render();
+  // ────────────────────────────────────────────────────────────────
+  // Parsing
+  // ────────────────────────────────────────────────────────────────
+  function parseEdges(text) {
+    const edges = [];
+    const errors = [];
+    const lines = text.split(/\r?\n/);
+    lines.forEach((raw, i) => {
+      const line = raw.trim();
+      if (!line || line.startsWith('#') || line.startsWith('//')) return;
+      let parts;
+      if (line.includes('->')) parts = line.split('->').map(s => s.trim());
+      else if (line.includes(',')) parts = line.split(',').map(s => s.trim());
+      else parts = line.split(/\s+/);
+      if (parts.length < 2 || !parts[0] || !parts[1]) {
+        errors.push(`Line ${i+1}: could not parse "${raw}"`);
+        return;
+      }
+      const from = parts[0];
+      const to   = parts[1];
+      const kmer = parts[2] || (from + to.slice(-1));
+      edges.push({ from, to, kmer });
+    });
+    return { edges, errors };
   }
 
-  function edgeById(id) { return state.edges.find(e => e.id === id); }
-  function unvisitedCount() { return state.edges.filter(e => !e.visited).length; }
+  // ────────────────────────────────────────────────────────────────
+  // Graph + algorithm
+  // ────────────────────────────────────────────────────────────────
+  function buildGraph(edgeList) {
+    const nodes = new Set();
+    const adj = new Map();
+    const edges = [];
+    edgeList.forEach((e, idx) => {
+      const edge = { from: e.from, to: e.to, kmer: e.kmer, id: idx, visited: false };
+      nodes.add(e.from); nodes.add(e.to);
+      if (!adj.has(e.from)) adj.set(e.from, []);
+      adj.get(e.from).push(edge);
+      edges.push(edge);
+    });
+    // Ensure every node has an adjacency list even if out-degree is 0.
+    for (const n of nodes) if (!adj.has(n)) adj.set(n, []);
+    return { nodes, adj, edges };
+  }
 
-  // Pick next unvisited out-edge in insertion order (deterministic).
-  function nextUnvisitedOut(nodeId) {
-    const list = state.adj.get(nodeId) || [];
-    for (const eid of list) {
-      if (!edgeById(eid).visited) return eid;
+  function degrees(graph) {
+    const inD = new Map(), outD = new Map();
+    for (const n of graph.nodes) { inD.set(n, 0); outD.set(n, 0); }
+    for (const e of graph.edges) {
+      outD.set(e.from, outD.get(e.from) + 1);
+      inD.set(e.to, inD.get(e.to) + 1);
     }
-    return null;
+    return { inD, outD };
   }
 
-  function outDegreeUnvisited(nodeId) {
-    const list = state.adj.get(nodeId) || [];
-    let c = 0;
-    for (const eid of list) if (!edgeById(eid).visited) c++;
-    return c;
-  }
-
-  // ─── Hierholzer step machine ─────────────────────────────────────
-  // One call to step() performs one atomic action:
-  //   - extend current walk by one edge (phase=walking or splicing-walk)
-  //   - detect stuck + find splice node (phase=stuck -> finding-splice)
-  //   - splice subpath into main path (phase=splicing)
-  //   - declare done/failed
-  function step() {
-    if (state.phase === 'done' || state.phase === 'failed') return;
-
-    state.stepCount++;
-    const n = state.stepCount;
-
-    if (state.phase === 'walking' || state.phase === 'splicing-walk') {
-      const cur = state.current;
-      const nextEid = nextUnvisitedOut(cur);
-      if (nextEid) {
-        const e = edgeById(nextEid);
-        e.visited = true;
-        state.edgePath.push(e.id);
-        state.path.push(e.to);
-        state.current = e.to;
-        const remaining = outDegreeUnvisited(e.to);
-        logLine(
-          'extend',
-          `Step ${n}: at ${cur}, ${outDegreeUnvisited(cur)} unvisited out-edges remain (before). Taking edge ${cur}→${e.to} (k-mer ${e.kmer}). Now at ${e.to} with ${remaining} unvisited out-edges.`,
-        );
-
-        // If we just finished a splicing subpath (returned to the splice start), splice it in.
-        if (state.phase === 'splicing-walk' && state.current === state.pendingSubpathStart &&
-            outDegreeUnvisited(state.current) === 0 /* subpath closed */ &&
-            state.pendingSubpath /* active subpath */ &&
-            cameFullCircle()) {
-          // Nothing to do here — completion handled below via closure check.
-          // We defer to the explicit close detection below.
-        }
-        render();
-        return;
-      }
-
-      // If we're in a splicing-walk and returned to the splice node, splice the subpath in first.
-      if (state.phase === 'splicing-walk' &&
-          state.current === state.pendingSubpathStart) {
-        performSplice(n);
-        return;
-      }
-
-      // Otherwise, either done, need to splice, or failed.
-      if (unvisitedCount() === 0) {
-        state.phase = 'done';
-        logLine('done', `Step ${n}: at ${cur}. All ${state.edges.length} edges visited. Eulerian traversal complete.`);
-        render();
-        return;
-      }
-
-      // Otherwise we're stuck with edges still unvisited — look for a splice node on the path.
-      logLine('splice', `Step ${n}: stuck at ${cur} (no unvisited out-edges). ${unvisitedCount()} edges remain.`);
-      state.phase = 'finding-splice';
-      const spliceIdx = findSpliceIdx();
-      if (spliceIdx === -1) {
-        state.phase = 'failed';
-        logLine(
-          'fail',
-          `Step ${n}: no node on the current path has unvisited out-edges. ${unvisitedCount()} edges are stranded in another component. No Eulerian path exists.`,
-        );
-        render();
-        return;
-      }
-      state.spliceIdx = spliceIdx;
-      state.pendingSubpathStart = state.path[spliceIdx];
-      state.pendingSubpath = { pathNodes: [state.pendingSubpathStart], pathEdges: [] };
-      state.phase = 'splicing-walk';
-      state.current = state.pendingSubpathStart;
-      logLine(
-        'splice',
-        `         splice node identified: ${state.pendingSubpathStart} (position ${spliceIdx} in current path), with ${outDegreeUnvisited(state.pendingSubpathStart)} unvisited out-edges. Starting subpath walk from ${state.pendingSubpathStart}.`,
-      );
-      render();
-      return;
+  function classify(graph) {
+    const { inD, outD } = degrees(graph);
+    const starts = [];   // out - in = +1
+    const ends   = [];   // out - in = -1
+    const bad    = [];   // |imbalance| > 1
+    for (const n of graph.nodes) {
+      const diff = outD.get(n) - inD.get(n);
+      if (diff === 0) continue;
+      if (diff === 1) starts.push(n);
+      else if (diff === -1) ends.push(n);
+      else bad.push({ node: n, diff });
     }
+    return { inD, outD, starts, ends, bad };
   }
 
-  function cameFullCircle() {
-    // Helper: during splicing walk, detect if we completed a closed subpath.
-    if (!state.pendingSubpath) return false;
-    return state.pendingSubpath.pathNodes.length > 1 &&
-           state.pendingSubpath.pathNodes[state.pendingSubpath.pathNodes.length - 1] ===
-           state.pendingSubpathStart;
+  // Weakly-connected BFS over all nodes with any incident edge.
+  // For a valid Eulerian path/circuit, every such node must lie in a single component.
+  function connectivityCheck(graph, seed) {
+    const undir = new Map();
+    for (const n of graph.nodes) undir.set(n, new Set());
+    for (const e of graph.edges) {
+      undir.get(e.from).add(e.to);
+      undir.get(e.to).add(e.from);
+    }
+    const visited = new Set([seed]);
+    const q = [seed];
+    while (q.length) {
+      const u = q.shift();
+      for (const v of undir.get(u) || []) {
+        if (!visited.has(v)) { visited.add(v); q.push(v); }
+      }
+    }
+    const hasEdge = new Set();
+    for (const e of graph.edges) { hasEdge.add(e.from); hasEdge.add(e.to); }
+    for (const n of hasEdge) if (!visited.has(n)) return { ok: false, unreached: n };
+    return { ok: true };
   }
 
-  // Track subpath edges/nodes during splicing-walk by hooking into step().
-  // We accomplish this by snapshotting path/edgePath lengths at splice start
-  // and deriving the subpath when we splice.
-  function performSplice(stepN) {
-    const idx = state.spliceIdx;
-    const start = state.pendingSubpathStart;
-    // The subpath we just walked: from index (idx) we need to capture
-    // the portion appended during splicing-walk. We compare against
-    // snapshots. Easier: subpath = path slice from the point after the
-    // splice node's original occurrence, back to the splice node.
-    //
-    // Actually our path looks like: [... , splice_node, subpath_nodes_not_including_start... , splice_node]
-    // before splicing. The splicing subpath we just walked is appended at the END of state.path.
-    // Since we started the splicing walk AT the splice node (current=splice_node) but did NOT
-    // re-add it to path, the new nodes are everything in state.path beyond the "stuck" point.
-    // Find the length of the main path (pre-splice) — it's recorded as originalLen.
-    // We stored this implicitly by tracking when we entered splicing-walk.
-
-    // We need to carefully reconstruct. In our implementation we did NOT push state.pendingSubpathStart
-    // onto the path when we started the splicing walk; we simply set current=splice_node. So any
-    // subsequent extensions pushed successor nodes onto the main path. Thus, the subpath is
-    // [splice_node, ...everything appended after the stuck point].
-    const stuckIdx = state.originalStuckPathLen; // set before splicing-walk
-    const appendedNodes = state.path.slice(stuckIdx);     // these came from the subpath walk
-    const appendedEdges = state.edgePath.slice(stuckIdx - 1); // edges for those nodes
-    // Rotate: main path up to spliceIdx, then [splice_node, ...appendedNodes (without its final splice_node dup)], then remainder after spliceIdx.
-    const subpathNodes = [start, ...appendedNodes]; // full subpath including endpoints
-    // Remove the appended tail from main path:
-    const mainBefore = state.path.slice(0, stuckIdx);
-    const mainEdgesBefore = state.edgePath.slice(0, stuckIdx - 1);
-    // mainBefore still has the stuck tail — we want to cut at the earlier splice occurrence (idx)
-    // and splice in the subpath there. i.e. new path = mainBefore[0..=idx] + subpath(without start) + mainBefore[idx+1..]
-    const newPath = [
-      ...mainBefore.slice(0, idx + 1),
-      ...subpathNodes.slice(1),            // subpath without its duplicated start
-      ...mainBefore.slice(idx + 1),
-    ];
-    // Similarly splice edges: mainEdgesBefore up to idx (i.e. first idx edges), then appended edges, then rest.
-    const newEdgePath = [
-      ...mainEdgesBefore.slice(0, idx),
-      ...appendedEdges,
-      ...mainEdgesBefore.slice(idx),
-    ];
-
-    state.path = newPath;
-    state.edgePath = newEdgePath;
-
-    logLine(
-      'splice',
-      `Step ${stepN}: subpath ${subpathNodes.join(' → ')} closed at ${start}. Splicing subpath into main path at position ${idx}. Path now length ${state.path.length}.`,
-    );
-
-    // Now we resume walking from the END of the new path.
-    state.current = state.path[state.path.length - 1];
-    state.pendingSubpath = null;
-    state.pendingSubpathStart = null;
-    state.spliceIdx = -1;
-    state.originalStuckPathLen = undefined;
-
-    if (unvisitedCount() === 0) {
-      state.phase = 'done';
-      logLine('done', `         All ${state.edges.length} edges now visited. Eulerian traversal complete.`);
-    } else if (outDegreeUnvisited(state.current) > 0) {
-      state.phase = 'walking';
-      logLine('info', `         Resuming walk from ${state.current} with ${outDegreeUnvisited(state.current)} unvisited out-edges.`);
+  // Full feasibility gate. Returns
+  //   { ok: true,  type: 'path'|'circuit', start, end? , classification }
+  //   { ok: false, reason, classification }
+  function checkFeasibility(graph) {
+    if (graph.edges.length === 0) {
+      return { ok: false, reason: 'Graph has no edges to walk.', classification: classify(graph) };
+    }
+    const c = classify(graph);
+    if (c.bad.length > 0) {
+      const b = c.bad[0];
+      const sign = b.diff > 0 ? `+${b.diff}` : `${b.diff}`;
+      return {
+        ok: false,
+        reason: `Node ${b.node} has imbalance ${sign} (out − in = ${sign}). Euler requires every node balanced, or exactly one node at +1 and one at −1.`,
+        classification: c
+      };
+    }
+    let type, start, end;
+    if (c.starts.length === 0 && c.ends.length === 0) {
+      type = 'circuit';
+      // pick any node with edges as seed
+      for (const e of graph.edges) { start = e.from; break; }
+    } else if (c.starts.length === 1 && c.ends.length === 1) {
+      type = 'path';
+      start = c.starts[0];
+      end = c.ends[0];
     } else {
-      state.phase = 'walking'; // next step() will detect stuck again
-      logLine('info', `         Current end of path is ${state.current}; still ${unvisitedCount()} unvisited edges. Next step will look for another splice.`);
+      return {
+        ok: false,
+        reason: `Graph has ${c.starts.length} node(s) with out − in = +1 and ${c.ends.length} node(s) with in − out = +1. An Eulerian path allows at most one of each.`,
+        classification: c
+      };
     }
-    render();
-  }
-
-  // Look backwards along the current path for the first node with an unvisited out-edge.
-  function findSpliceIdx() {
-    for (let i = state.path.length - 1; i >= 0; i--) {
-      if (outDegreeUnvisited(state.path[i]) > 0) return i;
+    const conn = connectivityCheck(graph, start);
+    if (!conn.ok) {
+      return {
+        ok: false,
+        reason: `Graph is disconnected — node ${conn.unreached} cannot be reached from ${start} even along undirected edges.`,
+        classification: c
+      };
     }
-    return -1;
+    return { ok: true, type, start, end, classification: c };
   }
 
-  // ─── Wrapped step to manage bookkeeping around splicing-walk ─────
-  function stepWrapped() {
-    // Before entering splicing-walk, snapshot the current path length.
-    const preWalkPhase = state.phase;
-    step();
-    if (preWalkPhase !== 'splicing-walk' && state.phase === 'splicing-walk' &&
-        state.originalStuckPathLen === undefined) {
-      state.originalStuckPathLen = state.path.length;
-    }
-  }
+  // Hierholzer's iterative algorithm. Returns a list of step records for playback.
+  // Each record: {phase: 'extend'|'backtrack'|'done'|'fail', ...}.
+  function runHierholzer(graph, start) {
+    // Clone adjacency with indices into unvisited count per node.
+    const adj = new Map();
+    for (const [k, v] of graph.adj) adj.set(k, v.map(e => ({ ...e })));
+    // Mirror visited state back to original graph.edges once the step records are replayed.
+    const stack = [start];
+    const path = [];
+    const steps = [];
+    steps.push({ phase: 'init', stack: [start], path: [], current: start });
 
-  // ─── Play / Pause / Reset ────────────────────────────────────────
-  function play() {
-    if (state.playing) return;
-    if (state.phase === 'done' || state.phase === 'failed') return;
-    state.playing = true;
-    updateButtons();
-    state.timer = setInterval(() => {
-      stepWrapped();
-      if (state.phase === 'done' || state.phase === 'failed') stop();
-    }, 900);
-  }
-  function stop() {
-    state.playing = false;
-    if (state.timer) { clearInterval(state.timer); state.timer = null; }
-    updateButtons();
-  }
-  function reset() {
-    loadPreset(state.presetKey);
-  }
-  function updateButtons() {
-    const over = state.phase === 'done' || state.phase === 'failed';
-    playBtn.disabled  = state.playing || over;
-    pauseBtn.disabled = !state.playing;
-    stepBtn.disabled  = over;
-  }
-
-  // ─── Rendering ───────────────────────────────────────────────────
-  function drawGraph() {
-    // Build edge paths (curved if reciprocal pair, straight otherwise).
-    edgesG.innerHTML = '';
-    nodesG.innerHTML = '';
-    const NS = 'http://www.w3.org/2000/svg';
-    const R = 26; // node radius
-
-    // Detect reciprocal edges so we can curve them in opposite arcs.
-    const pairMap = new Map();
-    state.edges.forEach(e => {
-      const key = e.from + '|' + e.to;
-      const rev = e.to + '|' + e.from;
-      pairMap.set(key, (pairMap.get(key) || 0) + 1);
-    });
-
-    state.edges.forEach((e, i) => {
-      const from = state.nodes.find(n => n.id === e.from);
-      const to   = state.nodes.find(n => n.id === e.to);
-      const dx = to.x - from.x, dy = to.y - from.y;
-      const dist = Math.hypot(dx, dy) || 1;
-      const ux = dx / dist, uy = dy / dist;
-
-      // Endpoints shifted to the node boundary.
-      const sx = from.x + ux * R;
-      const sy = from.y + uy * R;
-      const ex = to.x - ux * R;
-      const ey = to.y - uy * R;
-
-      const hasReverse = state.edges.some(o => o !== e && o.from === e.to && o.to === e.from);
-      const dupForward = state.edges.filter(o => o.from === e.from && o.to === e.to).length > 1;
-
-      // Offset curvature: reciprocal arcs curve to the right; duplicates split symmetrically.
-      let curve = 0;
-      if (hasReverse) curve = 32;
-      if (dupForward) {
-        const idxAmongDup = state.edges.filter((o, j) => j < i && o.from === e.from && o.to === e.to).length;
-        curve = idxAmongDup === 0 ? 32 : -32;
-      }
-
-      // Perpendicular offset direction.
-      const nx = -uy, ny = ux;
-      const mx = (sx + ex) / 2 + nx * curve;
-      const my = (sy + ey) / 2 + ny * curve;
-
-      const d = `M${sx},${sy} Q${mx},${my} ${ex},${ey}`;
-      const path = document.createElementNS(NS, 'path');
-      path.setAttribute('id', 'svg-' + e.id);
-      path.setAttribute('d', d);
-      path.setAttribute('class', 'edge-line edge-unvisited');
-      path.setAttribute('marker-end', 'url(#arrow-unvisited)');
-      edgesG.appendChild(path);
-
-      // Label at curve midpoint.
-      const label = document.createElementNS(NS, 'text');
-      label.setAttribute('id', 'lbl-' + e.id);
-      label.setAttribute('class', 'edge-label');
-      label.setAttribute('x', mx);
-      label.setAttribute('y', my);
-      label.textContent = e.kmer;
-      edgesG.appendChild(label);
-    });
-
-    state.nodes.forEach(n => {
-      const g = document.createElementNS(NS, 'g');
-      const c = document.createElementNS(NS, 'circle');
-      c.setAttribute('id', 'node-' + n.id);
-      c.setAttribute('class', 'node-circle');
-      c.setAttribute('cx', n.x);
-      c.setAttribute('cy', n.y);
-      c.setAttribute('r', R);
-      const t = document.createElementNS(NS, 'text');
-      t.setAttribute('class', 'node-label');
-      t.setAttribute('x', n.x);
-      t.setAttribute('y', n.y);
-      t.textContent = n.id;
-      g.appendChild(c);
-      g.appendChild(t);
-      nodesG.appendChild(g);
-    });
-  }
-
-  function render() {
-    // Update edge classes.
-    state.edges.forEach(e => {
-      const p = document.getElementById('svg-' + e.id);
-      const l = document.getElementById('lbl-' + e.id);
-      if (!p) return;
-      if (e.visited) {
-        p.setAttribute('class', 'edge-line edge-visited');
-        p.setAttribute('marker-end', 'url(#arrow-visited)');
-        l.setAttribute('class', 'edge-label visited');
+    while (stack.length > 0) {
+      const u = stack[stack.length - 1];
+      const outs = adj.get(u) || [];
+      const idx = outs.findIndex(e => !e.visited);
+      if (idx >= 0) {
+        const e = outs[idx];
+        e.visited = true;
+        stack.push(e.to);
+        steps.push({
+          phase: 'extend',
+          edgeId: e.id,
+          from: e.from, to: e.to, kmer: e.kmer,
+          remainingAtU: outs.filter(x => !x.visited).length,
+          stack: [...stack], current: e.to
+        });
       } else {
+        const popped = stack.pop();
+        path.push(popped);
+        const top = stack[stack.length - 1] ?? null;
+        steps.push({
+          phase: 'backtrack',
+          popped, current: top, stack: [...stack], pathSoFar: [...path]
+        });
+      }
+    }
+
+    path.reverse();
+    const totalEdges = graph.edges.length;
+    const walkedEdges = steps.filter(s => s.phase === 'extend').length;
+    if (walkedEdges < totalEdges) {
+      steps.push({
+        phase: 'fail',
+        reason: `Walk ended with ${totalEdges - walkedEdges} edge(s) unvisited. Hierholzer reached a dead end; the graph is not Eulerian (likely a disconnected component).`,
+        path
+      });
+    } else {
+      steps.push({ phase: 'done', path });
+    }
+    return steps;
+  }
+
+  function assembleContig(path, edges) {
+    // Reconstruct the "genome" by concatenating node[0] + last char of each subsequent node,
+    // but prefer to use the edge k-mer chain when labels are k-1 mers of equal length.
+    if (path.length === 0) return '';
+    const allSameLen = path.every(n => typeof n === 'string' && n.length === path[0].length);
+    if (allSameLen && path[0].length > 0) {
+      let s = path[0];
+      for (let i = 1; i < path.length; i++) s += path[i].slice(-1);
+      return s;
+    }
+    // Fallback: concatenate edge k-mers along the walk
+    return path.join(' → ');
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Layout (for custom graphs without a fixed preset layout)
+  // ────────────────────────────────────────────────────────────────
+  function layoutGraph(graph, fixedLayout) {
+    if (fixedLayout) {
+      const pos = {};
+      for (const n of graph.nodes) {
+        if (fixedLayout[n]) pos[n] = { ...fixedLayout[n] };
+      }
+      const unfixed = [...graph.nodes].filter(n => !pos[n]);
+      unfixed.forEach((n, i) => {
+        pos[n] = { x: 100 + (i % 6) * 120, y: 60 + Math.floor(i / 6) * 100 };
+      });
+      return pos;
+    }
+    // Simple circular layout, then a few force-directed relaxation steps for branching graphs.
+    const nodes = [...graph.nodes];
+    const n = nodes.length;
+    const pos = {};
+    if (n === 0) return pos;
+    if (n === 1) { pos[nodes[0]] = { x: 410, y: 180 }; return pos; }
+    const W = 820, H = 360, cx = W/2, cy = H/2;
+    const R = Math.min(W, H) * 0.38;
+    nodes.forEach((node, i) => {
+      const angle = (2 * Math.PI * i) / n - Math.PI/2;
+      pos[node] = { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle) };
+    });
+    // Force-directed relaxation: repulsion between nodes + spring along edges.
+    const edges = graph.edges;
+    const k = 90;     // ideal edge length
+    const kr = 4500;  // repulsion strength
+    for (let iter = 0; iter < 80; iter++) {
+      const disp = {}; for (const nd of nodes) disp[nd] = { x: 0, y: 0 };
+      // repulsion
+      for (let i = 0; i < n; i++) for (let j = i+1; j < n; j++) {
+        const a = pos[nodes[i]], b = pos[nodes[j]];
+        let dx = a.x - b.x, dy = a.y - b.y;
+        let d2 = dx*dx + dy*dy;
+        if (d2 < 1) { dx = (Math.random()-0.5); dy = (Math.random()-0.5); d2 = dx*dx+dy*dy + 0.01; }
+        const f = kr / d2;
+        const d = Math.sqrt(d2);
+        disp[nodes[i]].x += f * dx / d;
+        disp[nodes[i]].y += f * dy / d;
+        disp[nodes[j]].x -= f * dx / d;
+        disp[nodes[j]].y -= f * dy / d;
+      }
+      // springs
+      for (const e of edges) {
+        const a = pos[e.from], b = pos[e.to];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const d = Math.max(1, Math.sqrt(dx*dx + dy*dy));
+        const f = (d - k) * 0.1;
+        const ux = dx / d, uy = dy / d;
+        disp[e.from].x += f * ux; disp[e.from].y += f * uy;
+        disp[e.to].x   -= f * ux; disp[e.to].y   -= f * uy;
+      }
+      // apply with clamping to bounds
+      for (const nd of nodes) {
+        pos[nd].x = Math.max(50, Math.min(W - 50, pos[nd].x + disp[nd].x * 0.05));
+        pos[nd].y = Math.max(50, Math.min(H - 50, pos[nd].y + disp[nd].y * 0.05));
+      }
+    }
+    return pos;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Rendering
+  // ────────────────────────────────────────────────────────────────
+  const NODE_R = 22;
+  const state = {
+    graph: null,
+    layout: null,
+    feasibility: null,
+    steps: [],
+    stepIdx: 0,
+    playTimer: null,
+    playing: false,
+    edgeElts: new Map(),
+    edgeLabelElts: new Map(),
+    nodeElts: new Map()
+  };
+
+  function clearSvg() {
+    // Keep the defs element, nuke everything else.
+    const defs = svg.querySelector('defs');
+    svg.innerHTML = '';
+    svg.appendChild(defs);
+    state.edgeElts.clear();
+    state.edgeLabelElts.clear();
+    state.nodeElts.clear();
+  }
+
+  function renderGraph() {
+    clearSvg();
+    const { graph, layout, feasibility } = state;
+    if (!graph || !layout) return;
+
+    // Group edges by (from,to) pair to spread parallel edges
+    const pairKey = (a, b) => `${a}\u0001${b}`;
+    const groups = new Map();
+    graph.edges.forEach(e => {
+      const k = pairKey(e.from, e.to);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(e);
+    });
+
+    // Edges
+    for (const [, group] of groups) {
+      const m = group.length;
+      group.forEach((e, gi) => {
+        const a = layout[e.from], b = layout[e.to];
+        let pathStr, labelPos;
+        if (e.from === e.to) {
+          // Self-loop — draw small arc above the node
+          const r = NODE_R, cx = a.x, cy = a.y - r - 8;
+          pathStr = `M ${a.x + r*0.7} ${a.y - r*0.2} C ${cx + 30} ${cy - 30}, ${cx - 30} ${cy - 30}, ${a.x - r*0.7} ${a.y - r*0.2}`;
+          labelPos = { x: cx, y: cy - 35 };
+        } else {
+          // Spread parallel edges with perpendicular offset
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const d = Math.max(1, Math.sqrt(dx*dx + dy*dy));
+          const ux = dx/d, uy = dy/d;
+          const nx = -uy, ny = ux;
+          // Shift endpoints so arrow head sits at node perimeter
+          const ax = a.x + ux * NODE_R, ay = a.y + uy * NODE_R;
+          const bx = b.x - ux * NODE_R, by = b.y - uy * NODE_R;
+          const offset = (gi - (m - 1) / 2) * 22;
+          if (m === 1) {
+            pathStr = `M ${ax} ${ay} L ${bx} ${by}`;
+            labelPos = { x: (ax+bx)/2 + nx * 10, y: (ay+by)/2 + ny * 10 };
+          } else {
+            const mx = (ax+bx)/2 + nx * offset;
+            const my = (ay+by)/2 + ny * offset;
+            pathStr = `M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`;
+            labelPos = { x: mx + nx * 6, y: my + ny * 6 };
+          }
+        }
+        const p = document.createElementNS(SVG_NS, 'path');
+        p.setAttribute('d', pathStr);
         p.setAttribute('class', 'edge-line edge-unvisited');
         p.setAttribute('marker-end', 'url(#arrow-unvisited)');
-        l.setAttribute('class', 'edge-label');
-      }
-    });
-    // Update node highlight.
-    state.nodes.forEach(n => {
-      const c = document.getElementById('node-' + n.id);
-      if (!c) return;
-      c.setAttribute('class', 'node-circle' + (n.id === state.current ? ' current' : ''));
-    });
+        svg.appendChild(p);
+        state.edgeElts.set(e.id, p);
 
-    // Status line.
-    const total = state.edges.length;
-    const unv = unvisitedCount();
-    statUnv.textContent = `${unv} / ${total}`;
-    statCurrent.textContent = state.current || '—';
-    statPathLen.textContent = state.path.length;
-    statPath.textContent = state.path.join(' → ') || '—';
-    statContig.textContent = assembledContig();
-
-    const phaseEl = statPhase;
-    phaseEl.classList.remove('emphasis', 'warn', 'err');
-    switch (state.phase) {
-      case 'walking':        phaseEl.textContent = 'walking';        phaseEl.classList.add('emphasis'); break;
-      case 'splicing-walk':  phaseEl.textContent = 'splicing walk';  phaseEl.classList.add('emphasis'); break;
-      case 'finding-splice': phaseEl.textContent = 'finding splice'; phaseEl.classList.add('warn'); break;
-      case 'stuck':          phaseEl.textContent = 'stuck';          phaseEl.classList.add('warn'); break;
-      case 'done':           phaseEl.textContent = 'done';           break;
-      case 'failed':         phaseEl.textContent = 'failed';         phaseEl.classList.add('err'); break;
-      default:               phaseEl.textContent = state.phase;
+        const lbl = document.createElementNS(SVG_NS, 'text');
+        lbl.setAttribute('x', labelPos.x);
+        lbl.setAttribute('y', labelPos.y);
+        lbl.setAttribute('class', 'edge-label');
+        lbl.textContent = e.kmer;
+        svg.appendChild(lbl);
+        state.edgeLabelElts.set(e.id, lbl);
+      });
     }
 
+    // Nodes
+    for (const n of graph.nodes) {
+      const p = layout[n];
+      const g = document.createElementNS(SVG_NS, 'g');
+      const c = document.createElementNS(SVG_NS, 'circle');
+      c.setAttribute('cx', p.x);
+      c.setAttribute('cy', p.y);
+      c.setAttribute('r', NODE_R);
+      let cls = 'node-circle';
+      if (feasibility?.ok) {
+        if (n === feasibility.start && feasibility.type === 'path') cls += ' start';
+        if (n === feasibility.end) cls += ' end';
+      }
+      c.setAttribute('class', cls);
+      g.appendChild(c);
+      const t = document.createElementNS(SVG_NS, 'text');
+      t.setAttribute('x', p.x);
+      t.setAttribute('y', p.y);
+      t.setAttribute('class', 'node-label');
+      t.textContent = n;
+      g.appendChild(t);
+      svg.appendChild(g);
+      state.nodeElts.set(n, { g, circle: c, text: t });
+    }
+
+    // Fit viewBox to content
+    const xs = Object.values(layout).map(p => p.x);
+    const ys = Object.values(layout).map(p => p.y);
+    const minX = Math.min(...xs) - NODE_R - 20;
+    const maxX = Math.max(...xs) + NODE_R + 50;
+    const minY = Math.min(...ys) - NODE_R - 30;
+    const maxY = Math.max(...ys) + NODE_R + 30;
+    svg.setAttribute('viewBox', `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
+  }
+
+  function setEdgeVisited(edgeId, visited) {
+    const p = state.edgeElts.get(edgeId);
+    const l = state.edgeLabelElts.get(edgeId);
+    if (!p) return;
+    p.setAttribute('class', 'edge-line ' + (visited ? 'edge-visited' : 'edge-unvisited'));
+    p.setAttribute('marker-end', visited ? 'url(#arrow-visited)' : 'url(#arrow-unvisited)');
+    if (l) l.setAttribute('class', 'edge-label' + (visited ? ' visited' : ''));
+  }
+
+  function setCurrentNode(name) {
+    for (const [, el] of state.nodeElts) el.circle.classList.remove('current');
+    if (!name) return;
+    const el = state.nodeElts.get(name);
+    if (el) el.circle.classList.add('current');
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Feasibility + degree table rendering
+  // ────────────────────────────────────────────────────────────────
+  function renderFeasibility(f) {
+    if (!f) { feasibilityEl.hidden = true; degreeDetails.hidden = true; return; }
+    feasibilityEl.hidden = false;
+    feasibilityEl.className = 'feasibility ' + (f.ok ? 'ok' : 'err');
+    let body;
+    if (f.ok) {
+      const kind = f.type === 'circuit' ? 'CIRCUIT' : 'PATH';
+      const detail = f.type === 'circuit'
+        ? `all nodes balanced — start anywhere, end at the same node.`
+        : `start at <code>${f.start}</code> (out − in = +1), end at <code>${f.end}</code> (in − out = +1).`;
+      body = `<strong>Eulerian ${kind} exists.</strong> ${detail}`;
+    } else {
+      body = `<strong>No Eulerian path.</strong> ${f.reason}`;
+    }
+    feasibilityEl.innerHTML = `<span class="icon">${f.ok ? '✓' : '✗'}</span><div class="body">${body}</div>`;
+    degreeDetails.hidden = false;
+    renderDegreeTable(f.classification, f);
+  }
+
+  function renderDegreeTable(c, f) {
+    const badSet = new Set(c.bad.map(b => b.node));
+    const startSet = new Set(c.starts);
+    const endSet = new Set(c.ends);
+    const nodes = [...new Set([...startSet, ...endSet, ...badSet, ...c.inD.keys()])];
+    nodes.sort();
+    const rows = nodes.map(n => {
+      const inD = c.inD.get(n) ?? 0;
+      const outD = c.outD.get(n) ?? 0;
+      const diff = outD - inD;
+      const diffStr = diff > 0 ? `+${diff}` : `${diff}`;
+      let role = '';
+      let cls = '';
+      if (badSet.has(n)) { role = 'imbalance'; cls = 'bad'; }
+      else if (startSet.has(n)) { role = 'start'; cls = 'start'; }
+      else if (endSet.has(n))   { role = 'end';   cls = 'end'; }
+      else role = 'balanced';
+      return `<tr class="${cls}"><td class="node-col">${n}</td><td>${inD}</td><td>${outD}</td><td>${diffStr}</td><td>${role}</td></tr>`;
+    }).join('');
+    degreeTableWrap.innerHTML = `<table class="degree-table"><thead><tr><th style="text-align:left">Node</th><th>in-deg</th><th>out-deg</th><th>out−in</th><th>Role</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Trace + result banner
+  // ────────────────────────────────────────────────────────────────
+  function clearTrace() { traceEl.innerHTML = ''; }
+
+  function traceLine(kind, text) {
+    const idx = traceEl.childElementCount + 1;
+    const div = document.createElement('div');
+    const prefix = `<span class="step-idx">step ${String(idx).padStart(2,' ')} ·</span> `;
+    div.className = 'step-' + kind;
+    div.innerHTML = prefix + text;
+    traceEl.appendChild(div);
+    traceEl.scrollTop = traceEl.scrollHeight;
+  }
+
+  function showResultBanner(kind, text) {
+    resultBanner.hidden = false;
+    resultBanner.className = 'result-banner ' + kind;
+    resultBanner.innerHTML = text;
+  }
+  function hideResultBanner() { resultBanner.hidden = true; resultBanner.innerHTML = ''; }
+
+  // ────────────────────────────────────────────────────────────────
+  // Playback
+  // ────────────────────────────────────────────────────────────────
+  function resetWalk() {
+    stopPlay();
+    if (!state.graph) return;
+    // Reset visited state on graph.edges + edge visuals
+    for (const e of state.graph.edges) e.visited = false;
+    for (const [id] of state.edgeElts) setEdgeVisited(id, false);
+    state.stepIdx = 0;
+    hideResultBanner();
+    clearTrace();
+    if (state.feasibility?.ok) {
+      setCurrentNode(state.feasibility.start);
+      statPhase.textContent = 'ready';
+      statPhase.className = 'value emphasis';
+      statCurrent.textContent = state.feasibility.start;
+      statStack.textContent = state.feasibility.start;
+      statUnvisited.textContent = `${state.graph.edges.length} / ${state.graph.edges.length}`;
+      traceLine('extend', `start at <strong>${state.feasibility.start}</strong> (${state.feasibility.type === 'path' ? 'Eulerian path start, out − in = +1' : 'Eulerian circuit — any node works'})`);
+    } else {
+      setCurrentNode(null);
+      statPhase.textContent = 'infeasible';
+      statPhase.className = 'value err';
+      statCurrent.textContent = '—';
+      statStack.textContent = '—';
+      statUnvisited.textContent = '— / —';
+      clearTrace();
+      traceLine('fail', state.feasibility ? state.feasibility.reason : 'No graph loaded.');
+      showResultBanner('failure', `<strong>✗ No Eulerian path.</strong><br>${state.feasibility ? state.feasibility.reason : 'No graph loaded.'}`);
+    }
     updateButtons();
   }
 
-  function assembledContig() {
-    if (state.path.length === 0) return '—';
-    // Start with first node label (length k-1); then append last character of each edge's kmer.
-    let s = state.path[0];
-    for (const eid of state.edgePath) {
-      const e = edgeById(eid);
-      s += e.kmer[e.kmer.length - 1];
+  function applyStep(step) {
+    switch (step.phase) {
+      case 'init':
+        // already rendered in resetWalk
+        break;
+      case 'extend':
+        setEdgeVisited(step.edgeId, true);
+        setCurrentNode(step.to);
+        statPhase.textContent = 'walking';
+        statPhase.className = 'value emphasis';
+        statCurrent.textContent = step.to;
+        statStack.textContent = step.stack.join(' → ');
+        statUnvisited.textContent = `${countUnvisited()} / ${state.graph.edges.length}`;
+        traceLine('extend',
+          `at <strong>${step.from}</strong>, take edge <code>${step.from} → ${step.to}</code> (<code>${step.kmer}</code>) · ${step.remainingAtU} unvisited out-edge(s) left at ${step.from}`);
+        break;
+      case 'backtrack':
+        setCurrentNode(step.current);
+        const context = step.current ? 'backtracking' : 'finishing';
+        statPhase.textContent = context;
+        statPhase.className = 'value warn';
+        statCurrent.textContent = step.current || '—';
+        statStack.textContent = step.stack.join(' → ') || '—';
+        traceLine('backtrack',
+          step.current
+            ? `<strong>${step.popped}</strong> has no unvisited out-edges; pop, move to ${step.current} · looking for splice`
+            : `<strong>${step.popped}</strong> was last on stack; walk complete`);
+        break;
+      case 'done':
+        setCurrentNode(null);
+        statPhase.textContent = 'done';
+        statPhase.className = 'value emphasis';
+        const contig = assembleContig(step.path, state.graph.edges);
+        const pathStr = step.path.join(' → ');
+        traceLine('done', `all edges consumed — final walk: <code>${pathStr}</code>`);
+        showResultBanner('success',
+          `<strong>✓ Eulerian ${state.feasibility.type === 'circuit' ? 'circuit' : 'path'} found.</strong>` +
+          `<div style="margin-top:.4rem;"><strong>Walk:</strong> <code style="font-family: var(--font-mono); font-size: var(--text-sm);">${pathStr}</code></div>` +
+          `<div class="contig"><strong>Assembled sequence:</strong> ${contig}</div>`);
+        break;
+      case 'fail':
+        setCurrentNode(null);
+        statPhase.textContent = 'failed';
+        statPhase.className = 'value err';
+        traceLine('fail', step.reason);
+        showResultBanner('failure', `<strong>✗ No Eulerian path.</strong><br>${step.reason}`);
+        break;
     }
-    return s;
   }
 
-  function logLine(kind, msg) {
-    const div = document.createElement('div');
-    div.className = 'step-' + (
-      kind === 'extend' ? 'extend' :
-      kind === 'splice' ? 'splice' :
-      kind === 'fail'   ? 'fail'   :
-      kind === 'done'   ? 'done'   :
-      'idx'
-    );
-    div.textContent = msg;
-    traceLog.appendChild(div);
-    traceLog.scrollTop = traceLog.scrollHeight;
+  function countUnvisited() {
+    let k = 0; for (const e of state.graph.edges) if (!e.visited) k++; return k;
   }
 
-  // ─── Wiring ──────────────────────────────────────────────────────
-  presetEl.addEventListener('change', () => loadPreset(presetEl.value));
-  stepBtn.addEventListener('click', () => { stop(); stepWrapped(); });
-  playBtn.addEventListener('click', play);
-  pauseBtn.addEventListener('click', stop);
-  resetBtn.addEventListener('click', reset);
+  function stepOnce() {
+    if (state.stepIdx >= state.steps.length) return false;
+    let next = state.steps[state.stepIdx++];
+    // Skip the 'init' step — it's encoded in resetWalk.
+    while (next && next.phase === 'init' && state.stepIdx < state.steps.length) next = state.steps[state.stepIdx++];
+    if (!next) return false;
+    applyStep(next);
+    updateButtons();
+    return state.stepIdx < state.steps.length;
+  }
 
-  // Bootstrap.
-  loadPreset(presetEl.value);
+  function updateButtons() {
+    const atEnd = state.stepIdx >= state.steps.length;
+    const feasible = !!state.feasibility?.ok;
+    stepBtn.disabled     = !feasible || atEnd;
+    playBtn.disabled     = !feasible || atEnd || state.playing;
+    pauseBtn.disabled    = !state.playing;
+    resetBtn.disabled    = !state.graph;
+    completeBtn.disabled = !feasible || atEnd;
+  }
+
+  function play() {
+    if (state.playing || !state.feasibility?.ok) return;
+    state.playing = true;
+    updateButtons();
+    state.playTimer = setInterval(() => {
+      const more = stepOnce();
+      if (!more) stopPlay();
+    }, 650);
+  }
+  function stopPlay() {
+    state.playing = false;
+    if (state.playTimer) { clearInterval(state.playTimer); state.playTimer = null; }
+    updateButtons();
+  }
+  function runToEnd() {
+    stopPlay();
+    while (stepOnce()) {}
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Loading a graph (from preset or custom input)
+  // ────────────────────────────────────────────────────────────────
+  function loadEdges(edgeList, fixedLayout) {
+    stopPlay();
+    hideResultBanner();
+    clearTrace();
+
+    const graph = buildGraph(edgeList);
+    const feasibility = checkFeasibility(graph);
+    const layout = layoutGraph(graph, fixedLayout);
+
+    state.graph = graph;
+    state.feasibility = feasibility;
+    state.layout = layout;
+
+    renderFeasibility(feasibility);
+    renderGraph();
+
+    if (feasibility.ok) {
+      state.steps = runHierholzer(graph, feasibility.start);
+      // But reset the on-screen edges to unvisited — the step player will re-mark them.
+      for (const e of graph.edges) e.visited = false;
+      for (const [id] of state.edgeElts) setEdgeVisited(id, false);
+    } else {
+      state.steps = [];
+    }
+    resetWalk();
+  }
+
+  function loadPreset(key) {
+    const p = PRESETS[key];
+    if (!p) return;
+    presetHint.textContent = p.hint;
+    const edgeList = p.edges.map(e => ({ from: e[0], to: e[1], kmer: e[2] ?? (e[0] + e[1].slice(-1)) }));
+    loadEdges(edgeList, p.layout);
+  }
+
+  function loadCustom() {
+    const text = edgeInput.value;
+    const { edges, errors } = parseEdges(text);
+    if (errors.length) {
+      feasibilityEl.hidden = false;
+      feasibilityEl.className = 'feasibility err';
+      feasibilityEl.innerHTML = `<span class="icon">✗</span><div class="body"><strong>Could not parse input.</strong> ${errors.map(x => '<div><code>' + x + '</code></div>').join('')}</div>`;
+      degreeDetails.hidden = true;
+      state.graph = null; state.feasibility = null; state.steps = []; state.stepIdx = 0;
+      clearSvg(); clearTrace(); hideResultBanner();
+      statPhase.textContent = 'error'; statPhase.className = 'value err';
+      updateButtons();
+      return;
+    }
+    if (edges.length === 0) {
+      feasibilityEl.hidden = false;
+      feasibilityEl.className = 'feasibility err';
+      feasibilityEl.innerHTML = `<span class="icon">✗</span><div class="body"><strong>No edges provided.</strong> Paste one edge per line, e.g. <code>ACG -&gt; CGT</code>.</div>`;
+      return;
+    }
+    loadEdges(edges, null);
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // UI wiring
+  // ────────────────────────────────────────────────────────────────
+  function populatePresets() {
+    for (const [key, p] of Object.entries(PRESETS)) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = p.name;
+      presetSelect.appendChild(opt);
+    }
+  }
+
+  function switchSource(which) {
+    const preset = which === 'preset';
+    srcPresetBtn.classList.toggle('active', preset);
+    srcCustomBtn.classList.toggle('active', !preset);
+    srcPresetBtn.setAttribute('aria-selected', preset);
+    srcCustomBtn.setAttribute('aria-selected', !preset);
+    presetPane.hidden = !preset;
+    customPane.hidden = preset;
+    if (preset) loadPreset(presetSelect.value);
+  }
+
+  function wire() {
+    populatePresets();
+    presetSelect.value = 'path_splice';
+
+    srcPresetBtn.addEventListener('click', () => switchSource('preset'));
+    srcCustomBtn.addEventListener('click', () => switchSource('custom'));
+    presetSelect.addEventListener('change', () => loadPreset(presetSelect.value));
+
+    analyzeBtn.addEventListener('click', loadCustom);
+    exampleBtn.addEventListener('click', () => {
+      edgeInput.value =
+`# Your turn — format: FROM -> TO  (optional k-mer label as 3rd field)
+# Lines starting with # or // are ignored.
+AAC -> ACG
+ACG -> CGT
+CGT -> GTA
+GTA -> TAC
+TAC -> ACG
+ACG -> CGA
+CGA -> GAT`;
+      loadCustom();
+    });
+
+    playBtn.addEventListener('click', play);
+    pauseBtn.addEventListener('click', stopPlay);
+    stepBtn.addEventListener('click', () => { stopPlay(); stepOnce(); });
+    resetBtn.addEventListener('click', resetWalk);
+    completeBtn.addEventListener('click', runToEnd);
+
+    // Initial load
+    loadPreset(presetSelect.value);
+  }
+
+  wire();
 })();
 </script>
 

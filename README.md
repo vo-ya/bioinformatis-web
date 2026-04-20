@@ -20,25 +20,38 @@ Open <http://localhost:8000/>. Alternatives: `npx serve .` if you have Node, or 
 ├── index.html                            # Landing page
 ├── lectures/
 │   ├── lecture-01.html                   # Long-form lecture pages
-│   └── lecture-02.html
+│   ├── lecture-02.html
+│   ├── lecture-03.html
+│   └── lecture-04.html
 ├── artifacts/
 │   ├── _shared/                          # Shared design tokens + postMessage resizer
 │   ├── lecture-01/                       # 6 interactive HTML artifacts per lecture
-│   └── lecture-02/
+│   ├── lecture-02/
+│   ├── lecture-03/
+│   └── lecture-04/
 ├── diagrams/
-│   ├── lecture-01/                       # Static SVG figures (10-12 per lecture)
-│   └── lecture-02/
+│   ├── lecture-01/                       # Static SVG figures (10–12 per lecture)
+│   ├── lecture-02/
+│   ├── lecture-03/
+│   └── lecture-04/
 ├── assets/
 │   ├── styles.css                        # Site-wide tokens + homepage
 │   ├── lecture.css                       # Lecture-page layout, callouts, figures
 │   └── logo/                             # Mark, wordmark, favicon variants
+├── scripts/
+│   └── phase-a-check.py                  # Automated Phase A exit-check runner
 ├── markdown_resources/                   # Specs + source-of-truth content
 │   ├── website-spec.md  homepage-spec.md  logo-spec.md        # Course-wide specs
 │   ├── lecture-style-guide.md  diagram-style-guide.md
+│   ├── generate_new_lesson_flow.md                            # Phase A/B/C recipe
 │   ├── lesson1_md_files/                                      # Lecture 1 sources
 │   │   ├── artifacts-spec.md  figures-spec.md  lecture-01.md
-│   └── lesson2_md_files/                                      # Lecture 2 sources
-│       ├── artifacts-spec.md  figures-spec.md  lecture-02.md
+│   ├── lesson2_md_files/                                      # Lecture 2 sources
+│   │   ├── artifacts-spec.md  figures-spec.md  lecture-02.md
+│   ├── lesson3_md_files/                                      # Lecture 3 sources
+│   │   ├── artifacts-spec.md  figures-spec.md  lecture-03.md
+│   └── lesson4_md_files/                                      # Lecture 4 sources
+│       ├── artifacts-spec.md  figures-spec.md  lecture-04.md
 └── proof_html_resources/                 # Standalone-viewable design references
     ├── fastq-anatomy-proof.html
     └── logo-proof-v2.html
@@ -58,8 +71,11 @@ These are the sources of truth when adding content. Read the relevant one before
 | `markdown_resources/lecture-style-guide.md` | Voice, structure, callout types, and formatting for lecture prose |
 | `markdown_resources/diagram-style-guide.md` | House style for SVG diagrams (colour, stroke, typography, arrows) |
 | `markdown_resources/generate_new_lesson_flow.md` | End-to-end recipe for generating a new lecture (phases, steps, validations) |
+| `scripts/phase-a-check.py` | Automated runner for the 8-item Phase A exit check — run before every Phase B |
 | `markdown_resources/lesson1_md_files/` | Lecture 1 — behaviour specs and source content |
 | `markdown_resources/lesson2_md_files/` | Lecture 2 — behaviour specs and source content |
+| `markdown_resources/lesson3_md_files/` | Lecture 3 — behaviour specs and source content |
+| `markdown_resources/lesson4_md_files/` | Lecture 4 — behaviour specs and source content |
 | `proof_html_resources/fastq-anatomy-proof.html` | Canonical SVG reference — copy arrow markers and typography patterns from here |
 | `proof_html_resources/logo-proof-v2.html` | Logo visual reference; course mark is locked to Variant A3 |
 
@@ -75,9 +91,19 @@ These are the sources of truth when adding content. Read the relevant one before
 
 - **Lecture 1 — Foundations: From Cells to Sequences to FASTQ.** 3h 35min · 12 figures · 6 interactive tools. Shipped.
 - **Lecture 2 — Read Alignment: From Brute Force to FM Index and Back.** 3h 50min · 10 figures · 6 interactive tools. Shipped.
-- **Lectures 3–16** — placeholders on the homepage; not yet started.
+- **Lecture 3 — DNA Sequence Assembly: From Reads to Reconstructed Genomes.** 3h 25min · 11 figures · 6 interactive tools. Shipped.
+- **Lecture 4 — Variant Calling: From Aligned Reads to Called Differences.** 3h 30min · 11 figures · 6 interactive tools. Shipped.
+- **Lectures 5–16** — placeholders on the homepage; not yet started.
 
-Lectures shipped so far: **2 of 16.** Interactive tools: **12.** Figures: **22.**
+Lectures shipped so far: **4 of 16.** Interactive tools: **24.** Figures: **44.**
+
+## Adding a new lecture
+
+The full recipe is in `markdown_resources/generate_new_lesson_flow.md` (v1.2). Short version:
+
+1. **Phase A — specs.** Author or generate `lecture-NN.md`, `figures-spec.md`, `artifacts-spec.md` under `markdown_resources/lessonN_md_files/`. Run `python3 scripts/phase-a-check.py markdown_resources/lessonN_md_files/` — it must exit 0 before Phase B starts.
+2. **Phase B — build.** B2 lecture HTML · B3 SVG figures · B4 interactive artifacts (parallelise with background agents for 5+ artifacts) · B5 homepage card + stats strip. One commit per step.
+3. **Phase C — quality.** C6 smoke test (local server, asset-link walk, JS `node --check`, SVG XML parse) · C7 review pass (within-part redundancy scan, "every section earns its seat", callouts, responsive, equations) · C8 push.
 
 ## License
 

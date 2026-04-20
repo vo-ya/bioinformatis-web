@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ORA Contingency Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .artifact-head p  { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0; max-width: 72ch; }
+
+    .panel       { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .panel-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+    .field-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: var(--fg-muted); display: block; margin-bottom: 0.4rem; }
+
+    .btn {
+      font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500;
+      padding: 0.5rem 0.9rem; background: var(--bg-muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg); cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn--ghost   { background: transparent; border-color: var(--border-strong); }
+
+    .controls { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+    .inline-error { color: var(--warning); font-family: var(--font-mono); font-size: var(--text-xs); margin: 0.35rem 0 0; min-height: 1em; }
+
+    /* ─── Slider grid ─────────────────────────────────────── */
+    .slider-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem 1.5rem;
+    }
+    .slider-row { display: flex; flex-direction: column; }
+    .slider-row .slider-head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 0.35rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 600;
+      color: var(--accent);
+    }
+    .slider-row .slider-range {
+      font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-subtle);
+      margin-top: 0.25rem;
+    }
+    .slider-row input[type="range"] {
+      width: 100%; accent-color: var(--accent); cursor: pointer;
+    }
+    .slider-row input[type="range"]:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .preset-bar { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 1rem; }
+    .preset-bar .btn { font-size: var(--text-xs); padding: 0.35rem 0.7rem; }
+
+    /* ─── Results two-column layout ───────────────────────── */
+    .results-grid {
+      display: grid; grid-template-columns: minmax(280px, 360px) 1fr;
+      gap: 1.25rem;
+    }
+
+    /* 2×2 contingency table */
+    .ctable {
+      border-collapse: collapse; width: 100%;
+      font-family: var(--font-mono); font-size: var(--text-sm);
+    }
+    .ctable th, .ctable td {
+      border: 1px solid var(--border); padding: 0.55rem 0.7rem;
+      text-align: center; background: var(--bg-elevated);
+    }
+    .ctable th {
+      background: var(--bg-muted); font-family: var(--font-sans); font-weight: 600;
+      font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted);
+    }
+    .ctable td.cell { font-size: var(--text-lg); font-weight: 600; color: var(--fg); }
+    .ctable td.cell.focus { background: var(--accent-bg); color: var(--accent); }
+    .ctable td.total { background: var(--bg-muted); color: var(--fg-muted); font-weight: 600; }
+    .ctable .row-label {
+      background: var(--bg-muted); font-family: var(--font-sans); font-weight: 600;
+      font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted);
+      text-align: left; white-space: nowrap;
+    }
+
+    .kv { display: grid; grid-template-columns: minmax(140px, 180px) 1fr; gap: 0.3rem 0.75rem; margin-top: 0.3rem; }
+    .kv .k { color: var(--fg-muted); font-size: var(--text-xs); font-family: var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; }
+    .kv .v { color: var(--fg); font-family: var(--font-mono); font-size: var(--text-sm); }
+    .kv .v.strong { color: var(--accent); font-weight: 600; font-size: var(--text-base); }
+    .kv .v.muted  { color: var(--fg-subtle); font-style: italic; }
+    .kv .v.ok     { color: var(--success); font-weight: 600; }
+    .kv .v.warn   { color: var(--warning); font-weight: 600; }
+    .kv .v.error  { color: var(--error);   font-weight: 600; }
+
+    .subhead {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--fg-subtle); font-weight: 600; margin: 0.2rem 0 0.5rem;
+    }
+
+    /* ─── PMF chart ───────────────────────────────────────── */
+    .chart-wrap {
+      background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 0.9rem; position: relative;
+    }
+    .chart-wrap svg { display: block; width: 100%; height: auto; }
+    .chart-legend {
+      display: flex; gap: 1rem; font-size: var(--text-xs); color: var(--fg-muted);
+      font-family: var(--font-sans); margin-top: 0.5rem; flex-wrap: wrap;
+    }
+    .chart-legend .sw { display: inline-block; width: 0.8rem; height: 0.8rem; vertical-align: middle; margin-right: 0.3rem; border-radius: 2px; }
+    .sw.pmf-body { background: var(--border-strong); }
+    .sw.pmf-tail { background: var(--accent); }
+    .sw.pmf-mark { background: var(--error); }
+
+    /* ─── Outcome banner ──────────────────────────────────── */
+    .verdict {
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem;
+      display: flex; gap: 0.8rem; align-items: flex-start; font-family: var(--font-sans);
+    }
+    .verdict .icon     { font-family: var(--font-mono); font-size: var(--text-xl); line-height: 1; margin-top: 0.1rem; }
+    .verdict .v-title  { font-weight: 700; font-size: var(--text-base); color: var(--fg); }
+    .verdict .v-detail { color: var(--fg-muted); font-size: var(--text-sm); margin-top: 0.3rem; line-height: var(--leading-relaxed); }
+    .verdict.v-significant  { background: #f0fdf4; border-color: #bbf7d0; }
+    .verdict.v-significant .icon, .verdict.v-significant .v-title { color: var(--success); }
+    .verdict.v-suggestive   { background: #fffbeb; border-color: #fde68a; }
+    .verdict.v-suggestive .icon, .verdict.v-suggestive .v-title { color: var(--warning); }
+    .verdict.v-null         { background: var(--bg-muted); border-color: var(--border-strong); }
+    .verdict.v-null .icon   { color: var(--fg-subtle); }
+    .verdict.v-null .v-title{ color: var(--fg); }
+    .verdict.v-depleted     { background: #eff6ff; border-color: #bfdbfe; }
+    .verdict.v-depleted .icon, .verdict.v-depleted .v-title { color: var(--accent); }
+
+    .hint { font-size: var(--text-xs); color: var(--fg-muted); margin-top: 0.75rem; line-height: var(--leading-relaxed); }
+    .hint code { background: var(--bg-muted); padding: 0.05rem 0.35rem; border-radius: 2px; font-family: var(--font-mono); }
+
+    @media (max-width: 820px) {
+      .slider-grid { grid-template-columns: 1fr; }
+      .results-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .kv { grid-template-columns: 1fr; gap: 0; }
+      .kv .k { margin-top: 0.3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="ora-contingency">
+
+  <header class="artifact-head">
+    <h1>ORA Contingency Explorer</h1>
+    <p>Over-representation analysis (ORA) tests whether a gene set — e.g. <em>G2/M checkpoint</em> — is enriched among your differentially expressed genes. The 2&times;2 contingency table feeds Fisher's exact test (hypergeometric tail) and a chi-square approximation. Slide the four knobs and watch the p-value, enrichment ratio, and tail probability update live. Compare the default with the <em>small overlap</em> preset to see how a handful of "enriched" genes can still be statistically invisible.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Parameters</p>
+    <div class="slider-grid">
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="de-slider" style="margin:0;">DE gene list size</label>
+          <span class="slider-value" id="de-value">500</span>
+        </div>
+        <input type="range" id="de-slider" min="10" max="2000" step="1" value="500">
+        <div class="slider-range">10 &mdash; 2000 &middot; how many genes are significant in your experiment</div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="set-slider" style="margin:0;">Gene-set size</label>
+          <span class="slider-value" id="set-value">127</span>
+        </div>
+        <input type="range" id="set-slider" min="10" max="1000" step="1" value="127">
+        <div class="slider-range">10 &mdash; 1000 &middot; size of the annotated pathway / GO term</div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="overlap-slider" style="margin:0;">Overlap (DE &cap; set)</label>
+          <span class="slider-value" id="overlap-value">42</span>
+        </div>
+        <input type="range" id="overlap-slider" min="0" max="127" step="1" value="42">
+        <div class="slider-range" id="overlap-range">0 &mdash; 127 &middot; genes that are both DE and in the set</div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="bg-slider" style="margin:0;">Background (universe)</label>
+          <span class="slider-value" id="bg-value">20000</span>
+        </div>
+        <input type="range" id="bg-slider" min="10000" max="50000" step="100" value="20000">
+        <div class="slider-range">10k &mdash; 50k &middot; total genes tested (transcriptome background)</div>
+      </div>
+
+    </div>
+
+    <p class="inline-error" id="error-msg"></p>
+
+    <div class="preset-bar">
+      <span class="field-label" style="margin:0 0.4rem 0 0; align-self:center;">Presets:</span>
+      <button class="btn" data-preset="default" type="button">Default G2/M (strong enrichment)</button>
+      <button class="btn" data-preset="small" type="button">Small overlap (barely enriched)</button>
+      <button class="btn" data-preset="null" type="button">Null (overlap = expected)</button>
+      <button class="btn" data-preset="huge" type="button">Huge list (diluted)</button>
+      <button class="btn" data-preset="depleted" type="button">Depleted set</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">2&times;2 contingency table</p>
+    <div class="results-grid">
+
+      <div>
+        <table class="ctable">
+          <thead>
+            <tr>
+              <th></th>
+              <th>In set (G)</th>
+              <th>Not in set</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="row-label">DE</td>
+              <td class="cell focus" id="c-a">42</td>
+              <td class="cell" id="c-b">458</td>
+              <td class="total" id="c-de-total">500</td>
+            </tr>
+            <tr>
+              <td class="row-label">Not DE</td>
+              <td class="cell" id="c-c">85</td>
+              <td class="cell" id="c-d">19415</td>
+              <td class="total" id="c-nde-total">19500</td>
+            </tr>
+            <tr>
+              <td class="row-label">Total</td>
+              <td class="total" id="c-set-total">127</td>
+              <td class="total" id="c-nset-total">19873</td>
+              <td class="total" id="c-grand-total">20000</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="hint">Focused cell = observed overlap. Row / column sums are the <em>margins</em>; Fisher's test conditions on them.</p>
+      </div>
+
+      <div>
+        <p class="subhead">Observed vs expected</p>
+        <div class="kv">
+          <div class="k">Observed overlap</div><div class="v strong" id="obs-val">42</div>
+          <div class="k">Expected (DE &times; set / bg)</div><div class="v" id="exp-val">3.18</div>
+          <div class="k">Enrichment ratio</div><div class="v strong" id="enrich-val">13.2&times;</div>
+          <div class="k">Direction</div><div class="v" id="direction-val">over-represented</div>
+        </div>
+
+        <p class="subhead" style="margin-top: 1rem;">Test statistics</p>
+        <div class="kv">
+          <div class="k">Fisher's exact p (one-sided)</div><div class="v strong" id="fisher-val">—</div>
+          <div class="k">&chi;&sup2; p-value (1 df)</div><div class="v" id="chi-val">—</div>
+          <div class="k">&chi;&sup2; statistic</div><div class="v" id="chi-stat">—</div>
+          <div class="k">Odds ratio</div><div class="v" id="or-val">—</div>
+          <div class="k">&minus;log&#8321;&#8320; p</div><div class="v" id="nlog-val">—</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Hypergeometric PMF &middot; P(X = k | margins)</p>
+    <div class="chart-wrap">
+      <svg id="pmf-chart" viewBox="0 0 640 280" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Hypergeometric probability mass function"></svg>
+    </div>
+    <div class="chart-legend">
+      <span><span class="sw pmf-body"></span>P(X = k)</span>
+      <span><span class="sw pmf-tail"></span>Tail: P(X &ge; observed) = Fisher's one-sided p</span>
+      <span><span class="sw pmf-mark"></span>Observed</span>
+    </div>
+    <p class="hint">The PMF is the null distribution: how often would you see <em>k</em> overlap by chance alone, given the margins? The shaded tail sums to the exact p-value.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Outcome</p>
+    <div id="verdict" class="verdict v-null">
+      <div class="icon">&middot;</div>
+      <div>
+        <div class="v-title">Adjust the sliders to compute enrichment.</div>
+        <div class="v-detail">Fisher's exact test is the gold standard for 2&times;2 count data. The chi-square approximation agrees when all expected counts &ge; 5.</div>
+      </div>
+    </div>
+    <p class="hint">
+      Default preset lands near <code>p &asymp; 1e-8</code>, 13&times; enrichment — a textbook <em>significant</em> hit. Drop <strong>Overlap</strong> to 5: expected is ~3, observed is 5, ratio is 1.6&times; — Fisher's p climbs above 0.2. <strong>Enrichment is relative to expected</strong>, and small absolute numbers are surprisingly insignificant.
+    </p>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  // ─── DOM ────────────────────────────────────────────────
+  const deSlider      = $('de-slider');
+  const setSlider     = $('set-slider');
+  const overlapSlider = $('overlap-slider');
+  const bgSlider      = $('bg-slider');
+  const deValueEl     = $('de-value');
+  const setValueEl    = $('set-value');
+  const overlapValueEl= $('overlap-value');
+  const bgValueEl     = $('bg-value');
+  const overlapRangeEl= $('overlap-range');
+
+  const cA = $('c-a'), cB = $('c-b'), cC = $('c-c'), cD = $('c-d');
+  const cDeTot = $('c-de-total'), cNdeTot = $('c-nde-total');
+  const cSetTot = $('c-set-total'), cNsetTot = $('c-nset-total');
+  const cGrand = $('c-grand-total');
+
+  const obsVal    = $('obs-val');
+  const expVal    = $('exp-val');
+  const enrichVal = $('enrich-val');
+  const directionVal = $('direction-val');
+  const fisherVal = $('fisher-val');
+  const chiVal    = $('chi-val');
+  const chiStatEl = $('chi-stat');
+  const orVal     = $('or-val');
+  const nlogVal   = $('nlog-val');
+
+  const errorMsg  = $('error-msg');
+  const chart     = $('pmf-chart');
+  const verdictEl = $('verdict');
+
+  // ─── Numerics: lgamma via Lanczos ───────────────────────
+  // Accurate to ~1e-14; sufficient for contingency tables up to ~1e6.
+  const LANCZOS_G = 7;
+  const LANCZOS_C = [
+    0.99999999999980993,
+    676.5203681218851,
+   -1259.1392167224028,
+    771.32342877765313,
+   -176.61502916214059,
+    12.507343278686905,
+   -0.13857109526572012,
+    9.9843695780195716e-6,
+    1.5056327351493116e-7,
+  ];
+  function lgamma(z) {
+    if (z < 0.5) {
+      // reflection
+      return Math.log(Math.PI / Math.sin(Math.PI * z)) - lgamma(1 - z);
+    }
+    z -= 1;
+    let x = LANCZOS_C[0];
+    for (let i = 1; i < LANCZOS_G + 2; i++) {
+      x += LANCZOS_C[i] / (z + i);
+    }
+    const t = z + LANCZOS_G + 0.5;
+    return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+  }
+  // log n choose k
+  function lchoose(n, k) {
+    if (k < 0 || k > n) return -Infinity;
+    if (k === 0 || k === n) return 0;
+    return lgamma(n + 1) - lgamma(k + 1) - lgamma(n - k + 1);
+  }
+
+  // log hypergeometric PMF: draw `de` from `bg`, `set` successes in pop.
+  // P(X = k) = C(set, k) * C(bg - set, de - k) / C(bg, de)
+  function logHyperPMF(k, set, bg, de) {
+    if (k < 0) return -Infinity;
+    if (k > set || k > de) return -Infinity;
+    if (de - k > bg - set) return -Infinity;
+    return lchoose(set, k) + lchoose(bg - set, de - k) - lchoose(bg, de);
+  }
+
+  // Fisher's one-sided (over): sum PMF from observed to min(de, set)
+  function fisherOver(obs, set, bg, de) {
+    const kMax = Math.min(set, de);
+    let p = 0;
+    // Iterate from obs..kMax, sum exp(logPMF) — compute via running ratio for stability.
+    // Start with log(P(obs)) then sum with running log-sum-exp.
+    let logP = logHyperPMF(obs, set, bg, de);
+    if (!isFinite(logP)) return 0;
+    let maxLog = logP;
+    const logs = [logP];
+    for (let k = obs + 1; k <= kMax; k++) {
+      const lp = logHyperPMF(k, set, bg, de);
+      if (!isFinite(lp)) continue;
+      logs.push(lp);
+      if (lp > maxLog) maxLog = lp;
+    }
+    let sum = 0;
+    for (const lp of logs) sum += Math.exp(lp - maxLog);
+    const logTotal = maxLog + Math.log(sum);
+    p = Math.exp(logTotal);
+    if (p > 1) p = 1;
+    if (p < 0) p = 0;
+    return p;
+  }
+
+  // Fisher one-sided (under/depletion): sum from 0..obs
+  function fisherUnder(obs, set, bg, de) {
+    let maxLog = -Infinity;
+    const logs = [];
+    for (let k = 0; k <= obs; k++) {
+      const lp = logHyperPMF(k, set, bg, de);
+      if (!isFinite(lp)) continue;
+      logs.push(lp);
+      if (lp > maxLog) maxLog = lp;
+    }
+    if (logs.length === 0) return 0;
+    let sum = 0;
+    for (const lp of logs) sum += Math.exp(lp - maxLog);
+    let p = Math.exp(maxLog + Math.log(sum));
+    if (p > 1) p = 1; if (p < 0) p = 0;
+    return p;
+  }
+
+  // ─── Chi-square survival via regularized incomplete gamma ──
+  // For 1 df: p = 1 - P(0.5, x/2)  where P is the lower regularized incomplete gamma.
+  // Equivalently p = 2 * (1 - Phi(sqrt(x))) via normal CDF for 1 df.
+  function erf(x) {
+    // Abramowitz & Stegun 7.1.26, accuracy ~1.5e-7
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x);
+    const a1 =  0.254829592;
+    const a2 = -0.284496736;
+    const a3 =  1.421413741;
+    const a4 = -1.453152027;
+    const a5 =  1.061405429;
+    const p  =  0.3275911;
+    const t = 1 / (1 + p * x);
+    const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    return sign * y;
+  }
+  function chiSqPValue1df(chi2) {
+    if (chi2 <= 0) return 1;
+    // p = 2*(1 - Phi(sqrt(chi2))) = erfc(sqrt(chi2/2))
+    return 1 - erf(Math.sqrt(chi2 / 2));
+  }
+
+  // ─── Format helpers ─────────────────────────────────────
+  function fmtP(p) {
+    if (!isFinite(p) || p < 0) return '—';
+    if (p === 0) return '< 1e-300';
+    if (p >= 0.01) return p.toFixed(3);
+    if (p >= 0.001) return p.toFixed(4);
+    return p.toExponential(2);
+  }
+  function fmtNum(x, dig = 2) {
+    if (!isFinite(x)) return '—';
+    if (Math.abs(x) >= 1000) return x.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    return x.toFixed(dig);
+  }
+  function fmtInt(n) {
+    return n.toLocaleString('en-US');
+  }
+  function pClass(p) {
+    if (!isFinite(p)) return 'muted';
+    if (p < 1e-4) return 'ok';
+    if (p < 0.05) return 'warn';
+    return '';
+  }
+
+  // ─── State ──────────────────────────────────────────────
+  let state = {
+    de: 500,
+    set: 127,
+    overlap: 42,
+    bg: 20000,
+  };
+
+  const PRESETS = {
+    default:  { de: 500,  set: 127, overlap: 42, bg: 20000 },
+    small:    { de: 500,  set: 127, overlap: 5,  bg: 20000 },
+    null:     { de: 500,  set: 200, overlap: 5,  bg: 20000 }, // expected = 500*200/20000 = 5
+    huge:     { de: 2000, set: 127, overlap: 20, bg: 20000 },
+    depleted: { de: 1000, set: 500, overlap: 5,  bg: 20000 }, // expected = 25, observed = 5 → depleted
+  };
+
+  // ─── Read sliders & clamp ───────────────────────────────
+  function readSliders() {
+    const de = Number(deSlider.value);
+    const set = Number(setSlider.value);
+    const bg = Number(bgSlider.value);
+    // overlap clamp depends on de, set
+    const overlapMax = Math.min(de, set);
+    if (Number(overlapSlider.max) !== overlapMax) {
+      overlapSlider.max = overlapMax;
+    }
+    let overlap = Number(overlapSlider.value);
+    if (overlap > overlapMax) {
+      overlap = overlapMax;
+      overlapSlider.value = String(overlap);
+    }
+    if (overlap < 0) overlap = 0;
+    state = { de, set, overlap, bg };
+    overlapRangeEl.textContent = `0 — ${overlapMax} · genes that are both DE and in the set`;
+    return state;
+  }
+
+  function writeSlidersFromState() {
+    deSlider.value      = String(state.de);
+    setSlider.value     = String(state.set);
+    bgSlider.value      = String(state.bg);
+    overlapSlider.max   = String(Math.min(state.de, state.set));
+    overlapSlider.value = String(state.overlap);
+  }
+
+  function setError(msg) { errorMsg.textContent = msg || ''; }
+
+  // ─── Compute everything for current state ───────────────
+  function compute() {
+    const { de, set, overlap, bg } = state;
+
+    // Feasibility gates
+    if (de + set - overlap > bg) {
+      // Overlap too small: non-DE ∩ non-set would be negative. Rare but guard anyway.
+      setError(`Infeasible: (DE) + (set) - overlap = ${de + set - overlap} exceeds background ${bg}. Increase background or reduce overlap ceiling.`);
+    } else if (overlap > Math.min(de, set)) {
+      setError(`Overlap ${overlap} exceeds min(DE, set) = ${Math.min(de, set)}.`);
+    } else if (set > bg) {
+      setError(`Gene-set size ${set} exceeds background ${bg}.`);
+    } else if (de > bg) {
+      setError(`DE list ${de} exceeds background ${bg}.`);
+    } else {
+      setError('');
+    }
+
+    const a = overlap;            // DE ∩ set
+    const b = de - overlap;       // DE ∩ not-set
+    const c = set - overlap;      // not-DE ∩ set
+    const d = bg - de - c;        // not-DE ∩ not-set
+
+    // Values
+    const expected = (de * set) / bg;
+    const ratio = expected > 0 ? a / expected : Infinity;
+    const over = a >= expected;
+
+    // Fisher one-sided (in direction of observed)
+    let fisherP;
+    if (over) {
+      fisherP = fisherOver(a, set, bg, de);
+    } else {
+      fisherP = fisherUnder(a, set, bg, de);
+    }
+
+    // Chi-square (two-sided)
+    let chi2 = 0;
+    const cells = [
+      { O: a, E: (de * set) / bg },
+      { O: b, E: (de * (bg - set)) / bg },
+      { O: c, E: ((bg - de) * set) / bg },
+      { O: d, E: ((bg - de) * (bg - set)) / bg },
+    ];
+    let allExpectedOk = true;
+    for (const { O, E } of cells) {
+      if (E <= 0) { allExpectedOk = false; continue; }
+      if (E < 5) allExpectedOk = false;
+      chi2 += ((O - E) * (O - E)) / E;
+    }
+    const chiP = chiSqPValue1df(chi2);
+
+    // Odds ratio (Haldane-Anscombe correction if any zero cell)
+    const ap = a === 0 || b === 0 || c === 0 || d === 0 ? 0.5 : 0;
+    const or = ((a + ap) * (d + ap)) / ((b + ap) * (c + ap));
+
+    // ─── Render cells ─────────────────────────────────────
+    cA.textContent = fmtInt(a);
+    cB.textContent = fmtInt(b);
+    cC.textContent = fmtInt(c);
+    cD.textContent = fmtInt(d);
+    cDeTot.textContent  = fmtInt(de);
+    cNdeTot.textContent = fmtInt(bg - de);
+    cSetTot.textContent = fmtInt(set);
+    cNsetTot.textContent= fmtInt(bg - set);
+    cGrand.textContent  = fmtInt(bg);
+
+    // Slider labels
+    deValueEl.textContent      = fmtInt(de);
+    setValueEl.textContent     = fmtInt(set);
+    overlapValueEl.textContent = fmtInt(overlap);
+    bgValueEl.textContent      = fmtInt(bg);
+
+    // Observed vs expected
+    obsVal.textContent    = fmtInt(a);
+    expVal.textContent    = expected.toFixed(2);
+    const ratioStr = isFinite(ratio) ? ratio.toFixed(2) + '×' : '∞';
+    enrichVal.textContent = ratioStr;
+    enrichVal.className   = 'v strong';
+    directionVal.textContent = over
+      ? (ratio >= 2 ? 'over-represented' : ratio > 1 ? 'mildly over-represented' : 'at expected')
+      : (ratio < 0.5 ? 'under-represented (depleted)' : 'mildly under-represented');
+
+    // Fisher / chi / OR
+    fisherVal.textContent = fmtP(fisherP);
+    fisherVal.className   = 'v strong ' + pClass(fisherP);
+    chiVal.textContent    = fmtP(chiP) + (allExpectedOk ? '' : ' (approx — small E)');
+    chiVal.className      = 'v ' + pClass(chiP);
+    chiStatEl.textContent = fmtNum(chi2, 2);
+    orVal.textContent     = isFinite(or) ? fmtNum(or, 2) : '∞';
+    nlogVal.textContent   = fisherP > 0 ? (-Math.log10(fisherP)).toFixed(2) : '> 300';
+
+    // Banner
+    renderVerdict({ fisherP, ratio, a, expected, over, chi2, allExpectedOk });
+
+    // Chart
+    renderPMF({ set, bg, de, obs: a });
+  }
+
+  // ─── Verdict banner ─────────────────────────────────────
+  function renderVerdict({ fisherP, ratio, a, expected, over, allExpectedOk }) {
+    let cls, icon, title, detail;
+    if (!isFinite(fisherP)) {
+      cls = 'v-null'; icon = '·';
+      title = 'Undefined — check feasibility.';
+      detail = 'Parameter combination is outside the valid hypergeometric support.';
+    } else if (!over && ratio < 0.5 && fisherP < 0.05) {
+      cls = 'v-depleted'; icon = '↓';
+      title = `Depletion · gene set ${(1/ratio).toFixed(1)}× under-represented · Fisher's exact p = ${fmtP(fisherP)}`;
+      detail = `Observed ${a}, expected ${expected.toFixed(1)}. The gene set appears avoided by your DE list — real signal, opposite direction. Interpret cautiously: depletion often reflects background choice.`;
+    } else if (fisherP < 1e-4 && ratio >= 2) {
+      cls = 'v-significant'; icon = '✓';
+      title = `Significant enrichment · gene set ${ratio.toFixed(1)}× over-represented · Fisher's exact p = ${fmtP(fisherP)}`;
+      detail = `Observed ${a}, expected ${expected.toFixed(1)}. Well below any multiple-testing threshold — this is a real pathway hit.`;
+    } else if (fisherP < 0.05 && ratio >= 1.5) {
+      cls = 'v-suggestive'; icon = '~';
+      title = `Suggestive enrichment · ${ratio.toFixed(1)}× · Fisher's exact p = ${fmtP(fisherP)}`;
+      detail = `Observed ${a}, expected ${expected.toFixed(1)}. Nominally significant but ${!allExpectedOk ? 'expected counts are small — ' : ''}would need FDR correction across all tested gene sets to survive.`;
+    } else if (Math.abs(ratio - 1) < 0.2) {
+      cls = 'v-null'; icon = '·';
+      title = `Null · overlap matches expected (${a} ≈ ${expected.toFixed(1)}) · p = ${fmtP(fisherP)}`;
+      detail = `Enrichment ratio ${ratio.toFixed(2)}× is indistinguishable from chance. Fisher's p near 0.5 is the tell-tale signature of a gene set randomly sampled from the DE list.`;
+    } else {
+      cls = 'v-null'; icon = '·';
+      title = `Not significant · ${ratio.toFixed(1)}× · Fisher's exact p = ${fmtP(fisherP)}`;
+      detail = `Observed ${a}, expected ${expected.toFixed(1)}. ${over ? 'Direction is enriched but' : 'Direction is depleted and'} the tail probability is too large to reject the null.`;
+    }
+    verdictEl.className = `verdict ${cls}`;
+    verdictEl.innerHTML = `
+      <div class="icon">${icon}</div>
+      <div>
+        <div class="v-title">${title}</div>
+        <div class="v-detail">${detail}</div>
+      </div>
+    `;
+  }
+
+  // ─── PMF chart ──────────────────────────────────────────
+  function renderPMF({ set, bg, de, obs }) {
+    const kMax = Math.min(set, de);
+    const kMin = Math.max(0, de - (bg - set));
+    // Compute PMF values across support. For very large supports we sample a window.
+    const support = kMax - kMin + 1;
+    const MAX_BARS = 120;
+    let ks = [];
+    if (support <= MAX_BARS) {
+      for (let k = kMin; k <= kMax; k++) ks.push(k);
+    } else {
+      // Centre window on max(mean, obs); width = MAX_BARS.
+      const mean = (de * set) / bg;
+      const centre = Math.round(Math.max(mean, obs));
+      let lo = Math.max(kMin, centre - Math.floor(MAX_BARS / 2));
+      let hi = lo + MAX_BARS - 1;
+      if (hi > kMax) { hi = kMax; lo = Math.max(kMin, hi - MAX_BARS + 1); }
+      for (let k = lo; k <= hi; k++) ks.push(k);
+    }
+    const probs = ks.map(k => Math.exp(logHyperPMF(k, set, bg, de)));
+    const pmax = probs.reduce((m, p) => (p > m ? p : m), 0);
+
+    const W = 640, H = 280;
+    const M = { top: 14, right: 14, bottom: 42, left: 52 };
+    const innerW = W - M.left - M.right;
+    const innerH = H - M.top - M.bottom;
+
+    const n = ks.length;
+    const barW = innerW / n;
+    const gap = Math.min(1.2, barW * 0.15);
+
+    const x = (i) => M.left + i * barW;
+    const y = (p) => M.top + innerH - (p / (pmax || 1)) * innerH;
+
+    // Axis ticks
+    const tickCount = 5;
+    const xTicks = [];
+    for (let i = 0; i < tickCount; i++) {
+      const frac = i / (tickCount - 1);
+      const idx = Math.round(frac * (n - 1));
+      xTicks.push({ idx, k: ks[idx] });
+    }
+    const yTicks = [];
+    for (let i = 0; i <= 4; i++) {
+      const frac = i / 4;
+      yTicks.push({ frac, p: pmax * frac });
+    }
+
+    const obsInWindow = obs >= ks[0] && obs <= ks[ks.length - 1];
+    const obsIdx = obsInWindow ? obs - ks[0] : -1;
+
+    const over = obs >= (de * set / bg);
+
+    const bars = ks.map((k, i) => {
+      const p = probs[i];
+      const inTail = over ? (k >= obs) : (k <= obs);
+      const cls = inTail ? 'pmf-tail' : 'pmf-body';
+      const fill = inTail ? 'var(--accent)' : 'var(--border-strong)';
+      const xPos = x(i) + gap / 2;
+      const yPos = y(p);
+      const h = Math.max(0.5, M.top + innerH - yPos);
+      const w = Math.max(0.5, barW - gap);
+      return `<rect class="${cls}" x="${xPos.toFixed(2)}" y="${yPos.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="${fill}"><title>k=${k}, P(X=k)=${p.toExponential(2)}</title></rect>`;
+    }).join('');
+
+    const xTickMarks = xTicks.map(t => {
+      const cx = x(t.idx) + barW / 2;
+      return `
+        <line x1="${cx.toFixed(2)}" y1="${(M.top + innerH).toFixed(2)}" x2="${cx.toFixed(2)}" y2="${(M.top + innerH + 4).toFixed(2)}" stroke="var(--fg-subtle)" stroke-width="1"/>
+        <text x="${cx.toFixed(2)}" y="${(M.top + innerH + 18).toFixed(2)}" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--fg-muted)">${t.k}</text>
+      `;
+    }).join('');
+
+    const yTickMarks = yTicks.map(t => {
+      const yy = M.top + innerH - t.frac * innerH;
+      const label = t.p === 0 ? '0' : t.p < 0.001 ? t.p.toExponential(1) : t.p.toFixed(3);
+      return `
+        <line x1="${M.left}" y1="${yy.toFixed(2)}" x2="${(M.left - 4).toFixed(2)}" y2="${yy.toFixed(2)}" stroke="var(--fg-subtle)" stroke-width="1"/>
+        <text x="${(M.left - 7).toFixed(2)}" y="${(yy + 4).toFixed(2)}" text-anchor="end" font-family="var(--font-mono)" font-size="10" fill="var(--fg-muted)">${label}</text>
+        <line x1="${M.left}" y1="${yy.toFixed(2)}" x2="${(M.left + innerW).toFixed(2)}" y2="${yy.toFixed(2)}" stroke="var(--border)" stroke-width="1" stroke-dasharray="2 3" opacity="0.6"/>
+      `;
+    }).join('');
+
+    const axes = `
+      <line x1="${M.left}" y1="${(M.top + innerH).toFixed(2)}" x2="${(M.left + innerW).toFixed(2)}" y2="${(M.top + innerH).toFixed(2)}" stroke="var(--fg-muted)" stroke-width="1"/>
+      <line x1="${M.left}" y1="${M.top}" x2="${M.left}" y2="${(M.top + innerH).toFixed(2)}" stroke="var(--fg-muted)" stroke-width="1"/>
+      <text x="${(M.left + innerW / 2).toFixed(2)}" y="${(H - 6).toFixed(2)}" text-anchor="middle" font-family="var(--font-sans)" font-size="11" fill="var(--fg-muted)">Overlap count k (${ks[0]} … ${ks[ks.length - 1]})</text>
+      <text x="14" y="${(M.top + innerH / 2).toFixed(2)}" text-anchor="middle" font-family="var(--font-sans)" font-size="11" fill="var(--fg-muted)" transform="rotate(-90 14 ${(M.top + innerH / 2).toFixed(2)})">P(X = k)</text>
+    `;
+
+    let obsMarker = '';
+    if (obsInWindow) {
+      const mx = x(obsIdx) + barW / 2;
+      obsMarker = `
+        <line x1="${mx.toFixed(2)}" y1="${M.top}" x2="${mx.toFixed(2)}" y2="${(M.top + innerH).toFixed(2)}" stroke="var(--error)" stroke-width="2" stroke-dasharray="4 3" opacity="0.9"/>
+        <text x="${mx.toFixed(2)}" y="${(M.top - 2).toFixed(2)}" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--error)" font-weight="600">obs=${obs}</text>
+      `;
+    } else {
+      // Off-screen marker — place arrow at right / left edge
+      const edge = obs > ks[ks.length - 1] ? M.left + innerW - 2 : M.left + 2;
+      const arrow = obs > ks[ks.length - 1] ? '→' : '←';
+      obsMarker = `
+        <text x="${edge.toFixed(2)}" y="${(M.top - 2).toFixed(2)}" text-anchor="${obs > ks[ks.length-1] ? 'end' : 'start'}" font-family="var(--font-sans)" font-size="10" fill="var(--error)" font-weight="600">${arrow} obs=${obs}</text>
+      `;
+    }
+
+    chart.innerHTML = `
+      ${yTickMarks}
+      ${bars}
+      ${axes}
+      ${xTickMarks}
+      ${obsMarker}
+    `;
+  }
+
+  // ─── Wiring ─────────────────────────────────────────────
+  function update() {
+    readSliders();
+    compute();
+  }
+
+  [deSlider, setSlider, overlapSlider, bgSlider].forEach(el => {
+    el.addEventListener('input', update);
+  });
+
+  document.querySelectorAll('[data-preset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.getAttribute('data-preset');
+      const p = PRESETS[key];
+      if (!p) return;
+      state = Object.assign({}, p);
+      writeSlidersFromState();
+      update();
+    });
+  });
+
+  // ─── Initial render: default preset pre-computed ────────
+  state = Object.assign({}, PRESETS.default);
+  writeSlidersFromState();
+  update();
+})();
+</script>
+
+</body>
+</html>

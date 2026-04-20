@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSEA Running-Sum Simulator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    select.seq-input {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.55rem 0.75rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      min-width: 280px;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem 1.5rem;
+      margin-top: 0.25rem;
+    }
+    .slider-row .field-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 0.35rem;
+    }
+    .slider-row .field-label .value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    /* Feasibility badge */
+    .feasibility {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      padding: 0.9rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-top: 0.75rem;
+      font-size: var(--text-sm);
+      line-height: 1.5;
+    }
+    .feasibility.ok {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #064e3b;
+    }
+    .feasibility.err {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #7f1d1d;
+    }
+    .feasibility .icon {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
+    .feasibility .body strong { display: block; margin-bottom: 0.15rem; }
+    .feasibility .body code {
+      font-family: var(--font-mono);
+      font-size: 0.92em;
+      background: rgba(255,255,255,0.6);
+      padding: 0 0.25rem;
+      border-radius: 2px;
+    }
+
+    /* SVG containers */
+    .svg-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem;
+      overflow: hidden;
+    }
+    svg.walk, svg.null-hist {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .status-line {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      padding: 0.85rem 1rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-top: 1rem;
+    }
+    .status-line .label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin: 0;
+    }
+    .status-line .value {
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      color: var(--fg);
+      margin: 0.15rem 0 0;
+      word-break: break-all;
+    }
+    .status-line .value.emphasis { color: var(--accent); }
+    .status-line .value.err  { color: var(--error); }
+
+    /* Running-sum SVG styles */
+    .axis-line { stroke: var(--border-strong); stroke-width: 1; fill: none; }
+    .axis-tick { stroke: var(--border-strong); stroke-width: 1; }
+    .axis-label {
+      font-family: var(--font-sans);
+      font-size: 10px;
+      fill: var(--fg-muted);
+      text-anchor: middle;
+    }
+    .axis-label.y { text-anchor: end; }
+    .axis-title {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      fill: var(--fg-muted);
+      text-anchor: middle;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .zero-line {
+      stroke: var(--border-strong);
+      stroke-width: 1;
+      stroke-dasharray: 3 3;
+    }
+    .rs-curve {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 1.8;
+      stroke-linejoin: round;
+    }
+    .rs-curve.neg { stroke: var(--error); }
+    .rs-fill { fill: var(--accent-bg); opacity: 0.6; }
+    .rs-fill.neg { fill: #fef2f2; opacity: 0.8; }
+    .set-tick {
+      stroke: var(--accent);
+      stroke-width: 1.2;
+    }
+    .strip-bg {
+      fill: var(--bg-inset);
+    }
+    .cursor-line {
+      stroke: var(--warning);
+      stroke-width: 1.6;
+      stroke-dasharray: 2 2;
+    }
+    .peak-marker {
+      fill: var(--warning);
+    }
+    .peak-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      fill: var(--warning);
+    }
+
+    /* Null histogram */
+    .hist-bar { fill: var(--border-strong); }
+    .hist-bar.extreme { fill: var(--accent); }
+    .hist-obs {
+      stroke: var(--error);
+      stroke-width: 2;
+    }
+    .hist-obs-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      fill: var(--error);
+    }
+
+    /* Result banner */
+    .result-banner {
+      margin-top: 1rem;
+      padding: 0.9rem 1.1rem;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      line-height: 1.55;
+    }
+    .result-banner.success {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #064e3b;
+    }
+    .result-banner.neutral {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      color: var(--fg-muted);
+    }
+    .result-banner.failure {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #7f1d1d;
+    }
+    .result-banner code {
+      font-family: var(--font-mono);
+      font-size: 0.94em;
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .legend {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend .swatch {
+      display: inline-block;
+      width: 14px;
+      height: 6px;
+      vertical-align: middle;
+      margin-right: 0.35rem;
+      border-radius: 2px;
+    }
+    .legend .sw-set { background: var(--accent); }
+    .legend .sw-curve { background: var(--accent); height: 2px; }
+    .legend .sw-peak { background: var(--warning); }
+    .legend .sw-obs { background: var(--error); }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      select.seq-input { min-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="gsea-running-sum">
+
+  <header class="artifact-head">
+    <h1>GSEA Running-Sum Simulator</h1>
+    <p>Walk the Subramanian 2005 running-sum statistic along a ranked gene list. Up at a set gene, down at a non-set gene. The enrichment score is the peak deviation from zero. Compare observed ES to a 1000-permutation null to see whether the pattern is real enrichment or noise.</p>
+  </header>
+
+  <!-- Scenario + parameters ------------------------------------------ -->
+  <section class="panel">
+    <p class="panel-label">Scenario</p>
+
+    <label class="field-label" for="preset-select">Preset</label>
+    <select id="preset-select" class="seq-input">
+      <option value="concentrated_top">Concentrated top — true enrichment</option>
+      <option value="spread">Spread — set genes scattered</option>
+      <option value="anti">Anti-correlated — enrichment at bottom</option>
+      <option value="random">Random — no enrichment</option>
+    </select>
+    <p id="preset-hint" class="hint"></p>
+
+    <div class="slider-grid" style="margin-top: 1rem;">
+      <div class="slider-row">
+        <label class="field-label" for="slider-N">
+          <span>Rank list length (N)</span><span class="value" id="val-N">2000</span>
+        </label>
+        <input id="slider-N" type="range" min="100" max="5000" step="100" value="2000">
+      </div>
+      <div class="slider-row">
+        <label class="field-label" for="slider-K">
+          <span>Gene-set size (K)</span><span class="value" id="val-K">40</span>
+        </label>
+        <input id="slider-K" type="range" min="5" max="200" step="5" value="40">
+      </div>
+      <div class="slider-row">
+        <label class="field-label" for="slider-E">
+          <span>Enrichment at top</span><span class="value" id="val-E">70%</span>
+        </label>
+        <input id="slider-E" type="range" min="0" max="100" step="5" value="70">
+      </div>
+    </div>
+
+    <div id="feasibility" class="feasibility" hidden></div>
+  </section>
+
+  <!-- Playback controls ---------------------------------------------- -->
+  <section class="panel">
+    <p class="panel-label">Walk</p>
+    <div class="controls">
+      <button id="shuffle-btn" class="btn btn--primary" type="button">↻ Re-shuffle &amp; build null</button>
+      <button id="step-btn"    class="btn"             type="button">⏭ Step along</button>
+      <button id="play-btn"    class="btn"             type="button">▶ Run full walk</button>
+      <button id="pause-btn"   class="btn"             type="button" disabled>⏸ Pause</button>
+      <button id="reset-btn"   class="btn"             type="button">↺ Reset walk</button>
+    </div>
+    <p class="hint">Set-membership hits add <code>P<sub>hit</sub> = |s<sub>i</sub>| / N<sub>R</sub></code> (weighted by score magnitude). Misses subtract <code>P<sub>miss</sub> = 1 / (N − K)</code>. ES = running sum at the point of maximum deviation from zero (Subramanian et al., PNAS 2005).</p>
+    <div class="legend">
+      <span><span class="swatch sw-curve"></span>running sum</span>
+      <span><span class="swatch sw-set"></span>set-gene tick</span>
+      <span><span class="swatch sw-peak"></span>peak / ES</span>
+      <span><span class="swatch sw-obs"></span>observed ES in null</span>
+    </div>
+  </section>
+
+  <!-- Running-sum walk ----------------------------------------------- -->
+  <section class="panel">
+    <p class="panel-label">Running sum along ranked list</p>
+    <div class="svg-wrap">
+      <svg id="walk-svg" class="walk" viewBox="0 0 820 360" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+
+    <div class="status-line">
+      <div>
+        <p class="label">Step</p>
+        <p class="value" id="stat-step">0 / 0</p>
+      </div>
+      <div>
+        <p class="label">Running sum</p>
+        <p class="value emphasis" id="stat-rs">0.000</p>
+      </div>
+      <div>
+        <p class="label">Peak ES (so far)</p>
+        <p class="value emphasis" id="stat-es">0.000</p>
+      </div>
+      <div>
+        <p class="label">Peak rank</p>
+        <p class="value" id="stat-peak">—</p>
+      </div>
+      <div>
+        <p class="label">Hits / misses</p>
+        <p class="value" id="stat-hm">0 / 0</p>
+      </div>
+    </div>
+
+    <div id="result-banner" class="result-banner neutral">Press <strong>Re-shuffle</strong> or <strong>Run full walk</strong> to compute ES and the permutation p-value.</div>
+  </section>
+
+  <!-- Permutation null ---------------------------------------------- -->
+  <section class="panel">
+    <p class="panel-label">Permutation null (1000 label shuffles)</p>
+    <div class="svg-wrap">
+      <svg id="null-svg" class="null-hist" viewBox="0 0 820 220" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <p class="hint">Each permutation shuffles set-membership labels across the same ranked list and recomputes ES. The observed ES sits where the red arrow marks. The p-value is the fraction of permutations whose ES is at least as extreme (same sign) as the observation.</p>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  // ────────────────────────────────────────────────────────────────
+  // DOM handles
+  // ────────────────────────────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+
+  const presetSelect = $('preset-select');
+  const presetHint   = $('preset-hint');
+  const sliderN = $('slider-N'), valN = $('val-N');
+  const sliderK = $('slider-K'), valK = $('val-K');
+  const sliderE = $('slider-E'), valE = $('val-E');
+
+  const shuffleBtn = $('shuffle-btn');
+  const stepBtn    = $('step-btn');
+  const playBtn    = $('play-btn');
+  const pauseBtn   = $('pause-btn');
+  const resetBtn   = $('reset-btn');
+
+  const feasibilityEl = $('feasibility');
+  const walkSvg = $('walk-svg');
+  const nullSvg = $('null-svg');
+
+  const statStep = $('stat-step');
+  const statRs   = $('stat-rs');
+  const statEs   = $('stat-es');
+  const statPeak = $('stat-peak');
+  const statHm   = $('stat-hm');
+  const resultBanner = $('result-banner');
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ────────────────────────────────────────────────────────────────
+  // Seeded PRNG (mulberry32) — reproducible shuffles per "Re-shuffle".
+  // ────────────────────────────────────────────────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function() {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Presets
+  // ────────────────────────────────────────────────────────────────
+  const PRESETS = {
+    concentrated_top: {
+      name: 'Concentrated top',
+      hint: 'Set genes clustered in the top of the ranked list (treatment-upregulated). Running sum climbs steeply, peaks early, then declines as mostly-miss region follows. Expect ES ~0.45–0.55, p < 0.01.',
+      enrichmentPct: 70,
+      direction: 'top'
+    },
+    spread: {
+      name: 'Spread',
+      hint: 'Set genes scattered roughly uniformly across all ranks. Each hit is offset by a run of misses; running sum wobbles near zero. Expect small ES, p around 0.2–0.5.',
+      enrichmentPct: 15,
+      direction: 'top'
+    },
+    anti: {
+      name: 'Anti-correlated (bottom)',
+      hint: 'Set genes clustered at the bottom — treatment-downregulated. Running sum dives into negative territory; ES comes out negative. Same logic, opposite sign.',
+      enrichmentPct: 70,
+      direction: 'bottom'
+    },
+    random: {
+      name: 'Random',
+      hint: 'Set-membership assigned uniformly at random. ES is whatever the null hand deals — typically 0.05–0.15, well inside the permutation distribution.',
+      enrichmentPct: 0,
+      direction: 'top'
+    }
+  };
+
+  // ────────────────────────────────────────────────────────────────
+  // Simulation state
+  // ────────────────────────────────────────────────────────────────
+  const state = {
+    N: 2000,
+    K: 40,
+    enrichmentPct: 70,
+    direction: 'top',
+    scores: [],         // |score| per rank position
+    inSet: [],          // boolean per rank position
+    steps: [],          // precomputed per-rank running-sum trajectory
+    stepIdx: 0,
+    observedES: 0,
+    observedPeakRank: 0,
+    nullDist: [],
+    pValue: null,
+    playTimer: null,
+    playing: false,
+    seed: 0xC0FFEE
+  };
+
+  // ────────────────────────────────────────────────────────────────
+  // Build ranked list + set-membership per scenario
+  // ────────────────────────────────────────────────────────────────
+  function buildRankedList(N, K, enrichmentPct, direction, rng) {
+    // Scores: mildly monotone decreasing magnitude. Keep the gradient gentle so the
+    // null ES distribution stays roughly symmetric around zero — a steep gradient
+    // makes weighted-GSEA nulls biased and hides the teaching signal.
+    const scores = new Array(N);
+    for (let i = 0; i < N; i++) {
+      const x = i / (N - 1);
+      scores[i] = 1.1 - 0.2 * x; // range: 1.1 → 0.9
+    }
+
+    // Choose K positions for set-membership.
+    const inSet = new Array(N).fill(false);
+    const frac = Math.max(0, Math.min(1, enrichmentPct / 100));
+
+    if (frac <= 0) {
+      // Pure uniform placement across all ranks — true random baseline.
+      const pool = [];
+      for (let i = 0; i < N; i++) pool.push(i);
+      shuffleArray(pool, rng);
+      for (let i = 0; i < K && i < pool.length; i++) inSet[pool[i]] = true;
+      return { scores, inSet };
+    }
+
+    // "top" zone = top 20% of ranks. Enriched fraction of K genes lands there.
+    const zoneSize = Math.max(1, Math.floor(N * 0.20));
+    let zoneStart, zoneEnd;
+    if (direction === 'bottom') {
+      zoneStart = N - zoneSize;
+      zoneEnd = N;
+    } else {
+      zoneStart = 0;
+      zoneEnd = zoneSize;
+    }
+    const nInZone = Math.min(zoneSize, Math.round(K * frac));
+    const nOutside = K - nInZone;
+
+    // Place nInZone in the zone uniformly at random.
+    const zonePool = [];
+    for (let i = zoneStart; i < zoneEnd; i++) zonePool.push(i);
+    shuffleArray(zonePool, rng);
+    for (let i = 0; i < nInZone; i++) inSet[zonePool[i]] = true;
+
+    // Place nOutside uniformly at random across the REMAINING ranks (outside zone).
+    const outsidePool = [];
+    for (let i = 0; i < N; i++) {
+      if (i >= zoneStart && i < zoneEnd) continue;
+      outsidePool.push(i);
+    }
+    shuffleArray(outsidePool, rng);
+    for (let i = 0; i < nOutside && i < outsidePool.length; i++) inSet[outsidePool[i]] = true;
+
+    return { scores, inSet };
+  }
+
+  function shuffleArray(arr, rng) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // GSEA running sum. Subramanian 2005 eq. 1.
+  //   P_hit(i)  = |s_i|^p / N_R   where N_R = Σ_{i in set} |s_i|^p
+  //   P_miss(i) = 1 / (N - K)
+  // ES = running sum value with the largest |magnitude| across all i.
+  // Returns { trajectory: Float64Array length N+1, ES, peakRank }.
+  // ────────────────────────────────────────────────────────────────
+  function computeRunningSum(scores, inSet) {
+    const N = scores.length;
+    let K = 0;
+    let Nr = 0;
+    for (let i = 0; i < N; i++) {
+      if (inSet[i]) { K++; Nr += Math.abs(scores[i]); }
+    }
+    if (K === 0 || K === N) {
+      return { trajectory: new Float64Array(N + 1), ES: 0, peakRank: 0 };
+    }
+    const pMiss = 1 / (N - K);
+    const traj = new Float64Array(N + 1);
+    let rs = 0, bestES = 0, bestRank = 0;
+    traj[0] = 0;
+    for (let i = 0; i < N; i++) {
+      if (inSet[i]) rs += Math.abs(scores[i]) / Nr;
+      else rs -= pMiss;
+      traj[i + 1] = rs;
+      if (Math.abs(rs) > Math.abs(bestES)) { bestES = rs; bestRank = i + 1; }
+    }
+    return { trajectory: traj, ES: bestES, peakRank: bestRank };
+  }
+
+  // Lightweight ES-only computation for permutations.
+  function computeESOnly(scores, inSet, K, Nr) {
+    const N = scores.length;
+    if (K === 0 || K === N) return 0;
+    const pMiss = 1 / (N - K);
+    let rs = 0, bestES = 0;
+    for (let i = 0; i < N; i++) {
+      if (inSet[i]) rs += Math.abs(scores[i]) / Nr;
+      else rs -= pMiss;
+      if (Math.abs(rs) > Math.abs(bestES)) bestES = rs;
+    }
+    return bestES;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Permutation null (label shuffles). 1000 reps.
+  // ────────────────────────────────────────────────────────────────
+  function permutationNull(scores, observedInSet, reps, rng) {
+    const N = scores.length;
+    // Reuse a Uint8Array label buffer and Fisher-Yates shuffle it each rep.
+    const labels = new Uint8Array(N);
+    for (let i = 0; i < N; i++) labels[i] = observedInSet[i] ? 1 : 0;
+    const boolMirror = new Array(N);
+
+    const nullES = new Float64Array(reps);
+    // Precompute K (constant across shuffles).
+    let K = 0;
+    for (let i = 0; i < N; i++) if (labels[i]) K++;
+
+    for (let r = 0; r < reps; r++) {
+      // Fisher-Yates on labels.
+      for (let i = N - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        const tmp = labels[i]; labels[i] = labels[j]; labels[j] = tmp;
+      }
+      // Recompute N_R (shuffled set picks up different |scores|).
+      let Nr = 0;
+      for (let i = 0; i < N; i++) {
+        if (labels[i]) Nr += Math.abs(scores[i]);
+        boolMirror[i] = labels[i] === 1;
+      }
+      nullES[r] = computeESOnly(scores, boolMirror, K, Nr);
+    }
+    return nullES;
+  }
+
+  function permutationPValue(nullES, observedES) {
+    // Two-sided-ish: count nulls at least as extreme in the same sign direction.
+    const reps = nullES.length;
+    if (reps === 0) return 1;
+    let count = 0;
+    if (observedES >= 0) {
+      for (let i = 0; i < reps; i++) if (nullES[i] >= observedES) count++;
+    } else {
+      for (let i = 0; i < reps; i++) if (nullES[i] <= observedES) count++;
+    }
+    return (count + 1) / (reps + 1); // +1 smoothing, never exact zero
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Rendering — running-sum walk
+  // ────────────────────────────────────────────────────────────────
+  function clearSvg(svg) {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+  }
+
+  // Layout constants (walk SVG viewBox: 820 x 360).
+  const WALK = {
+    W: 820, H: 360,
+    padL: 56, padR: 24, padT: 20, padB: 100,
+    stripH: 44, stripGap: 10
+  };
+
+  function renderWalk() {
+    clearSvg(walkSvg);
+    const { scores, inSet, steps, stepIdx, observedES, observedPeakRank, N, K } = state;
+    if (!scores || scores.length === 0) return;
+
+    const plotX0 = WALK.padL, plotX1 = WALK.W - WALK.padR;
+    const plotY0 = WALK.padT, plotY1 = WALK.H - WALK.padB;
+    const plotW = plotX1 - plotX0;
+    const plotH = plotY1 - plotY0;
+    const stripY0 = plotY1 + WALK.stripGap;
+    const stripY1 = stripY0 + WALK.stripH;
+
+    // Y scale — include padding around the ES and -ES so the curve has breathing room.
+    const absES = Math.max(0.05, Math.abs(observedES));
+    const yMax = Math.max(absES * 1.25, 0.1);
+    const yMin = -yMax;
+    const yScale = v => plotY0 + (yMax - v) / (yMax - yMin) * plotH;
+    const xScale = i => plotX0 + (i / N) * plotW;
+
+    // Background strip
+    const strip = document.createElementNS(SVG_NS, 'rect');
+    strip.setAttribute('x', plotX0);
+    strip.setAttribute('y', stripY0);
+    strip.setAttribute('width', plotW);
+    strip.setAttribute('height', WALK.stripH);
+    strip.setAttribute('class', 'strip-bg');
+    walkSvg.appendChild(strip);
+
+    // Set-gene ticks
+    for (let i = 0; i < N; i++) {
+      if (!inSet[i]) continue;
+      const x = xScale(i + 0.5);
+      const l = document.createElementNS(SVG_NS, 'line');
+      l.setAttribute('x1', x); l.setAttribute('x2', x);
+      l.setAttribute('y1', stripY0 + 2);
+      l.setAttribute('y2', stripY1 - 2);
+      l.setAttribute('class', 'set-tick');
+      walkSvg.appendChild(l);
+    }
+
+    // Axis: zero line
+    const zeroY = yScale(0);
+    const zero = document.createElementNS(SVG_NS, 'line');
+    zero.setAttribute('x1', plotX0); zero.setAttribute('x2', plotX1);
+    zero.setAttribute('y1', zeroY); zero.setAttribute('y2', zeroY);
+    zero.setAttribute('class', 'zero-line');
+    walkSvg.appendChild(zero);
+
+    // Left axis border
+    const axisL = document.createElementNS(SVG_NS, 'line');
+    axisL.setAttribute('x1', plotX0); axisL.setAttribute('x2', plotX0);
+    axisL.setAttribute('y1', plotY0); axisL.setAttribute('y2', plotY1);
+    axisL.setAttribute('class', 'axis-line');
+    walkSvg.appendChild(axisL);
+    const axisB = document.createElementNS(SVG_NS, 'line');
+    axisB.setAttribute('x1', plotX0); axisB.setAttribute('x2', plotX1);
+    axisB.setAttribute('y1', plotY1); axisB.setAttribute('y2', plotY1);
+    axisB.setAttribute('class', 'axis-line');
+    walkSvg.appendChild(axisB);
+
+    // Y ticks: 0, +yMax, -yMax
+    [yMax, yMax / 2, 0, -yMax / 2, -yMax].forEach(v => {
+      const y = yScale(v);
+      const tick = document.createElementNS(SVG_NS, 'line');
+      tick.setAttribute('x1', plotX0 - 4); tick.setAttribute('x2', plotX0);
+      tick.setAttribute('y1', y); tick.setAttribute('y2', y);
+      tick.setAttribute('class', 'axis-tick');
+      walkSvg.appendChild(tick);
+      const lbl = document.createElementNS(SVG_NS, 'text');
+      lbl.setAttribute('x', plotX0 - 8); lbl.setAttribute('y', y + 3);
+      lbl.setAttribute('class', 'axis-label y');
+      lbl.textContent = v.toFixed(2);
+      walkSvg.appendChild(lbl);
+    });
+
+    // X ticks: 0, 25, 50, 75, 100 % of ranks
+    [0, 0.25, 0.5, 0.75, 1].forEach(f => {
+      const x = xScale(Math.round(f * N));
+      const tick = document.createElementNS(SVG_NS, 'line');
+      tick.setAttribute('x1', x); tick.setAttribute('x2', x);
+      tick.setAttribute('y1', plotY1); tick.setAttribute('y2', plotY1 + 4);
+      tick.setAttribute('class', 'axis-tick');
+      walkSvg.appendChild(tick);
+      const lbl = document.createElementNS(SVG_NS, 'text');
+      lbl.setAttribute('x', x); lbl.setAttribute('y', plotY1 + 16);
+      lbl.setAttribute('class', 'axis-label');
+      lbl.textContent = Math.round(f * N);
+      walkSvg.appendChild(lbl);
+    });
+
+    // Axis titles
+    const xt = document.createElementNS(SVG_NS, 'text');
+    xt.setAttribute('x', (plotX0 + plotX1) / 2);
+    xt.setAttribute('y', stripY1 + 26);
+    xt.setAttribute('class', 'axis-title');
+    xt.textContent = 'rank i (top ← → bottom)';
+    walkSvg.appendChild(xt);
+
+    const yt = document.createElementNS(SVG_NS, 'text');
+    yt.setAttribute('x', -((plotY0 + plotY1) / 2));
+    yt.setAttribute('y', 16);
+    yt.setAttribute('class', 'axis-title');
+    yt.setAttribute('transform', `rotate(-90)`);
+    yt.textContent = 'running sum';
+    walkSvg.appendChild(yt);
+
+    // Curve up to current stepIdx (or full if stepIdx >= N)
+    const upto = Math.min(stepIdx, steps.length - 1);
+    if (upto > 0) {
+      // Build fill polygon (close to zero line)
+      const pts = [];
+      for (let i = 0; i <= upto; i++) pts.push([xScale(i), yScale(steps[i])]);
+      const pathParts = ['M ' + pts[0][0] + ' ' + yScale(0)];
+      for (const [x, y] of pts) pathParts.push('L ' + x.toFixed(2) + ' ' + y.toFixed(2));
+      pathParts.push('L ' + pts[pts.length - 1][0].toFixed(2) + ' ' + yScale(0));
+      pathParts.push('Z');
+      const fill = document.createElementNS(SVG_NS, 'path');
+      fill.setAttribute('d', pathParts.join(' '));
+      fill.setAttribute('class', 'rs-fill' + (observedES < 0 ? ' neg' : ''));
+      walkSvg.appendChild(fill);
+
+      // Curve line
+      const lineParts = ['M ' + pts[0][0].toFixed(2) + ' ' + pts[0][1].toFixed(2)];
+      for (let i = 1; i < pts.length; i++) lineParts.push('L ' + pts[i][0].toFixed(2) + ' ' + pts[i][1].toFixed(2));
+      const curve = document.createElementNS(SVG_NS, 'path');
+      curve.setAttribute('d', lineParts.join(' '));
+      curve.setAttribute('class', 'rs-curve' + (observedES < 0 ? ' neg' : ''));
+      walkSvg.appendChild(curve);
+    }
+
+    // Cursor (current position)
+    if (stepIdx > 0 && stepIdx <= steps.length - 1) {
+      const cx = xScale(stepIdx);
+      const cursor = document.createElementNS(SVG_NS, 'line');
+      cursor.setAttribute('x1', cx); cursor.setAttribute('x2', cx);
+      cursor.setAttribute('y1', plotY0); cursor.setAttribute('y2', stripY1);
+      cursor.setAttribute('class', 'cursor-line');
+      walkSvg.appendChild(cursor);
+    }
+
+    // Peak marker — only when walk is complete enough to have traversed peak.
+    if (stepIdx >= observedPeakRank && observedPeakRank > 0) {
+      const px = xScale(observedPeakRank);
+      const py = yScale(observedES);
+      const c = document.createElementNS(SVG_NS, 'circle');
+      c.setAttribute('cx', px); c.setAttribute('cy', py);
+      c.setAttribute('r', 5);
+      c.setAttribute('class', 'peak-marker');
+      walkSvg.appendChild(c);
+      const lbl = document.createElementNS(SVG_NS, 'text');
+      const labelX = Math.min(px + 8, plotX1 - 70);
+      lbl.setAttribute('x', labelX);
+      lbl.setAttribute('y', py + (observedES >= 0 ? -8 : 16));
+      lbl.setAttribute('class', 'peak-label');
+      lbl.textContent = `ES = ${observedES.toFixed(3)}`;
+      walkSvg.appendChild(lbl);
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Rendering — null histogram
+  // ────────────────────────────────────────────────────────────────
+  const HIST = {
+    W: 820, H: 220,
+    padL: 56, padR: 24, padT: 20, padB: 56
+  };
+
+  function renderNull() {
+    clearSvg(nullSvg);
+    const { nullDist, observedES, pValue } = state;
+    const plotX0 = HIST.padL, plotX1 = HIST.W - HIST.padR;
+    const plotY0 = HIST.padT, plotY1 = HIST.H - HIST.padB;
+    const plotW = plotX1 - plotX0, plotH = plotY1 - plotY0;
+
+    // Axis border
+    const axisL = document.createElementNS(SVG_NS, 'line');
+    axisL.setAttribute('x1', plotX0); axisL.setAttribute('x2', plotX0);
+    axisL.setAttribute('y1', plotY0); axisL.setAttribute('y2', plotY1);
+    axisL.setAttribute('class', 'axis-line');
+    nullSvg.appendChild(axisL);
+    const axisB = document.createElementNS(SVG_NS, 'line');
+    axisB.setAttribute('x1', plotX0); axisB.setAttribute('x2', plotX1);
+    axisB.setAttribute('y1', plotY1); axisB.setAttribute('y2', plotY1);
+    axisB.setAttribute('class', 'axis-line');
+    nullSvg.appendChild(axisB);
+
+    if (!nullDist || nullDist.length === 0) {
+      const t = document.createElementNS(SVG_NS, 'text');
+      t.setAttribute('x', (plotX0 + plotX1) / 2);
+      t.setAttribute('y', (plotY0 + plotY1) / 2);
+      t.setAttribute('class', 'axis-title');
+      t.textContent = 'Null distribution appears after Re-shuffle.';
+      nullSvg.appendChild(t);
+      return;
+    }
+
+    // Build histogram — symmetric bounds around max abs.
+    let absMax = Math.abs(observedES);
+    for (let i = 0; i < nullDist.length; i++) {
+      const a = Math.abs(nullDist[i]);
+      if (a > absMax) absMax = a;
+    }
+    absMax = Math.max(absMax, 0.1) * 1.08;
+    const nBins = 40;
+    const bins = new Array(nBins).fill(0);
+    const binW = (2 * absMax) / nBins;
+    for (let i = 0; i < nullDist.length; i++) {
+      const v = nullDist[i];
+      let b = Math.floor((v + absMax) / binW);
+      if (b < 0) b = 0; else if (b >= nBins) b = nBins - 1;
+      bins[b]++;
+    }
+    const maxCount = Math.max(...bins, 1);
+
+    const xScale = v => plotX0 + ((v + absMax) / (2 * absMax)) * plotW;
+    const yScale = c => plotY1 - (c / maxCount) * plotH;
+
+    // Bars
+    for (let i = 0; i < nBins; i++) {
+      const binLo = -absMax + i * binW;
+      const binHi = binLo + binW;
+      const count = bins[i];
+      if (count === 0) continue;
+      const x0 = xScale(binLo), x1 = xScale(binHi);
+      const y = yScale(count);
+      const rect = document.createElementNS(SVG_NS, 'rect');
+      rect.setAttribute('x', x0);
+      rect.setAttribute('y', y);
+      rect.setAttribute('width', Math.max(1, x1 - x0 - 1));
+      rect.setAttribute('height', plotY1 - y);
+      let cls = 'hist-bar';
+      // Shade the extreme tail used for p-value
+      if (observedES >= 0 && binLo >= observedES - 1e-9) cls += ' extreme';
+      else if (observedES < 0 && binHi <= observedES + 1e-9) cls += ' extreme';
+      rect.setAttribute('class', cls);
+      nullSvg.appendChild(rect);
+    }
+
+    // Zero line (dashed)
+    const zeroX = xScale(0);
+    const zero = document.createElementNS(SVG_NS, 'line');
+    zero.setAttribute('x1', zeroX); zero.setAttribute('x2', zeroX);
+    zero.setAttribute('y1', plotY0); zero.setAttribute('y2', plotY1);
+    zero.setAttribute('class', 'zero-line');
+    nullSvg.appendChild(zero);
+
+    // Observed arrow
+    const obsX = Math.max(plotX0 + 2, Math.min(plotX1 - 2, xScale(observedES)));
+    const obs = document.createElementNS(SVG_NS, 'line');
+    obs.setAttribute('x1', obsX); obs.setAttribute('x2', obsX);
+    obs.setAttribute('y1', plotY0 - 4); obs.setAttribute('y2', plotY1);
+    obs.setAttribute('class', 'hist-obs');
+    nullSvg.appendChild(obs);
+    const tri = document.createElementNS(SVG_NS, 'path');
+    tri.setAttribute('d', `M ${obsX - 5} ${plotY0 - 4} L ${obsX + 5} ${plotY0 - 4} L ${obsX} ${plotY0 + 4} Z`);
+    tri.setAttribute('fill', 'var(--error)');
+    nullSvg.appendChild(tri);
+    const obsLbl = document.createElementNS(SVG_NS, 'text');
+    const lblX = observedES >= 0 ? Math.min(obsX + 8, plotX1 - 90) : Math.max(obsX - 90, plotX0 + 4);
+    obsLbl.setAttribute('x', lblX);
+    obsLbl.setAttribute('y', plotY0 + 12);
+    obsLbl.setAttribute('class', 'hist-obs-label');
+    obsLbl.textContent = `observed ES = ${observedES.toFixed(3)}`;
+    nullSvg.appendChild(obsLbl);
+
+    // X ticks
+    const nXTicks = 5;
+    for (let i = 0; i <= nXTicks; i++) {
+      const f = i / nXTicks;
+      const v = -absMax + f * 2 * absMax;
+      const x = xScale(v);
+      const tick = document.createElementNS(SVG_NS, 'line');
+      tick.setAttribute('x1', x); tick.setAttribute('x2', x);
+      tick.setAttribute('y1', plotY1); tick.setAttribute('y2', plotY1 + 4);
+      tick.setAttribute('class', 'axis-tick');
+      nullSvg.appendChild(tick);
+      const lbl = document.createElementNS(SVG_NS, 'text');
+      lbl.setAttribute('x', x); lbl.setAttribute('y', plotY1 + 16);
+      lbl.setAttribute('class', 'axis-label');
+      lbl.textContent = v.toFixed(2);
+      nullSvg.appendChild(lbl);
+    }
+
+    // Axis titles
+    const xt = document.createElementNS(SVG_NS, 'text');
+    xt.setAttribute('x', (plotX0 + plotX1) / 2);
+    xt.setAttribute('y', plotY1 + 34);
+    xt.setAttribute('class', 'axis-title');
+    xt.textContent = 'permuted ES';
+    nullSvg.appendChild(xt);
+
+    const yt = document.createElementNS(SVG_NS, 'text');
+    yt.setAttribute('x', -((plotY0 + plotY1) / 2));
+    yt.setAttribute('y', 16);
+    yt.setAttribute('class', 'axis-title');
+    yt.setAttribute('transform', `rotate(-90)`);
+    yt.textContent = 'count';
+    nullSvg.appendChild(yt);
+
+    // p-value annotation
+    const pLbl = document.createElementNS(SVG_NS, 'text');
+    pLbl.setAttribute('x', plotX1 - 6);
+    pLbl.setAttribute('y', plotY0 + 14);
+    pLbl.setAttribute('text-anchor', 'end');
+    pLbl.setAttribute('class', 'peak-label');
+    pLbl.textContent = `p = ${formatP(pValue)}`;
+    nullSvg.appendChild(pLbl);
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Feasibility + result banner
+  // ────────────────────────────────────────────────────────────────
+  function renderFeasibility() {
+    const { N, K } = state;
+    const ok = K > 0 && N > K;
+    feasibilityEl.hidden = false;
+    feasibilityEl.className = 'feasibility ' + (ok ? 'ok' : 'err');
+    if (ok) {
+      feasibilityEl.innerHTML =
+        `<span class="icon">✓</span><div class="body">` +
+        `<strong>Parameters valid.</strong> N = <code>${N}</code>, K = <code>${K}</code>, ` +
+        `non-set size = <code>${N - K}</code>. Running sum will be well-defined.</div>`;
+    } else {
+      const reason = K === 0
+        ? 'Gene-set size K must be greater than 0.'
+        : `Rank list length N = ${N} is not larger than gene-set size K = ${K}.`;
+      feasibilityEl.innerHTML = `<span class="icon">✗</span><div class="body"><strong>Cannot compute ES.</strong> ${reason}</div>`;
+    }
+    return ok;
+  }
+
+  function formatP(p) {
+    if (p === null || p === undefined) return '—';
+    if (p < 0.001) return '< 0.001';
+    return p.toFixed(3);
+  }
+
+  function renderBanner() {
+    const { observedES, pValue, nullDist } = state;
+    if (!nullDist || nullDist.length === 0) {
+      resultBanner.className = 'result-banner neutral';
+      resultBanner.innerHTML = 'Press <strong>Re-shuffle</strong> to regenerate the ranked list and permutation null.';
+      return;
+    }
+    const sig = pValue !== null && pValue < 0.05;
+    const direction = observedES >= 0 ? 'top' : 'bottom';
+    if (sig) {
+      resultBanner.className = 'result-banner success';
+      resultBanner.innerHTML = `<strong>✓ Significant enrichment at ${direction}.</strong> ` +
+        `ES = <code>${observedES.toFixed(3)}</code> · permutation p = <code>${formatP(pValue)}</code> (1000 label shuffles). ` +
+        `The observed running-sum peak lies in the extreme tail of the null — this pattern is unlikely under random set membership.`;
+    } else {
+      resultBanner.className = 'result-banner failure';
+      resultBanner.innerHTML = `<strong>✗ No significant enrichment.</strong> ` +
+        `ES = <code>${observedES.toFixed(3)}</code> · permutation p = <code>${formatP(pValue)}</code>. ` +
+        `The observed ES sits inside the bulk of the permutation distribution — the pattern is consistent with chance.`;
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Stats row
+  // ────────────────────────────────────────────────────────────────
+  function updateStats() {
+    const { N, steps, stepIdx, observedES, observedPeakRank, inSet } = state;
+    statStep.textContent = `${stepIdx} / ${N}`;
+    const rsNow = steps && stepIdx <= steps.length - 1 ? steps[stepIdx] : 0;
+    statRs.textContent = rsNow.toFixed(3);
+    // Peak ES so far: best |rs| in [0..stepIdx]
+    let bestSoFar = 0, bestRank = 0;
+    if (stepIdx > 0 && steps) {
+      for (let i = 0; i <= stepIdx; i++) {
+        if (Math.abs(steps[i]) > Math.abs(bestSoFar)) { bestSoFar = steps[i]; bestRank = i; }
+      }
+    }
+    const esShown = stepIdx >= N ? observedES : bestSoFar;
+    const peakShown = stepIdx >= N ? observedPeakRank : bestRank;
+    statEs.textContent = esShown.toFixed(3);
+    statEs.className = 'value ' + (esShown >= 0 ? 'emphasis' : 'err');
+    statPeak.textContent = peakShown > 0 ? `${peakShown} / ${N}` : '—';
+
+    let hits = 0, misses = 0;
+    if (inSet) {
+      for (let i = 0; i < stepIdx && i < inSet.length; i++) {
+        if (inSet[i]) hits++; else misses++;
+      }
+    }
+    statHm.textContent = `${hits} / ${misses}`;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Control flow — simulate, step, play
+  // ────────────────────────────────────────────────────────────────
+  function simulate({ reshuffleSeed } = {}) {
+    stopPlay();
+    const ok = renderFeasibility();
+    if (!ok) {
+      state.steps = [];
+      state.scores = [];
+      state.inSet = [];
+      state.nullDist = [];
+      state.observedES = 0;
+      state.observedPeakRank = 0;
+      state.pValue = null;
+      state.stepIdx = 0;
+      renderWalk();
+      renderNull();
+      renderBanner();
+      updateStats();
+      updateButtons();
+      return;
+    }
+
+    if (reshuffleSeed !== undefined) state.seed = reshuffleSeed;
+    const rng = mulberry32(state.seed);
+
+    const { scores, inSet } = buildRankedList(
+      state.N, state.K, state.enrichmentPct, state.direction, rng
+    );
+    state.scores = scores;
+    state.inSet = inSet;
+
+    const { trajectory, ES, peakRank } = computeRunningSum(scores, inSet);
+    state.steps = trajectory;
+    state.observedES = ES;
+    state.observedPeakRank = peakRank;
+
+    // Permutation null — share the RNG stream so re-shuffles are reproducible.
+    const nullDist = permutationNull(scores, inSet, 1000, rng);
+    state.nullDist = nullDist;
+    state.pValue = permutationPValue(nullDist, ES);
+
+    state.stepIdx = 0;
+    renderWalk();
+    renderNull();
+    renderBanner();
+    updateStats();
+    updateButtons();
+  }
+
+  function stepOnce() {
+    if (!state.steps || state.steps.length === 0) return false;
+    if (state.stepIdx >= state.N) return false;
+    state.stepIdx++;
+    renderWalk();
+    updateStats();
+    return state.stepIdx < state.N;
+  }
+
+  function jumpToEndInstant() {
+    if (!state.steps || state.steps.length === 0) return;
+    state.stepIdx = state.N;
+    renderWalk();
+    updateStats();
+    updateButtons();
+  }
+
+  function resetWalk() {
+    stopPlay();
+    state.stepIdx = 0;
+    renderWalk();
+    updateStats();
+    updateButtons();
+  }
+
+  function play() {
+    if (state.playing || !state.steps || state.steps.length === 0) return;
+    if (state.stepIdx >= state.N) return;
+    state.playing = true;
+    updateButtons();
+    // Animate ~120 frames total regardless of N.
+    const totalFrames = 120;
+    const perFrame = Math.max(1, Math.floor((state.N - state.stepIdx) / totalFrames));
+    const intervalMs = 30;
+    state.playTimer = setInterval(() => {
+      for (let k = 0; k < perFrame; k++) {
+        if (state.stepIdx >= state.N) break;
+        state.stepIdx++;
+      }
+      renderWalk();
+      updateStats();
+      if (state.stepIdx >= state.N) stopPlay();
+    }, intervalMs);
+  }
+
+  function stopPlay() {
+    state.playing = false;
+    if (state.playTimer) { clearInterval(state.playTimer); state.playTimer = null; }
+    updateButtons();
+  }
+
+  function updateButtons() {
+    const ready = state.steps && state.steps.length > 0;
+    const atEnd = state.stepIdx >= state.N;
+    stepBtn.disabled  = !ready || atEnd || state.playing;
+    playBtn.disabled  = !ready || atEnd || state.playing;
+    pauseBtn.disabled = !state.playing;
+    resetBtn.disabled = !ready;
+    shuffleBtn.disabled = state.playing;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Preset + slider wiring
+  // ────────────────────────────────────────────────────────────────
+  function applyPreset(key, { updateSlider = true } = {}) {
+    const p = PRESETS[key];
+    if (!p) return;
+    presetHint.textContent = p.hint;
+    state.direction = p.direction;
+    state.enrichmentPct = p.enrichmentPct;
+    if (updateSlider) {
+      sliderE.value = String(p.enrichmentPct);
+      valE.textContent = `${p.enrichmentPct}%`;
+    }
+    simulate({ reshuffleSeed: Math.floor(Math.random() * 0xFFFFFFFF) });
+  }
+
+  function wire() {
+    presetSelect.addEventListener('change', () => applyPreset(presetSelect.value));
+
+    sliderN.addEventListener('input', () => {
+      state.N = parseInt(sliderN.value, 10);
+      valN.textContent = state.N.toString();
+    });
+    sliderN.addEventListener('change', () => simulate());
+
+    sliderK.addEventListener('input', () => {
+      state.K = parseInt(sliderK.value, 10);
+      valK.textContent = state.K.toString();
+    });
+    sliderK.addEventListener('change', () => simulate());
+
+    sliderE.addEventListener('input', () => {
+      state.enrichmentPct = parseInt(sliderE.value, 10);
+      valE.textContent = `${state.enrichmentPct}%`;
+    });
+    sliderE.addEventListener('change', () => simulate());
+
+    shuffleBtn.addEventListener('click', () => simulate({ reshuffleSeed: Math.floor(Math.random() * 0xFFFFFFFF) }));
+    stepBtn.addEventListener('click', () => { stopPlay(); stepOnce(); updateButtons(); });
+    playBtn.addEventListener('click', play);
+    pauseBtn.addEventListener('click', stopPlay);
+    resetBtn.addEventListener('click', resetWalk);
+
+    // Initial state
+    state.N = parseInt(sliderN.value, 10);
+    state.K = parseInt(sliderK.value, 10);
+    state.enrichmentPct = parseInt(sliderE.value, 10);
+    valN.textContent = state.N.toString();
+    valK.textContent = state.K.toString();
+    valE.textContent = `${state.enrichmentPct}%`;
+    presetSelect.value = 'concentrated_top';
+    applyPreset('concentrated_top', { updateSlider: false });
+    // Auto-run walk at load so the initial state shows the peak + ES.
+    jumpToEndInstant();
+  }
+
+  wire();
+})();
+</script>
+
+</body>
+</html>

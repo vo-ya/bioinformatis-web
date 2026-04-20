@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FDR Simulator — Bonferroni vs BH</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 68ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .hist-card {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .hist-card h3 {
+      margin: 0 0 0.15rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--fg);
+      letter-spacing: 0.02em;
+    }
+    .hist-card .sub {
+      margin: 0 0 0.4rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+    }
+
+    .correction-row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.9rem;
+      align-items: center;
+    }
+    .radio-group {
+      display: inline-flex;
+      gap: 0.5rem;
+      padding: 0.25rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .radio-group label {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.35rem 0.75rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--fg-muted);
+      transition: background 0.12s, color 0.12s;
+    }
+    .radio-group input[type="radio"] { display: none; }
+    .radio-group input[type="radio"]:checked + span {
+      background: var(--accent);
+      color: #fff;
+      padding: 0.35rem 0.75rem;
+      border-radius: var(--radius-sm);
+      margin: -0.35rem -0.75rem;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 760px) {
+      .results-grid { grid-template-columns: 1fr; }
+    }
+
+    .result-card {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+    }
+    .result-card.active {
+      border-color: var(--accent);
+      background: var(--accent-bg);
+    }
+    .result-card h3 {
+      margin: 0 0 0.5rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--fg);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .result-card h3 .tag {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      margin-left: 0.4rem;
+      letter-spacing: 0.08em;
+      vertical-align: middle;
+    }
+    .stat-strip {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.35rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+    .stat-strip .k { color: var(--fg-subtle); }
+    .stat-strip .v { color: var(--fg); text-align: right; }
+    .stat-strip .v.accent  { color: var(--accent); font-weight: 600; }
+    .stat-strip .v.success { color: var(--success); font-weight: 600; }
+    .stat-strip .v.warn    { color: var(--warning); font-weight: 600; }
+    .stat-strip .v.err     { color: var(--error);   font-weight: 600; }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw { display: inline-block; width: 14px; height: 10px; border-radius: 2px; }
+    .legend-swatch .sw.null { background: var(--bg-inset); border: 1px solid var(--border-strong); }
+    .legend-swatch .sw.alt  { background: var(--accent-bg); border: 1px solid var(--accent); }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="fdr-simulator">
+
+  <header class="artifact-head">
+    <h1>FDR Simulator — Bonferroni vs BH</h1>
+    <p>Simulate a genome-scale experiment with a controlled fraction of true positives, then compare what Bonferroni and Benjamini–Hochberg call significant at the same threshold. The p-value histogram shows the null uniform floor plus the spike of real signal near zero. Watch empirical FDR track the declared rate for BH while Bonferroni spends most of its power keeping FDR near zero.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Experiment parameters</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="m-input">Total genes m</label>
+          <span class="slider-value" id="m-value">20000</span>
+        </div>
+        <input id="m-input" type="range" min="1000" max="30000" step="500" value="20000">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="pi-input">Fraction true positives</label>
+          <span class="slider-value" id="pi-value">5%</span>
+        </div>
+        <input id="pi-input" type="range" min="0" max="500" step="5" value="50">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="eff-input">Effect size (log2FC)</label>
+          <span class="slider-value" id="eff-value">1.0</span>
+        </div>
+        <input id="eff-input" type="range" min="0" max="300" step="5" value="100">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="n-input">Sample size / condition</label>
+          <span class="slider-value" id="n-value">3</span>
+        </div>
+        <input id="n-input" type="range" min="2" max="20" step="1" value="3">
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <button id="resim-btn" class="btn btn--primary" type="button">Re-simulate</button>
+      <button id="reset-btn" class="btn"             type="button">Reset defaults</button>
+      <span style="margin-left: auto; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-muted);">
+        m tests, π₁ are H₁, rest are H₀
+      </span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">p-value distribution — 50 bins across [0, 1]</p>
+    <div class="hist-card">
+      <h3>Stacked histogram</h3>
+      <p class="sub">null genes uniform · true-positive genes skewed toward 0 (Beta(a, 1), a ≈ exp(−effect² · n · 0.7))</p>
+      <svg id="hist-svg" class="plot-svg" viewBox="0 0 1000 340" preserveAspectRatio="xMidYMid meet" aria-label="p-value histogram"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw null"></span> null genes (H₀)</span>
+      <span class="legend-swatch"><span class="sw alt"></span> true-positive genes (H₁)</span>
+      <span class="legend-swatch"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed var(--error);"></span> rejection cutoff</span>
+    </div>
+    <p class="hint">Under a good experiment the histogram is flat from ~0.1 to 1 (that's the null floor) with a spike near 0 coming from the H₁ genes. The dashed line shows where the chosen correction draws its cutoff: Bonferroni places it at α/m (far left); BH adapts it to the shape of the spike.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Multiple-testing correction</p>
+    <div class="correction-row">
+      <div class="radio-group" role="radiogroup" aria-label="Correction method">
+        <label><input type="radio" name="correction" value="bonf"><span>Bonferroni</span></label>
+        <label><input type="radio" name="correction" value="bh" checked><span>BH (FDR)</span></label>
+      </div>
+
+      <div class="slider-row" style="flex: 1; min-width: 260px;">
+        <div class="slider-head">
+          <label class="field-label" for="thr-input">Threshold α</label>
+          <span class="slider-value" id="thr-value">0.050</span>
+        </div>
+        <input id="thr-input" type="range" min="1" max="200" step="1" value="50">
+      </div>
+    </div>
+
+    <div class="results-grid">
+      <div class="result-card" id="card-bh">
+        <h3>Benjamini–Hochberg <span class="tag" id="bh-tag" style="display:none;">ACTIVE</span></h3>
+        <div class="stat-strip">
+          <span class="k">rejections</span>
+          <span class="v accent" id="bh-rej">—</span>
+          <span class="k">true positives among rejections</span>
+          <span class="v success" id="bh-tp">—</span>
+          <span class="k">precision (TP / R)</span>
+          <span class="v" id="bh-prec">—</span>
+          <span class="k">power (recall, TP / m₁)</span>
+          <span class="v" id="bh-pow">—</span>
+          <span class="k">empirical FDR (FP / R)</span>
+          <span class="v warn" id="bh-fdr">—</span>
+        </div>
+      </div>
+
+      <div class="result-card" id="card-bonf">
+        <h3>Bonferroni <span class="tag" id="bonf-tag" style="display:none;">ACTIVE</span></h3>
+        <div class="stat-strip">
+          <span class="k">rejections</span>
+          <span class="v accent" id="bonf-rej">—</span>
+          <span class="k">true positives among rejections</span>
+          <span class="v success" id="bonf-tp">—</span>
+          <span class="k">precision (TP / R)</span>
+          <span class="v" id="bonf-prec">—</span>
+          <span class="k">power (recall, TP / m₁)</span>
+          <span class="v" id="bonf-pow">—</span>
+          <span class="k">empirical FDR (FP / R)</span>
+          <span class="v warn" id="bonf-fdr">—</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="hint" id="compare-line">—</p>
+
+    <div class="banner" id="banner">
+      <b id="banner-active">BH</b>: <b id="banner-rej">—</b> rejections
+      <span class="sep">·</span>
+      <b id="banner-fdr">—</b> empirical FDR
+      <span class="sep">·</span>
+      <b id="banner-pow">—</b> power.
+      <span class="sep">·</span>
+      Bonferroni: <b id="banner-bonf-rej">—</b>
+      <span class="sep">·</span>
+      <b id="banner-bonf-fdr">—</b> FDR
+      <span class="sep">·</span>
+      <b id="banner-bonf-pow">—</b> power.
+      <span class="sep">·</span>
+      <b id="banner-ratio">—</b> more hits at controlled FDR.
+    </div>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Controls ─────────────────────────────────────────────
+  const mEl    = $('m-input');
+  const piEl   = $('pi-input');
+  const effEl  = $('eff-input');
+  const nEl    = $('n-input');
+  const thrEl  = $('thr-input');
+  const mVal   = $('m-value');
+  const piVal  = $('pi-value');
+  const effVal = $('eff-value');
+  const nVal   = $('n-value');
+  const thrVal = $('thr-value');
+  const resimBtn = $('resim-btn');
+  const resetBtn = $('reset-btn');
+
+  const DEFAULTS = {
+    m: 20000,
+    piSlider: 50,   // ⇒ 5%
+    effSlider: 100, // ⇒ 1.0
+    n: 3,
+    thrSlider: 50,  // ⇒ 0.05
+    correction: 'bh',
+  };
+
+  // Slider mappings.
+  const piFromSlider  = (s) => s / 10;        // percent (0..50)
+  const effFromSlider = (s) => s / 100;       // (0..3)
+  const thrFromSlider = (s) => s / 1000;      // (0.001..0.200)
+
+  const state = {
+    m: DEFAULTS.m,
+    pi: piFromSlider(DEFAULTS.piSlider) / 100,       // fraction, not percent
+    effect: effFromSlider(DEFAULTS.effSlider),
+    n: DEFAULTS.n,
+    threshold: thrFromSlider(DEFAULTS.thrSlider),
+    correction: DEFAULTS.correction,
+    // Simulation output:
+    pvalues: null,          // Float32Array of length m
+    isAlt: null,            // Uint8Array of length m (1 if H₁, 0 if H₀)
+    m1: 0,                  // number of H₁
+    seed: 1,
+  };
+
+  // ── Random helpers ───────────────────────────────────────
+
+  // Mulberry32 PRNG — seedable, stable.
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ── Simulation ───────────────────────────────────────────
+  //
+  // Null p-values: uniform [0, 1].
+  // H₁ p-values: Beta(a, 1) with a = 1 − exp(−effect² · n / 2).
+  //   a ∈ (0, 1]; smaller a ⇒ stronger concentration at 0.
+  //   At effect=0 or n=0, a → 0 but clamp to 1 (uniform) to avoid degenerate log.
+  //   Sampling from Beta(a, 1): U^(1/a) where U ~ Uniform(0, 1).
+  function simulate() {
+    const { m, pi, effect, n } = state;
+    const rng = mulberry32(state.seed);
+
+    // "a" parameter — bigger effect and sample size make a smaller (sharper spike).
+    // Formula approximates power of a t-test in the 1 − exp(−effect²·n/2) family,
+    // tuned so defaults (effect=1, n=3) land near the teaching target.
+    // At effect=1, n=3: a = exp(-1·3·0.7) = exp(-2.1) ≈ 0.122.
+    // At effect=0: a = 1 (pure uniform, no spike, H₁ indistinguishable from H₀).
+    const aRaw = Math.exp(-(effect * effect) * n * 0.7);
+    // Clamp to [0.01, 1]. a → 0 would give astronomically strong signal.
+    const a = Math.max(0.01, Math.min(1, aRaw));
+
+    const p     = new Float32Array(m);
+    const isAlt = new Uint8Array(m);
+    let m1 = 0;
+
+    for (let i = 0; i < m; i++) {
+      const u = rng();
+      if (rng() < pi && effect > 0) {
+        // H₁ gene: draw from Beta(a, 1). Use inverse CDF: U^(1/a).
+        isAlt[i] = 1;
+        m1++;
+        // Guard against u=0 giving 0^(1/a) = 0 (still valid).
+        p[i] = Math.pow(u, 1 / a);
+      } else {
+        isAlt[i] = 0;
+        p[i] = u;
+      }
+    }
+
+    state.pvalues = p;
+    state.isAlt   = isAlt;
+    state.m1      = m1;
+  }
+
+  // ── Corrections ──────────────────────────────────────────
+
+  // Bonferroni: reject if p < α / m.
+  function bonferroniReject(pvals, alpha, m) {
+    const cut = alpha / m;
+    const out = new Uint8Array(pvals.length);
+    for (let i = 0; i < pvals.length; i++) {
+      if (pvals[i] < cut) out[i] = 1;
+    }
+    return { rejected: out, cutoff: cut };
+  }
+
+  // BH step-up: sort p ascending, find largest k with p_(k) <= k/m · α,
+  // reject all p_i with p_i <= p_(k).
+  function bhReject(pvals, alpha) {
+    const m = pvals.length;
+    // Sort indices by p value
+    const idx = new Int32Array(m);
+    for (let i = 0; i < m; i++) idx[i] = i;
+    idx.sort((a, b) => pvals[a] - pvals[b]);
+
+    let kStar = -1;
+    for (let k = 0; k < m; k++) {
+      const p = pvals[idx[k]];
+      const thresh = ((k + 1) / m) * alpha;
+      if (p <= thresh) kStar = k;
+    }
+
+    const rejected = new Uint8Array(m);
+    let cutoff = 0;
+    if (kStar >= 0) {
+      cutoff = pvals[idx[kStar]];
+      for (let k = 0; k <= kStar; k++) rejected[idx[k]] = 1;
+    }
+    return { rejected, cutoff };
+  }
+
+  // Compute metrics: rejections (R), true positives (TP), precision, power, empirical FDR.
+  function metrics(rejected, isAlt, m1) {
+    let R = 0, TP = 0;
+    for (let i = 0; i < rejected.length; i++) {
+      if (rejected[i]) {
+        R++;
+        if (isAlt[i]) TP++;
+      }
+    }
+    const FP   = R - TP;
+    const prec = R ? TP / R : 0;
+    const pow  = m1 ? TP / m1 : 0;
+    const fdr  = R ? FP / R : 0;
+    return { R, TP, FP, precision: prec, power: pow, fdr };
+  }
+
+  // ── SVG helpers ──────────────────────────────────────────
+
+  function clear(svg) { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  // ── Histogram ────────────────────────────────────────────
+  //
+  // 50 bins across [0, 1]. Stacked: nulls on bottom, alts on top.
+  const N_BINS = 50;
+
+  function buildBins() {
+    const p     = state.pvalues;
+    const isAlt = state.isAlt;
+    const nullC = new Uint32Array(N_BINS);
+    const altC  = new Uint32Array(N_BINS);
+    for (let i = 0; i < p.length; i++) {
+      let b = Math.floor(p[i] * N_BINS);
+      if (b >= N_BINS) b = N_BINS - 1;
+      if (b < 0) b = 0;
+      if (isAlt[i]) altC[b]++;
+      else nullC[b]++;
+    }
+    return { nullC, altC };
+  }
+
+  function renderHistogram() {
+    const svg = $('hist-svg');
+    clear(svg);
+    const W = 1000, H = 340;
+    const PAD_L = 66, PAD_R = 16, PAD_T = 14, PAD_B = 48;
+    const x0 = PAD_L, x1 = W - PAD_R;
+    const y0 = PAD_T,  y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    const { nullC, altC } = buildBins();
+
+    // Y axis: cap at a sensible value. Peak of null (uniform) ≈ m/50.
+    // Alt spike can be huge in bin 0 — cap so we can still see the flat null floor.
+    const nullFloor = state.m / N_BINS;
+    // Use 3× null floor or highest bin total, whichever is smaller (so the spike isn't
+    // allowed to swamp the chart and hide the floor).
+    let totalMax = 0;
+    for (let i = 0; i < N_BINS; i++) {
+      totalMax = Math.max(totalMax, nullC[i] + altC[i]);
+    }
+    const yMax = Math.max(nullFloor * 3, Math.min(totalMax, nullFloor * 6), 10);
+
+    const xOfBin = (i) => x0 + (i / N_BINS) * plotW;
+    const yOf    = (c) => y1 - Math.min(c, yMax) / yMax * plotH;
+    const barW   = plotW / N_BINS;
+
+    // Gridlines + Y labels
+    const nY = 4;
+    for (let i = 0; i <= nY; i++) {
+      const v = (i / nY) * yMax;
+      const y = y1 - (v / yMax) * plotH;
+      svg.appendChild(el('line', {
+        x1: x0, x2: x1, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': i === 0 ? '' : '2 4',
+      }));
+      svg.appendChild(el('text', {
+        x: x0 - 8, y: y + 3.5,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, Math.round(v).toString()));
+    }
+
+    // Null floor reference line (expected null count per bin = m(1-π)/50)
+    const nullExpected = state.m * (1 - state.pi) / N_BINS;
+    if (nullExpected < yMax) {
+      const yEx = yOf(nullExpected);
+      svg.appendChild(el('line', {
+        x1: x0, x2: x1, y1: yEx, y2: yEx,
+        stroke: 'var(--fg-subtle)', 'stroke-width': 1,
+        'stroke-dasharray': '4 3',
+        opacity: 0.65,
+      }));
+      svg.appendChild(el('text', {
+        x: x1 - 6, y: yEx - 4,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, 'null floor  m·(1−π)/50'));
+    }
+
+    // Stacked bars
+    for (let i = 0; i < N_BINS; i++) {
+      const total = Math.min(nullC[i] + altC[i], yMax);
+      if (total <= 0) continue;
+      const yTop = yOf(total);
+      const x = xOfBin(i) + 1;
+      const w = barW - 1;
+
+      // Split between null and alt, keeping the alt layer on top for visibility.
+      const altShown = Math.min(altC[i], yMax);
+      const nullShown = Math.max(0, total - altShown);
+
+      if (nullShown > 0) {
+        const yN = yOf(nullShown);
+        svg.appendChild(el('rect', {
+          x: x.toFixed(2), y: yN.toFixed(2),
+          width: w.toFixed(2), height: (y1 - yN).toFixed(2),
+          fill: 'var(--bg-inset)', stroke: 'var(--border-strong)', 'stroke-width': 0.5,
+        }));
+      }
+      if (altShown > 0) {
+        const yA = yTop;
+        const yB = yOf(nullShown);
+        svg.appendChild(el('rect', {
+          x: x.toFixed(2), y: yA.toFixed(2),
+          width: w.toFixed(2), height: (yB - yA).toFixed(2),
+          fill: 'var(--accent-bg)', stroke: 'var(--accent)', 'stroke-width': 0.6,
+        }));
+      }
+    }
+
+    // Rejection cutoff line (p-value at which current correction rejects)
+    const cutoff = state.cutoff ?? 0;
+    if (cutoff > 0 && cutoff <= 1) {
+      const xc = x0 + cutoff * plotW;
+      svg.appendChild(el('line', {
+        x1: xc, x2: xc, y1: y0, y2: y1,
+        stroke: 'var(--error)', 'stroke-width': 1.5,
+        'stroke-dasharray': '5 4',
+      }));
+      svg.appendChild(el('text', {
+        x: Math.min(xc + 6, x1 - 80),
+        y: y0 + 14,
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--error)',
+        'font-weight': 600,
+      }, `cutoff p ≤ ${cutoff < 1e-4 ? cutoff.toExponential(1) : cutoff.toFixed(4)}`));
+    }
+
+    // X axis baseline
+    svg.appendChild(el('line', {
+      x1: x0, x2: x1, y1: y1, y2: y1,
+      stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+    // X ticks at 0, 0.2, 0.4, 0.6, 0.8, 1.0
+    const xTicks = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
+    for (const v of xTicks) {
+      const x = x0 + v * plotW;
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: y1, y2: y1 + 4,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x, y: y1 + 16,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, v.toFixed(1)));
+    }
+
+    // Axis titles
+    svg.appendChild(el('text', {
+      x: (x0 + x1) / 2, y: H - 8,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.06em',
+    }, 'p-value'));
+
+    svg.appendChild(el('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.06em',
+      transform: `translate(16, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, 'genes per bin'));
+
+    // Plot frame
+    svg.appendChild(el('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'none', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+  }
+
+  // ── Readouts ─────────────────────────────────────────────
+
+  function fmtInt(n) { return n.toLocaleString('en-US'); }
+  function fmtPct(x) { return (x * 100).toFixed(1) + '%'; }
+
+  function updateResults() {
+    const p = state.pvalues;
+    const isAlt = state.isAlt;
+    const m = state.m;
+    const m1 = state.m1;
+    const alpha = state.threshold;
+
+    const bh   = bhReject(p, alpha);
+    const bonf = bonferroniReject(p, alpha, m);
+
+    const bhMet   = metrics(bh.rejected, isAlt, m1);
+    const bonfMet = metrics(bonf.rejected, isAlt, m1);
+
+    // BH card
+    $('bh-rej').textContent  = fmtInt(bhMet.R);
+    $('bh-tp').textContent   = fmtInt(bhMet.TP);
+    $('bh-prec').textContent = bhMet.R ? fmtPct(bhMet.precision) : '—';
+    $('bh-pow').textContent  = m1 ? fmtPct(bhMet.power) : '—';
+    $('bh-fdr').textContent  = bhMet.R ? fmtPct(bhMet.fdr) : '—';
+
+    // Bonferroni card
+    $('bonf-rej').textContent  = fmtInt(bonfMet.R);
+    $('bonf-tp').textContent   = fmtInt(bonfMet.TP);
+    $('bonf-prec').textContent = bonfMet.R ? fmtPct(bonfMet.precision) : '—';
+    $('bonf-pow').textContent  = m1 ? fmtPct(bonfMet.power) : '—';
+    $('bonf-fdr').textContent  = bonfMet.R ? fmtPct(bonfMet.fdr) : '—';
+
+    // Active highlight
+    const isBH = state.correction === 'bh';
+    $('card-bh').classList.toggle('active',   isBH);
+    $('card-bonf').classList.toggle('active', !isBH);
+    $('bh-tag').style.display   = isBH  ? 'inline-block' : 'none';
+    $('bonf-tag').style.display = !isBH ? 'inline-block' : 'none';
+
+    // Cutoff shown on histogram = whichever correction is active.
+    state.cutoff = isBH ? bh.cutoff : bonf.cutoff;
+    renderHistogram();
+
+    // Comparison line
+    const activeMet = isBH ? bhMet   : bonfMet;
+    const otherMet  = isBH ? bonfMet : bhMet;
+    const activeLabel = isBH ? 'BH'         : 'Bonferroni';
+    const otherLabel  = isBH ? 'Bonferroni' : 'BH';
+    const cmpLine = `${activeLabel}: ${fmtInt(activeMet.R)} rejections @ ` +
+      `${activeMet.R ? fmtPct(activeMet.fdr) : '—'} empirical FDR. ` +
+      `Would-have-been ${otherLabel} at same α: ${fmtInt(otherMet.R)} rejections ` +
+      `(${otherMet.R ? fmtPct(otherMet.fdr) : '—'} FDR).`;
+    $('compare-line').textContent = cmpLine;
+
+    // Banner
+    $('banner-active').textContent = 'BH';
+    $('banner-rej').textContent = fmtInt(bhMet.R);
+    $('banner-fdr').textContent = bhMet.R ? fmtPct(bhMet.fdr) : '0.0%';
+    $('banner-pow').textContent = m1 ? fmtPct(bhMet.power)    : '0.0%';
+
+    $('banner-bonf-rej').textContent = fmtInt(bonfMet.R);
+    $('banner-bonf-fdr').textContent = bonfMet.R ? fmtPct(bonfMet.fdr) : '0.0%';
+    $('banner-bonf-pow').textContent = m1 ? fmtPct(bonfMet.power)     : '0.0%';
+
+    let ratioTxt = '—';
+    if (bonfMet.R > 0 && bhMet.R > 0) {
+      const ratio = bhMet.R / bonfMet.R;
+      ratioTxt = (ratio >= 10 ? ratio.toFixed(0) : ratio.toFixed(1)) + '×';
+    } else if (bhMet.R > 0 && bonfMet.R === 0) {
+      ratioTxt = '∞×';
+    } else if (bhMet.R === 0) {
+      ratioTxt = '0×';
+    }
+    $('banner-ratio').textContent = ratioTxt;
+  }
+
+  function updateReadouts() {
+    mVal.textContent   = fmtInt(state.m);
+    piVal.textContent  = (state.pi * 100).toFixed(1).replace(/\.0$/, '') + '%';
+    effVal.textContent = state.effect.toFixed(2);
+    nVal.textContent   = state.n.toString();
+    thrVal.textContent = state.threshold < 0.01
+      ? state.threshold.toFixed(4)
+      : state.threshold.toFixed(3);
+  }
+
+  // ── Pipeline ─────────────────────────────────────────────
+
+  function readControls() {
+    state.m         = +mEl.value;
+    state.pi        = piFromSlider(+piEl.value) / 100;
+    state.effect    = effFromSlider(+effEl.value);
+    state.n         = +nEl.value;
+    state.threshold = thrFromSlider(+thrEl.value);
+  }
+
+  function runFullSim() {
+    readControls();
+    simulate();
+    updateReadouts();
+    updateResults();
+  }
+
+  function runAnalysisOnly() {
+    readControls();
+    updateReadouts();
+    updateResults();
+  }
+
+  // ── Wiring ───────────────────────────────────────────────
+
+  // These four control the simulation itself — changing them means re-generating p-values.
+  [mEl, piEl, effEl, nEl].forEach(e => {
+    e.addEventListener('input', runFullSim);
+  });
+
+  // Threshold doesn't need re-simulation — just re-apply the correction.
+  thrEl.addEventListener('input', runAnalysisOnly);
+
+  // Radio buttons: re-render with new active correction.
+  document.querySelectorAll('input[name="correction"]').forEach(r => {
+    r.addEventListener('change', (e) => {
+      state.correction = e.target.value;
+      updateResults();
+    });
+  });
+
+  resimBtn.addEventListener('click', () => {
+    state.seed = (Math.random() * 0x7fffffff) | 0;
+    simulate();
+    updateResults();
+  });
+
+  resetBtn.addEventListener('click', () => {
+    mEl.value   = DEFAULTS.m;
+    piEl.value  = DEFAULTS.piSlider;
+    effEl.value = DEFAULTS.effSlider;
+    nEl.value   = DEFAULTS.n;
+    thrEl.value = DEFAULTS.thrSlider;
+    state.seed = 1;
+    // Reset radio
+    document.querySelectorAll('input[name="correction"]').forEach(r => {
+      r.checked = (r.value === DEFAULTS.correction);
+    });
+    state.correction = DEFAULTS.correction;
+    runFullSim();
+  });
+
+  // ── Initial render ───────────────────────────────────────
+  runFullSim();
+})();
+</script>
+
+</body>
+</html>

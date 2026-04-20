@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Volcano Plot Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .preset-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 0.6rem;
+    }
+    .preset-btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      padding: 0.45rem 0.75rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg-muted);
+      cursor: pointer;
+    }
+    .preset-btn:hover { border-color: var(--border-strong); color: var(--fg); }
+    .preset-btn.active {
+      background: var(--accent-bg);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .paste-wrap {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.6rem;
+      margin-top: 0.75rem;
+      padding-top: 0.9rem;
+      border-top: 1px dashed var(--border);
+    }
+    .paste-wrap textarea {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: 1.45;
+      padding: 0.55rem 0.7rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      min-height: 88px;
+      resize: vertical;
+      width: 100%;
+    }
+    .paste-wrap textarea:focus {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: 1px;
+      background: var(--bg-elevated);
+    }
+    .paste-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .paste-actions .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0 0 0 auto;
+    }
+    .paste-error {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--error);
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.75rem;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .paste-error.show { display: block; }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      margin-top: 0.85rem;
+      padding-top: 0.8rem;
+      border-top: 1px dashed var(--border);
+    }
+    .check-row input[type="checkbox"] { accent-color: var(--accent); }
+    .check-row label { cursor: pointer; }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .legend-swatch .sw.up   { background: var(--accent); }
+    .legend-swatch .sw.down { background: var(--error); }
+    .legend-swatch .sw.ns   { background: var(--fg-muted); opacity: 0.45; }
+    .legend-swatch .ln {
+      display: inline-block;
+      width: 18px; height: 0;
+      border: 0;
+      border-top: 2px dashed var(--fg-subtle);
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="volcano-explorer">
+
+  <header class="artifact-head">
+    <h1>Volcano Plot Explorer</h1>
+    <p>Drag the two thresholds and watch the hit list shrink or grow. Each preset is a different signal regime — null, heavy, the classic airway + dexamethasone experiment, and a tumour-vs-normal comparison. The aha is that tightening padj and widening log2FC cut the hit list along independent axes: strict padj drops low-confidence noise, strict log2FC drops small real effects.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Dataset</p>
+
+    <div class="preset-row" id="preset-row">
+      <button class="preset-btn active" type="button" data-preset="airway">airway smooth-muscle + dex</button>
+      <button class="preset-btn" type="button" data-preset="hcc">HCC vs normal liver</button>
+      <button class="preset-btn" type="button" data-preset="null">simulated null</button>
+      <button class="preset-btn" type="button" data-preset="heavy">simulated heavy-signal</button>
+    </div>
+    <p class="hint" id="preset-caption"></p>
+
+    <div class="paste-wrap">
+      <label class="field-label" for="paste-input">Or paste your own (CSV/TSV · gene, log2FC, padj per line)</label>
+      <textarea id="paste-input" spellcheck="false" placeholder="IL6, 4.2, 1e-12&#10;FOXO3, -3.1, 5e-9&#10;TNF,  2.8, 2e-7"></textarea>
+      <div class="paste-actions">
+        <button class="btn btn--primary" type="button" id="paste-btn">Load pasted</button>
+        <button class="btn" type="button" id="paste-clear">Clear paste</button>
+        <span class="hint">Expected 3 columns · header row optional · # lines ignored</span>
+      </div>
+      <div class="paste-error" id="paste-error"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Thresholds</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="padj-input">padj threshold (log scale)</label>
+          <span class="slider-value" id="padj-value">0.050</span>
+        </div>
+        <input id="padj-input" type="range" min="0" max="1000" step="1" value="723">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="lfc-input">|log2FC| threshold</label>
+          <span class="slider-value" id="lfc-value">1.0</span>
+        </div>
+        <input id="lfc-input" type="range" min="0" max="400" step="1" value="100">
+      </div>
+    </div>
+
+    <div class="check-row">
+      <input id="highlight-pass" type="checkbox" checked>
+      <label for="highlight-pass">Highlight only PASS (fade everything outside the thresholds)</label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Volcano</p>
+    <div class="plot-wrap">
+      <svg id="volcano-svg" class="plot-svg" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet" aria-label="Volcano plot"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw up"></span> significant up (padj &lt; thr, log2FC &gt; +thr)</span>
+      <span class="legend-swatch"><span class="sw down"></span> significant down (padj &lt; thr, log2FC &lt; -thr)</span>
+      <span class="legend-swatch"><span class="sw ns"></span> not significant</span>
+      <span class="legend-swatch"><span class="ln"></span> threshold lines</span>
+    </div>
+    <p class="plot-caption">x-axis: log2 fold change · y-axis: -log10(padj). Top 18 hits labelled with gene symbols.</p>
+  </section>
+
+  <div class="banner" id="banner">
+    <b id="banner-total">0</b> genes meet both thresholds
+    <span class="sep">·</span>
+    <b id="banner-up">0</b> up
+    <span class="sep">·</span>
+    <b id="banner-down">0</b> down
+    <span class="sep">·</span>
+    most extreme up: <b id="banner-up-gene">—</b>
+    <span class="sep">·</span>
+    most extreme down: <b id="banner-down-gene">—</b>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Slider encodings ─────────────────────────────────────
+  //
+  // padj slider is 0..1000, mapping log-uniformly to [0.001, 0.5].
+  // The default value 723 yields ~0.050.
+  function padjFromSlider(s) {
+    const lo = Math.log(0.001), hi = Math.log(0.5);
+    const t = s / 1000;
+    return Math.exp(lo + t * (hi - lo));
+  }
+  // lfc slider 0..400 maps linearly to [0.0, 4.0].
+  function lfcFromSlider(s) { return s / 100; }
+
+  // ── Deterministic RNG ───────────────────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Standard normal via Box-Muller using an injected RNG.
+  function randn(rnd) {
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // ── Gene symbol pool ───────────────────────────────────
+  // A curated mix of real oncology / immunology / metabolism genes plus
+  // unremarkable housekeeping names, so the labels on top hits read as
+  // plausible rather than lorem-ipsum synthetic.
+  const GENES_REAL = [
+    'IL6','TNF','NFKB1','FOXO3','MYC','TP53','BRCA1','BRCA2','EGFR','KRAS',
+    'PIK3CA','AKT1','MTOR','STAT3','STAT1','JAK1','JAK2','IRF1','CCL2','CCL5',
+    'CXCL10','CXCL8','IFNG','IL1B','IL10','IL17A','TGFB1','SMAD3','SOCS3','GADD45A',
+    'CDKN1A','CDKN2A','BCL2','BAX','CASP3','CASP8','BIRC5','MKI67','PCNA','AURKA',
+    'AURKB','PLK1','TOP2A','CCNB1','CCND1','CCNE1','CDK1','CDK2','CDK4','CDK6',
+    'RB1','E2F1','VEGFA','HIF1A','EPAS1','PDK1','PDK4','LDHA','HK2','PFKM',
+    'GLUT1','ACC1','FASN','SCD','SREBF1','PPARG','PPARGC1A','CPT1A','UCP2','UCP3',
+    'SOD2','CAT','GPX1','NQO1','HMOX1','NRF2','NFE2L2','KEAP1','XBP1','ATF4',
+    'DDIT3','ERN1','EIF2AK3','ATF6','HSPA5','HSP90AA1','HSPB1','DNAJB9','SQSTM1','MAP1LC3B',
+    'BECN1','ATG5','ATG7','ATG12','ULK1','TFEB','GABARAPL1','PIK3C3','RUBCN','LAMP1',
+    'CD68','CD163','CD86','CD80','ITGAM','ITGAX','MARCO','MRC1','CLEC7A','TLR2',
+    'TLR4','TLR9','MYD88','IRAK4','TRAF6','RIPK1','RIPK3','MLKL','NLRP3','PYCARD',
+    'GSDMD','IL18','IL1A','IL1RN','TNFRSF1A','FAS','FASLG','TRADD','FADD','XIAP',
+    'SERPINB2','SERPINE1','PLAU','PLAUR','MMP2','MMP9','MMP14','TIMP1','TIMP3','COL1A1',
+    'COL3A1','COL4A1','FN1','ACTA2','VIM','TWIST1','SNAI1','SNAI2','ZEB1','ZEB2',
+    'CDH1','CDH2','CLDN1','OCLN','TJP1','KRT8','KRT18','KRT19','EPCAM','MUC1',
+    'MUC2','MUC5AC','MUC16','CEACAM5','CEACAM6','MSLN','PROM1','ALDH1A1','NANOG','POU5F1',
+    'SOX2','KLF4','LIN28A','BMI1','DPPA5','DNMT1','DNMT3A','DNMT3B','TET1','TET2',
+    'EZH2','SUZ12','KMT2D','KDM6A','SETD2','ARID1A','ARID1B','SMARCA4','PBRM1','BAP1',
+    'PTEN','APC','CTNNB1','AXIN1','AXIN2','TCF7','LEF1','WNT3A','WNT5A','DVL1',
+    'SFRP1','DKK1','NOTCH1','NOTCH3','HES1','HEY1','JAG1','DLL4','NUMB','SMO',
+    'PTCH1','GLI1','GLI2','SHH','IHH','BMP2','BMP4','NOGG','GREM1','CHRD',
+    'SMAD1','SMAD4','SMAD7','FOXA1','FOXA2','FOXO1','FOXM1','FOXP3','GATA3','RORC',
+    'TBX21','EOMES','PRDM1','IRF4','BCL6','CIITA','HLA-A','HLA-B','HLA-DRA','B2M',
+    'CD274','PDCD1','PDCD1LG2','LAG3','HAVCR2','TIGIT','BTLA','VSIR','CTLA4','CD28',
+    'CD3D','CD3E','CD4','CD8A','CD8B','GZMB','GZMA','PRF1','NKG7','IFITM3',
+    'MX1','OAS1','ISG15','IFI6','RSAD2','IFI44','IFIT1','IFIT3','DDX58','IFIH1',
+    'STING1','TMEM173','TBK1','IKBKE','CGAS','MB21D1','APOBEC3A','APOBEC3B','SAMHD1','TREX1',
+  ];
+
+  // Generic gene symbol generator for filling out the tail of the distribution.
+  function padGenes(target, rnd) {
+    const out = GENES_REAL.slice();
+    const pfx = ['RPS','RPL','EIF','HNRNP','SNRP','SRSF','SF3','POLR','PSMA','PSMB',
+                 'PSMC','PSMD','UBA','UBE2','UBR','FBXO','FBXW','DDX','DHX','ZNF',
+                 'KRTAP','OR','TAS','GPR','CLEC','SLC','ATP','MT-','NDUFA','NDUFB'];
+    let i = 0;
+    while (out.length < target) {
+      const p = pfx[Math.floor(rnd() * pfx.length)];
+      const n = Math.floor(rnd() * 400) + 1;
+      const s = Math.floor(rnd() * 3);
+      let name = p + n;
+      if (s === 1) name += 'A';
+      else if (s === 2) name += 'B';
+      if (!out.includes(name)) out.push(name);
+      i++;
+      if (i > target * 4) break; // safety
+    }
+    return out.slice(0, target);
+  }
+
+  // ── Preset builders ──────────────────────────────────────
+  //
+  // Each preset returns an array of ~2000 { gene, log2FC, padj } objects
+  // with a distinctive signal distribution. Seeds are fixed so the scatter
+  // is identical across reloads.
+
+  function buildPreset(name) {
+    const seed = {
+      airway: 20090701,  // Himes et al. airway smooth-muscle + dex dataset date
+      hcc:    20180315,
+      null:   19700101,
+      heavy:  20260420,
+    }[name] || 1;
+    const rnd = mulberry32(seed);
+
+    // Target hit-count calibration (number of genes passing default thresholds:
+    // padj < 0.05, |log2FC| > 1). Chosen so defaults open at ~500 for airway.
+    // Each preset uses a mixture model: `frac` of genes are "real" DE with a
+    // biased log2FC and smaller padj, `1 - frac` are null-ish.
+    const profile = {
+      airway: { n: 2000, frac: 0.35, loc: 1.4, upBias: 0.62, sigReal: 1.1, sigNull: 0.35, padjReal: 8, padjNull: 1.2 },
+      hcc:    { n: 2000, frac: 0.42, loc: 2.0, upBias: 0.55, sigReal: 1.4, sigNull: 0.45, padjReal: 9, padjNull: 1.0 },
+      null:   { n: 2000, frac: 0.02, loc: 0.5, upBias: 0.50, sigReal: 0.5, sigNull: 0.30, padjReal: 2, padjNull: 0.4 },
+      heavy:  { n: 2000, frac: 0.55, loc: 2.4, upBias: 0.60, sigReal: 1.5, sigNull: 0.50, padjReal: 11, padjNull: 1.3 },
+    }[name];
+
+    const pool = padGenes(profile.n, rnd);
+    const pts = new Array(profile.n);
+
+    for (let i = 0; i < profile.n; i++) {
+      const gene = pool[i];
+      const isReal = rnd() < profile.frac;
+
+      let log2FC, negLog10P;
+
+      if (isReal) {
+        // Real DE: shifted log2FC centered on ±loc, with padj scaling with |lfc|.
+        const sign = rnd() < profile.upBias ? 1 : -1;
+        log2FC = sign * (profile.loc + profile.sigReal * Math.abs(randn(rnd)));
+        // Squash extreme |lfc| softly so we don't have runaway outliers.
+        if (log2FC > 5.5)  log2FC =  5.5 - 0.3 * rnd();
+        if (log2FC < -5.5) log2FC = -5.5 + 0.3 * rnd();
+        // padj: -log10(p) grows roughly linearly with |lfc|, plus noise.
+        const base = profile.padjReal * (0.55 + 0.5 * Math.abs(log2FC) / (profile.loc + 1));
+        negLog10P = Math.max(0.5, base + 1.8 * randn(rnd));
+        // Rare tail of very strong hits
+        if (rnd() < 0.03) negLog10P += 2 + 2 * rnd();
+      } else {
+        // Null-ish: lfc tight around 0, padj is uniform-ish on -log10 up to ~2.
+        log2FC = profile.sigNull * randn(rnd);
+        negLog10P = Math.max(0.02, profile.padjNull * Math.abs(randn(rnd)));
+      }
+
+      // Cap -log10(padj) at 14 so the plot axis has a natural ceiling.
+      if (negLog10P > 14) negLog10P = 14 - 0.3 * rnd();
+
+      const padj = Math.pow(10, -negLog10P);
+      pts[i] = { gene, log2FC, padj, negLog10P };
+    }
+
+    // Hand-place a few "marquee" genes at the extremes to anchor the eye,
+    // and so that the banner names are memorable real symbols.
+    const marquee = {
+      airway: [
+        { gene: 'DUSP1',  log2FC:  2.9, negLog10P: 11.2 },
+        { gene: 'KLF15',  log2FC:  4.1, negLog10P: 12.6 },
+        { gene: 'FKBP5',  log2FC:  3.5, negLog10P: 11.5 },
+        { gene: 'PER1',   log2FC:  2.4, negLog10P: 10.1 },
+        { gene: 'TSC22D3',log2FC:  3.8, negLog10P: 12.0 },
+        { gene: 'SPARCL1',log2FC: -2.6, negLog10P:  9.8 },
+        { gene: 'CCL2',   log2FC: -3.2, negLog10P: 10.6 },
+        { gene: 'IL6',    log2FC: -2.4, negLog10P:  8.9 },
+        { gene: 'ADAMTS1',log2FC: -2.8, negLog10P:  9.3 },
+      ],
+      hcc: [
+        { gene: 'GPC3',   log2FC:  4.6, negLog10P: 13.2 },
+        { gene: 'AFP',    log2FC:  5.0, negLog10P: 13.8 },
+        { gene: 'BIRC5',  log2FC:  3.4, negLog10P: 11.4 },
+        { gene: 'CCNB1',  log2FC:  3.1, negLog10P: 11.0 },
+        { gene: 'TOP2A',  log2FC:  3.5, negLog10P: 11.6 },
+        { gene: 'CYP3A4', log2FC: -4.8, negLog10P: 12.9 },
+        { gene: 'CYP2E1', log2FC: -3.9, negLog10P: 11.8 },
+        { gene: 'ALB',    log2FC: -2.8, negLog10P: 10.2 },
+        { gene: 'F9',     log2FC: -2.5, negLog10P:  9.6 },
+        { gene: 'G6PC',   log2FC: -3.3, negLog10P: 10.9 },
+      ],
+      null: [
+        // No marquee hits; a couple near-edge noise points.
+        { gene: 'RPS18',  log2FC:  0.4, negLog10P: 1.4 },
+        { gene: 'GAPDH',  log2FC: -0.3, negLog10P: 1.1 },
+      ],
+      heavy: [
+        { gene: 'MYC',    log2FC:  4.7, negLog10P: 13.6 },
+        { gene: 'E2F1',   log2FC:  4.0, negLog10P: 12.8 },
+        { gene: 'AURKA',  log2FC:  3.7, negLog10P: 12.3 },
+        { gene: 'MKI67',  log2FC:  4.1, negLog10P: 12.9 },
+        { gene: 'FOXO3',  log2FC: -4.3, negLog10P: 13.1 },
+        { gene: 'CDKN1A', log2FC: -3.9, negLog10P: 12.4 },
+        { gene: 'GADD45A',log2FC: -3.5, negLog10P: 11.8 },
+        { gene: 'BCL2',   log2FC: -3.0, negLog10P: 11.2 },
+      ],
+    }[name] || [];
+
+    // Overwrite the first N synthetic points with marquee data, preserving length.
+    for (let k = 0; k < marquee.length && k < pts.length; k++) {
+      const m = marquee[k];
+      pts[k] = {
+        gene: m.gene,
+        log2FC: m.log2FC,
+        padj: Math.pow(10, -m.negLog10P),
+        negLog10P: m.negLog10P,
+      };
+    }
+
+    return pts;
+  }
+
+  // ── State ────────────────────────────────────────────────
+  const state = {
+    preset: 'airway',
+    points: [],        // active dataset
+    pasted: null,      // array if user supplied, else null
+    padjThr: 0.05,
+    lfcThr: 1.0,
+    highlightOnly: true,
+    rafId: 0,
+  };
+
+  const PRESET_CAPTIONS = {
+    airway: 'Himes-style airway smooth-muscle cells ± dexamethasone. A clean DE result with ~500 hits and a classic glucocorticoid signature.',
+    hcc: 'Hepatocellular carcinoma vs adjacent normal liver. A large DE signal — hundreds of hits including liver-function genes going down and proliferation genes going up.',
+    null: 'Simulated null — cases and controls drawn from the same population. A handful of hits survive by chance, but the plot is flat and centered on zero.',
+    heavy: 'Simulated heavy-signal — a strong perturbation. Expect a dramatic volcano with many large-effect genes on both sides.',
+  };
+
+  // Build all presets once.
+  const PRESETS = {
+    airway: buildPreset('airway'),
+    hcc:    buildPreset('hcc'),
+    null:   buildPreset('null'),
+    heavy:  buildPreset('heavy'),
+  };
+
+  // ── DOM refs ─────────────────────────────────────────────
+  const padjEl  = $('padj-input');
+  const lfcEl   = $('lfc-input');
+  const padjVal = $('padj-value');
+  const lfcVal  = $('lfc-value');
+  const highlightEl = $('highlight-pass');
+  const svg = $('volcano-svg');
+  const presetRow = $('preset-row');
+  const presetCaption = $('preset-caption');
+
+  const pasteEl   = $('paste-input');
+  const pasteBtn  = $('paste-btn');
+  const pasteClr  = $('paste-clear');
+  const pasteErr  = $('paste-error');
+
+  // ── Paste parser ────────────────────────────────────────
+  //
+  // Accepts CSV or TSV. Rejects malformed rows with line-number errors.
+  // Header row starting with "gene" (case-insensitive) is skipped. Lines
+  // starting with # are comments.
+  function parsePaste(text) {
+    const rows = text.split(/\r?\n/);
+    const out = [];
+    const errors = [];
+    for (let i = 0; i < rows.length; i++) {
+      const raw = rows[i];
+      const line = raw.trim();
+      if (!line) continue;
+      if (line.startsWith('#')) continue;
+
+      const parts = line.split(/[,\t]+/).map(s => s.trim()).filter(s => s.length);
+      if (parts.length < 3) {
+        errors.push(`line ${i + 1}: expected 3 fields (gene, log2FC, padj), got ${parts.length}`);
+        continue;
+      }
+      const gene = parts[0];
+      // Skip header row if first non-# line has "gene" + non-numeric lfc column.
+      if (i < 3 && /^gene$/i.test(gene) && isNaN(parseFloat(parts[1]))) continue;
+
+      const lfc = parseFloat(parts[1]);
+      const padj = parseFloat(parts[2]);
+      if (!isFinite(lfc)) {
+        errors.push(`line ${i + 1}: log2FC "${parts[1]}" is not a number`);
+        continue;
+      }
+      if (!isFinite(padj) || padj <= 0 || padj > 1) {
+        errors.push(`line ${i + 1}: padj "${parts[2]}" must be in (0, 1]`);
+        continue;
+      }
+      out.push({
+        gene,
+        log2FC: lfc,
+        padj,
+        negLog10P: -Math.log10(padj),
+      });
+    }
+    return { points: out, errors };
+  }
+
+  // ── Rendering ───────────────────────────────────────────
+
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  function renderVolcano() {
+    clear(svg);
+
+    const W = 1000, H = 560;
+    const PAD_L = 70, PAD_R = 28, PAD_T = 20, PAD_B = 58;
+    const x0 = PAD_L, x1 = W - PAD_R;
+    const y0 = PAD_T,  y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    const xMin = -5, xMax = 5;
+    const yMin = 0,  yMax = 15;
+    const xOf = (v) => x0 + ((v - xMin) / (xMax - xMin)) * plotW;
+    const yOf = (v) => y1 - ((v - yMin) / (yMax - yMin)) * plotH;
+
+    // Plot frame
+    svg.appendChild(el('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Gridlines — x
+    for (let v = xMin; v <= xMax; v++) {
+      if (v === xMin || v === xMax) continue;
+      const x = xOf(v);
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: y0, y2: y1,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': v === 0 ? '' : '2 4',
+      }));
+    }
+    // Gridlines — y
+    for (let v = yMin; v <= yMax; v += 3) {
+      if (v === yMin) continue;
+      const y = yOf(v);
+      svg.appendChild(el('line', {
+        x1: x0, x2: x1, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': '2 4',
+      }));
+    }
+
+    // Threshold lines (dashed)
+    const lfcT = state.lfcThr;
+    const padjT = state.padjThr;
+    const yThr = -Math.log10(padjT);
+    // Vertical +/- log2FC thresholds
+    if (lfcT > 0) {
+      for (const v of [-lfcT, lfcT]) {
+        if (v < xMin || v > xMax) continue;
+        const x = xOf(v);
+        svg.appendChild(el('line', {
+          x1: x, x2: x, y1: y0, y2: y1,
+          stroke: 'var(--fg-subtle)', 'stroke-width': 1.2,
+          'stroke-dasharray': '5 4',
+        }));
+      }
+    }
+    // Horizontal padj threshold
+    if (yThr >= yMin && yThr <= yMax) {
+      const y = yOf(yThr);
+      svg.appendChild(el('line', {
+        x1: x0, x2: x1, y1: y, y2: y,
+        stroke: 'var(--fg-subtle)', 'stroke-width': 1.2,
+        'stroke-dasharray': '5 4',
+      }));
+    }
+
+    // Axis ticks & labels — x
+    for (let v = xMin; v <= xMax; v++) {
+      const x = xOf(v);
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: y1, y2: y1 + 4,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x, y: y1 + 18,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      }, v.toString()));
+    }
+    // Axis ticks & labels — y (every 3)
+    for (let v = yMin; v <= yMax; v += 3) {
+      const y = yOf(v);
+      svg.appendChild(el('line', {
+        x1: x0 - 4, x2: x0, y1: y, y2: y,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x: x0 - 8, y: y + 3.5,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      }, v.toString()));
+    }
+
+    // Axis titles
+    svg.appendChild(el('text', {
+      x: (x0 + x1) / 2, y: H - 16,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+    }, 'log2 fold change'));
+
+    svg.appendChild(el('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+      transform: `translate(20, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, '-log10(padj)'));
+
+    // Threshold line labels
+    svg.appendChild(el('text', {
+      x: x1 - 6, y: yOf(yThr) - 4,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-mono)', 'font-size': 10,
+      fill: 'var(--fg-muted)',
+    }, `padj = ${padjT < 0.001 ? padjT.toExponential(1) : padjT.toFixed(3)}`));
+
+    if (lfcT > 0 && lfcT < 5) {
+      svg.appendChild(el('text', {
+        x: xOf(lfcT) + 4, y: y0 + 12,
+        'text-anchor': 'start',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-muted)',
+      }, `|log2FC| = ${lfcT.toFixed(1)}`));
+    }
+
+    // Split points into sig-up, sig-down, ns
+    const pts = state.points;
+    const sigUp = [];
+    const sigDn = [];
+    const notSig = [];
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      const isPass = (p.padj < padjT) && (Math.abs(p.log2FC) > lfcT);
+      if (isPass && p.log2FC > 0) sigUp.push(p);
+      else if (isPass && p.log2FC < 0) sigDn.push(p);
+      else notSig.push(p);
+    }
+
+    // Render order: ns first (so significant dots land on top)
+    const drawCircle = (p, fill, opacity) => {
+      const cx = xOf(Math.max(xMin, Math.min(xMax, p.log2FC)));
+      const cy = yOf(Math.max(yMin, Math.min(yMax, p.negLog10P)));
+      svg.appendChild(el('circle', {
+        cx: cx.toFixed(2), cy: cy.toFixed(2),
+        r: 2.6, fill, opacity,
+      }));
+    };
+
+    const nsOpacity = state.highlightOnly ? 0.18 : 0.45;
+    for (let i = 0; i < notSig.length; i++) {
+      drawCircle(notSig[i], 'var(--fg-muted)', nsOpacity);
+    }
+    for (let i = 0; i < sigDn.length; i++) {
+      drawCircle(sigDn[i], 'var(--error)', 0.85);
+    }
+    for (let i = 0; i < sigUp.length; i++) {
+      drawCircle(sigUp[i], 'var(--accent)', 0.85);
+    }
+
+    // ── Top hit labels ────────────────────────────────────
+    // Score = negLog10P * (1 + 0.3*|lfc|), which favors genes that are both
+    // significant and large effect. Limit to ~18 labels to prevent clutter.
+    const sig = sigUp.concat(sigDn);
+    sig.sort((a, b) => {
+      const sa = a.negLog10P * (1 + 0.3 * Math.abs(a.log2FC));
+      const sb = b.negLog10P * (1 + 0.3 * Math.abs(b.log2FC));
+      return sb - sa;
+    });
+    const MAX_LABELS = 18;
+    const chosen = sig.slice(0, MAX_LABELS);
+
+    // Cheap collision avoidance: reject a label if its centre is within 34px
+    // of a previously placed label centre.
+    const placed = [];
+    for (let i = 0; i < chosen.length; i++) {
+      const p = chosen[i];
+      const cx = xOf(Math.max(xMin, Math.min(xMax, p.log2FC)));
+      const cy = yOf(Math.max(yMin, Math.min(yMax, p.negLog10P)));
+      // Offset label above-left for up-genes, above-right for down — keeps them readable
+      const dx = p.log2FC >= 0 ?  6 : -6;
+      const dy = -7;
+      const lx = cx + dx;
+      const ly = cy + dy;
+      let clash = false;
+      for (let j = 0; j < placed.length; j++) {
+        const q = placed[j];
+        const d = Math.hypot(q.x - lx, q.y - ly);
+        if (d < 34) { clash = true; break; }
+      }
+      if (clash) continue;
+      placed.push({ x: lx, y: ly });
+      svg.appendChild(el('text', {
+        x: lx.toFixed(1), y: ly.toFixed(1),
+        'text-anchor': p.log2FC >= 0 ? 'start' : 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg)',
+        'font-weight': 500,
+      }, p.gene));
+    }
+
+    // Update banner
+    updateBanner(sigUp, sigDn);
+  }
+
+  function updateBanner(sigUp, sigDn) {
+    const total = sigUp.length + sigDn.length;
+    $('banner-total').textContent = total.toLocaleString();
+    $('banner-up').textContent    = sigUp.length.toLocaleString();
+    $('banner-down').textContent  = sigDn.length.toLocaleString();
+
+    const fmt = (g) => {
+      if (!g) return '—';
+      const padjStr = g.padj < 0.001
+        ? g.padj.toExponential(1)
+        : g.padj.toFixed(3);
+      return `${g.gene} (log2FC ${g.log2FC.toFixed(1)}, padj ${padjStr})`;
+    };
+
+    // "Most extreme" up = largest log2FC. Most extreme down = most negative lfc.
+    // In a tie, prefer smaller padj.
+    let up = null, dn = null;
+    for (let i = 0; i < sigUp.length; i++) {
+      const p = sigUp[i];
+      if (!up || p.log2FC > up.log2FC || (p.log2FC === up.log2FC && p.padj < up.padj)) up = p;
+    }
+    for (let i = 0; i < sigDn.length; i++) {
+      const p = sigDn[i];
+      if (!dn || p.log2FC < dn.log2FC || (p.log2FC === dn.log2FC && p.padj < dn.padj)) dn = p;
+    }
+    $('banner-up-gene').textContent   = fmt(up);
+    $('banner-down-gene').textContent = fmt(dn);
+  }
+
+  // ── Readouts ────────────────────────────────────────────
+  function updateReadouts() {
+    const padjT = state.padjThr;
+    padjVal.textContent = padjT < 0.001
+      ? padjT.toExponential(1)
+      : padjT.toFixed(3);
+    lfcVal.textContent  = state.lfcThr.toFixed(1);
+  }
+
+  // ── Pipeline ────────────────────────────────────────────
+  function schedule() {
+    if (state.rafId) return;
+    state.rafId = requestAnimationFrame(() => {
+      state.rafId = 0;
+      updateReadouts();
+      renderVolcano();
+    });
+  }
+
+  function readControls() {
+    state.padjThr = padjFromSlider(+padjEl.value);
+    state.lfcThr  = lfcFromSlider(+lfcEl.value);
+    state.highlightOnly = highlightEl.checked;
+  }
+
+  function activatePreset(name) {
+    state.preset = name;
+    state.pasted = null;
+    state.points = PRESETS[name];
+    // toggle active button
+    const btns = presetRow.querySelectorAll('.preset-btn');
+    btns.forEach(b => {
+      b.classList.toggle('active', b.dataset.preset === name);
+    });
+    presetCaption.textContent = PRESET_CAPTIONS[name] || '';
+    pasteErr.classList.remove('show');
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  padjEl.addEventListener('input', () => { readControls(); schedule(); });
+  lfcEl.addEventListener('input',  () => { readControls(); schedule(); });
+  highlightEl.addEventListener('change', () => { readControls(); schedule(); });
+
+  presetRow.addEventListener('click', (e) => {
+    const t = e.target.closest('.preset-btn');
+    if (!t) return;
+    activatePreset(t.dataset.preset);
+    schedule();
+  });
+
+  pasteBtn.addEventListener('click', () => {
+    const txt = pasteEl.value || '';
+    if (!txt.trim()) {
+      pasteErr.textContent = 'Paste box is empty. Enter gene,log2FC,padj lines or pick a preset.';
+      pasteErr.classList.add('show');
+      return;
+    }
+    const { points, errors } = parsePaste(txt);
+    if (errors.length) {
+      pasteErr.textContent = 'Parse errors:\n  ' + errors.slice(0, 8).join('\n  ') +
+        (errors.length > 8 ? `\n  ...(+${errors.length - 8} more)` : '');
+      pasteErr.classList.add('show');
+    } else {
+      pasteErr.classList.remove('show');
+    }
+    if (points.length === 0) {
+      pasteErr.textContent = (pasteErr.textContent ? pasteErr.textContent + '\n\n' : '') +
+        'No usable rows parsed — falling back to the active preset.';
+      pasteErr.classList.add('show');
+      return;
+    }
+    state.pasted = points;
+    state.points = points;
+    // visually unselect preset buttons
+    presetRow.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    presetCaption.textContent = `Custom paste loaded — ${points.length.toLocaleString()} rows.`;
+    schedule();
+  });
+
+  pasteClr.addEventListener('click', () => {
+    pasteEl.value = '';
+    pasteErr.classList.remove('show');
+  });
+
+  // ── Boot ────────────────────────────────────────────────
+  activatePreset('airway');
+  readControls();
+  updateReadouts();
+  renderVolcano();
+})();
+</script>
+
+</body>
+</html>

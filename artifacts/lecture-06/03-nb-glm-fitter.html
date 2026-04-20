@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NB GLM Fitter</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 66ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls {
+      display: flex;
+      gap: 0.9rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .controls label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+    }
+    .controls input[type="range"] { accent-color: var(--accent); width: 180px; }
+    .controls .readout {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      min-width: 3em;
+      display: inline-block;
+      text-align: right;
+    }
+
+    /* ─── Sample table ─── */
+    .sample-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+    .sample-table th, .sample-table td {
+      text-align: left;
+      padding: 0.45rem 0.7rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .sample-table th {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      background: var(--bg-muted);
+      border-bottom: 1px solid var(--border-strong);
+    }
+    .sample-table td.col-sid {
+      color: var(--fg-subtle);
+      width: 3.5rem;
+      font-weight: 600;
+    }
+    .sample-table td.col-cond { width: 7rem; }
+    .cond-chip {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 3px;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .cond-chip[data-cond="control"] { background: var(--fg-muted); }
+    .cond-chip[data-cond="treated"] { background: var(--accent); }
+
+    .count-input {
+      width: 5rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      padding: 0.3rem 0.5rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      text-align: right;
+    }
+    .count-input:focus {
+      background: var(--bg-elevated);
+      border-color: var(--accent-bright);
+      outline: none;
+    }
+    .count-input.is-bad {
+      border-color: var(--error);
+      background: color-mix(in srgb, var(--error) 6%, var(--bg-muted));
+      color: var(--error);
+    }
+
+    .sf-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .sf-cell input[type="range"] {
+      accent-color: var(--accent);
+      width: 90px;
+    }
+    .sf-cell .sf-val {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      min-width: 2.5em;
+      display: inline-block;
+      text-align: right;
+    }
+
+    /* ─── Fitted model / tests panels ─── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+    @media (max-width: 720px) {
+      .two-col { grid-template-columns: 1fr; gap: 1rem; }
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      column-gap: 1rem;
+      row-gap: 0.45rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      align-items: baseline;
+    }
+    .kv-grid .k {
+      color: var(--fg-subtle);
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .kv-grid .v {
+      color: var(--fg);
+      font-variant-numeric: tabular-nums;
+    }
+    .kv-grid .v .se {
+      color: var(--fg-subtle);
+      font-size: var(--text-xs);
+      margin-left: 0.25rem;
+    }
+    .kv-grid .v.v-accent {
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .kv-grid .v.v-success { color: var(--success); font-weight: 600; }
+    .kv-grid .v.v-warn    { color: var(--warning); }
+    .kv-grid .v.v-error   { color: var(--error); }
+
+    .test-card {
+      padding: 0.9rem 1rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .test-card h4 {
+      margin: 0 0 0.6rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+    }
+
+    /* ─── Outcome banner ─── */
+    .banner {
+      margin-top: 0.5rem;
+      padding: 1rem 1.2rem;
+      border-radius: var(--radius);
+      font-family: var(--font-sans);
+      line-height: var(--leading-relaxed);
+      border: 1px solid var(--border);
+      background: var(--accent-bg);
+      color: var(--fg);
+    }
+    .banner.banner--up {
+      background: color-mix(in srgb, var(--success) 9%, var(--bg-elevated));
+      border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+    }
+    .banner.banner--down {
+      background: color-mix(in srgb, var(--accent) 9%, var(--bg-elevated));
+      border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+    }
+    .banner.banner--null {
+      background: var(--bg-muted);
+      border-color: var(--border-strong);
+      color: var(--fg-muted);
+    }
+    .banner.banner--fail {
+      background: color-mix(in srgb, var(--error) 8%, var(--bg-elevated));
+      border-color: color-mix(in srgb, var(--error) 40%, var(--border));
+      color: var(--error);
+    }
+    .banner .banner-head {
+      font-size: var(--text-base);
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+      letter-spacing: -0.005em;
+      font-family: var(--font-sans);
+    }
+    .banner .banner-body {
+      font-size: var(--text-sm);
+      color: var(--fg);
+      font-family: var(--font-sans);
+    }
+    .banner code {
+      font-family: var(--font-mono);
+      background: var(--bg-muted);
+      padding: 0.05rem 0.3rem;
+      border-radius: 2px;
+      color: var(--fg);
+      font-size: 0.92em;
+    }
+
+    .warn {
+      margin-top: 0.6rem;
+      padding: 0.55rem 0.8rem;
+      border: 1px solid color-mix(in srgb, var(--warning) 40%, var(--border));
+      background: color-mix(in srgb, var(--warning) 8%, var(--bg-elevated));
+      color: var(--warning);
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      line-height: var(--leading-relaxed);
+      border-radius: var(--radius-sm);
+    }
+    .warn.err {
+      border-color: color-mix(in srgb, var(--error) 40%, var(--border));
+      background: color-mix(in srgb, var(--error) 8%, var(--bg-elevated));
+      color: var(--error);
+    }
+    .warn code {
+      font-family: var(--font-mono);
+      background: var(--bg-muted);
+      padding: 0.05rem 0.3rem;
+      border-radius: 2px;
+      color: var(--fg);
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+    .hint code {
+      font-family: var(--font-mono);
+      background: var(--bg-muted);
+      padding: 0.05rem 0.3rem;
+      border-radius: 2px;
+      color: var(--fg);
+    }
+
+    .iter-note {
+      margin-top: 0.6rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+    }
+
+    .num { font-variant-numeric: tabular-nums; }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .sf-cell input[type="range"] { width: 70px; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="nb-glm-fitter">
+
+  <header class="artifact-head">
+    <h1>Negative Binomial GLM Fitter</h1>
+    <p>Fit a two-group NB GLM to a 6-sample toy dataset: <code>log(μ<sub>i</sub>) = log(s<sub>i</sub>) + β<sub>0</sub> + β<sub>1</sub>·x<sub>i</sub></code>, where x<sub>i</sub>=1 for treated. IRLS converges the point estimate; the Fisher information gives standard errors; Wald and a profile-at-β<sub>1</sub>=0 LRT decide significance. Change counts, size factors, or the fixed dispersion α and watch β̂<sub>1</sub>, SE, and both p-values recompute.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Samples — 3 control, 3 treated</p>
+    <table class="sample-table" id="sample-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Condition</th>
+          <th>Size factor s<sub>i</sub></th>
+          <th>Count y<sub>i</sub></th>
+        </tr>
+      </thead>
+      <tbody id="sample-tbody"></tbody>
+    </table>
+    <div id="count-warn-slot"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Dispersion &amp; refit</p>
+    <div class="controls">
+      <label>α (NB dispersion, log scale)
+        <input id="alpha-slider" type="range" min="-3" max="0" step="0.01" value="-1.301">
+        <span class="readout" id="alpha-readout">0.050</span>
+      </label>
+      <button id="refit-btn" class="btn btn--primary" type="button">Refit GLM</button>
+      <button id="reset-btn" class="btn" type="button">&#8634; Reset defaults</button>
+    </div>
+    <p class="hint">Variance: <code>Var(y) = μ + α·μ²</code>. Poisson is <code>α = 0</code> (left edge). Cranking α up widens both SEs without moving the point estimate much — watch the p-values slide.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Fitted model</p>
+    <div class="two-col">
+      <div>
+        <div class="kv-grid" id="fit-grid"></div>
+        <div class="iter-note" id="fit-iter"></div>
+      </div>
+      <div>
+        <div class="kv-grid" id="fc-grid"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Significance tests — full vs. reduced (β<sub>1</sub> = 0)</p>
+    <div class="two-col">
+      <div class="test-card">
+        <h4>Wald test on β<sub>1</sub></h4>
+        <div class="kv-grid" id="wald-grid"></div>
+      </div>
+      <div class="test-card">
+        <h4>Likelihood ratio test (df = 1)</h4>
+        <div class="kv-grid" id="lrt-grid"></div>
+      </div>
+    </div>
+    <p class="hint">At n = 6 these two tests are asymptotically equivalent but differ in finite samples — they should agree to within roughly 20% on the p-value at this size. If you see a huge gap, something degenerate is happening (e.g. zero counts in one arm).</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Verdict</p>
+    <div id="outcome-banner"></div>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  /* ─── DOM ───────────────────────────────────────────────── */
+  const sampleTbody   = $('sample-tbody');
+  const countWarnSlot = $('count-warn-slot');
+  const alphaSlider   = $('alpha-slider');
+  const alphaReadout  = $('alpha-readout');
+  const refitBtn      = $('refit-btn');
+  const resetBtn      = $('reset-btn');
+  const fitGrid       = $('fit-grid');
+  const fitIter       = $('fit-iter');
+  const fcGrid        = $('fc-grid');
+  const waldGrid      = $('wald-grid');
+  const lrtGrid       = $('lrt-grid');
+  const outcomeBanner = $('outcome-banner');
+
+  /* ─── Defaults + state ──────────────────────────────────── */
+  const DEFAULTS = {
+    samples: [
+      { id: 'S1', cond: 'control', s: 1.00, y: 12 },
+      { id: 'S2', cond: 'control', s: 0.95, y: 15 },
+      { id: 'S3', cond: 'control', s: 1.05, y: 11 },
+      { id: 'S4', cond: 'treated', s: 1.00, y: 41 },
+      { id: 'S5', cond: 'treated', s: 1.02, y: 38 },
+      { id: 'S6', cond: 'treated', s: 0.98, y: 44 },
+    ],
+    alpha: 0.05,
+  };
+
+  const state = {
+    samples: DEFAULTS.samples.map(o => ({ ...o })),
+    alpha: DEFAULTS.alpha,
+  };
+
+  /* ─── Math utilities ────────────────────────────────────── */
+
+  // Lanczos approximation of log Γ(x). Accurate to ~1e-13 for x > 0.
+  // Abramowitz & Stegun style; coefficients from Numerical Recipes 6.1.
+  const LGAMMA_G  = 7;
+  const LGAMMA_C = [
+    0.99999999999980993,
+     676.5203681218851,
+    -1259.1392167224028,
+     771.32342877765313,
+    -176.61502916214059,
+      12.507343278686905,
+      -0.13857109526572012,
+       9.9843695780195716e-6,
+       1.5056327351493116e-7,
+  ];
+  function lgamma(x) {
+    if (x < 0.5) {
+      // reflection: Γ(x)Γ(1-x) = π / sin(πx)
+      return Math.log(Math.PI / Math.sin(Math.PI * x)) - lgamma(1 - x);
+    }
+    x -= 1;
+    let a = LGAMMA_C[0];
+    const t = x + LGAMMA_G + 0.5;
+    for (let i = 1; i < LGAMMA_C.length; i++) {
+      a += LGAMMA_C[i] / (x + i);
+    }
+    return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+  }
+
+  // Regularised lower incomplete gamma P(a, x) via series + continued fraction.
+  // Used only for the LRT p-value via the upper-tail chi-squared with 1 df.
+  function gammaLowerRegularized(a, x) {
+    if (x < 0 || a <= 0) return NaN;
+    if (x === 0) return 0;
+    if (x < a + 1) {
+      // series
+      let ap = a;
+      let sum = 1 / a;
+      let del = sum;
+      for (let n = 1; n < 200; n++) {
+        ap += 1;
+        del *= x / ap;
+        sum += del;
+        if (Math.abs(del) < Math.abs(sum) * 1e-14) break;
+      }
+      return sum * Math.exp(-x + a * Math.log(x) - lgamma(a));
+    } else {
+      // continued fraction for Q(a, x), then 1 - Q
+      let b = x + 1 - a;
+      let c = 1 / 1e-300;
+      let d = 1 / b;
+      let h = d;
+      for (let n = 1; n < 200; n++) {
+        const an = -n * (n - a);
+        b += 2;
+        d = an * d + b;
+        if (Math.abs(d) < 1e-300) d = 1e-300;
+        c = b + an / c;
+        if (Math.abs(c) < 1e-300) c = 1e-300;
+        d = 1 / d;
+        const delta = d * c;
+        h *= delta;
+        if (Math.abs(delta - 1) < 1e-14) break;
+      }
+      const Q = Math.exp(-x + a * Math.log(x) - lgamma(a)) * h;
+      return 1 - Q;
+    }
+  }
+
+  // Chi-squared upper-tail p-value for 1 df: P(X > q) = 1 - P(0.5, q/2).
+  function chi2SurvivalDf1(q) {
+    if (q <= 0) return 1;
+    return 1 - gammaLowerRegularized(0.5, q / 2);
+  }
+
+  // Standard-normal two-sided p-value via erf approximation (A&S 7.1.26).
+  function erf(x) {
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x);
+    const a1 =  0.254829592,
+          a2 = -0.284496736,
+          a3 =  1.421413741,
+          a4 = -1.453152027,
+          a5 =  1.061405429,
+          p  =  0.3275911;
+    const t = 1 / (1 + p * x);
+    const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    return sign * y;
+  }
+  function normalTwoSidedP(z) {
+    return erf(-Math.abs(z) / Math.SQRT2) + 1 - erf(Math.abs(z) / Math.SQRT2) + 0; // equivalent of 2*(1-Φ(|z|))
+    // NB: written to avoid catastrophic cancellation at small |z|; see simpler form below
+  }
+  // Cleaner and numerically fine for our range:
+  function twoSidedNormalP(z) {
+    const a = Math.abs(z);
+    // Φ(a) = 0.5 * (1 + erf(a / √2)); p = 2*(1 - Φ(a)) = erfc(a/√2)
+    return 1 - erf(a / Math.SQRT2); // = erfc(a/√2); our erf is accurate to ~1.5e-7
+  }
+
+  /* ─── NB log-likelihood ─────────────────────────────────── */
+  // log p(y | μ, α) using α = dispersion (Var = μ + αμ²).
+  // Using size parameter r = 1/α, prob p = r / (r + μ).
+  function nbLogLik(y, mu, alpha) {
+    if (mu <= 0) return -Infinity;
+    if (alpha <= 1e-10) {
+      // Poisson limit
+      return y * Math.log(mu) - mu - lgamma(y + 1);
+    }
+    const r = 1 / alpha;
+    // log Γ(y + r) - log Γ(r) - log Γ(y+1) + y log(αμ/(1+αμ)) - r log(1+αμ)
+    return lgamma(y + r) - lgamma(r) - lgamma(y + 1)
+         + y * Math.log(alpha * mu / (1 + alpha * mu))
+         - r * Math.log(1 + alpha * mu);
+  }
+
+  function totalLogLik(y, mu, alpha) {
+    let s = 0;
+    for (let i = 0; i < y.length; i++) s += nbLogLik(y[i], mu[i], alpha);
+    return s;
+  }
+
+  /* ─── IRLS for NB GLM with known α ──────────────────────── */
+  // log(μ_i) = offset_i + X_i β
+  // Working response z_i = η_i - offset_i + (y_i - μ_i)/μ_i
+  // Weight w_i = μ_i / (1 + α μ_i)
+  // Normal equations: (Xᵀ W X) β = Xᵀ W (z̃) where z̃ = z here since offset already stripped.
+  // Fisher info at convergence: I(β) = Xᵀ W X  ⇒  Cov(β̂) = (Xᵀ W X)⁻¹.
+  function irlsNBGLM(y, X, offset, alpha, maxIter = 50, tol = 1e-8) {
+    const n = y.length;
+    const p = X[0].length;
+
+    // Initialise β from a Poisson-ish guess: μ_i = y_i + 0.1 (offset-adjusted).
+    const beta = new Array(p).fill(0);
+    // Seed intercept via mean of (log(y+0.5) - offset); other coeffs start at 0.
+    let seed = 0;
+    for (let i = 0; i < n; i++) seed += Math.log(y[i] + 0.5) - offset[i];
+    beta[0] = seed / n;
+
+    let lastLL = -Infinity;
+    let iter = 0;
+    let converged = false;
+    let mu = new Array(n);
+    let eta = new Array(n);
+
+    for (iter = 1; iter <= maxIter; iter++) {
+      // Compute η, μ
+      for (let i = 0; i < n; i++) {
+        let e = offset[i];
+        for (let j = 0; j < p; j++) e += X[i][j] * beta[j];
+        eta[i] = e;
+        mu[i]  = Math.exp(e);
+      }
+
+      // Build Xᵀ W X and Xᵀ W z̃ where z̃_i = (η_i - offset_i) + (y_i - μ_i)/μ_i.
+      const XtWX = matZeros(p, p);
+      const XtWz = new Array(p).fill(0);
+      for (let i = 0; i < n; i++) {
+        const w  = mu[i] / (1 + alpha * mu[i]);
+        const zi = (eta[i] - offset[i]) + (y[i] - mu[i]) / mu[i];
+        for (let a = 0; a < p; a++) {
+          XtWz[a] += X[i][a] * w * zi;
+          for (let b = 0; b < p; b++) {
+            XtWX[a][b] += X[i][a] * w * X[i][b];
+          }
+        }
+      }
+
+      // Solve XtWX · β_new = XtWz
+      const betaNew = solveLinear(XtWX, XtWz);
+      if (!betaNew) {
+        return { ok: false, reason: 'singular information matrix', iter, beta, mu };
+      }
+
+      // Convergence: max relative step size
+      let step = 0;
+      for (let j = 0; j < p; j++) {
+        const d = Math.abs(betaNew[j] - beta[j]);
+        if (d > step) step = d;
+        beta[j] = betaNew[j];
+      }
+
+      // Recompute μ for log-lik check
+      for (let i = 0; i < n; i++) {
+        let e = offset[i];
+        for (let j = 0; j < p; j++) e += X[i][j] * beta[j];
+        mu[i] = Math.exp(e);
+      }
+      const ll = totalLogLik(y, mu, alpha);
+      if (step < tol && Math.abs(ll - lastLL) < tol) {
+        converged = true;
+        lastLL = ll;
+        break;
+      }
+      lastLL = ll;
+    }
+
+    // Final Fisher information and covariance.
+    const XtWX = matZeros(p, p);
+    for (let i = 0; i < n; i++) {
+      const w = mu[i] / (1 + alpha * mu[i]);
+      for (let a = 0; a < p; a++) {
+        for (let b = 0; b < p; b++) {
+          XtWX[a][b] += X[i][a] * w * X[i][b];
+        }
+      }
+    }
+    const cov = invertSymmetric(XtWX);
+    const se = cov ? cov.map((row, j) => Math.sqrt(Math.max(row[j], 0))) : null;
+
+    return {
+      ok: true,
+      converged,
+      iter,
+      beta: beta.slice(),
+      mu: mu.slice(),
+      ll: lastLL,
+      cov,
+      se,
+    };
+  }
+
+  /* ─── Tiny linear algebra (p ≤ 2 in practice) ───────────── */
+
+  function matZeros(r, c) {
+    const m = new Array(r);
+    for (let i = 0; i < r; i++) m[i] = new Array(c).fill(0);
+    return m;
+  }
+
+  // Solve A x = b using Gauss-Jordan with partial pivoting. A is p×p.
+  function solveLinear(A, b) {
+    const p = A.length;
+    // Augmented matrix
+    const M = new Array(p);
+    for (let i = 0; i < p; i++) M[i] = A[i].slice().concat([b[i]]);
+    for (let k = 0; k < p; k++) {
+      // pivot
+      let piv = k;
+      let max = Math.abs(M[k][k]);
+      for (let i = k + 1; i < p; i++) {
+        if (Math.abs(M[i][k]) > max) { max = Math.abs(M[i][k]); piv = i; }
+      }
+      if (max < 1e-14) return null;
+      if (piv !== k) { const tmp = M[k]; M[k] = M[piv]; M[piv] = tmp; }
+      // eliminate
+      const pivot = M[k][k];
+      for (let j = k; j <= p; j++) M[k][j] /= pivot;
+      for (let i = 0; i < p; i++) {
+        if (i === k) continue;
+        const f = M[i][k];
+        if (f === 0) continue;
+        for (let j = k; j <= p; j++) M[i][j] -= f * M[k][j];
+      }
+    }
+    const x = new Array(p);
+    for (let i = 0; i < p; i++) x[i] = M[i][p];
+    return x;
+  }
+
+  function invertSymmetric(A) {
+    const p = A.length;
+    const inv = matZeros(p, p);
+    for (let j = 0; j < p; j++) {
+      const e = new Array(p).fill(0);
+      e[j] = 1;
+      const col = solveLinear(A, e);
+      if (!col) return null;
+      for (let i = 0; i < p; i++) inv[i][j] = col[i];
+    }
+    return inv;
+  }
+
+  /* ─── Fit orchestration ─────────────────────────────────── */
+
+  function buildDesign(samples) {
+    const y      = samples.map(s => s.y);
+    const offset = samples.map(s => Math.log(s.s));
+    // Full: intercept + treated indicator
+    const Xfull  = samples.map(s => [1, s.cond === 'treated' ? 1 : 0]);
+    // Reduced: intercept only
+    const Xred   = samples.map(_ => [1]);
+    return { y, offset, Xfull, Xred };
+  }
+
+  function fitAll() {
+    const { y, offset, Xfull, Xred } = buildDesign(state.samples);
+    const alpha = state.alpha;
+    const full = irlsNBGLM(y, Xfull, offset, alpha);
+    const red  = irlsNBGLM(y, Xred,  offset, alpha);
+    return { full, red, y, offset, alpha };
+  }
+
+  /* ─── Rendering: sample table ───────────────────────────── */
+
+  function renderSampleTable() {
+    sampleTbody.innerHTML = '';
+    state.samples.forEach((s, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td class="col-sid">${s.id}</td>` +
+        `<td class="col-cond"><span class="cond-chip" data-cond="${s.cond}">${s.cond}</span></td>` +
+        `<td>
+           <span class="sf-cell">
+             <input type="range" min="0.9" max="1.1" step="0.01" value="${s.s.toFixed(2)}" data-idx="${idx}" data-field="s">
+             <span class="sf-val" id="sf-val-${idx}">${s.s.toFixed(2)}</span>
+           </span>
+         </td>` +
+        `<td><input type="number" class="count-input" min="0" step="1" value="${s.y}" data-idx="${idx}" data-field="y"></td>`;
+      sampleTbody.appendChild(tr);
+    });
+
+    // Wire inputs
+    sampleTbody.querySelectorAll('input[type="range"][data-field="s"]').forEach(el => {
+      el.addEventListener('input', (e) => {
+        const i = +e.target.dataset.idx;
+        const v = parseFloat(e.target.value);
+        state.samples[i].s = v;
+        const out = document.getElementById(`sf-val-${i}`);
+        if (out) out.textContent = v.toFixed(2);
+        refit();
+      });
+    });
+    sampleTbody.querySelectorAll('input.count-input').forEach(el => {
+      el.addEventListener('input', (e) => {
+        const i  = +e.target.dataset.idx;
+        const raw = e.target.value;
+        const v = Number(raw);
+        const bad = !Number.isFinite(v) || v < 0 || !Number.isInteger(v) || raw.trim() === '';
+        if (bad) {
+          e.target.classList.add('is-bad');
+        } else {
+          e.target.classList.remove('is-bad');
+          state.samples[i].y = v;
+          refit();
+        }
+        renderCountWarn();
+      });
+    });
+  }
+
+  function renderCountWarn() {
+    countWarnSlot.innerHTML = '';
+    const problems = [];
+    sampleTbody.querySelectorAll('input.count-input').forEach(el => {
+      const raw = el.value;
+      const v = Number(raw);
+      if (!Number.isFinite(v) || v < 0 || !Number.isInteger(v) || raw.trim() === '') {
+        const idx = +el.dataset.idx;
+        problems.push(`${state.samples[idx].id} = <code>${raw || '∅'}</code>`);
+      }
+    });
+    if (problems.length) {
+      const w = document.createElement('div');
+      w.className = 'warn err';
+      w.innerHTML = `<strong>Infeasible counts.</strong> ${problems.join(', ')}. ` +
+                    `Counts must be non-negative integers. Fit held at last valid state.`;
+      countWarnSlot.appendChild(w);
+    }
+    // Also flag the degenerate "all zeros in one group" case, which singularises the design.
+    const ctrl = state.samples.filter(s => s.cond === 'control');
+    const trt  = state.samples.filter(s => s.cond === 'treated');
+    const sumC = ctrl.reduce((a, s) => a + s.y, 0);
+    const sumT = trt .reduce((a, s) => a + s.y, 0);
+    if (sumC === 0 || sumT === 0) {
+      const w = document.createElement('div');
+      w.className = 'warn';
+      w.innerHTML = `<strong>Degenerate group.</strong> One arm sums to 0 counts — the log-link intercept there is −∞ and standard errors will blow up. This is the ${sumC === 0 ? 'control' : 'treated'} arm.`;
+      countWarnSlot.appendChild(w);
+    }
+  }
+
+  /* ─── Rendering: fit + tests + banner ───────────────────── */
+
+  function fmtNum(x, digits = 3) {
+    if (!Number.isFinite(x)) return '—';
+    if (Math.abs(x) < 1e-3 && x !== 0) return x.toExponential(2);
+    if (Math.abs(x) >= 1e4)           return x.toExponential(2);
+    return x.toFixed(digits);
+  }
+  function fmtP(p) {
+    if (!Number.isFinite(p)) return '—';
+    if (p < 1e-12) return '< 1e-12';
+    if (p < 1e-4 ) return p.toExponential(2);
+    if (p < 0.001) return p.toExponential(2);
+    return p.toFixed(4);
+  }
+
+  function renderFit(fitRes) {
+    fitGrid.innerHTML = '';
+    fitIter.textContent = '';
+    const f = fitRes.full;
+    if (!f || !f.ok) {
+      fitGrid.innerHTML =
+        `<div class="k">status</div><div class="v v-error">fit failed${f && f.reason ? ' · ' + f.reason : ''}</div>`;
+      return;
+    }
+    const b0 = f.beta[0], b1 = f.beta[1];
+    const s0 = f.se ? f.se[0] : NaN;
+    const s1 = f.se ? f.se[1] : NaN;
+    fitGrid.innerHTML =
+      `<div class="k">β̂₀ (intercept)</div><div class="v">${fmtNum(b0)}<span class="se">± ${fmtNum(s0)}</span></div>` +
+      `<div class="k">β̂₁ (treated)</div><div class="v v-accent">${fmtNum(b1)}<span class="se">± ${fmtNum(s1)}</span></div>` +
+      `<div class="k">log-lik (full)</div><div class="v">${fmtNum(f.ll, 3)}</div>`;
+    fitIter.textContent = `IRLS: ${f.iter} iter${f.converged ? ' (converged)' : ' (max reached)'} · α = ${state.alpha.toFixed(4)}`;
+  }
+
+  function renderFoldChange(fitRes) {
+    fcGrid.innerHTML = '';
+    const f = fitRes.full;
+    if (!f || !f.ok) {
+      fcGrid.innerHTML = `<div class="k">log₂FC</div><div class="v v-error">—</div>`;
+      return;
+    }
+    const b1   = f.beta[1];
+    const log2FC = b1 / Math.LN2;
+    const fc   = Math.exp(b1);
+    const s1   = f.se ? f.se[1] : NaN;
+    const log2SE = s1 / Math.LN2;
+    const dir  = b1 > 0 ? 'up' : (b1 < 0 ? 'down' : 'null');
+    const clsFC = dir === 'up' ? 'v-success' : (dir === 'down' ? 'v-accent' : '');
+    fcGrid.innerHTML =
+      `<div class="k">log₂FC</div><div class="v ${clsFC}">${fmtNum(log2FC)}<span class="se">± ${fmtNum(log2SE)}</span></div>` +
+      `<div class="k">Fold change</div><div class="v ${clsFC}">${fc >= 1 ? fmtNum(fc, 2) + '×' : fmtNum(fc, 3) + '× (down)'}</div>` +
+      `<div class="k">μ̂ control</div><div class="v">${fmtNum(Math.exp(f.beta[0]), 2)}</div>` +
+      `<div class="k">μ̂ treated</div><div class="v">${fmtNum(Math.exp(f.beta[0] + f.beta[1]), 2)}</div>`;
+  }
+
+  function renderTests(fitRes) {
+    waldGrid.innerHTML = '';
+    lrtGrid.innerHTML  = '';
+    const f = fitRes.full, r = fitRes.red;
+    if (!f || !f.ok) {
+      waldGrid.innerHTML = `<div class="k">status</div><div class="v v-error">no full fit</div>`;
+      lrtGrid .innerHTML = `<div class="k">status</div><div class="v v-error">no full fit</div>`;
+      return null;
+    }
+    // Wald
+    const b1 = f.beta[1];
+    const s1 = f.se ? f.se[1] : NaN;
+    const z  = (Number.isFinite(s1) && s1 > 0) ? b1 / s1 : NaN;
+    const pWald = Number.isFinite(z) ? twoSidedNormalP(z) : NaN;
+    waldGrid.innerHTML =
+      `<div class="k">z-statistic</div><div class="v">${fmtNum(z)}</div>` +
+      `<div class="k">two-sided p</div><div class="v ${pWald < 0.05 ? 'v-success' : ''}">${fmtP(pWald)}</div>`;
+
+    // LRT
+    let lam = NaN, pLRT = NaN;
+    if (r && r.ok) {
+      lam = 2 * (f.ll - r.ll);
+      if (lam < 0) lam = 0;  // numerical guard: reduced can't beat full in theory
+      pLRT = chi2SurvivalDf1(lam);
+    }
+    lrtGrid.innerHTML =
+      `<div class="k">λ = 2·Δℓ</div><div class="v">${fmtNum(lam)}</div>` +
+      `<div class="k">log-lik (reduced)</div><div class="v">${r && r.ok ? fmtNum(r.ll) : '—'}</div>` +
+      `<div class="k">χ²(1) p</div><div class="v ${pLRT < 0.05 ? 'v-success' : ''}">${fmtP(pLRT)}</div>`;
+    return { b1, s1, z, pWald, lam, pLRT };
+  }
+
+  function renderBanner(fitRes, tests) {
+    outcomeBanner.innerHTML = '';
+    const banner = document.createElement('div');
+    banner.className = 'banner';
+    const f = fitRes.full;
+
+    if (!f || !f.ok || !tests || !Number.isFinite(tests.pWald)) {
+      banner.classList.add('banner--fail');
+      banner.innerHTML =
+        `<div class="banner-head">✗ Fit did not converge</div>` +
+        `<div class="banner-body">Check counts and size factors. A single group of zeros or a huge dispersion can make the Fisher information singular.</div>`;
+      outcomeBanner.appendChild(banner);
+      return;
+    }
+
+    const b1 = tests.b1;
+    const log2FC = b1 / Math.LN2;
+    const fc = Math.exp(b1);
+    const pW = tests.pWald, pL = tests.pLRT;
+    const signif = pW < 0.05;
+    const dir = b1 > 0.05 ? 'up' : (b1 < -0.05 ? 'down' : 'null');
+
+    if (!signif || dir === 'null') {
+      banner.classList.add('banner--null');
+      banner.innerHTML =
+        `<div class="banner-head">○ No evidence of differential expression</div>` +
+        `<div class="banner-body">β̂₁ = <strong>${fmtNum(b1)}</strong> (log₂FC = <strong>${fmtNum(log2FC)}</strong>, ${fmtNum(fc, 2)}×) · ` +
+          `Wald p = <code>${fmtP(pW)}</code> · LRT p = <code>${fmtP(pL)}</code>. ` +
+          `At this α and n the evidence is compatible with β₁ = 0.</div>`;
+    } else if (dir === 'up') {
+      banner.classList.add('banner--up');
+      banner.innerHTML =
+        `<div class="banner-head">✓ β̂₁ = ${fmtNum(b1)} (log₂FC = ${fmtNum(log2FC)}, ~${fmtNum(fc, 1)}× up) · Wald p = <code>${fmtP(pW)}</code> · LRT p = <code>${fmtP(pL)}</code> · strong evidence of upregulation</div>` +
+        `<div class="banner-body">Under H₀: β₁ = 0 the treated arm would have the same mean as control; observed counts make that hypothesis implausible at the current dispersion α = ${state.alpha.toFixed(3)}.</div>`;
+    } else {
+      banner.classList.add('banner--down');
+      banner.innerHTML =
+        `<div class="banner-head">✓ β̂₁ = ${fmtNum(b1)} (log₂FC = ${fmtNum(log2FC)}, ~${fmtNum(1/fc, 1)}× down) · Wald p = <code>${fmtP(pW)}</code> · LRT p = <code>${fmtP(pL)}</code> · strong evidence of downregulation</div>` +
+        `<div class="banner-body">Treated is lower than control; the negative slope is large relative to its SE.</div>`;
+    }
+    outcomeBanner.appendChild(banner);
+  }
+
+  /* ─── Refit driver ──────────────────────────────────────── */
+
+  function refit() {
+    const fit = fitAll();
+    renderFit(fit);
+    renderFoldChange(fit);
+    const tests = renderTests(fit);
+    renderBanner(fit, tests);
+  }
+
+  /* ─── Wiring ────────────────────────────────────────────── */
+
+  alphaSlider.addEventListener('input', () => {
+    const log10a = parseFloat(alphaSlider.value);
+    const a = Math.pow(10, log10a);
+    state.alpha = a;
+    alphaReadout.textContent = a.toFixed(3);
+    refit();
+  });
+
+  refitBtn.addEventListener('click', refit);
+
+  resetBtn.addEventListener('click', () => {
+    state.samples = DEFAULTS.samples.map(o => ({ ...o }));
+    state.alpha   = DEFAULTS.alpha;
+    alphaSlider.value    = Math.log10(DEFAULTS.alpha).toFixed(3);
+    alphaReadout.textContent = DEFAULTS.alpha.toFixed(3);
+    renderSampleTable();
+    renderCountWarn();
+    refit();
+  });
+
+  /* ─── Init ──────────────────────────────────────────────── */
+
+  alphaReadout.textContent = state.alpha.toFixed(3);
+  renderSampleTable();
+  renderCountWarn();
+  refit();
+
+})();
+</script>
+
+</body>
+</html>

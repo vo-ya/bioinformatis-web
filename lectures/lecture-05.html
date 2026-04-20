@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 5 — Bulk RNA-seq: From Reads to Transcript Abundances</title>
+  <meta name="description" content="Bulk RNA-seq processing: transcription and splicing, splice-aware alignment (STAR, HISAT2), pseudoalignment and EM-based quantification (Kallisto, Salmon), TPM/CPM/FPKM normalisation, and the negative binomial model for count data.">
+
+  <meta property="og:title" content="Lecture 5 — Bulk RNA-seq">
+  <meta property="og:description" content="From FASTQ to quantified transcripts: splice-aware alignment, pseudoalignment, EM, and normalisation.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — RNA Biology and Counting</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Why RNA sequencing exists</a></li>
+          <li><a href="#sec-1-2">1.2 Transcription, splicing, isoforms</a></li>
+          <li><a href="#sec-1-3">1.3 Why naive counting fails</a></li>
+          <li><a href="#sec-1-4">1.4 The pipeline at a glance</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Splice-Aware Alignment</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 The exon-intron problem</a></li>
+          <li><a href="#sec-2-2">2.2 STAR &amp; the spliced HMM</a></li>
+          <li><a href="#sec-2-3">2.3 HISAT2 &amp; HGFM</a></li>
+          <li><a href="#sec-2-4">2.4 BAM to gene counts</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Pseudoalignment &amp; EM</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Compatibility classes</a></li>
+          <li><a href="#sec-3-2">3.2 Kallisto &amp; the T-DBG</a></li>
+          <li><a href="#sec-3-3">3.3 Salmon &amp; selective alignment</a></li>
+          <li><a href="#sec-3-4">3.4 EM for read assignment</a></li>
+          <li><a href="#sec-3-5">3.5 RSEM</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Counts &amp; Normalisation</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Counts vs expression</a></li>
+          <li><a href="#sec-4-2">4.2 CPM, TPM, FPKM</a></li>
+          <li><a href="#sec-4-3">4.3 Size factors</a></li>
+          <li><a href="#sec-4-4">4.4 Poisson vs NB</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Takeaways</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 Which tool when</a></li>
+          <li><a href="#sec-5-2">5.2 Pitfalls</a></li>
+          <li><a href="#sec-5-3">5.3 Bridge to L6</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 05</div>
+      <h1 class="lecture-title">Bulk RNA-seq: From Reads to Transcript Abundances</h1>
+      <p class="lecture-subtitle">Splicing changes everything — splice-aware alignment, pseudoalignment, EM, and the negative binomial that carries into differential expression.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — RNA Biology and Counting</a></li>
+        <li><a href="#part-2">Part 2 — Splice-Aware Alignment</a></li>
+        <li><a href="#part-3">Part 3 — Pseudoalignment &amp; EM</a></li>
+        <li><a href="#part-4">Part 4 — Counts &amp; Normalisation</a></li>
+        <li><a href="#part-5">Part 5 — Takeaways</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Four moves:</em>
+        <span class="lecture-tagline-beat">split the reads across introns</span>,
+        <span class="lecture-tagline-beat">intersect k-mer classes</span>,
+        <span class="lecture-tagline-beat">vote fractionally with EM</span>,
+        <span class="lecture-tagline-beat">normalise what you can</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Explain why RNA-seq reads cannot be treated the same as DNA reads, and name the two biological phenomena — splicing, transcript isoforms — that drive the difference.</li>
+          <li>Sketch how splice-aware aligners (STAR, HISAT2) extend the seed-and-extend framework from Lecture 2 with long-skip transitions for introns.</li>
+          <li>Explain what pseudoalignment is, and why a compatibility class over k-mers is sufficient for transcript-level quantification.</li>
+          <li>Set up the EM iteration Salmon / Kallisto run for read-to-transcript assignment, and relate it to iterative soft-decision decoding.</li>
+          <li>Convert between raw counts, CPM, TPM, and FPKM, and explain what each normalises for.</li>
+          <li>Compute a DESeq2-style size factor from a small count matrix and explain why the median-of-ratios estimator is robust to composition bias.</li>
+          <li>State why the Poisson model of Lecture 3 is not enough for RNA-seq counts, and describe the negative-binomial fix.</li>
+          <li>Pick the right quantification tool given a specific scientific goal.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 30 min</span>
+          RNA Biology and the Counting Problem
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Why RNA sequencing exists</h3>
+
+          <p>A genome is a list of parts; a transcriptome is a list of which parts are being used, how much, and when. The same DNA is in every cell of an organism, but a liver cell is not a neuron — the difference is which genes are transcribed, how much, and with what post-transcriptional processing. RNA-seq measures that activity.</p>
+
+          <p><strong>Bulk RNA-seq</strong> measures an average transcript-abundance profile across a population of cells: "here's how much of each gene the sample was making, averaged over the millions of cells in the tube." It's the workhorse assay of modern biology. Applications:</p>
+
+          <ul>
+            <li><strong>Differential expression (DE).</strong> Which genes are more or less expressed in condition A vs condition B? The subject of Lecture 6.</li>
+            <li><strong>Isoform detection.</strong> Which splice variants of a gene are expressed and at what ratios?</li>
+            <li><strong>Variant discovery from transcripts</strong> (allele-specific expression, fusion transcripts in cancer, A-to-I editing).</li>
+            <li><strong>Functional genomics.</strong> Knockout / overexpression screens read out through expression changes.</li>
+          </ul>
+
+          <p>The raw output of a bulk RNA-seq run looks exactly like the raw output of a DNA-seq run — FASTQ files with 150-bp reads, Phred quality scores, the same Illumina or PacBio chemistry. The processing downstream of FASTQ is where RNA diverges.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>A genome is a wiring diagram. A transcriptome is an oscilloscope trace showing which wires are currently carrying signal. RNA-seq is the probe.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 Transcription, splicing, and isoforms</h3>
+
+          <p>Three biological facts drive everything in this lecture.</p>
+
+          <p><strong>First: transcription is selective.</strong> Only a fraction of the genome is transcribed in any given cell at any given time. Genes have promoters that recruit RNA polymerase; transcription factors bind regulatory regions and turn genes on or off. The abundance of a transcript in a cell is approximately proportional to its production rate times its half-life.</p>
+
+          <p><strong>Second: most eukaryotic genes are split.</strong> Human genes are typically encoded as a series of <strong>exons</strong> (the parts that end up in the mature mRNA) separated by <strong>introns</strong> (the parts that get cut out). After transcription, the spliceosome — a large RNA-protein complex — recognises splice donor (GT) and acceptor (AG) dinucleotides at exon boundaries, cuts the introns out, and joins the exons together. The final mature mRNA is much shorter than the genomic locus: a gene spanning 40 kb of genome may produce a 2 kb mature mRNA after splicing.</p>
+
+          <p><strong>Third: one gene, many transcripts.</strong> The same gene can be spliced in multiple ways — different combinations of exons assembled into different final mRNAs. These are called <strong>isoforms</strong> (or splice variants). Human genes average roughly four isoforms each; some have dozens. Isoforms can differ in their protein product, their stability, their localisation, their translation efficiency, or just their 3′ untranslated region.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-05/01-splicing-isoforms.svg"
+                 alt="Genomic locus with five exons and four introns; transcription produces a pre-mRNA; splicing produces two alternative mature mRNAs — one with all five exons, one with exon 3 skipped.">
+            <figcaption>Figure 1. Transcription and splicing: the same genomic locus produces different mature mRNAs depending on which exons are kept. This is where RNA-seq diverges from DNA-seq.</figcaption>
+          </figure>
+
+          <p>These three facts make RNA-seq a fundamentally different problem from DNA-seq. In DNA-seq, the sample is a near-copy of the reference: one position in the read maps to one position in the genome. In RNA-seq, the sample is a <em>transformed</em> version of the reference: the read's sequence corresponds to the <em>spliced</em> transcript, which is not contiguous in the genome.</p>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 Why naive read-per-gene counting fails</h3>
+
+          <p>Given the biology in §1.2, the naive pipeline — "align reads with BWA (Lecture 2), count how many reads overlap each gene" — breaks in three ways.</p>
+
+          <p><strong>Reads span splice junctions.</strong> A short read can straddle the boundary between two exons. In the genome those two exons are separated by an intron, possibly tens of thousands of bases long. A read that spans that junction cannot be aligned contiguously to the genome; a DNA-style aligner would mark it unmapped or split it with random low-quality alignments. STAR and HISAT2 (§2) exist specifically to handle these reads.</p>
+
+          <p><strong>Reads from one gene can't be unambiguously assigned to one isoform.</strong> A read that lands in an exon shared by three different isoforms of the same gene is ambiguous: we know the gene but not the specific transcript. Naive counting forces a binary choice; Salmon and Kallisto (§3) solve this probabilistically with EM.</p>
+
+          <p><strong>Read counts conflate transcript abundance with transcript length.</strong> A 10 kb transcript sampled at the same molar abundance as a 1 kb transcript will collect ten times more reads, because each read is drawn from a random position along the transcript. Raw read counts are a biased estimator of molar abundance; you need to normalise by transcript length (§4).</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>The difference between "reads per gene" and "transcript abundance" is not a detail. They are different quantities, measured in different units, and they rank genes differently. Plotting one and labelling it as the other is a frequent and consequential mistake in published bioinformatics analyses.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 The RNA-seq pipeline at a glance</h3>
+
+          <p>Every bulk RNA-seq analysis follows one of two canonical paths. They disagree on the middle stage; they agree on the endpoints.</p>
+
+          <pre class="sequence-block">[FASTQ reads]
+    ↓
+[QC + trim]                        (fastp, trim_galore — same as Lecture 1)
+    ↓
+┌─────────────────┬─────────────────┐
+│ Align-then-count│ Pseudoalign     │
+│ STAR, HISAT2    │ Kallisto, Salmon│
+│ (§2)            │ (§3)            │
+└─────────────────┴─────────────────┘
+    ↓                     ↓
+[BAM]               [transcript abundances]
+    ↓
+[gene counts]       [gene counts via tximport]
+    ↓                     ↓
+┌──────── normalisation &amp; DE ────────┐
+│ DESeq2, edgeR, limma-voom          │  (Lecture 6)
+└────────────────────────────────────┘</pre>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-05/02-rnaseq-pipeline.svg"
+                 alt="Seven-stage RNA-seq pipeline showing the two paths — align-then-count via STAR/HISAT2 and pseudoalign via Kallisto/Salmon — converging at a gene-level count matrix that feeds into DE analysis.">
+            <figcaption>Figure 2. The bulk RNA-seq pipeline. Two paths differ on the middle stages but converge at a gene-level count matrix. Lecture 6 handles the last box.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">RNA-seq Pipeline Walkthrough</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-05/01-pipeline-walkthrough.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-05/01-pipeline-walkthrough.html"
+                    class="artifact-frame" loading="lazy"
+                    title="RNA-seq Pipeline Walkthrough"></iframe>
+          </figure>
+
+          <p>The align-then-count path produces a BAM file and then counts reads overlapping each feature (gene or exon) using <code>featureCounts</code> or <code>htseq-count</code>. The pseudoalign path produces transcript-level abundance estimates directly and never writes a BAM. Both paths end at a gene-level count matrix that DE tools consume.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 50 min</span>
+          Splice-Aware Alignment
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 The exon-intron structure problem</h3>
+
+          <p>A short Illumina read is 150 bp. A typical human gene spans 40 kb of genome. The read comes from the mature transcript — which has the introns already removed. When you try to align that read back to the genome, you need to allow the read to "jump" across intron-sized gaps.</p>
+
+          <p>Concretely: imagine an exon of length 100 bp followed by an intron of length 5 kb followed by the next exon. A read that straddles the exon-exon junction will have its first 80 bp aligning to the end of exon 1 and its last 70 bp aligning to the start of exon 2. In between, on the reference, is 5 kb of intron that the read does not contain. The aligner has to recognise this gap as a splice, not as a deletion.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-05/03-junction-reads.svg"
+                 alt="A genomic region with three exons and two introns; reads colour-coded by alignment difficulty — easy (inside one exon), moderate (single junction), hard (multi-junction).">
+            <figcaption>Figure 3. Reads falling on a gene with three exons. Easy reads fit inside one exon; junction reads need to jump across introns; multi-junction reads need to jump twice.</figcaption>
+          </figure>
+
+          <p>The naive solution — "allow arbitrary gaps in the aligner" — fails because an aligner that tolerates 5 kb gaps would produce millions of false positives. A 150 bp read will contain <em>many</em> positions where the sequence spuriously matches a random 150 bp of genome with a few edits. Legitimate splice junctions are distinguished from garbage by two features: they occur at canonical GT-AG splice-site motifs, and they are annotated in the reference transcriptome. Splice-aware aligners exploit both.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>A junction-spanning read is an indel of length 1–100 kb, with the indel position anchored to known splice-site motifs. DNA-seq aligners allow indels up to ~50 bp and assume they can be anywhere. RNA-seq aligners allow indels up to ~500 kb but only at sanctioned locations.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 STAR and the spliced-read HMM</h3>
+
+          <p>STAR — <strong>S</strong>pliced <strong>T</strong>ranscripts <strong>A</strong>lignment to a <strong>R</strong>eference — is the most widely used splice-aware aligner for short-read RNA-seq. Its design is a careful extension of the seed-and-extend framework from Lecture 2.</p>
+
+          <p>STAR has three phases per read:</p>
+
+          <ol>
+            <li><strong>Seed search.</strong> Instead of looking for one long exact match, STAR looks for the <strong>longest maximal mappable prefix</strong> (MMP) starting from the first base of the read. This is done with a suffix-array index of the reference genome (callback to Lecture 2 §2.2). The result is a set of seed regions where the read exactly matches some stretch of the genome.</li>
+            <li><strong>Seed clustering.</strong> Multiple MMPs from a single read are clustered by genomic location. If two MMPs are within ~50 kb of each other on the same chromosome, they probably belong to the same alignment. If they're separated by more than 50 kb, they're either a large SV or the read is multi-mapping.</li>
+            <li><strong>Extend with splice awareness.</strong> For each cluster, STAR extends the MMPs using a modified Smith-Waterman that allows an unusual move: at any canonical GT…AG motif, the alignment can "jump" forward by the intron length at zero cost. The splice move is explicitly a <em>different operation</em> from an insertion — insertions have a per-base gap-open penalty; splices are free if they land at a canonical motif.</li>
+          </ol>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-05/04-star-mechanics.svg"
+                 alt="STAR's three-phase algorithm: seed search finding three maximal mappable prefixes, clustering the two close ones, and extending across a canonical GT-AG splice motif.">
+            <figcaption>Figure 4. STAR in action: three MMPs found, two clustered, one discarded. The extension phase splices across the intron at zero cost because the motif is canonical.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">STAR Seed-and-Extend Simulator</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-05/02-star-simulator.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-05/02-star-simulator.html"
+                    class="artifact-frame" loading="lazy"
+                    title="STAR Seed-and-Extend Simulator"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>Splice-aware alignment is a hidden Markov model with a state-transition diagram that includes <em>long-skip transitions</em> at canonical splice sites. A junction-spanning alignment is the Viterbi path through a trellis where one edge can traverse 100 kb of reference in a single time step — but only if the edge is labeled "canonical splice." The DNA-seq alignment from Lecture 2 is the same trellis with the long-skip edges removed. The algorithmic machinery is unchanged; the state space is enriched with biology.</p>
+          </aside>
+
+          <p>STAR's performance characteristics:</p>
+
+          <ul>
+            <li><strong>Memory</strong>: ~30 GB for a human-genome index (suffix array over the whole genome).</li>
+            <li><strong>Speed</strong>: ~100M reads in roughly an hour on 16 cores. Fast enough for routine use.</li>
+            <li><strong>Output</strong>: coordinate-sorted BAM with <code>XS</code> tags indicating splice strand; optionally a table of detected splice junctions.</li>
+          </ul>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 HISAT2 and the hierarchical graph FM-index</h3>
+
+          <p>HISAT2 solves the same problem as STAR with a different data structure. Instead of a suffix array, HISAT2 uses a <strong>hierarchical graph FM-index</strong> (HGFM) that extends the FM-index from Lecture 2 to a reference <em>graph</em> — where the graph's nodes are genomic positions and its edges include known splice junctions from an annotation database.</p>
+
+          <p>The construction is layered:</p>
+
+          <ul>
+            <li><strong>Global index.</strong> An FM-index over the whole reference genome, exactly as in Lecture 2 §2.5. Handles most alignment.</li>
+            <li><strong>Local indexes.</strong> Every ~57 kb of the genome has its own small FM-index, optimised for short extensions. A single read's alignment can "hand off" from the global index to a local index for the tricky last few bases.</li>
+            <li><strong>Graph edges.</strong> Known splice junctions and common variants (from dbSNP, for example) are encoded as alternative edges in the graph. The FM-index is extended to traverse these edges during search.</li>
+          </ul>
+
+          <p>The payoff is memory: HISAT2's human index is about 8 GB, four times smaller than STAR's. The tradeoff is that HISAT2 is somewhat less sensitive to novel splice junctions not in its annotation.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-05/05-hisat2-hgfm.svg"
+                 alt="HISAT2's HGFM structure: a global FM-index over the whole genome, dozens of small local FM-indexes for fast short extensions, and a graph overlay of annotated splice junctions as alternative edges.">
+            <figcaption>Figure 5. HISAT2's hierarchical graph FM-index. Global + local indexes give the speed-memory tradeoff; the graph overlay enables traversal across annotated splice junctions during FM-index search.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>HISAT2 is FM-index alignment (Lecture 2) on a <em>directed acyclic graph</em> rather than a linear string. The same Last-First mapping and backward-search algorithms work — the alphabet of the FM-index is extended so that transitions across graph edges appear as valid moves during search. This is the same generalisation that will return in Lecture 11 for pangenome alignment over an arbitrary DAG.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 From BAM to gene counts: featureCounts and HTSeq</h3>
+
+          <p>Once you have a BAM, counting is mechanical. Two tools dominate:</p>
+
+          <ul>
+            <li><strong>featureCounts</strong> (part of the Subread package). Fast C implementation. Takes a BAM and a GTF (gene annotation file) and emits a count matrix.</li>
+            <li><strong>HTSeq-count.</strong> Older Python tool. Slower. Historically the reference for "how counting is supposed to work" — its <code>intersection-strict</code> mode is the semantics everyone eventually calibrates against.</li>
+          </ul>
+
+          <p>Both tools have to make a decision for each read: which feature does it count toward? The non-obvious cases:</p>
+
+          <ul>
+            <li>A read that overlaps two genes (common in compact genomes or near gene boundaries) — counted toward both, toward neither, or toward "ambiguous"?</li>
+            <li>A read that falls partly in an exon and partly in an intron — retained intron or genomic contamination?</li>
+            <li>A multi-mapping read (one primary plus several secondary alignments) — split the count, assign to primary only, or drop?</li>
+          </ul>
+
+          <p>These choices matter more for small effects than for big ones, and every tool has slightly different defaults. The rule: document which tool and which mode you used, because differential expression results are <em>not</em> invariant to counting choice.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>RNA-seq libraries are usually <strong>strand-specific</strong> (reverse or forward). Strandedness affects which reads count toward which gene — a read on the forward strand that overlaps a gene on the reverse strand should <em>not</em> count. Running counting tools with <code>--stranded=no</code> when the library is stranded silently double-counts antisense reads; running with <code>--stranded=reverse</code> on an unstranded library silently drops half of them. Always verify strandedness of the library before counting. <code>infer_experiment.py</code> from RSeQC is the canonical check.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 60 min</span>
+          Pseudoalignment and Quantification
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 The compatibility-class insight</h3>
+
+          <p>Here is the observation that reorganised RNA-seq quantification in 2016.</p>
+
+          <p>If your goal is transcript <em>abundance</em> — not base-level alignment coordinates — you don't need to know <em>where</em> each read aligns. You only need to know <em>which transcripts the read is compatible with.</em> A read's "compatibility class" is the set of transcripts whose sequence is consistent with the read.</p>
+
+          <p>Concretely: suppose you have three transcripts T1, T2, T3, each a few hundred bases long. You extract all the k-mers (say k = 31) from each transcript. Some k-mers are unique to T1, some are shared between T1 and T2, and so on. When a new read arrives, you chop it into its k-mers, look each one up in a hash table that maps k-mer → {set of transcripts containing it}, intersect the sets, and the result is the read's compatibility class: the set of transcripts consistent with every k-mer the read contains.</p>
+
+          <p>That's it. No Smith-Waterman, no seed extension, no base-level alignment. The read's contribution to quantification is entirely captured by its compatibility class.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-05/06-compatibility-classes.svg"
+                 alt="Three transcripts, their k-mer decompositions with transcript-set membership tags, and four example reads whose k-mer intersections produce different compatibility classes.">
+            <figcaption>Figure 6. Compatibility classes. Each k-mer carries a transcript-set tag; a read's compatibility class is the intersection of tags across its k-mers. No alignment required.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Compatibility Class Viewer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-05/03-compatibility-classes.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-05/03-compatibility-classes.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Compatibility Class Viewer"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>Pseudoalignment is sketch-based set membership. The transcriptome index is a hash-addressable summary of which transcripts contain which k-mers; a read is a query against that summary; the answer is a subset of the transcriptome universe. This is the same data-flow pattern as Bloom filters, MinHash, and HyperLogLog — query-time set operations using precomputed sketches. The difference from Lecture 2 indexing is the <em>task</em>: Lecture 2's indexes support coordinate retrieval; pseudoalignment indexes support set membership only. Dropping the coordinate requirement is what makes pseudoalignment 10–100× faster.</p>
+          </aside>
+
+          <p>What you give up: exact base-level alignment, which means you can't genotype from RNA-seq reads directly with a pseudoaligner. What you keep: everything you need for quantification.</p>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Kallisto and the Target de Bruijn Graph</h3>
+
+          <p><strong>Kallisto</strong> was the first pseudoalignment tool to land (Bray, Pimentel, Melsted, Pachter, 2016). The data structure: a Target de Bruijn Graph (T-DBG), which is a de Bruijn graph (callback to Lecture 3 §3.2) built from the transcriptome, with each k-mer node tagged with the set of transcripts that contain it.</p>
+
+          <p>The query side: for each read, extract k-mers, walk them along the T-DBG, and intersect the transcript-set tags along the walk. The intersection is the compatibility class. A read that produces an empty compatibility class is either a novel sequence, contaminating DNA, or an artifact — it doesn't contribute to quantification.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-05/07-tdbg-kallisto.svg"
+                 alt="Three small transcripts at the top; their Target de Bruijn Graph in the middle with k-mer nodes tagged with transcript sets; a read's walk through the graph at the bottom producing a compatibility class.">
+            <figcaption>Figure 7. The Target de Bruijn Graph. A read's k-mers trace a path; the intersection of transcript-set tags along that path is the compatibility class. Walk-and-intersect replaces alignment.</figcaption>
+          </figure>
+
+          <p>The construction is linear in the transcriptome size (a few minutes for a human transcriptome at k = 31); the query is amortised <em>O</em>(read length). A Kallisto quantification of 30M RNA-seq reads against the human transcriptome runs in under 10 minutes on a laptop.</p>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>Kallisto's release in 2016 was a culture shock. Prior to Kallisto, RNA-seq quantification took CPU-hours per sample (STAR + RSEM or STAR + Salmon-before-quasi-mapping). Kallisto did the same job in minutes at comparable accuracy. The paper argued — with benchmarks — that the explicit base-level alignment that tools like RSEM were spending their time on was essentially wasted computation for the quantification task. The community took about two years to digest that argument. By 2018 pseudoalignment had become the default.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Salmon and selective alignment</h3>
+
+          <p><strong>Salmon</strong> (Patro et al., 2017) is pseudoalignment with refinements. Its core idea is the same — compatibility classes over k-mers — with two additions.</p>
+
+          <p><strong>Quasi-mapping</strong> (Srivastava et al. 2016): Salmon's original fast mode matched k-mers to transcripts using an enhanced suffix array rather than a T-DBG, and explicitly tracked the approximate position of the match within the transcript. This cost a little speed but let Salmon correct for positional biases — reads don't come from a uniform distribution along a transcript; there's 3′ bias from polyA selection, 5′ bias from degradation, and position-dependent GC biases. Knowing (approximate) read position within the transcript lets the quantification model these biases.</p>
+
+          <p><strong>Selective alignment</strong> (Salmon 1.0, 2019): Salmon's default mode now is a hybrid. Fast k-mer matching identifies candidate transcripts; a fast (ungapped, banded) Smith-Waterman is then performed only on those candidates to produce a proper alignment score. The output is compatibility-class-flavored but with an alignment-quality filter that rejects false matches from highly similar paralogs.</p>
+
+          <p>The net effect: Salmon 1.0 on default settings is <em>nearly</em> as fast as Kallisto, <em>nearly</em> as accurate as STAR + RSEM, and handles positional / GC / sequence biases explicitly. For bulk RNA-seq quantification in 2024+, Salmon is the pragmatic default.</p>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Expectation-Maximization for read-to-transcript assignment</h3>
+
+          <p>Compatibility classes are ambiguous. A read in a shared exon of three transcripts has compatibility class {T1, T2, T3} — we know the read came from one of those three, but not which.</p>
+
+          <p>The EM algorithm resolves this probabilistically. The model: assume each read was generated by picking a transcript with probability proportional to its abundance and then picking a position within the transcript. The likelihood of observing the read's compatibility class, given transcript abundances θ = (θ₁, θ₂, …, θₙ), is</p>
+
+          <div class="equation-block">
+            $$ P(\text{read} \mid \theta) = \sum_{t \in \text{class}} \frac{\theta_t / \ell_t}{\sum_j \theta_j / \ell_j} $$
+          </div>
+
+          <p>where ℓₜ is the length of transcript t (longer transcripts get more reads at the same molar abundance, so we divide by length). Summing log-likelihoods over all reads gives the full data likelihood L(θ).</p>
+
+          <p>We want to maximise L(θ) over θ ≥ 0, ∑θₜ = 1. Closed-form solution doesn't exist because the log-sum structure couples the transcript abundances. EM handles it exactly.</p>
+
+          <p><strong>E-step</strong> — compute the posterior probability that each read came from each compatible transcript, given the current estimate of abundances:</p>
+
+          <div class="equation-block">
+            $$ z_{r,t} = \frac{\theta_t^{(k)} / \ell_t}{\sum_{t' \in \text{class}(r)} \theta_{t'}^{(k)} / \ell_{t'}} $$
+          </div>
+
+          <p>zᵣ,ₜ is the "fractional vote" that read r assigns to transcript t. It's a real number between 0 and 1; if the read is unambiguously from one transcript, zᵣ,ₜ = 1 for that transcript and 0 for the others.</p>
+
+          <p><strong>M-step</strong> — update the abundance estimate by summing the fractional votes and normalising:</p>
+
+          <div class="equation-block">
+            $$ \theta_t^{(k+1)} = \frac{\sum_r z_{r,t}}{\sum_{r,t'} z_{r,t'}} $$
+          </div>
+
+          <p>Iterate. Each iteration is linear in the number of reads times the average compatibility class size. Convergence is typically 100–1000 iterations; each iteration is milliseconds.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-05/08-em-iterations.svg"
+                 alt="Five iterations of EM shown side-by-side: fractional-vote matrices for four reads and three transcripts, with the vote cells and abundance bars updating each iteration until convergence.">
+            <figcaption>Figure 8. EM iterations on a toy example. Fractional votes redistribute each E-step; abundance estimates update each M-step; the likelihood climbs monotonically to convergence.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">EM Iteration Visualizer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-05/04-em-visualizer.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-05/04-em-visualizer.html"
+                    class="artifact-frame" loading="lazy"
+                    title="EM Iteration Visualizer"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>EM is "if each read had to vote for exactly one transcript, it would vote for the most abundant of the ones it's compatible with." But at the start you don't know which is most abundant, so reads cast fractional votes proportional to current estimates. Sum the votes, update the estimates, repeat. The ambiguity in each individual read's compatibility class resolves collectively: a heavily-shared read ends up essentially following the global abundance gradient.</p>
+          </aside>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>EM for transcript quantification is iterative soft-decision decoding. Each read is a noisy observation of a codeword (the transcript it came from); the compatibility class is the set of codewords consistent with the observation; the fractional votes are soft bits — probabilistic guesses at which codeword was sent. Iterating the votes against a model of codeword probabilities is exactly what a turbo decoder does on a convolutional code. This is the same algorithmic pattern that returns in Lecture 8 for scVI (variational EM on single-cell counts) and which has showed up in every EE graduate's detection-theory curriculum.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 RSEM and the model-based alternative</h3>
+
+          <p><strong>RSEM</strong> (RNA-Seq by Expectation-Maximization, Li &amp; Dewey 2011) was the gold-standard quantifier before pseudoalignment. It runs Bowtie (base-level alignment) against the transcriptome, then applies the same EM procedure as Salmon/Kallisto on the alignment results. The conceptual logic is identical; the difference is where compatibility classes come from — from actual alignments rather than from k-mer matches.</p>
+
+          <p>RSEM is slower (CPU-hours per sample on human data) but historically more interpretable because the alignments are available. For 2024+ work, Salmon or Kallisto handle 99% of use cases; RSEM is used mainly when someone already has STAR alignments and wants quantification without re-running the alignment step.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 35 min</span>
+          Count Models and Normalisation
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 From counts to expression: what are we actually measuring?</h3>
+
+          <p>After alignment or pseudoalignment, the output is a <strong>count matrix</strong>: rows are genes (or transcripts), columns are samples, and each cell is the number of reads assigned to that gene in that sample.</p>
+
+          <p>That count is not expression. It is expression × library depth × transcript length × technical bias. To compare genes within a sample, between samples, or against a reference, we need to remove the systematic factors and keep only the biological signal.</p>
+
+          <p>Three categories of bias matter:</p>
+
+          <ul>
+            <li><strong>Library depth.</strong> A sample sequenced to 50M reads will produce counts ~2× larger than the same sample sequenced to 25M reads. Any cross-sample comparison must correct for depth.</li>
+            <li><strong>Transcript length.</strong> At equal molar abundance, a 10 kb transcript gets ~10× more reads than a 1 kb transcript, because each read is sampled from a random position along the transcript. Any cross-gene comparison within or across samples must correct for length.</li>
+            <li><strong>Library composition.</strong> If one highly-expressed gene soaks up 50% of reads in sample A but only 10% in sample B, then every <em>other</em> gene in sample A appears deflated relative to sample B even if its absolute expression is the same. Correcting for this is what DESeq2 / edgeR size factors do — not the same as simple depth correction.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>A TPM value is an abundance estimate normalised so that a sample where every gene has TPM = 1 would correspond to every transcript being equally abundant at the molar level. It doesn't tell you absolute molecule counts per cell, but it lets you compare "how much of the transcriptome was this gene?" across samples with different depths and compositions.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 CPM, TPM, FPKM — what each normalises for</h3>
+
+          <p>Three units dominate RNA-seq reporting.</p>
+
+          <p><strong>CPM (counts per million)</strong> — normalise for library depth only. For gene g in sample s with raw count cₛ,g and total library depth Dₛ:</p>
+
+          <div class="equation-block">
+            $$ \text{CPM}_{s,g} = \frac{c_{s,g}}{D_s / 10^6} $$
+          </div>
+
+          <p>CPM makes samples of different depth comparable gene-by-gene but does <em>not</em> normalise for transcript length — a long gene will have a larger CPM than a short gene at the same molar abundance.</p>
+
+          <p><strong>FPKM</strong> (fragments per kilobase per million) — normalise for both depth and gene length:</p>
+
+          <div class="equation-block">
+            $$ \text{FPKM}_{s,g} = \frac{c_{s,g}}{(D_s / 10^6) \cdot (\ell_g / 1000)} $$
+          </div>
+
+          <p>FPKM is CPM divided by gene length in kilobases. RPKM is the same for single-end reads (counting reads rather than fragments); FPKM is for paired-end.</p>
+
+          <p><strong>TPM</strong> (transcripts per million) — normalise for length first, then for depth:</p>
+
+          <div class="equation-block">
+            $$ \text{TPM}_{s,g} = \frac{c_{s,g} / \ell_g}{\sum_{g'} c_{s,g'} / \ell_{g'}} \cdot 10^6 $$
+          </div>
+
+          <p>The key difference: TPM first divides each gene's count by its length, then normalises so that the per-sample sum of all TPMs equals 10⁶. FPKM does the normalisations in the opposite order. The consequence: TPM values always sum to 10⁶ across genes in a sample (so TPM is a proportion); FPKM values sum to some sample-dependent number (so FPKM is not a proportion and cannot be directly compared across samples without care).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-05/09-normalization-units.svg"
+                 alt="A small example matrix with six genes of varying lengths and four samples, showing raw counts, CPM, FPKM, and TPM side by side, with cells where the gene rankings differ between units highlighted.">
+            <figcaption>Figure 9. CPM, FPKM, and TPM compared on a six-gene, four-sample example. The three units rank genes differently depending on transcript length and sample composition.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Normalisation Calculator</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-05/05-normalization.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-05/05-normalization.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Normalisation Calculator"></iframe>
+          </figure>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>TPM is preferred for <em>reporting</em> expression values because it's a proportion. CPM is preferred as the input to DE tools like edgeR and limma-voom because those tools handle length normalisation themselves via offsets in the linear model. FPKM is legacy. Never compare a gene's FPKM in one sample to its FPKM in another sample without first converting to TPM or running through a DE tool — the result can be off by 50% from composition effects.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Size factors and library composition</h3>
+
+          <p>Depth normalisation (CPM) assumes that two samples with different library depths differ only in depth. That's usually false.</p>
+
+          <p>Imagine sample A is a blood sample dominated by a few highly expressed hemoglobin transcripts, and sample B is a similar blood sample but with globin depletion performed (a common protocol choice). Both samples are sequenced to the same depth. In sample A, globins eat 40% of reads; every other gene's CPM is deflated by 40%. In sample B, globins eat 2%; the other genes' CPMs look 40% higher. If you just compare CPMs between A and B, you'll conclude that every non-globin gene is 40% upregulated in B, when in truth it's just composition bias.</p>
+
+          <p>DESeq2's <strong>median-of-ratios</strong> estimator is the canonical fix:</p>
+
+          <ol>
+            <li>For each gene g, compute the geometric mean of its counts across all samples.</li>
+            <li>For each sample s, compute the ratio: gene count in s / gene's geometric mean.</li>
+            <li>The sample's size factor is the <em>median</em> of those ratios across genes.</li>
+            <li>Divide all counts in that sample by its size factor. Those are the "normalised counts."</li>
+          </ol>
+
+          <p>The reasoning: if the distribution of ratios for a sample is centred on 1, the sample is at population average depth. If it's centred on 2, the sample's depth is 2× population average. The median is robust to a small number of very highly (or very lowly) expressed genes hijacking the estimator.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-05/10-size-factors.svg"
+                 alt="Five panels walking through the DESeq2 median-of-ratios size factor: raw count matrix, geometric means per gene, per-sample ratios, the median of each sample's ratios, and the normalised counts.">
+            <figcaption>Figure 10. DESeq2's median-of-ratios size-factor estimator. Computing the median is what makes it robust to a few highly-expressed genes dominating the library.</figcaption>
+          </figure>
+
+          <p>edgeR uses a closely related method called <strong>TMM</strong> (trimmed mean of M-values) that additionally trims outlying genes before averaging. For bulk RNA-seq, DESeq2 median-of-ratios and edgeR TMM give nearly identical results; the differences matter only at extreme library composition.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Size factors correct for library composition, not for gene length. You need <em>both</em> corrections (size factor for composition, gene length for inter-gene comparison). DESeq2's default output is "size-factor-adjusted counts" — still not length-corrected. If you want to compare genes within a sample, use TPM. If you want to compare the same gene across samples, use size-factor-adjusted counts. If you want both, use the DE model, which handles both as regression offsets.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 The count distribution and why Poisson isn't enough</h3>
+
+          <p>Lecture 3 introduced the Poisson distribution as the natural model for read counts — if reads are drawn uniformly at random from a transcriptome, the number of reads falling on any given feature is Poisson-distributed with mean proportional to that feature's molar abundance.</p>
+
+          <p>For bulk RNA-seq, Poisson is too tight. A Poisson distribution has variance equal to its mean (var[X] = λ when X ~ Poisson(λ)). Empirical RNA-seq data have variance much larger than the mean, especially for highly expressed genes. The excess variance comes from biological sources — cell-to-cell expression variability, subtle differences in library prep between replicates, slight variations in sequencing depth interacting with composition.</p>
+
+          <p>The fix is the <strong>negative binomial distribution</strong>, which is a Poisson with a gamma-distributed rate parameter. The NB has two parameters — mean μ and dispersion α — with variance μ + α·μ². The α·μ² term is the overdispersion; it's zero for pure Poisson. Biological-replicate RNA-seq data typically has α in the range 0.01–0.3, depending on gene expression level.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-05/11-poisson-vs-nb.svg"
+                 alt="Top: two discrete distributions at the same mean, Poisson tight and NB overdispersed. Bottom: empirical mean-variance scatter from real RNA-seq data, with points visibly above the Poisson-line diagonal.">
+            <figcaption>Figure 11. Poisson vs Negative Binomial. Top: the two distributions at the same mean. Bottom: empirical evidence that real RNA-seq data systematically exceeds the Poisson-variance line.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Poisson vs Negative Binomial Explorer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-05/06-nb-vs-poisson.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-05/06-nb-vs-poisson.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Poisson vs Negative Binomial Explorer"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>The negative binomial is an overdispersed Poisson — a Poisson whose rate parameter is itself random, drawn from a gamma distribution. In signal-processing terms, it's photon counting with an additional multiplicative noise source (the gamma-distributed rate) on top of the counting noise (the Poisson). The same structure appears in photon-limited imaging (where the illumination fluctuates) and in bursty arrival processes in queuing theory. DE tools in Lecture 6 are fit of this NB model to count data — the dispersion estimation is the key part.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 25 min</span>
+          What You Take Away
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 When to use which tool</h3>
+
+          <p>The RNA-seq tool landscape is rich, but the choice narrows quickly with the goal in mind.</p>
+
+          <table>
+            <thead>
+              <tr><th>Goal</th><th>Recommended tool</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Gene-level counts, standard bulk DE</td><td>Salmon → tximport → DESeq2 (default for 2024+)</td></tr>
+              <tr><td>Same, with full alignments preserved</td><td>STAR → featureCounts → DESeq2</td></tr>
+              <tr><td>Transcript-level (isoform) quantification</td><td>Salmon with <code>--validateMappings</code></td></tr>
+              <tr><td>Low-cost quick quantification</td><td>Kallisto</td></tr>
+              <tr><td>Long-read RNA-seq (Iso-Seq, ONT direct RNA)</td><td>Minimap2 in spliced mode + IsoQuant / Bambu</td></tr>
+              <tr><td>Fusion-transcript detection in cancer</td><td>STAR-Fusion or Arriba (both need STAR alignments)</td></tr>
+              <tr><td>RNA variant calling</td><td>STAR two-pass + GATK HaplotypeCaller RNA mode</td></tr>
+            </tbody>
+          </table>
+
+          <p><strong>Salmon + DESeq2 is the right default for the vast majority of bulk RNA-seq in 2024.</strong> If you don't know which tool to use, use that.</p>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>Given a goal of "find isoforms that change between two conditions," would you use pseudoalignment or full alignment? (Either — Salmon with the <code>--validateMappings</code> flag does isoform quantification well, and STAR + RSEM also does it well, just slower. The choice hinges on whether you need the BAM for other purposes. If the isoform quantification is the only goal, Salmon wins on speed and accuracy-per-CPU-hour.)</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Pitfalls and gotchas</h3>
+
+          <p>The RNA-seq literature is dotted with papers whose conclusions were later invalidated by a pipeline bug. The recurring culprits:</p>
+
+          <ul>
+            <li><strong>Strandedness misconfigured.</strong> Easiest bug to produce, hardest to detect from the count matrix alone. Always verify strand with <code>infer_experiment.py</code> before counting.</li>
+            <li><strong>Annotation drift.</strong> A GTF from Ensembl release 110 and one from GENCODE v44 do not agree on every gene's exons. Pipelines that mix annotations from different sources can produce counts that don't match what's reported elsewhere.</li>
+            <li><strong>Multi-mapping reads.</strong> 5–15% of reads map to multiple locations, usually because of ribosomal RNA, paralogs, or repetitive regions. Salmon / Kallisto handle this via EM; STAR + featureCounts requires you to choose <code>--M</code> (count all) or <code>--primary</code> (count only primary alignment) and the choice matters.</li>
+            <li><strong>Duplicates.</strong> PCR duplicates in RNA-seq are <em>not</em> the same as in DNA-seq. For bulk RNA-seq from a polyA protocol, the same mRNA molecule can legitimately produce multiple reads starting at the same genomic position — marking them all as duplicates and removing them is a <em>mistake</em> for bulk RNA-seq. Mark them if you want, remove them only if the assay is single-cell (where UMIs handle the deduplication correctly, covered in Lecture 7).</li>
+            <li><strong>rRNA contamination.</strong> Ribosomal RNA can make up 30–80% of total RNA in a cell; library prep usually depletes or selects against it, but imperfectly. An RNA-seq library with 40% rRNA looks like it has 60% of the depth it should — and the remaining fraction behaves like a lower-depth library for every non-rRNA gene.</li>
+            <li><strong>Batch effects between runs.</strong> Even in the same lab with the same protocol, library prep batches can introduce systematic variation larger than biological effects. Randomise your experimental samples across batches, or at least log which batch each sample was in so it can be regressed out in L6's DE analysis.</li>
+          </ul>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>If two pipelines produce a 50% different count for the same gene in the same sample, the first thing to check is strandedness. The second is whether both pipelines are using the same annotation. The third is multi-mapping policy. Ninety percent of "why do my counts differ?" is one of those three.</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Looking ahead to Lecture 6</h3>
+
+          <p>Lecture 6 takes the count matrix produced by this lecture and answers the biological question "which genes are differentially expressed between two conditions?" The statistical framework is the negative-binomial model from §4.4. The tools are DESeq2, edgeR, and limma-voom. The main ideas:</p>
+
+          <ul>
+            <li>Fit a negative-binomial generalized linear model per gene. Estimate the dispersion parameter. Shrink it using empirical Bayes across genes.</li>
+            <li>Test each gene's condition coefficient against zero. The output is a log fold-change, a standard error, a p-value, and an adjusted p-value (BH for FDR control at ~20k-gene scale — callback to Lecture 4's variant filtering).</li>
+            <li>Interpret the gene list. Introduce GSEA and over-representation analysis as the standard tools for turning a thousand-gene result into a biological story.</li>
+          </ul>
+
+          <p>The bridge from this lecture to L6 is conceptual: quantification produces an <em>estimate</em>; DE is inference <em>about</em> that estimate under a noise model. The negative binomial is the noise model; DESeq2's linear model is the inference framework.</p>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>If a gene has 100 reads in sample A and 200 reads in sample B, is it "differentially expressed"? (It depends entirely on the variance. With Poisson-model assumptions and three replicates each, the answer is a clear yes. With realistic NB dispersion and only two replicates each, the answer is "probably, but the confidence interval is wide." Lecture 6 quantifies that confidence.)</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup" class="lecture-wrapup">
+        <h2>
+          <span class="part-kicker">Wrap-up · 10 min</span>
+          Takeaways, homework, and next lecture
+        </h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>RNA ≠ DNA for counting purposes.</strong> Splicing and isoforms mean reads don't map contiguously, and transcript abundance is not the same as reads-per-gene. The rest of the lecture follows from that.</li>
+          <li><strong>Splice-aware aligners extend seed-and-extend with long-skip transitions.</strong> STAR and HISAT2 are both HMM-flavored; they allow intron-sized gaps only at canonical GT-AG splice sites, with annotation guidance to suppress false positives.</li>
+          <li><strong>Pseudoalignment dispenses with base-level alignment for quantification.</strong> A read's compatibility class — the set of transcripts whose k-mers are consistent with the read — is sufficient for EM-based quantification. This is 10–100× faster than alignment + counting with comparable accuracy.</li>
+          <li><strong>EM handles read-to-transcript ambiguity probabilistically.</strong> Salmon / Kallisto iterate fractional read-to-transcript assignments to convergence; each iteration is fast, and convergence is typically 100–1000 iterations.</li>
+          <li><strong>Normalisation has three layers: depth, length, composition.</strong> CPM handles depth only; TPM handles depth and length; DESeq2 size factors handle composition. Use the right normalisation for the question.</li>
+          <li><strong>Counts are overdispersed Poisson, a.k.a. negative binomial.</strong> Pure Poisson variance (= mean) underestimates real RNA-seq variance. The NB's dispersion parameter captures that excess; Lecture 6 turns this into a DE framework.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Differential expression with DESeq2, edgeR, and limma-voom. Empirical-Bayes dispersion shrinkage, Wald and LRT tests, multiple testing at the 20k-gene scale, and a bridge to gene-set enrichment analysis.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Download a public RNA-seq dataset (e.g., GTEx v8 whole blood, 10 samples). Quantify with Salmon in <code>--validateMappings</code> mode against a GENCODE v44 transcriptome. Report runtime and compare against a STAR + featureCounts run on the same data for one sample. Which is faster? By how much? Are the gene-level counts similar?</li>
+          <li>Using the count matrix from problem 1, compute CPM, TPM, and DESeq2 size-factor-adjusted counts for ten randomly selected genes. Compare them. In what cases do the three metrics rank the same set of genes differently?</li>
+          <li>Implement EM for a toy RNA-seq quantification problem by hand: three transcripts of length [500, 1500, 2000], five reads with specified compatibility classes [{T1,T2}, {T2}, {T1,T2,T3}, {T3}, {T1}]. Initialise uniform abundances; run 10 iterations of EM; report the converged abundances. Use the EM Iteration Visualizer artifact to verify.</li>
+          <li>Plot the mean-variance relationship for the count matrix from problem 1. Overlay the Poisson line (var = mean). How much above the Poisson line does your data sit at mean count 100? At mean 1000? Estimate the effective dispersion parameter.</li>
+          <li>You are given a Salmon quantification and a STAR + featureCounts quantification of the same sample. Gene MALAT1 has count 10,000 in Salmon and 7,800 in STAR+featureCounts. Explain three reasons this might happen.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Bray, N. L., Pimentel, H., Melsted, P., &amp; Pachter, L. (2016). Near-optimal probabilistic RNA-seq quantification. <em>Nature Biotechnology</em> 34, 525–527.</li>
+          <li>Patro, R., Duggal, G., Love, M. I., Irizarry, R. A., &amp; Kingsford, C. (2017). Salmon provides fast and bias-aware quantification of transcript expression. <em>Nature Methods</em> 14, 417–419.</li>
+          <li>Dobin, A., Davis, C. A., Schlesinger, F., et al. (2013). STAR: ultrafast universal RNA-seq aligner. <em>Bioinformatics</em> 29, 15–21.</li>
+          <li>Kim, D., Paggi, J. M., Park, C., Bennett, C., &amp; Salzberg, S. L. (2019). Graph-based genome alignment and genotyping with HISAT2 and HISAT-genotype. <em>Nature Biotechnology</em> 37, 907–915.</li>
+          <li>Li, B., &amp; Dewey, C. N. (2011). RSEM: accurate transcript quantification from RNA-Seq data with or without a reference genome. <em>BMC Bioinformatics</em> 12, 323.</li>
+          <li>Mortazavi, A., Williams, B. A., McCue, K., Schaeffer, L., &amp; Wold, B. (2008). Mapping and quantifying mammalian transcriptomes by RNA-Seq. <em>Nature Methods</em> 5, 621–628.</li>
+          <li>Pertea, M., Kim, D., Pertea, G. M., Leek, J. T., &amp; Salzberg, S. L. (2016). Transcript-level expression analysis of RNA-seq experiments with HISAT, StringTie and Ballgown. <em>Nature Protocols</em> 11, 1650–1667.</li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — RNA Biology and the Counting Problem</td><td>30&nbsp;min</td><td>0:30</td></tr>
+            <tr><td>Part 2 — Splice-Aware Alignment</td>             <td>50&nbsp;min</td><td>1:20</td></tr>
+            <tr><td>Part 3 — Pseudoalignment and Quantification</td> <td>60&nbsp;min</td><td>2:20</td></tr>
+            <tr><td>Part 4 — Count Models and Normalisation</td>     <td>35&nbsp;min</td><td>2:55</td></tr>
+            <tr><td>Part 5 — What You Take Away</td>                 <td>25&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                     <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys())
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) {
+          f.style.height = d.height + 'px';
+        }
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VCF Parser and Filter</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1200px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .seq-input, textarea.seq-input, input.seq-input {
+      width: 100%;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      padding: 0.55rem 0.75rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+    }
+    .seq-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); outline: none; }
+    textarea.seq-input { resize: vertical; min-height: 140px; }
+
+    .select-input {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .source-row {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .source-row > div { flex: 1; min-width: 200px; }
+
+    .radio-group {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .radio-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      cursor: pointer;
+    }
+    .radio-group input[type="radio"] { accent-color: var(--accent); }
+
+    /* ── Filters panel ── */
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 1rem 1.5rem;
+    }
+    .filter-cell { display: flex; flex-direction: column; gap: 0.35rem; }
+    .filter-cell .row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .slider-input {
+      flex: 1;
+      accent-color: var(--accent);
+    }
+    .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--accent);
+      min-width: 3.5em;
+      text-align: right;
+      font-weight: 600;
+    }
+    .checkbox-line {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      cursor: pointer;
+    }
+    .checkbox-line input[type="checkbox"] { accent-color: var(--accent); }
+
+    /* ── Outcome banner ── */
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left: 4px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 0.9rem 1.1rem;
+      margin-bottom: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-relaxed);
+    }
+    .banner .tag {
+      display: inline-block;
+      padding: 0.05rem 0.45rem;
+      border-radius: 2px;
+      margin: 0 0.1rem;
+      font-weight: 600;
+    }
+    .banner .tag.kept { background: #dcfce7; color: var(--success); }
+    .banner .tag.dropped { background: #fee2e2; color: var(--error); }
+    .banner .tag.input { background: var(--bg-muted); color: var(--fg-muted); }
+    .banner .breakdown {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.25rem;
+    }
+    .banner .breakdown .k { color: var(--accent); font-weight: 600; }
+
+    /* ── Parse issues ── */
+    .issues {
+      background: #fef3c7;
+      border: 1px solid var(--warning);
+      border-left: 4px solid var(--warning);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: #78350f;
+      max-height: 180px;
+      overflow: auto;
+    }
+    .issues .issue { margin: 0.1rem 0; }
+    .issues .warn { color: var(--warning); }
+
+    .header-note {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-bottom: 1rem;
+    }
+
+    /* ── Table ── */
+    .table-wrap {
+      max-height: 520px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-elevated);
+    }
+    table.vcf-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+    table.vcf-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--bg-inset);
+      color: var(--fg);
+      text-align: left;
+      padding: 0.5rem 0.6rem;
+      border-bottom: 1px solid var(--border-strong);
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    table.vcf-table thead th:hover { background: var(--bg-muted); }
+    table.vcf-table thead th .arrow {
+      display: inline-block;
+      margin-left: 0.2rem;
+      color: var(--accent);
+      font-size: 0.7rem;
+    }
+    table.vcf-table tbody td {
+      padding: 0.35rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    table.vcf-table tbody tr.dropped {
+      background: #fafafa;
+      color: var(--fg-subtle);
+    }
+    table.vcf-table tbody tr.dropped td { text-decoration: line-through; }
+    table.vcf-table tbody tr.kept:hover { background: var(--accent-bg); }
+    table.vcf-table tbody tr.dropped:hover { background: var(--bg-muted); }
+    .cell-qual.low { color: var(--error); }
+    .cell-dp.low, .cell-dp.high { color: var(--error); }
+    .cell-filter.pass { color: var(--success); font-weight: 600; }
+    .cell-filter.fail { color: var(--error); font-weight: 600; }
+    .cell-alt .multi { color: var(--accent-bright); font-weight: 600; }
+    .cell-gt.hom { color: var(--base-a); }
+    .cell-gt.het { color: var(--base-g); }
+    .cell-gt.hom-ref { color: var(--fg-subtle); }
+    .cell-reason { color: var(--error); font-size: 0.65rem; }
+
+    .empty-row td {
+      padding: 1.25rem;
+      text-align: center;
+      color: var(--fg-subtle);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+    }
+
+    /* ── Footer / download row ── */
+    .actions-row {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    .actions-row .count-note {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+
+    .legend-row {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+    }
+    .legend-row .sw {
+      display: inline-block;
+      width: 14px; height: 10px;
+      border: 1px solid var(--border);
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    .legend-row .sw.kept { background: var(--bg-elevated); }
+    .legend-row .sw.dropped { background: #fafafa; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.75rem;
+      line-height: var(--leading-relaxed);
+    }
+    .hint code {
+      background: var(--bg-muted);
+      padding: 0.05rem 0.35rem;
+      border-radius: 2px;
+    }
+
+    @media (max-width: 820px) {
+      .filters-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="vcf-parser">
+
+  <header class="artifact-head">
+    <h1>VCF Parser and Filter</h1>
+    <p>Parse raw Variant Call Format text into a structured table, then watch how a live filtering pipeline keeps or rejects each row. The <strong>outcome banner</strong> breaks down which filter rejected which variants — filtering is a composition of signals (QUAL, depth, FILTER column, genotype), never a single threshold. Try the somatic preset and drop QUAL to 10: kept count jumps, but most newly-rejected rows are still carrying a non-PASS label.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Source</p>
+
+    <div class="radio-group">
+      <label><input type="radio" name="source" value="preset" checked> Preset</label>
+      <label><input type="radio" name="source" value="custom"> Paste your own</label>
+    </div>
+
+    <div class="source-row" id="preset-row">
+      <div>
+        <label class="field-label" for="preset">Scenario</label>
+        <select id="preset" class="select-input">
+          <option value="germline">Small germline VCF</option>
+          <option value="multiallelic">Multi-allelic</option>
+          <option value="trio">Multi-sample trio</option>
+          <option value="somatic" selected>Somatic with low-VAF variants</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="custom-row" hidden>
+      <label class="field-label" for="vcf-text">VCF text (paste below)</label>
+      <textarea id="vcf-text" class="seq-input" rows="8" spellcheck="false" placeholder="##fileformat=VCFv4.2&#10;#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE&#10;..."></textarea>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Filters</p>
+
+    <div class="filters-grid">
+      <div class="filter-cell">
+        <label class="field-label" for="qual-slider">QUAL <span style="text-transform:none;">≥</span></label>
+        <div class="row">
+          <input id="qual-slider" class="slider-input" type="range" min="0" max="500" step="1" value="30">
+          <span class="slider-value" id="qual-val">30</span>
+        </div>
+      </div>
+      <div class="filter-cell">
+        <label class="field-label" for="dpmin-slider">DP <span style="text-transform:none;">≥</span></label>
+        <div class="row">
+          <input id="dpmin-slider" class="slider-input" type="range" min="0" max="50" step="1" value="10">
+          <span class="slider-value" id="dpmin-val">10</span>
+        </div>
+      </div>
+      <div class="filter-cell">
+        <label class="field-label" for="dpmax-slider">DP <span style="text-transform:none;">≤</span></label>
+        <div class="row">
+          <input id="dpmax-slider" class="slider-input" type="range" min="50" max="500" step="5" value="200">
+          <span class="slider-value" id="dpmax-val">200</span>
+        </div>
+      </div>
+      <div class="filter-cell">
+        <label class="field-label">FILTER column</label>
+        <label class="checkbox-line">
+          <input id="pass-only" type="checkbox" checked>
+          <span>PASS only</span>
+        </label>
+      </div>
+      <div class="filter-cell">
+        <label class="field-label" for="gt-filter">Genotype</label>
+        <select id="gt-filter" class="select-input">
+          <option value="any" selected>Any genotype</option>
+          <option value="het">Heterozygous only (0/1)</option>
+          <option value="homalt">Homozygous alt only (1/1)</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="results-panel">
+    <p class="panel-label">Results</p>
+
+    <div id="issues" class="issues" hidden></div>
+    <div id="header-note" class="header-note" hidden></div>
+    <div id="banner" class="banner" role="status"></div>
+
+    <div class="table-wrap">
+      <table class="vcf-table" id="vcf-table" aria-label="Parsed VCF variants">
+        <thead>
+          <tr id="vcf-thead">
+            <th data-col="CHROM">CHROM <span class="arrow"></span></th>
+            <th data-col="POS" data-type="num">POS <span class="arrow"></span></th>
+            <th data-col="REF">REF <span class="arrow"></span></th>
+            <th data-col="ALT">ALT <span class="arrow"></span></th>
+            <th data-col="QUAL" data-type="num">QUAL <span class="arrow"></span></th>
+            <th data-col="FILTER">FILTER <span class="arrow"></span></th>
+            <th data-col="DP" data-type="num">DP <span class="arrow"></span></th>
+            <th data-col="GT">GT <span class="arrow"></span></th>
+            <th data-col="VAF" data-type="num">VAF <span class="arrow"></span></th>
+            <th data-col="GENE">GENE <span class="arrow"></span></th>
+            <th data-col="SAMPLE">SAMPLE <span class="arrow"></span></th>
+            <th data-col="STATUS">STATUS <span class="arrow"></span></th>
+          </tr>
+        </thead>
+        <tbody id="vcf-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="legend-row">
+      <span><span class="sw kept"></span>Kept</span>
+      <span><span class="sw dropped"></span>Dropped (reason shown in STATUS)</span>
+      <span>Click any column header to sort.</span>
+    </div>
+
+    <div class="actions-row">
+      <button id="download-btn" class="btn btn--primary" type="button">Download kept variants (.vcf)</button>
+      <button id="reparse-btn" class="btn" type="button">Re-parse</button>
+      <span class="count-note" id="count-note"></span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Reading the banner</p>
+    <p class="hint">
+      The <strong>dropped breakdown</strong> reports the <em>first</em> reason a row was rejected, checked in this order:
+      <code>FILTER</code> → <code>QUAL</code> → <code>DP</code> (min) → <code>DP</code> (max) → <code>GT</code>. A row that fails both <code>FILTER</code> and <code>QUAL</code> is counted once under <code>FILTER</code>.
+      This mirrors how production pipelines stack VCF filters: once a row is tagged, later checks don't re-tag it.
+      Download produces a valid VCF (<code>##fileformat=VCFv4.2</code> header + kept rows only) that this artifact can re-load under <em>Paste your own</em>.
+    </p>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const vcfText      = $('vcf-text');
+  const presetEl     = $('preset');
+  const presetRow    = $('preset-row');
+  const customRow    = $('custom-row');
+  const sourceRadios = document.querySelectorAll('input[name="source"]');
+  const qualSlider   = $('qual-slider');
+  const dpminSlider  = $('dpmin-slider');
+  const dpmaxSlider  = $('dpmax-slider');
+  const qualVal      = $('qual-val');
+  const dpminVal     = $('dpmin-val');
+  const dpmaxVal     = $('dpmax-val');
+  const passOnly     = $('pass-only');
+  const gtFilter     = $('gt-filter');
+  const banner       = $('banner');
+  const issuesEl     = $('issues');
+  const headerNoteEl = $('header-note');
+  const tbody        = $('vcf-tbody');
+  const thead        = $('vcf-thead');
+  const downloadBtn  = $('download-btn');
+  const reparseBtn   = $('reparse-btn');
+  const countNote    = $('count-note');
+
+  // ─── Presets ─────────────────────────────────────────────
+  const PRESETS = {
+    germline: [
+      '##fileformat=VCFv4.2',
+      '##source=SmallGermlinePreset',
+      '##INFO=<ID=DP,Number=1,Type=Integer,Description="Total depth">',
+      '##INFO=<ID=GENE,Number=1,Type=String,Description="Overlapping gene">',
+      '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
+      '##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Sample depth">',
+      '##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">',
+      '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE1',
+      'chr1\t10250\t.\tA\tG\t245.2\tPASS\tDP=34;GENE=NOC2L\tGT:DP:AD\t0/1:34:18,16',
+      'chr1\t15820\trs7\tC\tT\t189.0\tPASS\tDP=28;GENE=WASH7P\tGT:DP:AD\t0/1:28:14,14',
+      'chr1\t48200\t.\tG\tA\t42.5\tPASS\tDP=14;GENE=OR4F5\tGT:DP:AD\t0/1:14:9,5',
+      'chr1\t98700\trs12\tT\tC\t412.8\tPASS\tDP=55;GENE=LINC00115\tGT:DP:AD\t1/1:55:1,54',
+      'chr2\t201400\t.\tG\tT\t22.1\tLowQual\tDP=9;GENE=SLC30A8\tGT:DP:AD\t0/1:9:6,3',
+      'chr2\t355000\trs34\tA\tC\t168.0\tPASS\tDP=26;GENE=SPTBN1\tGT:DP:AD\t0/1:26:13,13',
+      'chr3\t12000\t.\tC\tG\t78.3\tPASS\tDP=19;GENE=CNTN6\tGT:DP:AD\t0/1:19:11,8',
+      'chr3\t45200\t.\tT\tA\t15.5\tLowQual\tDP=8;GENE=CACNA2D3\tGT:DP:AD\t0/1:8:5,3',
+      'chr4\t88200\trs55\tG\tC\t302.0\tPASS\tDP=41;GENE=UGT2B7\tGT:DP:AD\t1/1:41:0,41',
+      'chr4\t190000\t.\tA\tT\t98.0\tPASS\tDP=22;GENE=LEF1\tGT:DP:AD\t0/1:22:12,10',
+      'chr5\t66000\t.\tC\tT\t145.5\tPASS\tDP=30;GENE=MAP3K1\tGT:DP:AD\t0/1:30:16,14',
+      'chr5\t155300\trs99\tG\tA\t380.0\tPASS\tDP=48;GENE=IL12B\tGT:DP:AD\t1/1:48:0,48',
+      'chr6\t31200\t.\tT\tC\t62.5\tPASS\tDP=17;GENE=HLA-B\tGT:DP:AD\t0/1:17:10,7',
+      'chr6\t140500\t.\tA\tG\t8.0\tLowQual\tDP=6;GENE=PARK2\tGT:DP:AD\t0/1:6:4,2',
+      'chr7\t55200\trs101\tC\tT\t220.0\tPASS\tDP=32;GENE=EGFR\tGT:DP:AD\t0/1:32:17,15',
+      'chr7\t140800\trs102\tG\tA\t174.0\tPASS\tDP=27;GENE=BRAF\tGT:DP:AD\t1/1:27:1,26',
+      'chr8\t128700\t.\tT\tG\t255.0\tPASS\tDP=36;GENE=MYC\tGT:DP:AD\t0/1:36:19,17',
+      'chr10\t89600\t.\tC\tA\t112.0\tPASS\tDP=23;GENE=PTEN\tGT:DP:AD\t0/1:23:13,10',
+      'chr11\t108200\t.\tG\tT\t198.5\tPASS\tDP=29;GENE=ATM\tGT:DP:AD\t0/1:29:15,14',
+      'chr13\t32900\trs113\tA\tG\t288.0\tPASS\tDP=38;GENE=BRCA2\tGT:DP:AD\t0/1:38:20,18',
+    ].join('\n'),
+
+    multiallelic: [
+      '##fileformat=VCFv4.2',
+      '##source=MultiAllelicPreset',
+      '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
+      '##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">',
+      '##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for REF,ALT1,ALT2...">',
+      '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE1',
+      'chr1\t12050\t.\tA\tC,G\t220.0\tPASS\tDP=36;GENE=RPL11\tGT:DP:AD\t1/2:36:4,18,14',
+      'chr1\t55300\t.\tT\tA,G\t145.0\tPASS\tDP=28;GENE=C1orf127\tGT:DP:AD\t0/1:28:15,10,3',
+      'chr2\t98200\trs7\tC\tT\t310.0\tPASS\tDP=42;GENE=SOCS5\tGT:DP:AD\t1/1:42:1,41',
+      'chr2\t177400\t.\tG\tA,C,T\t88.5\tPASS\tDP=24;GENE=HOXD13\tGT:DP:AD\t1/3:24:6,8,2,8',
+      'chr3\t42000\t.\tA\tT\t195.0\tPASS\tDP=30;GENE=MYL3\tGT:DP:AD\t0/1:30:16,14',
+      'chr4\t156000\t.\tC\tA,G\t42.0\tLowQual\tDP=11;GENE=FBXW7\tGT:DP:AD\t1/2:11:2,5,4',
+      'chr5\t80900\t.\tG\tT\t250.0\tPASS\tDP=34;GENE=XRCC4\tGT:DP:AD\t0/1:34:18,16',
+      'chr6\t32300\trs22\tT\tC,A\t178.5\tPASS\tDP=29;GENE=HLA-DRB1\tGT:DP:AD\t1/2:29:3,14,12',
+      'chr7\t104500\t.\tA\tG\t325.0\tPASS\tDP=44;GENE=LHFPL3\tGT:DP:AD\t1/1:44:0,44',
+      'chr9\t120200\t.\tC\tT,G\t60.5\tPASS\tDP=18;GENE=TNC\tGT:DP:AD\t0/1:18:10,5,3',
+      'chr11\t68500\t.\tG\tA\t105.0\tPASS\tDP=22;GENE=CCND1\tGT:DP:AD\t0/1:22:12,10',
+      'chr12\t25400\trs45\tA\tC,T\t275.0\tPASS\tDP=38;GENE=KRAS\tGT:DP:AD\t1/2:38:4,20,14',
+      'chr17\t7675000\t.\tG\tA\t380.0\tPASS\tDP=48;GENE=TP53\tGT:DP:AD\t0/1:48:25,23',
+      'chr19\t45400\t.\tT\tA,C\t25.0\tLowQual\tDP=8;GENE=APOE\tGT:DP:AD\t0/1:8:4,2,2',
+      'chr22\t29100\t.\tA\tG\t212.0\tPASS\tDP=32;GENE=CHEK2\tGT:DP:AD\t1/1:32:0,32',
+    ].join('\n'),
+
+    trio: [
+      '##fileformat=VCFv4.2',
+      '##source=TrioPreset',
+      '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
+      '##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">',
+      '##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">',
+      '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tFATHER\tMOTHER\tCHILD',
+      'chr1\t20000\t.\tA\tG\t245.0\tPASS\tDP=102;GENE=RP5\tGT:DP:AD\t0/1:35:18,17\t0/0:33:33,0\t0/1:34:17,17',
+      'chr1\t89000\trs2\tC\tT\t320.0\tPASS\tDP=120;GENE=LINC01128\tGT:DP:AD\t0/1:40:22,18\t0/1:38:19,19\t1/1:42:1,41',
+      'chr2\t45200\t.\tG\tA\t88.0\tPASS\tDP=60;GENE=ALMS1\tGT:DP:AD\t0/0:22:22,0\t0/1:19:10,9\t0/1:19:10,9',
+      'chr2\t188400\t.\tT\tC\t28.0\tLowQual\tDP=30;GENE=CALCRL\tGT:DP:AD\t0/1:10:6,4\t0/0:10:10,0\t0/1:10:6,4',
+      'chr3\t66000\t.\tA\tT\t410.0\tPASS\tDP=132;GENE=FOXP1\tGT:DP:AD\t1/1:45:0,45\t1/1:44:1,43\t1/1:43:0,43',
+      'chr4\t112000\t.\tC\tG\t175.0\tPASS\tDP=90;GENE=FGFRL1\tGT:DP:AD\t0/1:32:17,15\t0/0:28:28,0\t0/1:30:16,14',
+      'chr5\t90500\trs77\tG\tA\t290.0\tPASS\tDP=108;GENE=POLK\tGT:DP:AD\t0/1:36:19,17\t0/1:34:17,17\t0/1:38:20,18',
+      'chr6\t44000\t.\tA\tG\t52.0\tPASS\tDP=45;GENE=CAPN11\tGT:DP:AD\t0/1:15:9,6\t0/0:14:14,0\t0/1:16:10,6',
+      'chr7\t122000\t.\tT\tC\t8.0\tLowQual\tDP=18;GENE=CAV1\tGT:DP:AD\t0/1:6:4,2\t0/0:6:6,0\t0/1:6:4,2',
+      'chr8\t41200\trs91\tG\tA\t335.0\tPASS\tDP=115;GENE=PLAT\tGT:DP:AD\t0/1:38:20,18\t0/1:36:19,17\t1/1:41:1,40',
+      'chr9\t136000\t.\tC\tT\t162.0\tPASS\tDP=84;GENE=ABL1\tGT:DP:AD\t0/0:28:28,0\t0/1:27:14,13\t0/1:29:15,14',
+      'chr10\t60000\t.\tA\tG\t205.0\tPASS\tDP=100;GENE=BMPR1A\tGT:DP:AD\t0/1:34:18,16\t0/1:33:17,16\t1/1:33:0,33',
+      'chr11\t111000\t.\tG\tA\t98.0\tPASS\tDP=68;GENE=DLAT\tGT:DP:AD\t0/0:22:22,0\t0/1:23:12,11\t0/1:23:12,11',
+      'chr12\t40500\t.\tT\tC\t255.0\tPASS\tDP=102;GENE=PPFIBP1\tGT:DP:AD\t0/1:35:19,16\t0/1:33:17,16\t0/1:34:18,16',
+      'chr14\t55000\trs110\tC\tT\t380.0\tPASS\tDP=124;GENE=MAX\tGT:DP:AD\t1/1:42:0,42\t1/1:40:1,39\t1/1:42:0,42',
+      'chr17\t8200\t.\tG\tT\t72.0\tPASS\tDP=48;GENE=MYH2\tGT:DP:AD\t0/1:16:9,7\t0/0:16:16,0\t0/1:16:9,7',
+      'chr18\t48000\trs120\tA\tC\t195.0\tPASS\tDP=88;GENE=SMAD4\tGT:DP:AD\t0/1:30:16,14\t0/1:28:15,13\t0/1:30:16,14',
+      'chr20\t31000\t.\tT\tG\t12.5\tLowQual\tDP=20;GENE=BCL2L1\tGT:DP:AD\t0/1:7:5,2\t0/0:6:6,0\t0/1:7:5,2',
+    ].join('\n'),
+
+    somatic: [
+      '##fileformat=VCFv4.2',
+      '##source=SomaticLowVAFPreset',
+      '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
+      '##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">',
+      '##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths REF,ALT">',
+      '##FORMAT=<ID=AF,Number=A,Type=Float,Description="Variant allele fraction">',
+      '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tTUMOR',
+      'chr1\t27100\t.\tC\tT\t22.0\tPASS\tDP=180;GENE=ARID1A\tGT:DP:AD:AF\t0/1:180:165,15:0.083',
+      'chr2\t25500\trs7\tG\tA\t82.0\tPASS\tDP=160;GENE=DNMT3A\tGT:DP:AD:AF\t0/1:160:142,18:0.113',
+      'chr3\t178900\t.\tG\tA\t140.0\tPASS\tDP=195;GENE=PIK3CA\tGT:DP:AD:AF\t0/1:195:170,25:0.128',
+      'chr3\t178950\t.\tA\tG\t22.0\tLowQual\tDP=190;GENE=PIK3CA\tGT:DP:AD:AF\t0/1:190:182,8:0.042',
+      'chr4\t55100\trs12\tT\tC\t26.0\tPASS\tDP=140;GENE=KIT\tGT:DP:AD:AF\t0/1:140:128,12:0.086',
+      'chr5\t112200\t.\tC\tT\t38.0\tStrandBias\tDP=155;GENE=APC\tGT:DP:AD:AF\t0/1:155:144,11:0.071',
+      'chr7\t55200\t.\tG\tA\t150.0\tPASS\tDP=170;GENE=EGFR\tGT:DP:AD:AF\t0/1:170:120,50:0.294',
+      'chr7\t140750\trs20\tT\tA\t195.0\tPASS\tDP=175;GENE=BRAF\tGT:DP:AD:AF\t0/1:175:125,50:0.286',
+      'chr7\t140800\t.\tC\tG\t18.5\tLowQual;StrandBias\tDP=95;GENE=BRAF\tGT:DP:AD:AF\t0/1:95:90,5:0.053',
+      'chr8\t128748800\t.\tA\tG\t12.0\tLowQual\tDP=48;GENE=MYC\tGT:DP:AD:AF\t0/1:48:45,3:0.063',
+      'chr9\t21970000\trs33\tC\tT\t175.0\tPASS\tDP=180;GENE=CDKN2A\tGT:DP:AD:AF\t0/1:180:122,58:0.322',
+      'chr10\t89690000\t.\tG\tA\t17.0\tPASS\tDP=125;GENE=PTEN\tGT:DP:AD:AF\t0/1:125:112,13:0.104',
+      'chr10\t89720000\t.\tT\tC\t8.5\tLowQual\tDP=30;GENE=PTEN\tGT:DP:AD:AF\t0/1:30:28,2:0.067',
+      'chr11\t108200000\t.\tG\tT\t105.0\tPASS\tDP=190;GENE=ATM\tGT:DP:AD:AF\t0/1:190:171,19:0.100',
+      'chr12\t25398280\t.\tC\tA\t158.0\tPASS\tDP=170;GENE=KRAS\tGT:DP:AD:AF\t0/1:170:136,34:0.200',
+      'chr12\t25398284\t.\tC\tT\t14.0\tLowQual\tDP=165;GENE=KRAS\tGT:DP:AD:AF\t0/1:165:158,7:0.042',
+      'chr13\t48900000\t.\tG\tA\t28.0\tStrandBias\tDP=5\tGT:DP:AD:AF\t0/1:5:4,1:0.200',
+      'chr14\t105240000\t.\tT\tC\t92.0\tPASS\tDP=185;GENE=AKT1\tGT:DP:AD:AF\t0/1:185:165,20:0.108',
+      'chr15\t91300000\t.\tA\tC\t21.0\tPASS\tDP=80;GENE=IDH2\tGT:DP:AD:AF\t0/1:80:74,6:0.075',
+      'chr16\t3775000\t.\tG\tA\t42.0\tPASS\tDP=130;GENE=CREBBP\tGT:DP:AD:AF\t0/1:130:118,12:0.092',
+      'chr17\t7675000\t.\tC\tT\t180.0\tPASS\tDP=170;GENE=TP53\tGT:DP:AD:AF\t0/1:170:110,60:0.353',
+      'chr17\t7675050\t.\tG\tT\t26.0\tLowQual\tDP=195;GENE=TP53\tGT:DP:AD:AF\t0/1:195:186,9:0.046',
+      'chr18\t48600000\t.\tC\tG\t72.0\tPASS\tDP=185;GENE=SMAD4\tGT:DP:AD:AF\t0/1:185:165,20:0.108',
+      'chr19\t11100000\trs55\tA\tG\t150.0\tPASS\tDP=175;GENE=SMARCA4\tGT:DP:AD:AF\t0/1:175:135,40:0.229',
+      'chrX\t66765000\t.\tG\tA\t16.0\tLowQual\tDP=60;GENE=AR\tGT:DP:AD:AF\t0/1:60:57,3:0.050',
+    ].join('\n'),
+  };
+
+  // ─── Parser ──────────────────────────────────────────────
+  // Returns { rows, issues, headerSeen, sampleNames }
+  function parseVCF(raw) {
+    const issues = [];
+    const rows = [];
+    let headerSeen = false;
+    let sampleNames = [];
+
+    if (!raw || !raw.trim()) {
+      return { rows, issues, headerSeen, sampleNames };
+    }
+
+    const lines = raw.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.length === 0) continue;
+      const lineNo = i + 1;
+
+      if (line.startsWith('##')) {
+        // meta-info — skip
+        continue;
+      }
+      if (line.startsWith('#CHROM')) {
+        // column header
+        const cols = line.slice(1).split('\t');
+        if (cols.length < 8) {
+          issues.push({ line: lineNo, level: 'error', msg: 'Header row has fewer than 8 columns' });
+          continue;
+        }
+        const required = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO'];
+        for (let c = 0; c < 8; c++) {
+          if (cols[c] !== required[c]) {
+            issues.push({ line: lineNo, level: 'warn', msg: 'Header col ' + (c + 1) + ' is "' + cols[c] + '", expected "' + required[c] + '"' });
+          }
+        }
+        // FORMAT + samples
+        if (cols.length >= 10 && cols[8] === 'FORMAT') {
+          sampleNames = cols.slice(9);
+        } else {
+          sampleNames = [];
+        }
+        headerSeen = true;
+        continue;
+      }
+      if (line.startsWith('#')) continue;
+
+      // Data row
+      const parts = line.split('\t');
+      if (parts.length < 8) {
+        issues.push({ line: lineNo, level: 'error', msg: 'Row has ' + parts.length + ' tab-separated fields (need at least 8)' });
+        continue;
+      }
+      const [chrom, posStr, id, ref, altStr, qualStr, filter, info, format, ...samples] = parts;
+      const pos = parseInt(posStr, 10);
+      if (!Number.isFinite(pos)) {
+        issues.push({ line: lineNo, level: 'error', msg: 'POS is not an integer: "' + posStr + '"' });
+        continue;
+      }
+      if (!ref || !/^[ACGTNacgtn*]+$/.test(ref)) {
+        issues.push({ line: lineNo, level: 'warn', msg: 'REF "' + ref + '" has unexpected characters' });
+      }
+      const qual = (qualStr === '.' || qualStr === '') ? null : Number(qualStr);
+      if (qual !== null && !Number.isFinite(qual)) {
+        issues.push({ line: lineNo, level: 'warn', msg: 'QUAL "' + qualStr + '" is not numeric' });
+      }
+
+      const alts = altStr.split(',');
+      const infoMap = parseInfo(info);
+
+      // Determine DP fallback from INFO
+      const infoDP = infoMap.DP ? Number(infoMap.DP) : null;
+      const gene = infoMap.GENE || infoMap.gene || '';
+
+      // Parse FORMAT + samples
+      const fmtKeys = (format && headerSeen) ? format.split(':') : [];
+      const gtIdx = fmtKeys.indexOf('GT');
+      const dpIdx = fmtKeys.indexOf('DP');
+      const adIdx = fmtKeys.indexOf('AD');
+      const afIdx = fmtKeys.indexOf('AF');
+
+      // Per-sample record (one per sample). For this artifact we emit one
+      // row per (sample × ALT) only for multi-allelic rows (still useful);
+      // for single-sample, just iterate samples.
+      const perSample = [];
+      for (let s = 0; s < samples.length; s++) {
+        const fields = samples[s].split(':');
+        const gt = gtIdx >= 0 ? (fields[gtIdx] || './.') : './.';
+        const sampleDP = dpIdx >= 0 ? Number(fields[dpIdx]) : NaN;
+        const ad = adIdx >= 0 ? fields[adIdx] : '';
+        const afStr = afIdx >= 0 ? fields[afIdx] : '';
+        perSample.push({
+          name: sampleNames[s] || ('SAMPLE' + (s + 1)),
+          gt,
+          dp: Number.isFinite(sampleDP) ? sampleDP : (Number.isFinite(infoDP) ? infoDP : null),
+          ad,
+          af: afStr,
+        });
+      }
+      if (perSample.length === 0) {
+        // No samples — still emit one row with undefined genotype
+        perSample.push({
+          name: '(none)',
+          gt: './.',
+          dp: Number.isFinite(infoDP) ? infoDP : null,
+          ad: '',
+          af: '',
+        });
+      }
+
+      // For multi-allelic rows, compute VAF per ALT from AD when possible.
+      // Emit one parsed row per ALT × sample.
+      for (let altI = 0; altI < alts.length; altI++) {
+        const altAllele = alts[altI];
+        for (let s = 0; s < perSample.length; s++) {
+          const ps = perSample[s];
+          const vaf = computeVAF(ps.ad, ps.af, altI, alts.length);
+          rows.push({
+            chrom,
+            pos,
+            id,
+            ref,
+            altFull: altStr,        // full comma-joined for display context
+            alt: altAllele,         // single ALT for this row
+            altIndex: altI,         // 0-based index among alts
+            altCount: alts.length,
+            qual,
+            filter: filter || '.',
+            info,
+            gene,
+            format: format || '',
+            sample: ps.name,
+            sampleIdx: s,
+            gt: ps.gt,
+            dp: ps.dp,
+            ad: ps.ad,
+            vaf,
+            // Preserve full original row so we can reconstruct VCF on download.
+            rawLine: line,
+            // Flag to avoid duplicating raw lines in download — only keep once per row.
+            primary: (altI === 0 && s === 0),
+          });
+        }
+      }
+    }
+
+    return { rows, issues, headerSeen, sampleNames };
+  }
+
+  function parseInfo(info) {
+    const out = {};
+    if (!info || info === '.') return out;
+    const parts = info.split(';');
+    for (const p of parts) {
+      if (!p) continue;
+      const eq = p.indexOf('=');
+      if (eq === -1) {
+        out[p] = true;
+      } else {
+        out[p.slice(0, eq)] = p.slice(eq + 1);
+      }
+    }
+    return out;
+  }
+
+  function computeVAF(ad, afStr, altI, altCount) {
+    // Prefer AD if populated (REF,ALT1,ALT2,...): vaf = ADalt / sum(AD)
+    if (ad && ad !== '.' && ad !== '') {
+      const parts = ad.split(',').map(Number);
+      if (parts.every(Number.isFinite) && parts.length >= altCount + 1) {
+        const sum = parts.reduce((a, b) => a + b, 0);
+        if (sum > 0) {
+          return parts[altI + 1] / sum;
+        }
+      }
+    }
+    // Otherwise fall back to AF field
+    if (afStr && afStr !== '.') {
+      const afs = afStr.split(',').map(Number);
+      if (afs[altI] !== undefined && Number.isFinite(afs[altI])) {
+        return afs[altI];
+      }
+    }
+    return null;
+  }
+
+  // ─── Filtering ───────────────────────────────────────────
+  function applyFilters(rows, cfg) {
+    const kept = [];
+    const dropped = [];
+    const breakdown = { FILTER: 0, QUAL: 0, DPmin: 0, DPmax: 0, GT: 0 };
+
+    for (const r of rows) {
+      let reason = null;
+
+      if (cfg.passOnly) {
+        const f = (r.filter || '').trim();
+        if (f !== 'PASS' && f !== '.') {
+          reason = 'FILTER';
+        }
+      }
+      if (!reason) {
+        if (r.qual === null || !Number.isFinite(r.qual) || r.qual < cfg.qualMin) {
+          reason = 'QUAL';
+        }
+      }
+      if (!reason) {
+        if (r.dp === null || !Number.isFinite(r.dp) || r.dp < cfg.dpMin) {
+          reason = 'DPmin';
+        }
+      }
+      if (!reason) {
+        if (r.dp !== null && Number.isFinite(r.dp) && r.dp > cfg.dpMax) {
+          reason = 'DPmax';
+        }
+      }
+      if (!reason) {
+        if (cfg.gtFilter === 'het' && !isHet(r.gt)) reason = 'GT';
+        else if (cfg.gtFilter === 'homalt' && !isHomAlt(r.gt)) reason = 'GT';
+      }
+
+      if (reason) {
+        breakdown[reason] += 1;
+        dropped.push({ ...r, _reason: reason });
+      } else {
+        kept.push({ ...r, _reason: null });
+      }
+    }
+
+    return { kept, dropped, breakdown };
+  }
+
+  function isHet(gt) {
+    if (!gt || gt === '.' || gt === './.' || gt === '.|.') return false;
+    const alleles = gt.split(/[\/|]/);
+    if (alleles.length < 2) return false;
+    return alleles[0] !== alleles[1] && alleles.every(a => a !== '.');
+  }
+  function isHomAlt(gt) {
+    if (!gt || gt === '.' || gt === './.' || gt === '.|.') return false;
+    const alleles = gt.split(/[\/|]/);
+    if (alleles.length < 2) return false;
+    if (alleles.some(a => a === '.' || a === '0')) return false;
+    return alleles.every(a => a === alleles[0]);
+  }
+
+  // ─── Rendering ───────────────────────────────────────────
+  const sortState = { col: 'POS', dir: 'asc' };
+  let currentParsed = null;
+  let currentFiltered = null;
+
+  function renderTable(kept, dropped) {
+    // Combine for display — kept first (unless sorting), but we include both.
+    const all = kept.concat(dropped);
+    const rows = all.slice().sort(comparator(sortState.col, sortState.dir));
+
+    // Update sort arrows
+    thead.querySelectorAll('th').forEach(th => {
+      const arrow = th.querySelector('.arrow');
+      if (th.dataset.col === sortState.col) {
+        arrow.textContent = sortState.dir === 'asc' ? '▲' : '▼';
+      } else {
+        arrow.textContent = '';
+      }
+    });
+
+    // Render rows
+    tbody.innerHTML = '';
+    if (rows.length === 0) {
+      const tr = document.createElement('tr');
+      tr.className = 'empty-row';
+      tr.innerHTML = '<td colspan="12">No variants parsed.</td>';
+      tbody.appendChild(tr);
+      return;
+    }
+
+    const frag = document.createDocumentFragment();
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      tr.className = r._reason ? 'dropped' : 'kept';
+
+      const cells = [];
+      cells.push(cell(r.chrom));
+      cells.push(cell(String(r.pos)));
+      cells.push(cell(r.ref));
+      cells.push(altCell(r));
+      cells.push(qualCell(r));
+      cells.push(filterCell(r));
+      cells.push(dpCell(r));
+      cells.push(gtCell(r));
+      cells.push(vafCell(r));
+      cells.push(cell(r.gene || '—'));
+      cells.push(cell(r.sample));
+      cells.push(statusCell(r));
+
+      for (const c of cells) tr.appendChild(c);
+      frag.appendChild(tr);
+    }
+    tbody.appendChild(frag);
+  }
+
+  function cell(text, cls) {
+    const td = document.createElement('td');
+    td.textContent = text == null ? '—' : String(text);
+    if (cls) td.className = cls;
+    return td;
+  }
+
+  function altCell(r) {
+    const td = document.createElement('td');
+    td.className = 'cell-alt';
+    if (r.altCount > 1) {
+      // Show the ALT for this row plus full context in parentheses.
+      const span = document.createElement('span');
+      span.className = 'multi';
+      span.textContent = r.alt;
+      td.appendChild(span);
+      const note = document.createElement('span');
+      note.style.color = 'var(--fg-subtle)';
+      note.style.marginLeft = '0.3rem';
+      note.textContent = '(of ' + r.altFull + ')';
+      td.appendChild(note);
+    } else {
+      td.textContent = r.alt;
+    }
+    return td;
+  }
+
+  function qualCell(r) {
+    const td = document.createElement('td');
+    td.className = 'cell-qual';
+    if (r.qual === null) {
+      td.textContent = '—';
+      td.classList.add('low');
+    } else {
+      td.textContent = r.qual.toFixed(1);
+      if (r.qual < Number(qualSlider.value)) td.classList.add('low');
+    }
+    return td;
+  }
+
+  function filterCell(r) {
+    const td = document.createElement('td');
+    td.className = 'cell-filter';
+    const f = (r.filter || '.').trim();
+    td.textContent = f;
+    if (f === 'PASS' || f === '.') td.classList.add('pass');
+    else td.classList.add('fail');
+    return td;
+  }
+
+  function dpCell(r) {
+    const td = document.createElement('td');
+    td.className = 'cell-dp';
+    if (r.dp === null || !Number.isFinite(r.dp)) {
+      td.textContent = '—';
+      td.classList.add('low');
+    } else {
+      td.textContent = String(r.dp);
+      const minV = Number(dpminSlider.value);
+      const maxV = Number(dpmaxSlider.value);
+      if (r.dp < minV) td.classList.add('low');
+      else if (r.dp > maxV) td.classList.add('high');
+    }
+    return td;
+  }
+
+  function gtCell(r) {
+    const td = document.createElement('td');
+    td.className = 'cell-gt';
+    td.textContent = r.gt || '.';
+    if (isHomAlt(r.gt)) td.classList.add('hom');
+    else if (isHet(r.gt)) td.classList.add('het');
+    else if (r.gt === '0/0' || r.gt === '0|0') td.classList.add('hom-ref');
+    return td;
+  }
+
+  function vafCell(r) {
+    const td = document.createElement('td');
+    if (r.vaf === null || !Number.isFinite(r.vaf)) {
+      td.textContent = '—';
+    } else {
+      td.textContent = r.vaf.toFixed(3);
+    }
+    return td;
+  }
+
+  function statusCell(r) {
+    const td = document.createElement('td');
+    if (r._reason) {
+      td.className = 'cell-reason';
+      const labels = {
+        FILTER: 'dropped · FILTER',
+        QUAL: 'dropped · QUAL',
+        DPmin: 'dropped · DP<min',
+        DPmax: 'dropped · DP>max',
+        GT: 'dropped · GT',
+      };
+      td.textContent = labels[r._reason] || 'dropped';
+    } else {
+      td.textContent = 'kept';
+      td.style.color = 'var(--success)';
+    }
+    return td;
+  }
+
+  function comparator(col, dir) {
+    const factor = dir === 'asc' ? 1 : -1;
+    const getter = (r) => {
+      switch (col) {
+        case 'CHROM': return chromKey(r.chrom);
+        case 'POS':   return r.pos;
+        case 'REF':   return r.ref;
+        case 'ALT':   return r.alt;
+        case 'QUAL':  return r.qual === null ? -Infinity : r.qual;
+        case 'FILTER':return r.filter;
+        case 'DP':    return (r.dp === null || !Number.isFinite(r.dp)) ? -Infinity : r.dp;
+        case 'GT':    return r.gt;
+        case 'VAF':   return (r.vaf === null || !Number.isFinite(r.vaf)) ? -Infinity : r.vaf;
+        case 'GENE':  return r.gene || '';
+        case 'SAMPLE':return r.sample;
+        case 'STATUS':return r._reason || '';
+        default: return '';
+      }
+    };
+    return (a, b) => {
+      const va = getter(a), vb = getter(b);
+      if (typeof va === 'number' && typeof vb === 'number') {
+        return (va - vb) * factor;
+      }
+      return String(va).localeCompare(String(vb)) * factor;
+    };
+  }
+
+  function chromKey(c) {
+    // Sort chromosomes intuitively: chr1 < chr2 < ... < chr10 < chrX < chrY.
+    // Use a string that orders numerically-padded.
+    const s = String(c).replace(/^chr/i, '');
+    const n = Number(s);
+    if (Number.isFinite(n)) return 'A' + String(n).padStart(4, '0');
+    return 'B' + s.toUpperCase();
+  }
+
+  // ─── Banner ──────────────────────────────────────────────
+  function renderBanner(totalInput, kept, dropped, breakdown) {
+    const parts = [];
+    if (breakdown.FILTER) parts.push('<span class="k">FILTER=' + breakdown.FILTER + '</span>');
+    if (breakdown.QUAL)   parts.push('<span class="k">QUAL=' + breakdown.QUAL + '</span>');
+    if (breakdown.DPmin)  parts.push('<span class="k">DP&lt;min=' + breakdown.DPmin + '</span>');
+    if (breakdown.DPmax)  parts.push('<span class="k">DP&gt;max=' + breakdown.DPmax + '</span>');
+    if (breakdown.GT)     parts.push('<span class="k">GT=' + breakdown.GT + '</span>');
+    const breakdownText = parts.length ? ' (' + parts.join(' · ') + ')' : '';
+
+    banner.innerHTML = [
+      '<div>',
+      '<span class="tag input">Input: ' + totalInput + ' variant rows</span>',
+      ' · <span class="tag kept">Kept: ' + kept + '</span>',
+      ' · <span class="tag dropped">Dropped: ' + dropped + '</span>',
+      '</div>',
+      '<div class="breakdown">Drop reasons' + breakdownText + '</div>',
+    ].join('');
+  }
+
+  // ─── Issues + header note ────────────────────────────────
+  function renderIssues(issues, headerSeen) {
+    if (issues.length === 0) {
+      issuesEl.hidden = true;
+      issuesEl.innerHTML = '';
+    } else {
+      issuesEl.hidden = false;
+      issuesEl.innerHTML = issues.map(i => {
+        const prefix = i.level === 'error' ? 'Could not parse line ' : 'Warn line ';
+        const cls = i.level === 'error' ? '' : 'warn';
+        return '<div class="issue ' + cls + '">' + prefix + i.line + ': ' + escapeHtml(i.msg) + '</div>';
+      }).join('');
+    }
+    if (!headerSeen) {
+      headerNoteEl.hidden = false;
+      headerNoteEl.textContent = 'No header detected — FORMAT parsing disabled. Genotype and DP may be missing.';
+    } else {
+      headerNoteEl.hidden = true;
+      headerNoteEl.textContent = '';
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ─── Main compute cycle ──────────────────────────────────
+  function getSourceText() {
+    const src = document.querySelector('input[name="source"]:checked').value;
+    if (src === 'custom') {
+      return vcfText.value;
+    }
+    return PRESETS[presetEl.value] || '';
+  }
+
+  function compute() {
+    const raw = getSourceText();
+    const parsed = parseVCF(raw);
+    currentParsed = parsed;
+    renderIssues(parsed.issues, parsed.headerSeen);
+
+    const cfg = {
+      qualMin: Number(qualSlider.value),
+      dpMin:   Number(dpminSlider.value),
+      dpMax:   Number(dpmaxSlider.value),
+      passOnly: passOnly.checked,
+      gtFilter: gtFilter.value,
+    };
+    const filtered = applyFilters(parsed.rows, cfg);
+    currentFiltered = filtered;
+
+    renderBanner(parsed.rows.length, filtered.kept.length, filtered.dropped.length, filtered.breakdown);
+    renderTable(filtered.kept, filtered.dropped);
+
+    // Download button enabled iff at least one kept
+    downloadBtn.disabled = filtered.kept.length === 0;
+    countNote.textContent = filtered.kept.length + ' kept · '
+      + filtered.dropped.length + ' dropped · '
+      + parsed.rows.length + ' total variant-rows (after multi-allelic split).';
+  }
+
+  // ─── Slider value display ────────────────────────────────
+  qualSlider.addEventListener('input', () => { qualVal.textContent = qualSlider.value; compute(); });
+  dpminSlider.addEventListener('input', () => { dpminVal.textContent = dpminSlider.value; compute(); });
+  dpmaxSlider.addEventListener('input', () => { dpmaxVal.textContent = dpmaxSlider.value; compute(); });
+  passOnly.addEventListener('change', compute);
+  gtFilter.addEventListener('change', compute);
+
+  presetEl.addEventListener('change', compute);
+  vcfText.addEventListener('input', () => {
+    // live when custom is selected
+    const src = document.querySelector('input[name="source"]:checked').value;
+    if (src === 'custom') compute();
+  });
+  reparseBtn.addEventListener('click', compute);
+
+  sourceRadios.forEach(r => {
+    r.addEventListener('change', () => {
+      const mode = document.querySelector('input[name="source"]:checked').value;
+      if (mode === 'custom') {
+        presetRow.hidden = true;
+        customRow.hidden = false;
+        if (!vcfText.value.trim()) {
+          vcfText.value = PRESETS[presetEl.value] || PRESETS.germline;
+        }
+      } else {
+        presetRow.hidden = false;
+        customRow.hidden = true;
+      }
+      compute();
+    });
+  });
+
+  // ─── Sort header clicks ──────────────────────────────────
+  thead.addEventListener('click', (e) => {
+    const th = e.target.closest('th');
+    if (!th) return;
+    const col = th.dataset.col;
+    if (!col) return;
+    if (sortState.col === col) {
+      sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortState.col = col;
+      sortState.dir = 'asc';
+    }
+    if (currentFiltered) renderTable(currentFiltered.kept, currentFiltered.dropped);
+  });
+
+  // ─── Download ────────────────────────────────────────────
+  downloadBtn.addEventListener('click', () => {
+    if (!currentParsed || !currentFiltered) return;
+    const vcfLines = buildKeptVCF(currentParsed, currentFiltered.kept);
+    const blob = new Blob([vcfLines], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'kept-variants.vcf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Revoke after a moment to avoid blocking download in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+
+  function buildKeptVCF(parsed, kept) {
+    // Collect raw lines for primary (altIndex=0, sampleIdx=0) rows still represented in kept.
+    // We keep the line if *any* of its expanded rows was kept.
+    const keptSignatures = new Set();
+    for (const r of kept) {
+      keptSignatures.add(r.chrom + '|' + r.pos + '|' + r.ref + '|' + r.altFull);
+    }
+
+    const out = [];
+    out.push('##fileformat=VCFv4.2');
+    out.push('##source=VCFParserArtifact_kept');
+    out.push('##FILTER=<ID=PASS,Description="All filters passed">');
+    out.push('##INFO=<ID=DP,Number=1,Type=Integer,Description="Total depth">');
+    out.push('##INFO=<ID=GENE,Number=1,Type=String,Description="Overlapping gene">');
+    out.push('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">');
+    out.push('##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Sample depth">');
+    out.push('##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">');
+    out.push('##FORMAT=<ID=AF,Number=A,Type=Float,Description="Variant allele fraction">');
+
+    // Header line: derive from parsed
+    const samples = parsed.sampleNames.length ? parsed.sampleNames : [];
+    const hdr = ['#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT'].concat(samples);
+    if (samples.length === 0) {
+      // drop FORMAT column if no samples
+      out.push(['#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO'].join('\t'));
+    } else {
+      out.push(hdr.join('\t'));
+    }
+
+    // Emit each unique raw line at most once, preserving input order.
+    const seenLines = new Set();
+    for (const r of parsed.rows) {
+      if (!r.primary) continue;
+      const sig = r.chrom + '|' + r.pos + '|' + r.ref + '|' + r.altFull;
+      if (!keptSignatures.has(sig)) continue;
+      if (seenLines.has(r.rawLine)) continue;
+      seenLines.add(r.rawLine);
+      out.push(r.rawLine);
+    }
+    return out.join('\n') + '\n';
+  }
+
+  // ─── Initial render ──────────────────────────────────────
+  qualVal.textContent  = qualSlider.value;
+  dpminVal.textContent = dpminSlider.value;
+  dpmaxVal.textContent = dpmaxSlider.value;
+
+  compute();
+})();
+</script>
+
+</body>
+</html>

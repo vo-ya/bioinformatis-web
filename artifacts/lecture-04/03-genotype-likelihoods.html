@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Genotype Likelihood Calculator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 66ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.35rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem 1.25rem;
+      align-items: end;
+    }
+    .controls-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    .slider-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .slider-field .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .slider-field input[type="range"] {
+      accent-color: var(--accent);
+      flex: 1;
+      min-width: 0;
+    }
+    .slider-field .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      min-width: 3.25rem;
+      text-align: right;
+    }
+
+    select, input[type="text"], input[type="number"] {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.45rem 0.6rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      width: 100%;
+    }
+    input[type="text"].mono {
+      font-family: var(--font-mono);
+      letter-spacing: 0.06em;
+    }
+    select:focus, input:focus {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: 1px;
+    }
+
+    /* Pileup chip grid */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      padding: 0.6rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      min-height: 2.4rem;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.15rem 0.55rem 0.15rem 0.45rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+    .chip .b {
+      font-weight: 700;
+      font-size: var(--text-sm);
+    }
+    .chip .q {
+      color: var(--fg-muted);
+      font-size: 11px;
+    }
+    .chip.ref .b  { color: var(--accent); }
+    .chip.alt .b  { color: var(--warning); font-weight: 700; }
+    .chip .base-A { color: var(--base-a); }
+    .chip .base-T { color: var(--base-t); }
+    .chip .base-G { color: var(--base-g); }
+    .chip .base-C { color: var(--base-c); }
+
+    .count-strip {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-top: 0.6rem;
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+    .count-strip .count {
+      font-family: var(--font-mono);
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.2rem 0.55rem;
+    }
+
+    /* Outcome banner */
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      flex-wrap: wrap;
+    }
+    .banner .tick {
+      font-weight: 700;
+      color: var(--accent);
+      font-size: var(--text-xl);
+      line-height: 1;
+    }
+    .banner .call {
+      font-family: var(--font-serif);
+      font-size: var(--text-xl);
+      color: var(--fg);
+      font-weight: 500;
+    }
+    .banner .call strong { color: var(--accent); font-weight: 700; }
+    .banner .meta {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+    }
+    .banner.invalid {
+      background: #fdecea;
+      border-color: var(--error);
+    }
+    .banner.invalid .tick { color: var(--error); }
+    .banner.invalid .call strong { color: var(--error); }
+
+    /* Three-column likelihood/prior/posterior grid */
+    .triple-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+    @media (max-width: 860px) {
+      .triple-grid { grid-template-columns: 1fr; }
+    }
+
+    .geno-row {
+      display: grid;
+      grid-template-columns: 56px 1fr 96px;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0;
+    }
+    .geno-label {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      font-weight: 500;
+    }
+    .bar-track {
+      height: 18px;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      position: relative;
+    }
+    .bar-fill {
+      height: 100%;
+      background: var(--bg-inset);
+      border-right: 1px solid var(--border-strong);
+      transition: width 180ms ease-out;
+    }
+    .bar-val {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      text-align: right;
+    }
+    .geno-row.map .bar-track {
+      border: 2px solid var(--accent);
+      background: var(--accent-bg);
+    }
+    .geno-row.map .bar-fill {
+      background: var(--accent);
+      border-right-color: var(--accent);
+    }
+    .geno-row.map .geno-label {
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .geno-row.map .bar-val {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .likelihood-readout {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.75rem;
+      line-height: 1.6;
+    }
+    .likelihood-readout span.label {
+      color: var(--fg-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 10px;
+      margin-right: 0.25rem;
+    }
+
+    .sub-panel {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+    }
+    .sub-panel-label {
+      font-family: var(--font-sans);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin: 0 0 0.5rem;
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+      line-height: var(--leading-relaxed);
+    }
+    .hint code {
+      background: var(--bg-muted);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.85em;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 720px) { .row { grid-template-columns: 1fr; } }
+
+    .field-block {
+      display: flex;
+      flex-direction: column;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .controls { grid-template-columns: 1fr 1fr; }
+      .geno-row { grid-template-columns: 52px 1fr 80px; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="genotype-likelihoods">
+
+  <header class="artifact-head">
+    <h1>Genotype Likelihood Calculator</h1>
+    <p>Given a pileup of read bases and their Phred qualities, compute P(D|G) for each of the three diploid genotypes, multiply by a prior P(G), renormalise, and read off the MAP call. Swap the prior from diploid-human to somatic-low-frequency on the 15% VAF preset — the MAP flips from 0/0 to 0/1, because the prior decides what counts as evidence.</p>
+  </header>
+
+  <!-- Outcome banner -->
+  <section id="banner" class="banner" aria-live="polite">
+    <span class="tick" id="banner-tick">✓</span>
+    <span class="call" id="banner-call">Called: <strong>—</strong></span>
+    <span class="meta" id="banner-meta">—</span>
+  </section>
+
+  <!-- Pileup controls -->
+  <section class="panel">
+    <p class="panel-label">Pileup inputs</p>
+    <div class="controls">
+      <div class="field-block">
+        <label class="field-label" for="ref-base">Reference base</label>
+        <select id="ref-base">
+          <option>A</option><option>C</option><option>G</option><option>T</option>
+        </select>
+      </div>
+      <div class="field-block">
+        <label class="field-label" for="preset">Preset</label>
+        <select id="preset">
+          <option value="clean_het">clean het (7 REF / 3 ALT Q30)</option>
+          <option value="mixed_het">mixed het (Q20–Q40 mix)</option>
+          <option value="low_depth">low-depth 5 reads</option>
+          <option value="somatic">somatic 15% VAF (17 REF / 3 ALT Q30)</option>
+          <option value="all_ref">all reference (10 REF Q30)</option>
+        </select>
+      </div>
+      <div class="slider-field">
+        <label class="field-label" for="defq-slider">Default Q (applied on edit)</label>
+        <div class="slider-row">
+          <input id="defq-slider" type="range" min="10" max="40" value="30" step="1">
+          <span class="slider-value" id="defq-value">Q30</span>
+        </div>
+      </div>
+      <div class="field-block">
+        <label class="field-label" for="prior-sel">Genotype prior</label>
+        <select id="prior-sel">
+          <option value="diploid">diploid human (gnomAD-derived)</option>
+          <option value="uniform">uniform</option>
+          <option value="somatic">somatic low-frequency</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="controls-row" style="margin-top: 1.25rem;">
+      <div class="field-block" style="flex: 1; min-width: 260px;">
+        <label class="field-label" for="bases-text">Read bases (space-separated A/C/G/T)</label>
+        <input id="bases-text" type="text" class="mono" value="A A A A A A A G G G">
+      </div>
+    </div>
+    <div class="controls-row">
+      <div class="field-block" style="flex: 1; min-width: 260px;">
+        <label class="field-label" for="quals-text">Read qualities (space-separated 0–60)</label>
+        <input id="quals-text" type="text" class="mono" value="30 30 30 30 30 30 30 30 30 30">
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <button id="add-btn"    class="btn" type="button">+ Add read</button>
+      <button id="remove-btn" class="btn" type="button">− Remove read</button>
+      <button id="apply-q-btn" class="btn" type="button">Apply default Q to all</button>
+      <button id="reset-btn"  class="btn btn--primary" type="button">↺ Reset to preset</button>
+    </div>
+
+    <div class="count-strip" id="count-strip"></div>
+    <p class="hint">Reads list is plain-text editable. The default-Q slider only seeds new reads or fills the quality list when you click <code>Apply default Q to all</code>. Invalid input (non-ACGT base, quality outside 0–60) is caught inline.</p>
+  </section>
+
+  <!-- Visualised pileup chips -->
+  <section class="panel">
+    <p class="panel-label">Pileup visualisation</p>
+    <div id="chips" class="chips" role="list" aria-label="pileup reads"></div>
+    <p class="hint">REF-matching reads in <span style="color: var(--accent); font-weight: 600;">cobalt</span>, ALT reads in <span style="color: var(--warning); font-weight: 600;">amber</span>. Each chip shows base and Phred quality.</p>
+  </section>
+
+  <!-- Computation panels -->
+  <section class="panel">
+    <p class="panel-label">Computation</p>
+    <div class="triple-grid">
+      <div class="sub-panel">
+        <p class="sub-panel-label">1. Likelihood P(D|G)</p>
+        <div id="like-rows"></div>
+        <div class="likelihood-readout" id="like-readout"></div>
+      </div>
+
+      <div class="sub-panel">
+        <p class="sub-panel-label">2. Prior P(G)</p>
+        <div id="prior-rows"></div>
+        <p class="hint" id="prior-hint"></p>
+      </div>
+
+      <div class="sub-panel">
+        <p class="sub-panel-label">3. Posterior P(G|D)</p>
+        <div id="post-rows"></div>
+        <p class="hint" id="post-hint"></p>
+      </div>
+    </div>
+
+    <p class="hint" style="margin-top: 1rem;">
+      Per-base likelihood: for a homozygous genotype with allele <code>a</code>, P(<code>b</code>|G) = (1−ε) if b=a else ε/3 with ε=10<sup>−q/10</sup>. For a heterozygote with alleles (a<sub>1</sub>,a<sub>2</sub>), P(<code>b</code>|G) = ½·P(<code>b</code>|hom a<sub>1</sub>) + ½·P(<code>b</code>|hom a<sub>2</sub>). Read likelihoods sum in log-space. Posterior ∝ likelihood × prior, then renormalise. GQ = −10·log<sub>10</sub>(P<sub>runner-up</sub>/P<sub>MAP</sub>), capped at 99.
+    </p>
+  </section>
+
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  // DOM refs
+  const refBase       = $('ref-base');
+  const presetSel     = $('preset');
+  const defqSlider    = $('defq-slider');
+  const defqValue     = $('defq-value');
+  const priorSel      = $('prior-sel');
+  const basesText     = $('bases-text');
+  const qualsText     = $('quals-text');
+  const addBtn        = $('add-btn');
+  const removeBtn     = $('remove-btn');
+  const applyQBtn     = $('apply-q-btn');
+  const resetBtn      = $('reset-btn');
+  const countStrip    = $('count-strip');
+  const chipsBox      = $('chips');
+  const likeRows      = $('like-rows');
+  const likeReadout   = $('like-readout');
+  const priorRows     = $('prior-rows');
+  const priorHint     = $('prior-hint');
+  const postRows      = $('post-rows');
+  const postHint      = $('post-hint');
+  const banner        = $('banner');
+  const bannerTick    = $('banner-tick');
+  const bannerCall    = $('banner-call');
+  const bannerMeta    = $('banner-meta');
+
+  const BASES = ['A', 'C', 'G', 'T'];
+
+  // ─── Presets ───────────────────────────────────────────
+  const PRESETS = {
+    clean_het: {
+      ref: 'A',
+      bases: 'A A A A A A A G G G',
+      quals: '30 30 30 30 30 30 30 30 30 30',
+    },
+    mixed_het: {
+      ref: 'A',
+      bases: 'A A A A A A A G G G',
+      quals: '40 38 35 32 28 25 22 40 35 20',
+    },
+    low_depth: {
+      ref: 'A',
+      bases: 'A A A G G',
+      quals: '30 30 30 30 30',
+    },
+    somatic: {
+      ref: 'A',
+      bases: 'A A A A A A A A A A A A A A A A A G G G',
+      quals: '30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30',
+    },
+    all_ref: {
+      ref: 'A',
+      bases: 'A A A A A A A A A A',
+      quals: '30 30 30 30 30 30 30 30 30 30',
+    },
+  };
+
+  // ─── Priors ────────────────────────────────────────────
+  //
+  //   diploid: a gnomAD-style random-site prior. At any random reference
+  //     position, the vast majority of individuals are hom-ref; variant sites
+  //     sit at roughly θ ≈ 1e-3 heterozygosity and are even rarer when that
+  //     site isn't in a known polymorphic catalogue. We use log10(P_hr/P_het)
+  //     ≈ 4.42 so the calculator's "clean het" stays called 0/1 while the
+  //     low-VAF somatic pileup does not.
+  //   uniform: 1/3 each — data alone decides the call.
+  //   somatic: a tumour-mode prior. 0/0 and 0/1 are roughly equally likely
+  //     a priori because even a tiny ALT signal is meaningful evidence.
+  //
+  function getPrior(kind) {
+    if (kind === 'diploid') {
+      return { hom_ref: 0.999, het: 3.80e-5, hom_alt: 1.90e-5 };
+    } else if (kind === 'somatic') {
+      return { hom_ref: 0.50, het: 0.4997, hom_alt: 0.0003 };
+    }
+    return { hom_ref: 1 / 3, het: 1 / 3, hom_alt: 1 / 3 };
+  }
+
+  function priorLabel(kind) {
+    if (kind === 'diploid')
+      return 'Random-site prior: ≈99.9% hom-ref. Heterozygotes need strong ALT support to overturn the prior, because most sites in the genome are not variable.';
+    if (kind === 'somatic')
+      return 'Tumour-mode prior: 0/0 and 0/1 are roughly equi-probable. Even a low-frequency ALT signal counts as credible evidence of a variant.';
+    return 'No preference across genotypes. Data alone determines the call.';
+  }
+
+  // ─── Likelihood math ───────────────────────────────────
+  // P(base b | genotype G) for one read.
+  function pBaseGivenHom(b, a, q) {
+    const eps = Math.pow(10, -q / 10);
+    return b === a ? (1 - eps) : (eps / 3);
+  }
+  function pBaseGivenHet(b, a1, a2, q) {
+    return 0.5 * pBaseGivenHom(b, a1, q) + 0.5 * pBaseGivenHom(b, a2, q);
+  }
+
+  // Compute log10 P(D|G) summed across reads.
+  // Returns { hom_ref, het, hom_alt } as log10 scalars.
+  function logLikelihoods(reads, refAllele, altAllele) {
+    let ll_hr = 0, ll_het = 0, ll_ha = 0;
+    for (const r of reads) {
+      const { base: b, q } = r;
+      const p_hr  = pBaseGivenHom(b, refAllele, q);
+      const p_ha  = pBaseGivenHom(b, altAllele, q);
+      const p_het = 0.5 * p_hr + 0.5 * p_ha;
+      // Guard against log(0): ε floor.
+      ll_hr  += Math.log10(Math.max(p_hr,  1e-300));
+      ll_het += Math.log10(Math.max(p_het, 1e-300));
+      ll_ha  += Math.log10(Math.max(p_ha,  1e-300));
+    }
+    return { hom_ref: ll_hr, het: ll_het, hom_alt: ll_ha };
+  }
+
+  // Normalise three log-posteriors to a proper probability distribution
+  // via log-sum-exp in base 10.
+  function normaliseLog10(log_probs) {
+    const m = Math.max(log_probs.hom_ref, log_probs.het, log_probs.hom_alt);
+    const e_hr  = Math.pow(10, log_probs.hom_ref - m);
+    const e_het = Math.pow(10, log_probs.het     - m);
+    const e_ha  = Math.pow(10, log_probs.hom_alt - m);
+    const Z = e_hr + e_het + e_ha;
+    return {
+      hom_ref: e_hr  / Z,
+      het:     e_het / Z,
+      hom_alt: e_ha  / Z,
+    };
+  }
+
+  // ─── Inference ─────────────────────────────────────────
+  function infer() {
+    const parsed = parsePileup();
+    if (!parsed.ok) return { ok: false, error: parsed.error };
+    const { reads, refAllele } = parsed;
+
+    // Pick ALT allele as the most common non-REF base, else default to the
+    // next base in ACGT order. This keeps the calculation well-defined even
+    // when all reads match REF.
+    let altAllele = null;
+    const altCounts = { A: 0, C: 0, G: 0, T: 0 };
+    for (const r of reads) if (r.base !== refAllele) altCounts[r.base]++;
+    let altMax = 0;
+    for (const a of BASES) {
+      if (a === refAllele) continue;
+      if (altCounts[a] > altMax) { altMax = altCounts[a]; altAllele = a; }
+    }
+    if (!altAllele) {
+      // fallback — first non-REF base in ACGT order
+      altAllele = BASES.find((a) => a !== refAllele);
+    }
+
+    const log_like = logLikelihoods(reads, refAllele, altAllele);
+    const priorKind = priorSel.value;
+    const prior = getPrior(priorKind);
+
+    // log posterior (unnormalised) = log likelihood + log prior
+    const log_post = {
+      hom_ref: log_like.hom_ref + Math.log10(Math.max(prior.hom_ref, 1e-300)),
+      het:     log_like.het     + Math.log10(Math.max(prior.het,     1e-300)),
+      hom_alt: log_like.hom_alt + Math.log10(Math.max(prior.hom_alt, 1e-300)),
+    };
+    const posterior = normaliseLog10(log_post);
+
+    // Determine MAP + GQ
+    const entries = [
+      { g: 'hom_ref', label: '0/0', p: posterior.hom_ref, logp: log_post.hom_ref },
+      { g: 'het',     label: '0/1', p: posterior.het,     logp: log_post.het },
+      { g: 'hom_alt', label: '1/1', p: posterior.hom_alt, logp: log_post.hom_alt },
+    ];
+    entries.sort((a, b) => b.p - a.p);
+    const map = entries[0];
+    const runner = entries[1];
+
+    // GQ: Phred-scaled ratio of runner-up to MAP posterior, capped at 99.
+    // When posteriors are extremely close to 1/0, clamp to avoid Infinity.
+    const ratio = Math.max(runner.p, 1e-20) / Math.max(map.p, 1e-20);
+    let gq = -10 * Math.log10(ratio);
+    if (!isFinite(gq) || gq > 99) gq = 99;
+    if (gq < 0) gq = 0;
+
+    const logMargin = map.logp - runner.logp; // log10 margin in posterior
+
+    return {
+      ok: true,
+      reads, refAllele, altAllele,
+      log_like, prior, posterior, log_post,
+      map, runner,
+      gq: Math.round(gq * 10) / 10,
+      logMargin,
+      priorKind,
+    };
+  }
+
+  // ─── Input parsing + validation ────────────────────────
+  function parsePileup() {
+    const ref = refBase.value.toUpperCase();
+    if (!BASES.includes(ref)) {
+      return { ok: false, error: `reference base must be A/C/G/T (got ${ref})` };
+    }
+    const baseTokens = basesText.value.trim().split(/\s+/).filter(Boolean);
+    const qualTokens = qualsText.value.trim().split(/\s+/).filter(Boolean);
+
+    if (baseTokens.length === 0) {
+      return { ok: false, error: 'pileup is empty — add at least one read' };
+    }
+    if (baseTokens.length !== qualTokens.length) {
+      return { ok: false, error:
+        `bases (${baseTokens.length}) and qualities (${qualTokens.length}) must have the same count` };
+    }
+    const reads = [];
+    for (let i = 0; i < baseTokens.length; i++) {
+      const b = baseTokens[i].toUpperCase();
+      if (!BASES.includes(b)) {
+        return { ok: false, error: `base #${i + 1} is not A/C/G/T (got "${baseTokens[i]}")` };
+      }
+      const q = Number(qualTokens[i]);
+      if (!Number.isFinite(q) || q < 0 || q > 60) {
+        return { ok: false, error: `quality #${i + 1} out of range 0–60 (got "${qualTokens[i]}")` };
+      }
+      reads.push({ base: b, q });
+    }
+    return { ok: true, reads, refAllele: ref };
+  }
+
+  // ─── Rendering ─────────────────────────────────────────
+  function renderChips(reads, refAllele) {
+    chipsBox.innerHTML = '';
+    if (reads.length === 0) {
+      chipsBox.innerHTML = '<span style="color: var(--fg-subtle); font-style: italic; font-size: var(--text-xs);">no reads</span>';
+      return;
+    }
+    for (const r of reads) {
+      const isRef = r.base === refAllele;
+      const chip = document.createElement('span');
+      chip.className = 'chip ' + (isRef ? 'ref' : 'alt');
+      chip.setAttribute('role', 'listitem');
+      chip.innerHTML = `<span class="b base-${r.base}">${r.base}</span><span class="q">Q${r.q}</span>`;
+      chipsBox.appendChild(chip);
+    }
+  }
+
+  function renderCounts(reads, refAllele) {
+    const counts = { A: 0, C: 0, G: 0, T: 0 };
+    let qSum = 0, qMin = Infinity, qMax = -Infinity, refN = 0;
+    for (const r of reads) {
+      counts[r.base]++;
+      qSum += r.q;
+      if (r.q < qMin) qMin = r.q;
+      if (r.q > qMax) qMax = r.q;
+      if (r.base === refAllele) refN++;
+    }
+    const n = reads.length;
+    const altN = n - refN;
+    const vaf = n > 0 ? (altN / n * 100).toFixed(1) + '%' : '—';
+    const qMean = n > 0 ? (qSum / n).toFixed(1) : '—';
+    const qRange = n > 0 ? (qMin === qMax ? `Q${qMin}` : `Q${qMin}–Q${qMax}`) : '—';
+    countStrip.innerHTML =
+      `<span class="count">depth = ${n}</span>` +
+      `<span class="count">REF (${refAllele}) = ${refN}</span>` +
+      `<span class="count">ALT = ${altN}</span>` +
+      `<span class="count">VAF = ${vaf}</span>` +
+      `<span class="count">Q = ${qMean} (${qRange})</span>`;
+  }
+
+  function renderGenoBars(container, values, mapLabel, formatter) {
+    // values: { hom_ref, het, hom_alt }
+    const rows = [
+      { g: '0/0', v: values.hom_ref },
+      { g: '0/1', v: values.het },
+      { g: '1/1', v: values.hom_alt },
+    ];
+    const max = Math.max(rows[0].v, rows[1].v, rows[2].v, 1e-300);
+    container.innerHTML = '';
+    for (const r of rows) {
+      const width = max > 0 ? Math.max(1, (r.v / max) * 100) : 0;
+      const isMap = r.g === mapLabel;
+      const row = document.createElement('div');
+      row.className = 'geno-row' + (isMap ? ' map' : '');
+      row.innerHTML =
+        `<span class="geno-label">${r.g}</span>` +
+        `<span class="bar-track"><span class="bar-fill" style="width: ${width.toFixed(1)}%;"></span></span>` +
+        `<span class="bar-val">${formatter(r.v)}</span>`;
+      container.appendChild(row);
+    }
+  }
+
+  function formatLogLike(log_like) {
+    const f = (x) => `${Math.pow(10, x).toExponential(2)} (log₁₀ = ${x.toFixed(2)})`;
+    return (
+      `<div><span class="label">0/0</span>${f(log_like.hom_ref)}</div>` +
+      `<div><span class="label">0/1</span>${f(log_like.het)}</div>` +
+      `<div><span class="label">1/1</span>${f(log_like.hom_alt)}</div>`
+    );
+  }
+
+  function renderResult(result) {
+    if (!result.ok) {
+      banner.className = 'banner invalid';
+      bannerTick.textContent = '✕';
+      bannerCall.innerHTML = `inputs are invalid: <strong>${result.error}</strong>`;
+      bannerMeta.textContent = 'fix the pileup to see the call';
+      // Clear computation panels but keep chips readable.
+      likeRows.innerHTML = '';
+      likeReadout.innerHTML = '';
+      priorRows.innerHTML = '';
+      postRows.innerHTML = '';
+      priorHint.textContent = '';
+      postHint.textContent = '';
+      countStrip.innerHTML = '<span class="count">—</span>';
+      chipsBox.innerHTML = '<span style="color: var(--error); font-style: italic; font-size: var(--text-xs);">invalid input — see banner above</span>';
+      return;
+    }
+
+    const { reads, refAllele, altAllele, log_like, prior, posterior,
+            map, gq, logMargin, priorKind } = result;
+
+    // Banner
+    banner.className = 'banner';
+    bannerTick.textContent = '✓';
+    const zygosity = map.label === '0/0' ? 'homozygous ref'
+                   : map.label === '0/1' ? 'heterozygous'
+                   : 'homozygous alt';
+    bannerCall.innerHTML = `Called: <strong>${map.label}</strong> (${zygosity}) · REF=${refAllele}, ALT=${altAllele}`;
+    bannerMeta.textContent =
+      `GQ ${gq.toFixed(0)} · log-likelihood margin vs runner-up = ${logMargin.toFixed(1)}`;
+
+    // Chips + counts
+    renderChips(reads, refAllele);
+    renderCounts(reads, refAllele);
+
+    // Likelihood bars + numeric readout (scale: log-likelihoods as negative
+    // numbers; use exp of (ll − max) so the tallest bar = 1).
+    const m = Math.max(log_like.hom_ref, log_like.het, log_like.hom_alt);
+    const likeScaled = {
+      hom_ref: Math.pow(10, log_like.hom_ref - m),
+      het:     Math.pow(10, log_like.het     - m),
+      hom_alt: Math.pow(10, log_like.hom_alt - m),
+    };
+    renderGenoBars(likeRows, likeScaled, map.label,
+      (v) => (v === 1 ? '1.00' : v.toExponential(1)));
+    likeReadout.innerHTML = formatLogLike(log_like);
+
+    // Prior
+    renderGenoBars(priorRows, prior, map.label, (v) => v.toFixed(4));
+    priorHint.textContent = priorLabel(priorKind);
+
+    // Posterior
+    renderGenoBars(postRows, posterior, map.label, (v) =>
+      v < 0.001 ? v.toExponential(1) : (v * 100).toFixed(v > 0.99 ? 2 : 1) + '%');
+
+    // Posterior hint
+    if (gq >= 30) {
+      postHint.textContent = `Confident call. P(${map.label}|D) = ${(posterior[map.g] * 100).toFixed(3)}%.`;
+    } else {
+      postHint.textContent = `Borderline call (GQ < 30). Runner-up genotype carries real posterior mass; consider more coverage.`;
+    }
+  }
+
+  function rerun() {
+    const result = infer();
+    renderResult(result);
+  }
+
+  // ─── Event wiring ──────────────────────────────────────
+  refBase.addEventListener('change', rerun);
+  basesText.addEventListener('input', rerun);
+  qualsText.addEventListener('input', rerun);
+  priorSel.addEventListener('change', rerun);
+
+  defqSlider.addEventListener('input', () => {
+    defqValue.textContent = 'Q' + defqSlider.value;
+  });
+
+  applyQBtn.addEventListener('click', () => {
+    const q = +defqSlider.value;
+    const n = basesText.value.trim().split(/\s+/).filter(Boolean).length;
+    if (n === 0) return;
+    qualsText.value = new Array(n).fill(q).join(' ');
+    rerun();
+  });
+
+  addBtn.addEventListener('click', () => {
+    const bases = basesText.value.trim().split(/\s+/).filter(Boolean);
+    const quals = qualsText.value.trim().split(/\s+/).filter(Boolean);
+    bases.push(refBase.value);
+    quals.push(String(+defqSlider.value));
+    basesText.value = bases.join(' ');
+    qualsText.value = quals.join(' ');
+    rerun();
+  });
+
+  removeBtn.addEventListener('click', () => {
+    const bases = basesText.value.trim().split(/\s+/).filter(Boolean);
+    const quals = qualsText.value.trim().split(/\s+/).filter(Boolean);
+    if (bases.length === 0) return;
+    bases.pop();
+    quals.pop();
+    basesText.value = bases.join(' ');
+    qualsText.value = quals.join(' ');
+    rerun();
+  });
+
+  function loadPreset(name) {
+    const p = PRESETS[name];
+    if (!p) return;
+    refBase.value = p.ref;
+    basesText.value = p.bases;
+    qualsText.value = p.quals;
+    rerun();
+  }
+
+  presetSel.addEventListener('change', () => loadPreset(presetSel.value));
+  resetBtn.addEventListener('click',  () => loadPreset(presetSel.value));
+
+  // Initial render — default preset is the clean het.
+  defqValue.textContent = 'Q' + defqSlider.value;
+  rerun();
+})();
+</script>
+
+</body>
+</html>

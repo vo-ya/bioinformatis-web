@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Variant Annotator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .artifact-head p  { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0; max-width: 72ch; }
+
+    .panel       { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .panel-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+    .field-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: var(--fg-muted); display: block; margin-bottom: 0.4rem; }
+
+    .seq-input, textarea.seq-input, input.seq-input {
+      width: 100%; font-family: var(--font-mono); font-size: var(--text-sm);
+      padding: 0.55rem 0.75rem; background: var(--bg-muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg);
+    }
+    .seq-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); outline: none; }
+    textarea.seq-input { resize: vertical; min-height: 96px; }
+
+    .select-input {
+      font-family: var(--font-sans); font-size: var(--text-sm);
+      padding: 0.5rem 0.75rem; background: var(--bg-muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg); min-width: 220px;
+    }
+
+    .btn {
+      font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500;
+      padding: 0.5rem 0.9rem; background: var(--bg-muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg); cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn--ghost   { background: transparent; border-color: var(--border-strong); }
+
+    .controls { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+    .top-row  { display: grid; grid-template-columns: 1fr minmax(220px, 280px); gap: 1rem; align-items: end; }
+    .inline-error { color: var(--warning); font-family: var(--font-mono); font-size: var(--text-xs); margin: 0.35rem 0 0; min-height: 1em; }
+
+    /* ─── Pipeline stages ─────────────────────────────────── */
+    .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 0.8rem; }
+    .stage {
+      background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 0.7rem 0.8rem; text-align: left; cursor: pointer; font-family: var(--font-sans);
+      transition: background 0.1s, border-color 0.1s; position: relative;
+    }
+    .stage:hover    { background: var(--bg-inset); border-color: var(--border-strong); }
+    .stage:disabled { opacity: 0.55; cursor: not-allowed; }
+    .stage .stage-num  { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-subtle); letter-spacing: 0.1em; font-weight: 600; }
+    .stage .stage-name { font-size: var(--text-sm); font-weight: 600; color: var(--fg); margin-top: 0.15rem; }
+    .stage .stage-desc { font-size: var(--text-xs); color: var(--fg-muted); margin-top: 0.2rem; line-height: 1.4; }
+    .stage.done        { background: var(--accent-bg); border-color: var(--accent); }
+    .stage.done .stage-num { color: var(--accent); }
+    .stage.done::after {
+      content: "\2713"; position: absolute; top: 0.45rem; right: 0.55rem;
+      color: var(--accent); font-weight: 700;
+    }
+
+    .pipeline-actions { display: flex; gap: 0.55rem; flex-wrap: wrap; }
+
+    /* ─── Annotated output panel ─────────────────────────── */
+    .output-stream {
+      background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 0.9rem 1rem; font-family: var(--font-mono); font-size: var(--text-sm);
+      color: var(--fg); min-height: 120px; white-space: pre-wrap; line-height: var(--leading-relaxed);
+    }
+    .output-block { border-left: 3px solid var(--border-strong); padding: 0.2rem 0 0.2rem 0.75rem; margin: 0.35rem 0; }
+    .output-block.stage-1 { border-left-color: var(--accent-bright); }
+    .output-block.stage-2 { border-left-color: var(--base-t); }
+    .output-block.stage-3 { border-left-color: var(--warning); }
+    .output-block.stage-4 { border-left-color: var(--base-u); }
+    .output-block .tag {
+      display: inline-block; font-family: var(--font-sans); font-size: var(--text-xs);
+      font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--fg-subtle); margin-right: 0.5rem;
+    }
+    .output-block.stage-1 .tag { color: var(--accent-bright); }
+    .output-block.stage-2 .tag { color: var(--base-t); }
+    .output-block.stage-3 .tag { color: var(--warning); }
+    .output-block.stage-4 .tag { color: var(--base-u); }
+
+    .kv { display: grid; grid-template-columns: minmax(140px, 180px) 1fr; gap: 0.25rem 0.75rem; margin-top: 0.3rem; }
+    .kv .k { color: var(--fg-muted); font-size: var(--text-xs); font-family: var(--font-sans); letter-spacing: 0.04em; }
+    .kv .v { color: var(--fg); }
+    .kv .v.muted  { color: var(--fg-subtle); font-style: italic; }
+    .kv .v.strong { color: var(--accent);  font-weight: 600; }
+    .kv .v.warn   { color: var(--warning); font-weight: 600; }
+    .kv .v.error  { color: var(--error);   font-weight: 600; }
+    .kv .v.ok     { color: var(--success); font-weight: 600; }
+
+    .output-empty { color: var(--fg-subtle); font-style: italic; font-family: var(--font-sans); font-size: var(--text-sm); }
+
+    /* ─── Verdict banner ─────────────────────────────────── */
+    .verdict {
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem;
+      display: flex; gap: 0.8rem; align-items: flex-start; font-family: var(--font-sans);
+    }
+    .verdict .icon     { font-family: var(--font-mono); font-size: var(--text-xl); line-height: 1; margin-top: 0.1rem; }
+    .verdict .v-title  { font-weight: 700; font-size: var(--text-base); color: var(--fg); }
+    .verdict .v-detail { color: var(--fg-muted); font-size: var(--text-sm); margin-top: 0.3rem; line-height: var(--leading-relaxed); }
+    .verdict.v-pathogenic    { background: #fef2f2; border-color: #fecaca; }
+    .verdict.v-pathogenic .icon, .verdict.v-pathogenic .v-title { color: var(--error); }
+    .verdict.v-lof           { background: #fdf4ff; border-color: #e9d5ff; }
+    .verdict.v-lof .icon     { color: #7c3aed; }
+    .verdict.v-lof .v-title  { color: #6b21a8; }
+    .verdict.v-benign        { background: #f0fdf4; border-color: #bbf7d0; }
+    .verdict.v-benign .icon, .verdict.v-benign .v-title { color: var(--success); }
+    .verdict.v-likely-benign { background: #f7fee7; border-color: #d9f99d; }
+    .verdict.v-likely-benign .icon   { color: #4d7c0f; }
+    .verdict.v-likely-benign .v-title{ color: #3f6212; }
+    .verdict.v-warning       { background: #fffbeb; border-color: #fde68a; }
+    .verdict.v-warning .icon, .verdict.v-warning .v-title { color: var(--warning); }
+    .verdict.v-unknown       { background: var(--bg-muted); border-color: var(--border-strong); }
+    .verdict.v-unknown .icon { color: var(--fg-subtle); }
+    .verdict.v-unknown .v-title { color: var(--fg); }
+
+    .note {
+      background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm);
+      padding: 0.6rem 0.8rem; font-size: var(--text-xs); color: #78350f;
+      font-family: var(--font-sans); line-height: var(--leading-relaxed); margin-bottom: 0.8rem;
+    }
+    .hint { font-size: var(--text-xs); color: var(--fg-muted); margin-top: 0.75rem; line-height: var(--leading-relaxed); }
+    .hint code { background: var(--bg-muted); padding: 0.05rem 0.35rem; border-radius: 2px; }
+
+    @media (max-width: 820px) {
+      .top-row { grid-template-columns: 1fr; }
+      .pipeline { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .pipeline { grid-template-columns: 1fr; }
+      .kv { grid-template-columns: 1fr; gap: 0; }
+      .kv .k { margin-top: 0.3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="variant-annotator">
+
+  <header class="artifact-head">
+    <h1>Variant Annotator</h1>
+    <p>A VCF row is just a coordinate and two letters. Annotation turns it into a verdict. Step a variant through the four layers — <strong>gene context</strong> (VEP/snpEff), <strong>population frequency</strong> (gnomAD), <strong>clinical evidence</strong> (ClinVar), and <strong>functional prediction</strong> (REVEL/CADD/SpliceAI) — and watch the same pipeline produce radically different verdicts. Compare the <em>intergenic common SNP</em> preset with <em>TP53 R175H</em> to see layered evidence in action.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Input variant (VCF)</p>
+
+    <div class="top-row">
+      <div>
+        <label class="field-label" for="vcf-input">Paste 1–5 rows. Format: <code>CHROM  POS  ID  REF  ALT</code></label>
+        <textarea id="vcf-input" class="seq-input" rows="4" spellcheck="false"></textarea>
+      </div>
+      <div>
+        <label class="field-label" for="preset">Preset</label>
+        <select id="preset" class="select-input">
+          <option value="braf">BRAF V600E (missense, pathogenic)</option>
+          <option value="brca1">BRCA1 c.5266dupC (frameshift, pathogenic)</option>
+          <option value="tp53">TP53 R175H (missense hotspot)</option>
+          <option value="intergenic">Intergenic common SNP (benign)</option>
+          <option value="synonymous">Synonymous BRCA1 (likely benign)</option>
+        </select>
+      </div>
+    </div>
+    <p class="inline-error" id="error-msg"></p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Annotation pipeline</p>
+    <div class="pipeline" id="pipeline">
+      <button class="stage" data-stage="1" type="button">
+        <div class="stage-num">STAGE 1</div>
+        <div class="stage-name">VEP / snpEff</div>
+        <div class="stage-desc">Gene, transcript, consequence, protein change.</div>
+      </button>
+      <button class="stage" data-stage="2" type="button">
+        <div class="stage-num">STAGE 2</div>
+        <div class="stage-name">gnomAD</div>
+        <div class="stage-desc">Population allele frequency across ~800k genomes.</div>
+      </button>
+      <button class="stage" data-stage="3" type="button">
+        <div class="stage-num">STAGE 3</div>
+        <div class="stage-name">ClinVar</div>
+        <div class="stage-desc">Clinical significance + review stars.</div>
+      </button>
+      <button class="stage" data-stage="4" type="button">
+        <div class="stage-num">STAGE 4</div>
+        <div class="stage-name">REVEL / CADD / SpliceAI</div>
+        <div class="stage-desc">Functional impact predictions.</div>
+      </button>
+    </div>
+    <div class="pipeline-actions">
+      <button id="run-all" class="btn btn--primary" type="button">Run all stages</button>
+      <button id="reset" class="btn btn--ghost" type="button">Reset</button>
+      <span class="hint" style="margin-top:0;">Click a stage to run it individually, or <strong>Run all stages</strong> to annotate the variant end-to-end.</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Annotated output</p>
+    <div class="output-stream" id="output-stream">
+      <div class="output-empty">Select a preset or paste a VCF, then click the pipeline stages to build up annotation.</div>
+    </div>
+  </section>
+
+  <section class="panel" id="verdict-panel" hidden>
+    <p class="panel-label">Final verdict</p>
+    <div id="verdict" class="verdict v-unknown">
+      <div class="icon">&middot;</div>
+      <div>
+        <div class="v-title">Run all stages to see the verdict.</div>
+        <div class="v-detail">The verdict integrates gene impact, population frequency, clinical evidence, and functional prediction scores.</div>
+      </div>
+    </div>
+    <p class="hint">
+      Notice how the verdict flips based on <em>combined</em> evidence. A rare missense with REVEL&nbsp;&gt;&nbsp;0.7 lands differently than a common synonymous change. <strong>Annotation composes</strong> — no single layer is sufficient on its own.
+    </p>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const vcfInput   = $('vcf-input');
+  const presetEl   = $('preset');
+  const pipelineEl = $('pipeline');
+  const runAllBtn  = $('run-all');
+  const resetBtn   = $('reset');
+  const outStream  = $('output-stream');
+  const verdictPanel = $('verdict-panel');
+  const verdictEl  = $('verdict');
+  const errorMsg   = $('error-msg');
+
+  // ─── Mock mini-database ─────────────────────────────────
+  // Keyed by "CHROM:POS:REF:ALT" (GRCh38 coordinates, illustrative).
+  // Fields: gene, tx, consequence, hgvs_c, hgvs_p, exon, gnomad_af, gnomad_hom, clinvar, clinvar_stars, condition, revel, cadd, spliceai, verdict_key
+  const V = (gene, tx, cons, hc, hp, exon, af, hom, cv, stars, cond, revel, cadd, spl, key) => ({
+    gene, transcript: tx, consequence: cons, hgvs_c: hc, hgvs_p: hp, exon,
+    gnomad_af: af, gnomad_hom: hom, clinvar: cv, clinvar_stars: stars, clinvar_condition: cond,
+    revel, cadd, spliceai: spl, verdict_key: key,
+  });
+  const DB = {
+    // BRAF V600E — classic melanoma/CRC driver
+    '7:140753336:A:T':     V('BRAF',  'NM_004333.6', 'missense_variant',       'c.1799T>A',    'p.Val600Glu',         '15/18', 0.0,      0,     'Pathogenic',                3, 'Melanoma, colorectal cancer, NSCLC',        0.92, 32,  0.01, 'pathogenic_missense'),
+    // BRCA1 c.5266dupC (Ashkenazi founder frameshift)
+    '17:43057062:C:CG':    V('BRCA1', 'NM_007294.4', 'frameshift_variant',     'c.5266dupC',   'p.Gln1756ProfsTer74', '20/23', 0.0009,   0,     'Pathogenic',                4, 'Hereditary breast/ovarian cancer',          null, 38,  0.02, 'pathogenic_lof'),
+    // TP53 R175H hotspot
+    '17:7675088:G:A':      V('TP53',  'NM_000546.6', 'missense_variant',       'c.524G>A',     'p.Arg175His',         '5/11',  0.00001,  0,     'Pathogenic',                3, 'Li-Fraumeni syndrome, many cancers',        0.88, 30,  0.0,  'pathogenic_tp53_lof'),
+    // TP53 R248Q hotspot
+    '17:7674220:C:T':      V('TP53',  'NM_000546.6', 'missense_variant',       'c.743G>A',     'p.Arg248Gln',         '7/11',  0.000003, 0,     'Pathogenic',                3, 'Li-Fraumeni syndrome, many cancers',        0.90, 29,  0.0,  'pathogenic_tp53_lof'),
+    // BRAF benign synonymous
+    '7:140753337:C:T':     V('BRAF',  'NM_004333.6', 'synonymous_variant',     'c.1800C>T',    'p.Val600=',           '15/18', 0.0012,   2,     'Benign',                    2, '—',                                         null, 4,   0.01, 'benign_synonymous'),
+    // Synonymous BRCA1 (common, benign)
+    '17:43094464:G:A':     V('BRCA1', 'NM_007294.4', 'synonymous_variant',     'c.4308T>C',    'p.Ser1436=',          '13/23', 0.34,     18420, 'Benign',                    2, '—',                                         null, 2,   0.0,  'benign_synonymous'),
+    // Intergenic common SNP (rs1234567 — illustrative)
+    '7:24966447:G:A':      V(null,    null,          'intergenic_variant',     null,           null,                  null,    0.41,     22115, null,                        0, null,                                        null, 0.4, 0.0,  'benign_intergenic'),
+    // Intronic deep — likely benign
+    '17:43071200:T:C':     V('BRCA1', 'NM_007294.4', 'intron_variant',         'c.4986+128A>G',null,                  null,    0.22,     9840,  'Benign',                    2, '—',                                         null, 1.2, 0.02, 'benign_intronic'),
+    // BRCA2 K3326* — common truncating, controversial (reduced penetrance)
+    '13:32398489:AAAAC:A': V('BRCA2', 'NM_000059.4', 'stop_gained',            'c.9976A>T',    'p.Lys3326Ter',        '27/27', 0.011,    54,    'Conflicting interpretations',1,'Breast/ovarian cancer (reduced penetrance)', null, 36,  0.01, 'conflicting'),
+    // BRCA2 6174delT (Ashkenazi founder)
+    '13:32340301:AT:A':    V('BRCA2', 'NM_000059.4', 'frameshift_variant',     'c.5946delT',   'p.Ser1982ArgfsTer22', '11/27', 0.0006,   0,     'Pathogenic',                4, 'Hereditary breast/ovarian cancer',          null, 37,  0.02, 'pathogenic_lof'),
+    // KRAS G12D — pathogenic in cancer (somatic)
+    '12:25245350:C:T':     V('KRAS',  'NM_033360.4', 'missense_variant',       'c.35G>A',      'p.Gly12Asp',          '2/6',   0.0,      0,     'Pathogenic',                3, 'Pancreatic/colorectal/lung cancer (somatic)',0.81, 28,  0.0,  'pathogenic_missense'),
+    // EGFR L858R — NSCLC driver
+    '7:55191822:T:G':      V('EGFR',  'NM_005228.5', 'missense_variant',       'c.2573T>G',    'p.Leu858Arg',         '21/28', 0.0,      0,     'Pathogenic',                3, 'NSCLC (TKI-responsive)',                    0.85, 27,  0.01, 'pathogenic_missense'),
+    // Common benign missense in BRCA1
+    '17:43093220:C:T':     V('BRCA1', 'NM_007294.4', 'missense_variant',       'c.4837A>G',    'p.Ser1613Gly',        '16/23', 0.28,     16200, 'Benign',                    2, '—',                                         0.12, 3.1, 0.0,  'benign_common_missense'),
+    // SpliceAI high — canonical splice
+    '17:43082434:A:G':     V('BRCA1', 'NM_007294.4', 'splice_donor_variant',   'c.5074+1G>A',  null,                  '17/23', 0.0,      0,     'Pathogenic',                3, 'Hereditary breast/ovarian cancer',          null, 33,  0.98, 'pathogenic_splice'),
+    // VUS (variant of uncertain significance) example
+    '17:43092113:G:A':     V('BRCA1', 'NM_007294.4', 'missense_variant',       'c.4986G>A',    'p.Arg1662His',        '16/23', 0.00003,  0,     'Uncertain significance',    1, 'Hereditary breast/ovarian cancer',          0.45, 18,  0.04, 'vus'),
+    // 3' UTR common
+    '17:43044295:G:A':     V('BRCA1', 'NM_007294.4', '3_prime_UTR_variant',    'c.*127G>A',    null,                  null,    0.18,     5400,  'Benign',                    1, '—',                                         null, 1.8, 0.01, 'benign_utr'),
+    // 5' UTR
+    '7:140924603:C:T':     V('BRAF',  'NM_004333.6', '5_prime_UTR_variant',    'c.-45C>T',     null,                  null,    0.07,     820,   null,                        0, null,                                        null, 4.5, 0.01, 'benign_utr'),
+    // Another common intergenic
+    '2:132213000:G:C':     V(null,    null,          'intergenic_variant',     null,           null,                  null,    0.48,     26300, null,                        0, null,                                        null, 0.1, 0.0,  'benign_intergenic'),
+    // APC nonsense — FAP
+    '5:112839515:C:T':     V('APC',   'NM_000038.6', 'stop_gained',            'c.3927C>T',    'p.Arg1309Ter',        '16/16', 0.0,      0,     'Pathogenic',                4, 'Familial adenomatous polyposis',            null, 39,  0.0,  'pathogenic_lof'),
+  };
+
+  // ─── Presets (VCF text) ─────────────────────────────────
+  const PRESETS = {
+    braf: {
+      label: 'BRAF V600E',
+      vcf: '#CHROM\tPOS\tID\tREF\tALT\n7\t140753336\tCOSM476\tA\tT',
+    },
+    brca1: {
+      label: 'BRCA1 c.5266dupC',
+      vcf: '#CHROM\tPOS\tID\tREF\tALT\n17\t43057062\trs80357906\tC\tCG',
+    },
+    tp53: {
+      label: 'TP53 R175H',
+      vcf: '#CHROM\tPOS\tID\tREF\tALT\n17\t7675088\trs28934578\tG\tA',
+    },
+    intergenic: {
+      label: 'Intergenic common SNP',
+      vcf: '#CHROM\tPOS\tID\tREF\tALT\n7\t24966447\trs1234567\tG\tA',
+    },
+    synonymous: {
+      label: 'Synonymous BRCA1',
+      vcf: '#CHROM\tPOS\tID\tREF\tALT\n17\t43094464\trs1799949\tG\tA',
+    },
+  };
+
+  // ─── Verdict templates (color + text) ───────────────────
+  const VD = (cls, icon, title, detail) => ({ cls, icon, title, detail });
+  const VERDICTS = {
+    pathogenic_missense:    VD('v-pathogenic',   '\u26A0', (v) => `${v.gene} ${v.hgvs_p || v.hgvs_c} \u00B7 Pathogenic \u00B7 Rare in population \u00B7 High functional impact`,
+      'Missense in an oncogene, with ClinVar pathogenic classification, absent/rare in gnomAD, and high REVEL/CADD — a classic driver mutation.'),
+    pathogenic_lof:         VD('v-lof',          '\u26A0', (v) => `${v.gene} ${v.hgvs_p || v.hgvs_c} \u00B7 Loss-of-function \u00B7 Pathogenic`,
+      'Frameshift/nonsense in a tumor suppressor removes gene function. Truncation upstream of critical domains is a hallmark of pathogenic LoF variants.'),
+    pathogenic_tp53_lof:    VD('v-lof',          '\u26A0', (v) => `High-impact tumor suppressor LoF \u00B7 ${v.gene} ${v.hgvs_p} \u00B7 Pathogenic`,
+      'TP53 DNA-binding domain hotspot (R175/R248/R273) — functionally equivalent to loss-of-function. Extremely rare in controls; foundational in Li-Fraumeni and many sporadic tumors.'),
+    pathogenic_splice:      VD('v-pathogenic',   '\u26A0', (v) => `${v.gene} ${v.hgvs_c} \u00B7 Canonical splice \u00B7 Pathogenic`,
+      'SpliceAI > 0.8 indicates near-certain splice disruption. Canonical GT/AG dinucleotide hits abolish exon inclusion and typically cause LoF.'),
+    benign_synonymous:      VD('v-benign',       '\u2713', (v) => `${v.gene} ${v.hgvs_p || v.hgvs_c} \u00B7 Synonymous \u00B7 Benign`,
+      'Silent at the protein level. Common in gnomAD with homozygous carriers present — incompatible with a pathogenic role under standard disease models.'),
+    benign_common_missense: VD('v-benign',       '\u2713', (v) => `${v.gene} ${v.hgvs_p} \u00B7 Common missense \u00B7 Benign`,
+      'Missense but allele frequency > 5% with many homozygotes. Low REVEL/CADD. Common population polymorphism — not disease-causing.'),
+    benign_intergenic:      VD('v-benign',       '\u2713', ()  => 'Common intergenic variant \u00B7 likely benign',
+      'Outside any gene, allele frequency > 10% in gnomAD. No protein effect, negligible CADD. Unremarkable SNP.'),
+    benign_intronic:        VD('v-benign',       '\u2713', (v) => `${v.gene} deep intronic \u00B7 likely benign`,
+      'Deep intronic (>20 bp from splice site), common in gnomAD, low SpliceAI. Unlikely to perturb splicing or regulation.'),
+    benign_utr:             VD('v-likely-benign','\u2713', (v) => `${v.gene ? v.gene + ' ' : ''}${v.consequence.replace(/_/g, ' ')} \u00B7 likely benign`,
+      'Untranslated region — no protein change. Common in population, low CADD. Regulatory impact possible but not supported by available scores.'),
+    vus:                    VD('v-warning',      '?',      (v) => `${v.gene} ${v.hgvs_p || v.hgvs_c} \u00B7 Variant of uncertain significance`,
+      'Conflicting or intermediate evidence: rare but not absent, REVEL in grey zone, ClinVar uncertain. Needs family segregation, functional assay, or case-level data.'),
+    conflicting:            VD('v-warning',      '\u26A0', (v) => `${v.gene} ${v.hgvs_p || v.hgvs_c} \u00B7 Conflicting interpretations`,
+      'Truncation but unusually common (reduced penetrance). Classic example that frequency-only filters mis-rank — requires curated clinical context.'),
+  };
+
+  // ─── State ──────────────────────────────────────────────
+  let currentVariant = null; // { chrom, pos, id, ref, alt, key, record | null }
+  let stagesDone = new Set();
+
+  // ─── Parsing ────────────────────────────────────────────
+  function parseVCF(raw) {
+    if (!raw) return { rows: [], bad: false };
+    const lines = raw.split(/\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+    const rows = [];
+    let bad = false;
+    for (const line of lines) {
+      const parts = line.split(/\s+/);
+      if (parts.length < 5) { bad = true; continue; }
+      const [chrom, posStr, id, ref, alt] = parts;
+      const pos = Number(posStr);
+      if (!Number.isFinite(pos) || pos <= 0) { bad = true; continue; }
+      if (!/^[ACGTN]+$/i.test(ref) || !/^[ACGTN,]+$/i.test(alt)) { bad = true; continue; }
+      rows.push({ chrom: String(chrom).replace(/^chr/i, ''), pos, id, ref: ref.toUpperCase(), alt: alt.toUpperCase() });
+    }
+    return { rows, bad };
+  }
+
+  function variantKey(v) {
+    return `${v.chrom}:${v.pos}:${v.ref}:${v.alt}`;
+  }
+
+  function lookupVariant(v) {
+    const key = variantKey(v);
+    return DB[key] || null;
+  }
+
+  // Simple consequence prediction for unknown variants: length-based heuristic.
+  function predictConsequence(v) {
+    const refLen = v.ref.length, altLen = v.alt.length;
+    if (refLen === altLen && refLen === 1) return 'SNV \u2014 consequence unknown (not in mock DB)';
+    if (refLen === altLen && refLen > 1)   return 'MNV (multi-nucleotide substitution) \u2014 consequence unknown';
+    const delta = altLen - refLen;
+    if (delta === 0) return 'Substitution \u2014 unknown context';
+    if (Math.abs(delta) % 3 !== 0) return `Likely frameshift (indel size ${delta} bp, not multiple of 3)`;
+    return `In-frame indel (size ${delta} bp)`;
+  }
+
+  // ─── Output rendering ───────────────────────────────────
+  function clearOutput() {
+    outStream.innerHTML = '<div class="output-empty">Select a preset or paste a VCF, then click the pipeline stages to build up annotation.</div>';
+  }
+
+  function renderVariantHeader() {
+    if (!currentVariant) return;
+    const { chrom, pos, id, ref, alt } = currentVariant;
+    let header = outStream.querySelector('.output-block.stage-0');
+    const html = `
+      <div class="output-block stage-0">
+        <span class="tag">INPUT</span>
+        <span>chr${chrom}:${pos} ${id || '.'} ${ref} &rarr; ${alt}</span>
+      </div>
+    `;
+    if (outStream.querySelector('.output-empty')) outStream.innerHTML = '';
+    if (!header) {
+      outStream.insertAdjacentHTML('afterbegin', html);
+    }
+    if (!currentVariant.record) {
+      if (!outStream.querySelector('.not-in-db-note')) {
+        const note = document.createElement('div');
+        note.className = 'note not-in-db-note';
+        note.textContent = 'Not in mock database \u2014 showing consequence prediction only. Clinical annotation requires external databases like VEP + ClinVar.';
+        outStream.appendChild(note);
+      }
+    } else {
+      const existing = outStream.querySelector('.not-in-db-note');
+      if (existing) existing.remove();
+    }
+  }
+
+  function removeStageOutput(stage) {
+    const existing = outStream.querySelector(`.output-block.stage-${stage}`);
+    if (existing) existing.remove();
+  }
+
+  function appendStage(stage, html) {
+    removeStageOutput(stage);
+    outStream.insertAdjacentHTML('beforeend', html);
+  }
+
+  function formatAF(af) {
+    if (af === null || af === undefined) return '—';
+    if (af === 0) return '0 (not observed)';
+    if (af < 0.0001) return af.toExponential(1);
+    return af.toFixed(4);
+  }
+
+  function afClass(af) {
+    if (af === null || af === undefined) return 'muted';
+    if (af === 0) return 'warn';
+    if (af < 0.0001) return 'warn';
+    if (af < 0.01) return '';
+    return 'ok';
+  }
+
+  function revelClass(r) {
+    if (r === null || r === undefined) return 'muted';
+    if (r >= 0.7) return 'error';
+    if (r >= 0.5) return 'warn';
+    return 'ok';
+  }
+
+  function caddClass(c) {
+    if (c === null || c === undefined) return 'muted';
+    if (c >= 25) return 'error';
+    if (c >= 15) return 'warn';
+    return 'ok';
+  }
+
+  function spliceaiClass(s) {
+    if (s === null || s === undefined) return 'muted';
+    if (s >= 0.8) return 'error';
+    if (s >= 0.5) return 'warn';
+    return 'ok';
+  }
+
+  function clinvarClass(sig) {
+    if (!sig) return 'muted';
+    if (/pathogenic/i.test(sig) && !/conflict/i.test(sig)) return 'error';
+    if (/uncertain/i.test(sig) || /conflict/i.test(sig)) return 'warn';
+    if (/benign/i.test(sig)) return 'ok';
+    return '';
+  }
+
+  // ─── Stage runners ──────────────────────────────────────
+  function runStage1() {
+    if (!currentVariant) return;
+    const rec = currentVariant.record;
+    let inner;
+    if (rec) {
+      inner = `
+        <div class="kv">
+          <div class="k">Gene</div><div class="v strong">${rec.gene || '(intergenic)'}</div>
+          <div class="k">Transcript</div><div class="v">${rec.transcript || '—'}</div>
+          <div class="k">Consequence</div><div class="v">${rec.consequence.replace(/_/g, ' ')}</div>
+          <div class="k">HGVS.c</div><div class="v">${rec.hgvs_c || '—'}</div>
+          <div class="k">HGVS.p</div><div class="v">${rec.hgvs_p || '—'}</div>
+          <div class="k">Exon</div><div class="v">${rec.exon || '—'}</div>
+        </div>
+      `;
+    } else {
+      const consequence = predictConsequence(currentVariant);
+      inner = `
+        <div class="kv">
+          <div class="k">Gene</div><div class="v muted">unknown (not in mock DB)</div>
+          <div class="k">Consequence</div><div class="v warn">${consequence}</div>
+          <div class="k">HGVS</div><div class="v muted">requires transcript-aware annotator</div>
+        </div>
+      `;
+    }
+    appendStage(1, `
+      <div class="output-block stage-1">
+        <span class="tag">Stage 1 \u00B7 VEP / snpEff</span>
+        ${inner}
+      </div>
+    `);
+    markStageDone(1);
+  }
+
+  function runStage2() {
+    if (!currentVariant) return;
+    const rec = currentVariant.record;
+    let inner;
+    if (rec) {
+      const cls = afClass(rec.gnomad_af);
+      const interpretation = rec.gnomad_af === 0
+        ? 'Absent from ~800k gnomAD genomes \u2014 consistent with pathogenic.'
+        : rec.gnomad_af < 0.0001
+          ? 'Ultra-rare (AF < 0.01%). Compatible with pathogenic role.'
+          : rec.gnomad_af < 0.01
+            ? 'Rare (AF < 1%). Does not exclude pathogenicity.'
+            : rec.gnomad_af < 0.05
+              ? 'Low-frequency (AF 1\u20135%). Usually argues against high-penetrance pathogenic.'
+              : 'Common (AF > 5%). Homozygotes present \u2014 incompatible with high-penetrance pathogenic.';
+      inner = `
+        <div class="kv">
+          <div class="k">Allele frequency</div><div class="v ${cls}">${formatAF(rec.gnomad_af)}</div>
+          <div class="k">Homozygotes</div><div class="v">${rec.gnomad_hom.toLocaleString('en-US')}</div>
+          <div class="k">Interpretation</div><div class="v">${interpretation}</div>
+        </div>
+      `;
+    } else {
+      inner = `
+        <div class="kv">
+          <div class="k">Allele frequency</div><div class="v muted">not in mock DB</div>
+          <div class="k">Note</div><div class="v">Real gnomAD lookup required; absence here is not absence in gnomAD.</div>
+        </div>
+      `;
+    }
+    appendStage(2, `
+      <div class="output-block stage-2">
+        <span class="tag">Stage 2 \u00B7 gnomAD population frequency</span>
+        ${inner}
+      </div>
+    `);
+    markStageDone(2);
+  }
+
+  function runStage3() {
+    if (!currentVariant) return;
+    const rec = currentVariant.record;
+    let inner;
+    if (rec) {
+      const sig = rec.clinvar;
+      if (sig) {
+        const cls = clinvarClass(sig);
+        const stars = '\u2605'.repeat(rec.clinvar_stars) + '\u2606'.repeat(Math.max(0, 4 - rec.clinvar_stars));
+        inner = `
+          <div class="kv">
+            <div class="k">Significance</div><div class="v ${cls}">${sig}</div>
+            <div class="k">Review status</div><div class="v">${stars} (${rec.clinvar_stars}/4)</div>
+            <div class="k">Condition</div><div class="v">${rec.clinvar_condition || '—'}</div>
+          </div>
+        `;
+      } else {
+        inner = `
+          <div class="kv">
+            <div class="k">Significance</div><div class="v muted">Not submitted to ClinVar</div>
+            <div class="k">Note</div><div class="v">Absence from ClinVar is not evidence of benignity \u2014 many rare variants are simply unsubmitted.</div>
+          </div>
+        `;
+      }
+    } else {
+      inner = `
+        <div class="kv">
+          <div class="k">Significance</div><div class="v muted">not annotated (variant not in mock DB)</div>
+        </div>
+      `;
+    }
+    appendStage(3, `
+      <div class="output-block stage-3">
+        <span class="tag">Stage 3 \u00B7 ClinVar clinical significance</span>
+        ${inner}
+      </div>
+    `);
+    markStageDone(3);
+  }
+
+  function runStage4() {
+    if (!currentVariant) return;
+    const rec = currentVariant.record;
+    let inner;
+    if (rec) {
+      const revelStr = rec.revel === null ? 'N/A (not missense)' : rec.revel.toFixed(2);
+      const caddStr  = rec.cadd === null ? '—' : rec.cadd.toFixed(1);
+      const splStr   = rec.spliceai === null ? '—' : rec.spliceai.toFixed(2);
+      const revelNote = rec.revel === null
+        ? 'REVEL is a missense-specific score.'
+        : rec.revel >= 0.7
+          ? 'REVEL \u2265 0.7 \u2192 strong pathogenic support.'
+          : rec.revel >= 0.5
+            ? 'REVEL in grey zone (0.5\u20130.7) \u2014 weak evidence.'
+            : 'REVEL < 0.5 \u2192 supports benign.';
+      const caddNote = rec.cadd >= 25
+        ? 'CADD \u2265 25 \u2192 top 0.3% most deleterious.'
+        : rec.cadd >= 15
+          ? 'CADD 15\u201325 \u2192 moderately deleterious.'
+          : 'CADD < 15 \u2192 not prioritised by score alone.';
+      const splNote = rec.spliceai >= 0.8
+        ? 'SpliceAI \u2265 0.8 \u2192 near-certain splice impact.'
+        : rec.spliceai >= 0.5
+          ? 'SpliceAI 0.5\u20130.8 \u2192 possible splice impact.'
+          : 'SpliceAI < 0.2 \u2192 no predicted splice effect.';
+      inner = `
+        <div class="kv">
+          <div class="k">REVEL (missense)</div><div class="v ${revelClass(rec.revel)}">${revelStr}</div>
+          <div class="k">CADD (phred)</div><div class="v ${caddClass(rec.cadd)}">${caddStr}</div>
+          <div class="k">SpliceAI (max \u0394)</div><div class="v ${spliceaiClass(rec.spliceai)}">${splStr}</div>
+          <div class="k">Interpretation</div><div class="v">${rec.revel === null ? caddNote + ' ' + splNote : revelNote + ' ' + splNote}</div>
+        </div>
+      `;
+    } else {
+      inner = `
+        <div class="kv">
+          <div class="k">Scores</div><div class="v muted">not annotated (variant not in mock DB)</div>
+          <div class="k">Note</div><div class="v">Real pipelines still run CADD/SpliceAI on unknown variants \u2014 scores exist genome-wide.</div>
+        </div>
+      `;
+    }
+    appendStage(4, `
+      <div class="output-block stage-4">
+        <span class="tag">Stage 4 \u00B7 REVEL / CADD / SpliceAI</span>
+        ${inner}
+      </div>
+    `);
+    markStageDone(4);
+  }
+
+  function markStageDone(n) {
+    stagesDone.add(n);
+    const btn = pipelineEl.querySelector(`[data-stage="${n}"]`);
+    if (btn) btn.classList.add('done');
+    maybeRenderVerdict();
+  }
+
+  function resetStages() {
+    stagesDone.clear();
+    pipelineEl.querySelectorAll('.stage').forEach(b => b.classList.remove('done'));
+    verdictPanel.hidden = true;
+  }
+
+  function runAllStages() {
+    runStage1();
+    runStage2();
+    runStage3();
+    runStage4();
+  }
+
+  // ─── Verdict rendering ──────────────────────────────────
+  function maybeRenderVerdict() {
+    if (stagesDone.size < 4) return;
+    if (!currentVariant) return;
+    renderVerdict();
+  }
+
+  function renderVerdict() {
+    verdictPanel.hidden = false;
+    const rec = currentVariant.record;
+    if (!rec) {
+      verdictEl.className = 'verdict v-unknown';
+      verdictEl.innerHTML = `
+        <div class="icon">?</div>
+        <div>
+          <div class="v-title">Insufficient annotation \u00B7 variant not in mock database</div>
+          <div class="v-detail">Consequence was predicted from REF/ALT shape only. A full pipeline (VEP + gnomAD + ClinVar + CADD/SpliceAI) would typically still return useful scores for any genomic position.</div>
+        </div>
+      `;
+      return;
+    }
+    const spec = VERDICTS[rec.verdict_key];
+    if (!spec) {
+      verdictEl.className = 'verdict v-unknown';
+      verdictEl.innerHTML = `
+        <div class="icon">\u00B7</div>
+        <div>
+          <div class="v-title">Annotated, verdict class unknown</div>
+          <div class="v-detail">This variant has annotations but no preset verdict template.</div>
+        </div>
+      `;
+      return;
+    }
+    const title = typeof spec.title === 'function' ? spec.title(rec) : spec.title;
+    verdictEl.className = `verdict ${spec.cls}`;
+    verdictEl.innerHTML = `
+      <div class="icon">${spec.icon}</div>
+      <div>
+        <div class="v-title">${title}</div>
+        <div class="v-detail">${spec.detail}</div>
+      </div>
+    `;
+  }
+
+  // ─── Input handling ─────────────────────────────────────
+  function setError(msg) { errorMsg.textContent = msg || ''; }
+
+  function loadInputAsVariant() {
+    const parsed = parseVCF(vcfInput.value);
+    if (parsed.rows.length === 0) {
+      currentVariant = null;
+      setError(parsed.bad ? 'Could not parse any valid VCF row. Need 5 tab/space-separated fields: CHROM POS ID REF ALT.' : 'Paste at least one VCF row.');
+      clearOutput();
+      resetStages();
+      verdictPanel.hidden = true;
+      return false;
+    }
+    setError(parsed.bad ? 'Some rows were skipped (malformed).' : '');
+    const v = parsed.rows[0]; // annotate first row
+    const record = lookupVariant(v);
+    currentVariant = Object.assign({}, v, { record });
+    clearOutput();
+    renderVariantHeader();
+    resetStages();
+    verdictPanel.hidden = true;
+    return true;
+  }
+
+  function applyPreset(key) {
+    const p = PRESETS[key];
+    if (!p) return;
+    vcfInput.value = p.vcf;
+    if (loadInputAsVariant()) {
+      // Auto-run all for presets — fulfils "opens with preset fully annotated" + gives click-through on re-select.
+      runAllStages();
+    }
+  }
+
+  // ─── Wiring ─────────────────────────────────────────────
+  presetEl.addEventListener('change', (e) => applyPreset(e.target.value));
+
+  pipelineEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.stage');
+    if (!btn) return;
+    if (!currentVariant) {
+      if (!loadInputAsVariant()) return;
+    }
+    // Ensure header is present even if user clicked a stage first
+    renderVariantHeader();
+    const n = Number(btn.dataset.stage);
+    if (n === 1) runStage1();
+    else if (n === 2) runStage2();
+    else if (n === 3) runStage3();
+    else if (n === 4) runStage4();
+  });
+
+  runAllBtn.addEventListener('click', () => {
+    if (!currentVariant) {
+      if (!loadInputAsVariant()) return;
+    }
+    renderVariantHeader();
+    runAllStages();
+  });
+
+  resetBtn.addEventListener('click', () => {
+    clearOutput();
+    resetStages();
+    verdictPanel.hidden = true;
+  });
+
+  let debounceTimer = null;
+  vcfInput.addEventListener('input', () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      loadInputAsVariant();
+    }, 180);
+  });
+
+  // ─── Initial state: BRAF V600E fully annotated ──────────
+  presetEl.value = 'braf';
+  applyPreset('braf');
+})();
+</script>
+
+</body>
+</html>

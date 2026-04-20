@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pileup Viewer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1200px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 60ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .mode-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .mode-row .seg {
+      display: inline-flex;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .mode-row .seg button {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.45rem 0.9rem;
+      background: transparent;
+      border: 0;
+      color: var(--fg-muted);
+      cursor: pointer;
+    }
+    .mode-row .seg button[aria-pressed="true"] {
+      background: var(--bg-elevated);
+      color: var(--fg);
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+
+    select, textarea, input[type="range"] {
+      font: inherit;
+      color: inherit;
+    }
+    select {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.4rem 0.6rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: 1.55;
+      color: var(--fg);
+      resize: vertical;
+    }
+    textarea:focus { outline: 2px solid var(--accent-bright); outline-offset: 0; border-color: var(--accent); }
+
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      max-width: 320px;
+    }
+    .slider-row .slider-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 0.9rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+
+    .errors-box {
+      margin-top: 0.75rem;
+      padding: 0.6rem 0.8rem;
+      background: #fff5f5;
+      border: 1px solid var(--error);
+      border-left: 3px solid var(--error);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--error);
+      line-height: 1.6;
+      display: none;
+    }
+    .errors-box.visible { display: block; }
+    .errors-box .title {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 0.3rem;
+      font-size: var(--text-xs);
+    }
+    .errors-box ul { margin: 0; padding-left: 1.1rem; }
+
+    .viz-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+      gap: 1.25rem;
+    }
+    @media (max-width: 900px) {
+      .viz-grid { grid-template-columns: 1fr; }
+    }
+
+    .raw-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+      overflow-x: auto;
+      max-height: 440px;
+      overflow-y: auto;
+    }
+    .raw-table {
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: 1.55;
+      width: 100%;
+    }
+    .raw-table td {
+      padding: 0.08rem 0.5rem 0.08rem 0;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    .raw-table td.cand { background: var(--accent-bg); }
+    .raw-table td.pos {
+      color: var(--fg-subtle);
+      text-align: right;
+      padding-right: 0.75rem;
+      user-select: none;
+    }
+    .raw-table td.ref {
+      font-weight: 600;
+      padding-right: 0.75rem;
+    }
+    .raw-table td.dp {
+      color: var(--fg-muted);
+      padding-right: 0.75rem;
+    }
+    .raw-table td.bases { min-width: 0; }
+    .raw-table .match { color: var(--fg-subtle); }
+    .raw-table .indel { color: var(--warning); font-weight: 600; }
+    .raw-table .bA { color: var(--base-a); font-weight: 600; }
+    .raw-table .bT { color: var(--base-t); font-weight: 600; }
+    .raw-table .bG { color: var(--base-g); font-weight: 600; }
+    .raw-table .bC { color: var(--base-c); font-weight: 600; }
+    .raw-table .bN { color: var(--base-n); }
+    .raw-table .ctrl { color: var(--fg-subtle); opacity: 0.55; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+      overflow-x: auto;
+    }
+    .plot-svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 2px;
+      border: 1px solid var(--border);
+    }
+    .legend-swatch .sw.a { background: var(--base-a); border-color: var(--base-a); }
+    .legend-swatch .sw.t { background: var(--base-t); border-color: var(--base-t); }
+    .legend-swatch .sw.g { background: var(--base-g); border-color: var(--base-g); }
+    .legend-swatch .sw.c { background: var(--base-c); border-color: var(--base-c); }
+    .legend-swatch .sw.match { background: var(--bg-inset); border-color: var(--border-strong); }
+    .legend-swatch .sw.indel { background: var(--warning); border-color: var(--warning); }
+    .legend-swatch .sw.cand {
+      background: var(--accent-bg); border-color: var(--accent);
+    }
+
+    .cand-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+    .cand-table thead th {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-subtle);
+      text-align: left;
+      padding: 0.4rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .cand-table tbody td {
+      padding: 0.45rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--fg);
+    }
+    .cand-table tbody tr:last-child td { border-bottom: 0; }
+    .cand-table .tag {
+      display: inline-block;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      padding: 0.12rem 0.5rem;
+      border-radius: 999px;
+      letter-spacing: 0.02em;
+    }
+    .cand-table .tag.marginal { background: var(--bg-inset); color: var(--fg-muted); }
+    .cand-table .tag.het      { background: var(--accent-bg); color: var(--accent); }
+    .cand-table .tag.hom      { background: #dcfce7; color: var(--success); }
+    .cand-empty {
+      padding: 0.8rem 0.6rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      font-style: italic;
+    }
+
+    .banner {
+      margin-top: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      display: flex;
+      gap: 0.6rem;
+      align-items: flex-start;
+    }
+    .banner.ok {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+    }
+    .banner.none {
+      background: var(--bg-muted);
+      border: 1px solid var(--border-strong);
+      color: var(--fg-muted);
+    }
+    .banner .tick {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      line-height: 1;
+      padding-top: 2px;
+    }
+    .banner strong { color: inherit; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="pileup-viewer">
+
+  <header class="artifact-head">
+    <h1>Pileup Viewer</h1>
+    <p>samtools mpileup hands you a wall of <code>.,AaTt+3AAA</code> noise. Decode it column by column, colour the mismatches, and let the pattern tell you when five "SNVs" are really one misaligned indel.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Input</p>
+    <div class="mode-row">
+      <div class="seg" role="tablist" aria-label="Input mode">
+        <button id="mode-preset" role="tab" aria-pressed="true" type="button">Preset</button>
+        <button id="mode-custom" role="tab" aria-pressed="false" type="button">Custom pileup</button>
+      </div>
+
+      <div id="preset-ctrl">
+        <label class="field-label" for="preset-select" style="display:inline-block; margin: 0 0.5rem 0 0.25rem;">Scenario</label>
+        <select id="preset-select">
+          <option value="clean">clean region</option>
+          <option value="het" selected>heterozygous SNV</option>
+          <option value="hom">homozygous SNV</option>
+          <option value="indel">INDEL cluster</option>
+          <option value="lowdepth">low-depth region</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="custom-ctrl" class="hidden" style="margin-top: 1rem;">
+      <label class="field-label" for="pileup-input">Paste mpileup (chrom  pos  ref  depth  bases  quals)</label>
+      <textarea id="pileup-input" spellcheck="false" placeholder="chr1&#9;100&#9;A&#9;10&#9;.,.,.,.,.&#9;IIIIIIIIII"></textarea>
+      <div id="errors" class="errors-box" role="alert" aria-live="polite">
+        <span class="title">Malformed lines — fix these before rendering</span>
+        <ul id="errors-list"></ul>
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="vaf-input">VAF threshold</label>
+          <span class="slider-value" id="vaf-value">0.20</span>
+        </div>
+        <input id="vaf-input" type="range" min="0" max="1" step="0.01" value="0.20">
+      </div>
+    </div>
+    <p class="hint">A pileup line is one <em>column</em> of the alignment at one reference position. <code>.</code>/<code>,</code> = base matches reference (forward/reverse strand). <code>A C G T</code> upper or lower = mismatch (case = strand). <code>+Nxxx</code> = insertion of N bases. <code>-Nxxx</code> = deletion. <code>^X</code> starts a read (X = mapq). <code>$</code> ends a read. Allele fraction (VAF) = non-reference base count / depth.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Pileup views</p>
+    <div class="viz-grid">
+      <div>
+        <div class="field-label" style="margin-bottom: 0.5rem;">Raw mpileup (colour-coded)</div>
+        <div class="raw-wrap">
+          <table class="raw-table"><tbody id="raw-body"></tbody></table>
+        </div>
+      </div>
+      <div>
+        <div class="field-label" style="margin-bottom: 0.5rem;">Stacked pileup — reads × positions</div>
+        <div class="plot-wrap">
+          <svg id="grid-svg" class="plot-svg" viewBox="0 0 1000 400" preserveAspectRatio="xMinYMin meet" aria-label="Stacked read pileup"></svg>
+        </div>
+        <p class="plot-caption" id="grid-caption">each row is one read, each column is one reference position</p>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw match"></span>match to reference</span>
+      <span class="legend-swatch"><span class="sw a"></span>A</span>
+      <span class="legend-swatch"><span class="sw t"></span>T</span>
+      <span class="legend-swatch"><span class="sw g"></span>G</span>
+      <span class="legend-swatch"><span class="sw c"></span>C</span>
+      <span class="legend-swatch"><span class="sw indel"></span>INDEL</span>
+      <span class="legend-swatch"><span class="sw cand"></span>column above VAF threshold</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Candidate variants</p>
+    <table class="cand-table" id="cand-table">
+      <thead>
+        <tr>
+          <th>CHROM:POS</th>
+          <th>REF&rarr;ALT</th>
+          <th>DP</th>
+          <th>VAF</th>
+          <th>Call</th>
+        </tr>
+      </thead>
+      <tbody id="cand-body"></tbody>
+    </table>
+    <div id="cand-empty" class="cand-empty hidden">No columns exceed the VAF threshold at this setting.</div>
+
+    <div id="banner" class="banner none" role="status" aria-live="polite">
+      <span class="tick">&#x2713;</span>
+      <div id="banner-text">No candidate variants above threshold.</div>
+    </div>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  const modePreset   = $('mode-preset');
+  const modeCustom   = $('mode-custom');
+  const presetCtrl   = $('preset-ctrl');
+  const customCtrl   = $('custom-ctrl');
+  const presetSelect = $('preset-select');
+  const pileupInput  = $('pileup-input');
+  const errorsBox    = $('errors');
+  const errorsList   = $('errors-list');
+  const vafInput     = $('vaf-input');
+  const vafValue     = $('vaf-value');
+  const rawBody      = $('raw-body');
+  const gridSvg      = $('grid-svg');
+  const gridCaption  = $('grid-caption');
+  const candTable    = $('cand-table');
+  const candBody     = $('cand-body');
+  const candEmpty    = $('cand-empty');
+  const banner       = $('banner');
+  const bannerText   = $('banner-text');
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Presets ──────────────────────────────────────────────
+  //
+  // Each preset is ~6-10 consecutive columns of realistic samtools mpileup
+  // output: chrom  pos  ref  depth  bases  quals.
+  //
+  // "het"    — pos 10050 has A/G ~50/50
+  // "hom"    — pos 10042 has nearly all T where ref is C
+  // "indel"  — 5 adjacent columns each with 1-2 single-base mismatches at low
+  //            depth: the "five SNVs" illusion that really is one misaligned
+  //            indel. The hallmark is that the mismatched alt bases do not
+  //            agree column-to-column — a real SNV cluster would share strand
+  //            and alt allele across reads.
+  // "clean"  — no variants; straight match columns at ~20x.
+  // "lowdepth" — depths 2-4, with one column showing a possibly-real het.
+
+  const PRESETS = {
+    clean: [
+      'chr7\t117199640\tA\t22\t.,..,.,,,..,,.,..,.,,.\tIIIIIIIIIIIIIIIIIIIIII',
+      'chr7\t117199641\tC\t22\t,.,.,.,,..,.,,,.,.,,.,\tIIIIIIIIIIIIIIIIIIIIII',
+      'chr7\t117199642\tG\t22\t.,,.,..,,.,,.,,,..,,,.\tIIIIIIIIIIIIIIIIIIIIII',
+      'chr7\t117199643\tT\t22\t,,..,,,.,,,..,,,.,,.,.\tIIIIIIIIIIIIIIIIIIIIII',
+      'chr7\t117199644\tA\t22\t..,,,.,.,,..,.,,.,.,.,\tIIIIIIIIIIIIIIIIIIIIII',
+      'chr7\t117199645\tG\t22\t,.,,,..,,.,.,.,,,,.,,.\tIIIIIIIIIIIIIIIIIIIIII',
+      'chr7\t117199646\tC\t22\t.,,..,,.,.,,.,,..,,.,,\tIIIIIIIIIIIIIIIIIIIIII',
+      'chr7\t117199647\tT\t22\t,,.,,..,,.,,.,.,,.,,.,\tIIIIIIIIIIIIIIIIIIIIII',
+    ].join('\n'),
+
+    het: [
+      'chr1\t10046\tC\t24\t.,.,..,,.,,..,.,,.,,.,.,\tIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr1\t10047\tA\t24\t,.,..,.,,.,.,,,.,.,,.,,.\tIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr1\t10048\tG\t24\t.,,..,,.,.,,.,,.,,.,.,,.\tIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr1\t10049\tT\t24\t,,.,,.,..,,.,,,.,.,,.,,.\tIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr1\t10050\tA\t24\tG,Gg.G,gG.,gG,.G,gG,.gG.\tIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr1\t10051\tC\t24\t.,,..,,.,,.,,,.,.,,..,,.\tIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr1\t10052\tT\t24\t,.,,.,,,..,,.,,,.,.,,.,.\tIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr1\t10053\tG\t24\t.,..,,.,,,.,,.,,.,.,,.,.\tIIIIIIIIIIIIIIIIIIIIIIII',
+    ].join('\n'),
+
+    hom: [
+      'chr3\t10038\tG\t26\t.,,.,,..,,.,,.,,..,,.,,,..\tIIIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr3\t10039\tA\t26\t,.,..,,.,,.,,,.,.,,.,,.,,.\tIIIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr3\t10040\tT\t26\t.,.,.,,,..,,.,,,.,.,,.,,.,\tIIIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr3\t10041\tG\t26\t,.,,.,,.,.,,.,,.,,.,,.,,..\tIIIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr3\t10042\tC\t26\tTtTtTTtTtTTtTtTTtT.tTTtT.t\tIIIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr3\t10043\tA\t26\t.,,.,,.,.,,..,.,,,.,,.,,.,\tIIIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr3\t10044\tG\t26\t,.,..,,.,,.,,,.,.,,.,,.,,.\tIIIIIIIIIIIIIIIIIIIIIIIIII',
+      'chr3\t10045\tT\t26\t.,.,,,..,,.,,.,,..,,.,,,..\tIIIIIIIIIIIIIIIIIIIIIIIIII',
+    ].join('\n'),
+
+    // INDEL cluster: five adjacent columns each carry a small scatter of
+    // single-base mismatches at inconsistent alt alleles. That is the aha:
+    // a true 5-bp SNV cluster would show consistent alts column-to-column.
+    indel: [
+      'chr2\t50120\tA\t18\t.,.,..,,.,,.,,.,,.\tIIIIIIIIIIIIIIIIII',
+      'chr2\t50121\tG\t18\t,.,..,.,,..,.,,,.,\tIIIIIIIIIIIIIIIIII',
+      'chr2\t50122\tC\t18\tT,.t,.,,.,T,.,,tT,\tIIIIIIIIIIIIIIIIII',
+      'chr2\t50123\tA\t18\t,g,.,G,.,,g,.G,.,,\tIIIIIIIIIIIIIIIIII',
+      'chr2\t50124\tT\t18\t.C,c,.,,C,.,c,C,,.\tIIIIIIIIIIIIIIIIII',
+      'chr2\t50125\tG\t18\tA,.,a,.,,A,.A,,.,a\tIIIIIIIIIIIIIIIIII',
+      'chr2\t50126\tC\t18\t,.T,.,t,T.,,.t,T,.\tIIIIIIIIIIIIIIIIII',
+      'chr2\t50127\tT\t18\t.,.,,.,,.,,.,..,,.\tIIIIIIIIIIIIIIIIII',
+      'chr2\t50128\tA\t18\t,.,..,,.,,.,,,.,.,\tIIIIIIIIIIIIIIIIII',
+    ].join('\n'),
+
+    lowdepth: [
+      'chrX\t77411\tA\t3\t.,.\tIII',
+      'chrX\t77412\tC\t3\t,.,\tIII',
+      'chrX\t77413\tG\t2\t..\tII',
+      'chrX\t77414\tT\t4\t.,.,\tIIII',
+      'chrX\t77415\tA\t4\tG,g.\tIIII',
+      'chrX\t77416\tC\t3\t,.,\tIII',
+      'chrX\t77417\tT\t2\t.,\tII',
+      'chrX\t77418\tG\t3\t,.,\tIII',
+    ].join('\n'),
+  };
+
+  // ── Pileup parsing ───────────────────────────────────────
+  //
+  // A pileup "bases" string at one column is a run of tokens:
+  //   .  ,            match reference (fwd / rev strand)
+  //   A C G T N       mismatch, uppercase = fwd strand
+  //   a c g t n       mismatch, lowercase = rev strand
+  //   *               deleted base in this read (from a prior -N deletion)
+  //   ^X              read start; X is a single mapq char (to be dropped)
+  //   $               read end (to be dropped)
+  //   +N<bases>       insertion of N bases AFTER the current base
+  //   -N<bases>       deletion of N bases AFTER the current base
+  //
+  // Insertions/deletions are attached to the *preceding* base token and do
+  // not consume a new read slot in the per-column list. We return per-read
+  // "call" entries that each flatten into one slot on the SVG grid.
+
+  function parseBases(raw) {
+    const calls = []; // { base: 'A'|'T'|'G'|'C'|'N'|'.'|'*', indel: '+3AAA' | '-2CT' | null, strand: '+'|'-' }
+    let i = 0;
+    const n = raw.length;
+    while (i < n) {
+      const ch = raw[i];
+      if (ch === '^') {
+        // read-start marker with next char = mapq; skip both
+        i += 2;
+        continue;
+      }
+      if (ch === '$') { i++; continue; }
+      if (ch === '.' || ch === ',') {
+        calls.push({ base: '.', raw: ch, indel: null, strand: ch === '.' ? '+' : '-' });
+        i++;
+      } else if (/[ACGTNacgtn*]/.test(ch)) {
+        const strand = (ch === ch.toUpperCase()) ? '+' : '-';
+        calls.push({ base: ch.toUpperCase(), raw: ch, indel: null, strand });
+        i++;
+      } else if (ch === '+' || ch === '-') {
+        // indel: read digits, then that many base chars, attach to previous call
+        let j = i + 1;
+        let numStr = '';
+        while (j < n && /[0-9]/.test(raw[j])) { numStr += raw[j]; j++; }
+        const len = parseInt(numStr, 10) || 0;
+        const indelBases = raw.slice(j, j + len);
+        const indelTok = ch + numStr + indelBases;
+        if (calls.length > 0) calls[calls.length - 1].indel = indelTok;
+        else calls.push({ base: '.', raw: '.', indel: indelTok, strand: '+' });
+        i = j + len;
+      } else {
+        // unknown char — skip defensively so a weird token doesn't break the row
+        i++;
+      }
+    }
+    return calls;
+  }
+
+  // Parse a full mpileup text into columns. Returns { rows, errors }.
+  //   rows: [{ chrom, pos, ref, depth, calls, quals, raw }]
+  //   errors: [{ line: 1-indexed, reason }]
+  function parsePileup(text) {
+    const rows = [];
+    const errors = [];
+    const lines = text.split(/\r?\n/);
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li];
+      if (!line.trim()) continue;
+      const cols = line.split('\t');
+      if (cols.length < 5) {
+        errors.push({ line: li + 1, reason: 'expected ≥5 tab-separated columns; found ' + cols.length });
+        continue;
+      }
+      const [chrom, posStr, refRaw, depthStr, basesRaw, qualsRaw = ''] = cols;
+      const pos = parseInt(posStr, 10);
+      const depth = parseInt(depthStr, 10);
+      if (!Number.isFinite(pos) || pos <= 0) {
+        errors.push({ line: li + 1, reason: 'position must be a positive integer, got "' + posStr + '"' });
+        continue;
+      }
+      if (!Number.isFinite(depth) || depth < 0) {
+        errors.push({ line: li + 1, reason: 'depth must be a non-negative integer, got "' + depthStr + '"' });
+        continue;
+      }
+      const ref = refRaw.toUpperCase();
+      if (!/^[ACGTN]$/.test(ref)) {
+        errors.push({ line: li + 1, reason: 'reference base must be A/C/G/T/N, got "' + refRaw + '"' });
+        continue;
+      }
+      const calls = parseBases(basesRaw || '');
+      // a sanity-check: count of non-indel-only calls should match depth
+      const nonIndelCalls = calls.filter(c => c.base !== undefined).length;
+      if (nonIndelCalls !== depth) {
+        // not fatal for teaching — we still render, but note it
+        errors.push({
+          line: li + 1,
+          reason: 'depth says ' + depth + ' but bases string parses to ' +
+                  nonIndelCalls + ' read calls (still rendering)',
+        });
+      }
+      rows.push({
+        chrom, pos, ref, depth,
+        calls, quals: qualsRaw, raw: basesRaw,
+      });
+    }
+    return { rows, errors };
+  }
+
+  // Per-column summary: allele counts, VAF, top alt allele.
+  function summarize(row) {
+    const counts = { A: 0, C: 0, G: 0, T: 0, N: 0, DEL: 0, REF: 0 };
+    let indelCount = 0;
+    for (const c of row.calls) {
+      if (c.base === '.') counts.REF++;
+      else if (c.base === '*') counts.DEL++;
+      else if (c.base && counts[c.base] !== undefined) counts[c.base]++;
+      if (c.indel) indelCount++;
+    }
+    const dp = counts.A + counts.C + counts.G + counts.T + counts.N + counts.REF + counts.DEL;
+    // top non-reference allele (also include DEL)
+    const altBases = ['A', 'C', 'G', 'T'].filter(b => b !== row.ref);
+    let topAlt = null, topAltCount = 0;
+    for (const b of altBases) {
+      if (counts[b] > topAltCount) { topAltCount = counts[b]; topAlt = b; }
+    }
+    if (counts.DEL > topAltCount) { topAltCount = counts.DEL; topAlt = '*'; }
+    const vaf = dp > 0 ? topAltCount / dp : 0;
+    return { counts, dp, topAlt, topAltCount, vaf, indelCount };
+  }
+
+  function qualitativeLabel(vaf) {
+    if (vaf >= 0.8) return { tag: 'hom',      text: 'likely hom' };
+    if (vaf >= 0.35) return { tag: 'het',     text: 'likely het' };
+    return { tag: 'marginal', text: 'marginal' };
+  }
+
+  // ── Rendering: raw coloured text ─────────────────────────
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+
+  function colourBases(raw, refBase) {
+    // Re-walk the bases string and emit spans. Mirrors parseBases but
+    // preserves the exact token boundaries so the reader sees the real
+    // mpileup syntax.
+    let out = '';
+    let i = 0;
+    const n = raw.length;
+    while (i < n) {
+      const ch = raw[i];
+      if (ch === '^') {
+        const pair = raw.slice(i, Math.min(n, i + 2));
+        out += '<span class="ctrl">' + escapeHtml(pair) + '</span>';
+        i += 2;
+      } else if (ch === '$') {
+        out += '<span class="ctrl">$</span>';
+        i++;
+      } else if (ch === '.' || ch === ',') {
+        out += '<span class="match">' + ch + '</span>';
+        i++;
+      } else if (/[ACGTacgt]/.test(ch)) {
+        const cls = 'b' + ch.toUpperCase();
+        out += '<span class="' + cls + '">' + ch + '</span>';
+        i++;
+      } else if (/[Nn]/.test(ch)) {
+        out += '<span class="bN">' + ch + '</span>';
+        i++;
+      } else if (ch === '*') {
+        out += '<span class="indel">*</span>';
+        i++;
+      } else if (ch === '+' || ch === '-') {
+        let j = i + 1;
+        let numStr = '';
+        while (j < n && /[0-9]/.test(raw[j])) { numStr += raw[j]; j++; }
+        const len = parseInt(numStr, 10) || 0;
+        const tok = raw.slice(i, j + len);
+        out += '<span class="indel">' + escapeHtml(tok) + '</span>';
+        i = j + len;
+      } else {
+        out += escapeHtml(ch);
+        i++;
+      }
+    }
+    return out;
+  }
+
+  function renderRawTable(rows, candidates) {
+    const candSet = new Set(candidates.map(c => c.pos));
+    rawBody.innerHTML = '';
+    for (const row of rows) {
+      const tr = document.createElement('tr');
+      const isCand = candSet.has(row.pos);
+      const clsCand = isCand ? ' class="cand"' : '';
+      tr.innerHTML =
+        '<td class="pos' + (isCand ? ' cand' : '') + '">' + row.chrom + ':' + row.pos + '</td>' +
+        '<td class="ref' + (isCand ? ' cand' : '') + '">' + row.ref + '</td>' +
+        '<td class="dp'  + (isCand ? ' cand' : '') + '">DP=' + row.depth + '</td>' +
+        '<td class="bases' + (isCand ? ' cand' : '') + '" title="quals: ' +
+            escapeHtml(row.quals) + '">' +
+            colourBases(row.raw, row.ref) + '</td>';
+      rawBody.appendChild(tr);
+    }
+  }
+
+  // ── Rendering: stacked SVG grid ──────────────────────────
+
+  function renderGrid(rows, candidates) {
+    const svg = gridSvg;
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const COL_W = 16;
+    const ROW_H = 10;
+    const PAD_L = 56;  // space for pos labels
+    const PAD_T = 44;  // space for ref-base row + pos ticks
+    const PAD_R = 10;
+    const PAD_B = 10;
+    const MAX_READS = 60;
+
+    // Build a per-column slot list of up to MAX_READS reads.
+    const nCols = rows.length;
+    const maxDepth = Math.max(1, ...rows.map(r => r.calls.length));
+    const shownRows = Math.min(MAX_READS, maxDepth);
+
+    const plotW = PAD_L + nCols * COL_W + PAD_R;
+    const plotH = PAD_T + shownRows * ROW_H + PAD_B + 16;
+    svg.setAttribute('viewBox', '0 0 ' + plotW + ' ' + plotH);
+
+    const candSet = new Set(candidates.map(c => c.pos));
+
+    const baseColor = (b) => {
+      switch (b) {
+        case 'A': return 'var(--base-a)';
+        case 'T': return 'var(--base-t)';
+        case 'G': return 'var(--base-g)';
+        case 'C': return 'var(--base-c)';
+        case 'N': return 'var(--base-n)';
+        default:  return 'var(--bg-inset)';
+      }
+    };
+
+    // Column-wide candidate highlight (behind everything)
+    for (let ci = 0; ci < nCols; ci++) {
+      if (!candSet.has(rows[ci].pos)) continue;
+      const x = PAD_L + ci * COL_W;
+      const rect = document.createElementNS(SVG_NS, 'rect');
+      rect.setAttribute('x', x);
+      rect.setAttribute('y', 4);
+      rect.setAttribute('width', COL_W);
+      rect.setAttribute('height', plotH - 8);
+      rect.setAttribute('fill', 'var(--accent-bg)');
+      rect.setAttribute('stroke', 'var(--accent)');
+      rect.setAttribute('stroke-width', 0.8);
+      rect.setAttribute('stroke-dasharray', '3 3');
+      rect.setAttribute('opacity', 0.85);
+      svg.appendChild(rect);
+    }
+
+    // Pos label — one label per column (rotated for compactness)
+    for (let ci = 0; ci < nCols; ci++) {
+      const x = PAD_L + ci * COL_W + COL_W / 2;
+      const y = 14;
+      const t = document.createElementNS(SVG_NS, 'text');
+      t.setAttribute('x', x);
+      t.setAttribute('y', y);
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-family', 'var(--font-mono)');
+      t.setAttribute('font-size', 9);
+      t.setAttribute('fill', 'var(--fg-subtle)');
+      t.textContent = String(rows[ci].pos).slice(-4);
+      svg.appendChild(t);
+    }
+
+    // Reference base row (top, on PAD_T − ROW_H strip)
+    const refY = PAD_T - ROW_H - 2;
+    const refLabel = document.createElementNS(SVG_NS, 'text');
+    refLabel.setAttribute('x', PAD_L - 6);
+    refLabel.setAttribute('y', refY + ROW_H - 2);
+    refLabel.setAttribute('text-anchor', 'end');
+    refLabel.setAttribute('font-family', 'var(--font-mono)');
+    refLabel.setAttribute('font-size', 10);
+    refLabel.setAttribute('fill', 'var(--fg-muted)');
+    refLabel.textContent = 'REF';
+    svg.appendChild(refLabel);
+
+    for (let ci = 0; ci < nCols; ci++) {
+      const x = PAD_L + ci * COL_W;
+      const rect = document.createElementNS(SVG_NS, 'rect');
+      rect.setAttribute('x', x + 1);
+      rect.setAttribute('y', refY);
+      rect.setAttribute('width', COL_W - 2);
+      rect.setAttribute('height', ROW_H);
+      rect.setAttribute('fill', 'var(--bg-elevated)');
+      rect.setAttribute('stroke', 'var(--border-strong)');
+      rect.setAttribute('stroke-width', 0.5);
+      svg.appendChild(rect);
+      const t = document.createElementNS(SVG_NS, 'text');
+      t.setAttribute('x', x + COL_W / 2);
+      t.setAttribute('y', refY + ROW_H - 2);
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-family', 'var(--font-mono)');
+      t.setAttribute('font-size', 9);
+      t.setAttribute('font-weight', 600);
+      t.setAttribute('fill', baseColor(rows[ci].ref));
+      t.textContent = rows[ci].ref;
+      svg.appendChild(t);
+    }
+
+    // Reads: row r = the r-th read-slot at that column.
+    // We cap to MAX_READS. If any column had more, we log it and truncate.
+    let truncatedAny = false;
+    for (let ci = 0; ci < nCols; ci++) {
+      const row = rows[ci];
+      const x = PAD_L + ci * COL_W;
+      if (row.calls.length > MAX_READS) truncatedAny = true;
+      const calls = row.calls.slice(0, MAX_READS);
+      for (let r = 0; r < calls.length; r++) {
+        const c = calls[r];
+        const y = PAD_T + r * ROW_H;
+        let fill;
+        let borderFill = null;
+        if (c.base === '.') {
+          fill = 'var(--bg-inset)';
+        } else if (c.base === '*') {
+          fill = 'var(--warning)';
+        } else {
+          fill = baseColor(c.base);
+        }
+        if (c.indel) borderFill = 'var(--warning)';
+
+        const rect = document.createElementNS(SVG_NS, 'rect');
+        rect.setAttribute('x', x + 1);
+        rect.setAttribute('y', y + 0.5);
+        rect.setAttribute('width', COL_W - 2);
+        rect.setAttribute('height', ROW_H - 1);
+        rect.setAttribute('fill', fill);
+        rect.setAttribute('stroke', borderFill || 'rgba(0,0,0,0.05)');
+        rect.setAttribute('stroke-width', borderFill ? 1.2 : 0.3);
+        const titleEl = document.createElementNS(SVG_NS, 'title');
+        const qChar = row.quals && row.quals[r];
+        const qVal  = qChar ? (qChar.charCodeAt(0) - 33) : null;
+        let t = row.chrom + ':' + row.pos + '  ref=' + row.ref +
+                '  call=' + (c.raw || c.base) + ' (' + (c.strand === '+' ? 'fwd' : 'rev') + ')';
+        if (c.indel) t += '  ' + c.indel;
+        if (qVal !== null) t += '  Q=' + qVal;
+        titleEl.textContent = t;
+        rect.appendChild(titleEl);
+        svg.appendChild(rect);
+
+        // Overlay the alt base letter when mismatch, for readability
+        if (c.base !== '.' && c.base !== '*' && c.base !== undefined) {
+          const tx = document.createElementNS(SVG_NS, 'text');
+          tx.setAttribute('x', x + COL_W / 2);
+          tx.setAttribute('y', y + ROW_H - 1.5);
+          tx.setAttribute('text-anchor', 'middle');
+          tx.setAttribute('font-family', 'var(--font-mono)');
+          tx.setAttribute('font-size', 7);
+          tx.setAttribute('font-weight', 600);
+          tx.setAttribute('fill', '#fff');
+          tx.setAttribute('pointer-events', 'none');
+          tx.textContent = c.base;
+          svg.appendChild(tx);
+        }
+      }
+    }
+
+    const shownMsg = (maxDepth > MAX_READS)
+      ? 'reads × positions · showing top ' + MAX_READS + ' of up to ' + maxDepth + ' reads per column'
+      : 'reads × positions · up to ' + maxDepth + ' reads per column';
+    gridCaption.textContent = shownMsg;
+  }
+
+  // ── Rendering: candidates table + banner ─────────────────
+
+  function renderCandidates(candidates) {
+    candBody.innerHTML = '';
+    if (candidates.length === 0) {
+      candTable.classList.add('hidden');
+      candEmpty.classList.remove('hidden');
+      banner.classList.remove('ok');
+      banner.classList.add('none');
+      bannerText.innerHTML = 'No candidate variants above threshold.';
+      return;
+    }
+    candTable.classList.remove('hidden');
+    candEmpty.classList.add('hidden');
+
+    for (const c of candidates) {
+      const lbl = qualitativeLabel(c.vaf);
+      const alt = c.alt === '*' ? 'DEL' : c.alt;
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + c.chrom + ':' + c.pos + '</td>' +
+        '<td>' + c.ref + '&nbsp;&rarr;&nbsp;' + alt + '</td>' +
+        '<td>' + c.dp + '</td>' +
+        '<td>' + c.vaf.toFixed(3) + '</td>' +
+        '<td><span class="tag ' + lbl.tag + '">' + lbl.text + '</span></td>';
+      candBody.appendChild(tr);
+    }
+
+    const posList = candidates.map(c => c.chrom + ':' + c.pos).join(', ');
+    const vafList = candidates.map(c => c.vaf.toFixed(2)).join(', ');
+    banner.classList.remove('none');
+    banner.classList.add('ok');
+    bannerText.innerHTML =
+      '<strong>' + candidates.length + ' candidate variant' +
+      (candidates.length === 1 ? '' : 's') +
+      '</strong> at ' + posList + ' &middot; VAFs ' + vafList + '.';
+  }
+
+  // ── Errors UI ────────────────────────────────────────────
+
+  function renderErrors(errors) {
+    if (errors.length === 0) {
+      errorsBox.classList.remove('visible');
+      errorsList.innerHTML = '';
+      return;
+    }
+    errorsBox.classList.add('visible');
+    errorsList.innerHTML = errors.map(e =>
+      '<li>line ' + e.line + ': ' + escapeHtml(e.reason) + '</li>'
+    ).join('');
+  }
+
+  // ── Orchestration ────────────────────────────────────────
+
+  const state = {
+    mode: 'preset',          // 'preset' | 'custom'
+    preset: 'het',
+    customText: '',
+    vaf: 0.20,
+  };
+
+  function currentText() {
+    return state.mode === 'preset'
+      ? PRESETS[state.preset]
+      : state.customText;
+  }
+
+  function run() {
+    const text = currentText();
+    const { rows, errors } = parsePileup(text);
+
+    // Feasibility gate: for custom, show errors inline first. Still render
+    // whatever parsed cleanly so the student can see partial progress.
+    if (state.mode === 'custom') {
+      renderErrors(errors);
+    } else {
+      renderErrors([]);
+    }
+
+    // Per-row summary + candidate detection
+    const summaries = rows.map(r => ({ row: r, sum: summarize(r) }));
+    const candidates = summaries
+      .filter(s => s.sum.vaf > state.vaf && s.sum.topAlt != null)
+      .map(s => ({
+        chrom: s.row.chrom,
+        pos:   s.row.pos,
+        ref:   s.row.ref,
+        alt:   s.sum.topAlt,
+        dp:    s.sum.dp,
+        vaf:   s.sum.vaf,
+      }));
+
+    renderRawTable(rows, candidates);
+    renderGrid(rows, candidates);
+    renderCandidates(candidates);
+  }
+
+  // ── Wiring ───────────────────────────────────────────────
+
+  function setMode(m) {
+    state.mode = m;
+    const isPreset = m === 'preset';
+    modePreset.setAttribute('aria-pressed', String(isPreset));
+    modeCustom.setAttribute('aria-pressed', String(!isPreset));
+    presetCtrl.classList.toggle('hidden', !isPreset);
+    customCtrl.classList.toggle('hidden', isPreset);
+    if (!isPreset && !state.customText) {
+      // seed the textarea with the current preset so student has a
+      // known-good starting point to mutate
+      state.customText = PRESETS[state.preset];
+      pileupInput.value = state.customText;
+    }
+    run();
+  }
+
+  modePreset.addEventListener('click', () => setMode('preset'));
+  modeCustom.addEventListener('click', () => setMode('custom'));
+
+  presetSelect.addEventListener('change', () => {
+    state.preset = presetSelect.value;
+    run();
+  });
+
+  pileupInput.addEventListener('input', () => {
+    state.customText = pileupInput.value;
+    run();
+  });
+
+  vafInput.addEventListener('input', () => {
+    state.vaf = parseFloat(vafInput.value);
+    vafValue.textContent = state.vaf.toFixed(2);
+    run();
+  });
+
+  // Initial paint — shows the "heterozygous SNV" preset so the teaching
+  // point lands without interaction.
+  vafValue.textContent = state.vaf.toFixed(2);
+  run();
+})();
+</script>
+
+</body>
+</html>

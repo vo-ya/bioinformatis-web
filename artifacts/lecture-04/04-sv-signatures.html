@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SV Signature Explorer — Three-Channel Evidence for Structural Variants</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 62ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem 1.25rem;
+      align-items: end;
+    }
+    .control-cell { display: flex; flex-direction: column; }
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.45rem;
+    }
+
+    select.ctrl, input.ctrl {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.55rem 0.7rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+    }
+    select.ctrl:focus, input.ctrl:focus {
+      border-color: var(--accent-bright);
+      background: var(--bg-elevated);
+      outline: none;
+    }
+    input[type="range"].ctrl {
+      padding: 0;
+      background: transparent;
+      border: 0;
+      width: 100%;
+    }
+
+    .slider-readout {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg);
+      margin-top: 0.3rem;
+    }
+
+    .seg-toggle {
+      display: inline-flex;
+      gap: 0;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 2px;
+    }
+    .seg-toggle button {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.42rem 0.85rem;
+      background: transparent;
+      border: 0;
+      color: var(--fg-muted);
+      cursor: pointer;
+      border-radius: calc(var(--radius-sm) - 1px);
+    }
+    .seg-toggle button.active {
+      background: var(--bg-elevated);
+      color: var(--accent);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    /* Visualization ----------------------------------------------- */
+    .viz-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem;
+      overflow: hidden;
+    }
+    svg.viz {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* SVG internal styles */
+    svg.viz .track-bg {
+      fill: var(--bg-elevated);
+      stroke: var(--border);
+      stroke-width: 1;
+    }
+    svg.viz .track-label {
+      font-family: var(--font-sans);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      fill: var(--fg-subtle);
+    }
+    svg.viz .track-sublabel {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      fill: var(--fg-muted);
+    }
+    svg.viz .ref-strand {
+      fill: var(--bg-inset);
+      stroke: var(--border-strong);
+      stroke-width: 1;
+    }
+    svg.viz .ref-tick {
+      stroke: var(--fg-subtle);
+      stroke-width: 1;
+    }
+    svg.viz .ref-tick-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      fill: var(--fg-subtle);
+      text-anchor: middle;
+    }
+    svg.viz .sv-band {
+      fill: rgba(180, 83, 9, 0.14);
+      stroke: var(--warning);
+      stroke-width: 1;
+      stroke-dasharray: 3 2;
+    }
+    svg.viz .sv-band-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      fill: var(--warning);
+      font-weight: 600;
+      text-anchor: middle;
+    }
+    svg.viz .discordant-arc {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 1.3;
+      opacity: 0.8;
+    }
+    svg.viz .discordant-arc.faint {
+      stroke: var(--fg-subtle);
+      opacity: 0.5;
+    }
+    svg.viz .arc-endpoint {
+      fill: var(--accent);
+    }
+    svg.viz .arc-endpoint.faint {
+      fill: var(--fg-subtle);
+    }
+    svg.viz .split-read {
+      stroke: var(--fg-muted);
+      stroke-width: 3;
+      stroke-linecap: butt;
+    }
+    svg.viz .split-read.left  { stroke: #2d7a3e; }
+    svg.viz .split-read.right { stroke: var(--accent-bright); }
+    svg.viz .split-break {
+      stroke: var(--error);
+      stroke-width: 1.2;
+      stroke-dasharray: 2 2;
+    }
+    svg.viz .depth-curve {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 1.8;
+      stroke-linejoin: miter;
+    }
+    svg.viz .depth-fill {
+      fill: var(--accent-bg);
+      stroke: none;
+    }
+    svg.viz .depth-baseline {
+      stroke: var(--border-strong);
+      stroke-width: 1;
+      stroke-dasharray: 3 3;
+    }
+    svg.viz .depth-axis-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      fill: var(--fg-subtle);
+      text-anchor: end;
+    }
+    svg.viz .long-read-bar {
+      fill: var(--accent);
+      opacity: 0.78;
+    }
+    svg.viz .long-read-gap {
+      fill: none;
+      stroke: var(--error);
+      stroke-width: 2;
+      stroke-dasharray: 4 2;
+    }
+    svg.viz .long-read-gap-span {
+      stroke: var(--error);
+      stroke-width: 1.2;
+    }
+    svg.viz .long-read-label {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      fill: var(--fg-muted);
+      text-anchor: start;
+    }
+    svg.viz .long-read-gap-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      fill: var(--error);
+      font-weight: 600;
+      text-anchor: middle;
+    }
+    svg.viz .breakpoint-line {
+      stroke: var(--warning);
+      stroke-width: 0.8;
+      stroke-dasharray: 2 3;
+      opacity: 0.55;
+    }
+    svg.viz .count-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      fill: var(--fg);
+      font-weight: 600;
+    }
+    svg.viz .insert-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      fill: var(--fg-muted);
+    }
+
+    /* Caller verdict ---------------------------------------------- */
+    .verdict-banner {
+      margin-top: 1rem;
+      padding: 0.95rem 1.1rem;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      line-height: 1.5;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #064e3b;
+    }
+    .verdict-banner.lowconf {
+      background: #fffbeb;
+      border-color: #fde68a;
+      color: #78350f;
+    }
+    .verdict-banner .verdict-title {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      display: block;
+      margin-bottom: 0.2rem;
+    }
+    .verdict-banner .verdict-body {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+    }
+    .verdict-banner code {
+      font-family: var(--font-mono);
+      font-size: 0.92em;
+      background: rgba(255,255,255,0.55);
+      padding: 0 0.3rem;
+      border-radius: 2px;
+    }
+
+    .channel-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .channel-card {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .channel-card .chan-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin: 0 0 0.25rem;
+    }
+    .channel-card .chan-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      color: var(--fg);
+      margin: 0;
+    }
+    .channel-card .chan-value.strong  { color: var(--success); }
+    .channel-card .chan-value.weak    { color: var(--warning); }
+    .channel-card .chan-value.absent  { color: var(--fg-subtle); }
+    .channel-card .chan-note {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.3rem;
+      line-height: 1.4;
+    }
+
+    .legend {
+      display: flex;
+      gap: 1.1rem;
+      flex-wrap: wrap;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend .sw {
+      display: inline-block;
+      width: 18px;
+      height: 4px;
+      vertical-align: middle;
+      margin-right: 0.35rem;
+      border-radius: 2px;
+    }
+    .legend .sw.disc   { background: var(--accent); }
+    .legend .sw.split-l { background: #2d7a3e; }
+    .legend .sw.split-r { background: var(--accent-bright); }
+    .legend .sw.depth  { background: var(--accent); }
+    .legend .sw.long   { background: var(--accent); opacity: 0.78; }
+    .legend .sw.gap    { background: var(--error); height: 2px; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="sv-signatures">
+
+  <header class="artifact-head">
+    <h1>SV Signature Explorer</h1>
+    <p>Each structural-variant type prints a distinct signature across three short-read channels — discordant pairs, split reads, and depth. Walk through deletions, insertions, inversions, duplications, and translocations; watch how event size and zygosity weaken those signals, and flip to long reads to see why a single spanning read replaces the entire triangulation.</p>
+  </header>
+
+  <!-- Controls ---------------------------------------------------------- -->
+  <section class="panel">
+    <p class="panel-label">Variant &amp; sequencing controls</p>
+    <div class="control-grid">
+      <div class="control-cell">
+        <label class="field-label" for="sv-type">SV type</label>
+        <select id="sv-type" class="ctrl">
+          <option value="DEL">Deletion (DEL)</option>
+          <option value="INS">Insertion (INS)</option>
+          <option value="INV">Inversion (INV)</option>
+          <option value="DUP">Duplication (DUP)</option>
+          <option value="TRA">Translocation (TRA)</option>
+        </select>
+      </div>
+
+      <div class="control-cell">
+        <label class="field-label" for="sv-size">Event size</label>
+        <input id="sv-size" class="ctrl" type="range" min="0" max="1000" step="1" value="492">
+        <div class="slider-readout" id="sv-size-readout">3,000 bp</div>
+      </div>
+
+      <div class="control-cell">
+        <label class="field-label">Zygosity</label>
+        <div class="seg-toggle" id="zyg-toggle" role="tablist">
+          <button type="button" data-val="het" class="active">HET</button>
+          <button type="button" data-val="hom">HOM</button>
+        </div>
+      </div>
+
+      <div class="control-cell">
+        <label class="field-label">Read technology</label>
+        <div class="seg-toggle" id="tech-toggle" role="tablist">
+          <button type="button" data-val="short" class="active">Short paired-end</button>
+          <button type="button" data-val="long">Long reads</button>
+        </div>
+      </div>
+
+      <div class="control-cell">
+        <label class="field-label" for="depth">Mean coverage</label>
+        <input id="depth" class="ctrl" type="range" min="10" max="60" step="1" value="30">
+        <div class="slider-readout" id="depth-readout">30×</div>
+      </div>
+    </div>
+
+    <p class="hint" id="ctrl-hint">Default: heterozygous 3 kb deletion, 30× short-read paired-end. Try bumping the size down to 500 bp and watch all three short-read channels collapse — then flip to long reads and a single spanning read exposes the gap directly.</p>
+  </section>
+
+  <!-- Visualization ----------------------------------------------------- -->
+  <section class="panel">
+    <p class="panel-label">Signal channels</p>
+    <div class="viz-wrap">
+      <svg id="viz" class="viz" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <!-- Verdict ----------------------------------------------------------- -->
+  <section class="panel">
+    <p class="panel-label">Caller verdict</p>
+    <div id="verdict" class="verdict-banner">
+      <span class="verdict-title" id="verdict-title">—</span>
+      <div class="verdict-body" id="verdict-body">—</div>
+    </div>
+
+    <div class="channel-summary" id="channel-summary"></div>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  // ─────────────────────────────────────────────────────────────────
+  // DOM
+  // ─────────────────────────────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+  const svTypeEl      = $('sv-type');
+  const svSizeEl      = $('sv-size');
+  const svSizeReadout = $('sv-size-readout');
+  const depthEl       = $('depth');
+  const depthReadout  = $('depth-readout');
+  const zygToggle     = $('zyg-toggle');
+  const techToggle    = $('tech-toggle');
+  const viz           = $('viz');
+  const legendEl      = $('legend');
+  const verdictEl     = $('verdict');
+  const verdictTitle  = $('verdict-title');
+  const verdictBody   = $('verdict-body');
+  const summaryEl     = $('channel-summary');
+  const ctrlHint      = $('ctrl-hint');
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ─────────────────────────────────────────────────────────────────
+  // State
+  // ─────────────────────────────────────────────────────────────────
+  const state = {
+    svType:   'DEL',
+    svSize:   3000,       // bp; derived from log slider
+    zygosity: 'het',
+    tech:     'short',
+    depth:    30
+  };
+
+  // Reference window spans 30 kb; SV is centred inside it.
+  const REF_START = 0;
+  const REF_END   = 30000;
+  const REF_SPAN  = REF_END - REF_START;
+
+  // Canvas geometry
+  const W = 1000;
+  const H = 520;
+  const MARGIN_L = 80;
+  const MARGIN_R = 30;
+  const PLOT_W = W - MARGIN_L - MARGIN_R;
+
+  // Track layout (short-read mode)
+  const TRACK = {
+    ref:   { y:  20, h: 34 },
+    disc:  { y:  80, h: 110, label: 'Discordant pairs', sub: 'arcs = paired reads with anomalous insert' },
+    split: { y: 210, h: 80,  label: 'Split reads',      sub: 'one read → two fragments flanking breakpoint' },
+    depth: { y: 310, h: 150, label: 'Read depth',       sub: 'step function of per-base coverage' }
+  };
+
+  // Long-read layout — replaces the three tracks with a single stack of reads.
+  const LONG_TRACK = { y: 80, h: 380, label: 'Long reads', sub: 'single molecules spanning the locus' };
+
+  // ─────────────────────────────────────────────────────────────────
+  // Deterministic PRNG — stable visual layout per parameter set.
+  // ─────────────────────────────────────────────────────────────────
+  function mulberry32(seed) {
+    let s = seed >>> 0;
+    return function() {
+      s = (s + 0x6D2B79F5) >>> 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function hashParams(...args) {
+    let h = 2166136261;
+    for (const a of args) {
+      const s = String(a);
+      for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+    }
+    return h >>> 0;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Size slider ↔ bp (log scale, 100 → 100000)
+  // ─────────────────────────────────────────────────────────────────
+  const SIZE_MIN = 100, SIZE_MAX = 100000;
+  function sliderToBp(v) {
+    const t = v / 1000;
+    const lo = Math.log10(SIZE_MIN), hi = Math.log10(SIZE_MAX);
+    return Math.round(Math.pow(10, lo + t * (hi - lo)));
+  }
+  function bpToSlider(bp) {
+    const lo = Math.log10(SIZE_MIN), hi = Math.log10(SIZE_MAX);
+    const t = (Math.log10(bp) - lo) / (hi - lo);
+    return Math.round(Math.max(0, Math.min(1000, t * 1000)));
+  }
+  function fmtBp(bp) {
+    if (bp >= 1000) return (bp / 1000).toLocaleString(undefined, {maximumFractionDigits: 1}) + ' kb';
+    return bp + ' bp';
+  }
+  function fmtCoord(pos) {
+    return Math.round(pos).toLocaleString();
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Signal model — precomputed per parameter set.
+  // Returns an object describing arc count, split count, depth curve, etc.
+  // ─────────────────────────────────────────────────────────────────
+  function computeSignals() {
+    const { svType, svSize, zygosity, tech, depth } = state;
+
+    // Breakpoints (centred, clamped inside the reference window).
+    const usableSize = Math.min(svSize, REF_SPAN * 0.6);
+    const bp1 = REF_START + REF_SPAN / 2 - usableSize / 2;
+    const bp2 = bp1 + usableSize;
+
+    // Fraction of molecules that carry the variant (zygosity).
+    const vaf = (zygosity === 'hom') ? 1.0 : 0.5;
+
+    // A mean library insert for short reads. Discordant pairs are the subset
+    // whose insert gets distorted by the SV — the expected count scales with
+    // depth × vaf and a per-size efficiency that drops when the event is too
+    // small (signals bleed into the insert-size noise floor) or too large
+    // (reads don't bridge the breakpoint).
+    const MEAN_INSERT = 400;
+    const INSERT_SD   = 80;
+    // Efficiency models two forces:
+    //   (1) separability — can the pair's insert shift be told apart from
+    //       the N(400, 80) noise floor? Ramps up through ~500 bp.
+    //   (2) mate-anchoring decay — for events much larger than the library
+    //       insert, only one mate lands near the breakpoint; fewer pairs flag.
+    // Tuned so 3 kb het DEL at 30× → ~14 discordant pairs (strong),
+    // 500 bp het DEL at 30× → ~3 (weak teaching signal),
+    // 50 kb het DEL → decays back toward split-only detection.
+    function discEff(sz) {
+      if (svType === 'INS') {
+        const shift = Math.min(sz, MEAN_INSERT - 80);
+        const sep = Math.max(0, (shift - INSERT_SD) / (INSERT_SD * 2.0));
+        return Math.min(0.95, sep);
+      }
+      if (svType === 'TRA') {
+        return 0.95;  // mate on wrong chromosome — unmistakable
+      }
+      // DEL/INV/DUP separability: sub-kb events hide in insert-size noise;
+      // ramp peaks around 2 kb and beyond.
+      const sep = Math.max(0, (sz - 200) / 1400);
+      const separability = Math.min(1, sep);
+      const decay = Math.min(1, (12 * MEAN_INSERT) / (sz + 3 * MEAN_INSERT));
+      return 0.98 * separability * decay;
+    }
+
+    // Expected discordant pair count (short-read mode).
+    const discEffective = discEff(svSize);
+    const expectedDiscRaw = depth * vaf * discEffective;
+    let discCount = Math.round(Math.max(0, expectedDiscRaw));
+    discCount = Math.max(0, Math.min(18, discCount));
+    // Deletions slightly under-represent, duplications over-represent the arc count (FR orientation anomaly is rarer).
+
+    // Expected split reads — reads whose alignment straddles a breakpoint.
+    // A read only splits cleanly if both halves are ≥ ~20 bp mappable AND
+    // the clipped portion aligns uniquely across the junction. Very small
+    // events leave too little clipped sequence to realign; tiny INS entirely
+    // hide in indel-alignment space.
+    function splitEff(sz) {
+      if (svType === 'INS' && sz < 30) return 0;
+      if (svType === 'INS') return Math.min(0.40, (sz - 30) / 900);
+      if (svType === 'TRA') return 0.45;
+      if (sz < 20) return 0;
+      // Clipped-portion mappability ramps up with event size; caps ~0.42.
+      // Below ~1 kb the clipped seq is often too short for unique remapping.
+      const ramp = Math.min(1, (sz - 40) / 1800);
+      return 0.42 * Math.max(0, ramp);
+    }
+    const expectedSplitRaw = depth * vaf * splitEff(svSize);
+    let splitCount = Math.round(Math.max(0, expectedSplitRaw));
+    splitCount = Math.max(0, Math.min(9, splitCount));
+
+    // Expected depth ratio inside the event.
+    // DEL: drops to 0 (hom) or 0.5 (het).
+    // DUP: climbs to 2× (hom) or 1.5× (het).
+    // INV, TRA: no copy change — ratio = 1.
+    // INS: no copy change at the reference — ratio = 1 (inserted seq maps elsewhere).
+    let depthRatio = 1.0;
+    if (svType === 'DEL') depthRatio = zygosity === 'hom' ? 0.0 : 0.5;
+    else if (svType === 'DUP') depthRatio = zygosity === 'hom' ? 2.0 : 1.5;
+
+    // Detectability of the depth change — small events are invisible in depth.
+    // Threshold shrinks with increasing coverage.
+    const depthMDC = Math.max(120, 2400 / Math.sqrt(depth));   // min detectable change, bp
+    const depthDetectable = (svType === 'DEL' || svType === 'DUP') && svSize >= depthMDC;
+
+    // Report what the signals look like as labels ("strong / weak / absent")
+    const discBand   = bandDiscordant(discCount, svType);
+    const splitBand  = bandSplit(splitCount, svType);
+    const depthBand  = bandDepth(depthDetectable, depthRatio);
+
+    return {
+      svType, svSize, zygosity, tech, depth,
+      vaf, bp1, bp2,
+      discCount, splitCount,
+      discEffective, expectedDiscRaw, expectedSplitRaw,
+      depthRatio, depthDetectable, depthMDC,
+      discBand, splitBand, depthBand,
+      meanInsert: MEAN_INSERT, insertSd: INSERT_SD
+    };
+  }
+
+  function bandDiscordant(n, type) {
+    if (type === 'INS' && n <= 2) return 'weak';
+    if (n >= 8) return 'strong';
+    if (n >= 3) return 'moderate';
+    if (n >= 1) return 'weak';
+    return 'absent';
+  }
+  function bandSplit(n) {
+    if (n >= 4) return 'strong';
+    if (n >= 2) return 'moderate';
+    if (n >= 1) return 'weak';
+    return 'absent';
+  }
+  function bandDepth(detectable, ratio) {
+    if (!detectable) return ratio === 1 ? 'absent' : 'weak';
+    const delta = Math.abs(1 - ratio);
+    if (delta >= 0.8) return 'strong';
+    if (delta >= 0.4) return 'moderate';
+    if (delta > 0) return 'weak';
+    return 'absent';
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Rendering helpers
+  // ─────────────────────────────────────────────────────────────────
+  function refX(bp) {
+    return MARGIN_L + (bp - REF_START) / REF_SPAN * PLOT_W;
+  }
+
+  function svgEl(tag, attrs = {}, parent = viz) {
+    const e = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  function clearViz() { while (viz.firstChild) viz.removeChild(viz.firstChild); }
+
+  function drawRefTrack(signals) {
+    const { bp1, bp2, svType } = signals;
+    const y = TRACK.ref.y;
+    const h = TRACK.ref.h;
+
+    // Strand
+    svgEl('rect', { x: MARGIN_L, y: y + h/2 - 6, width: PLOT_W, height: 12, class: 'ref-strand', rx: 2 });
+
+    // Coord ticks every 5 kb
+    for (let bp = REF_START; bp <= REF_END; bp += 5000) {
+      const x = refX(bp);
+      svgEl('line', { x1: x, y1: y + h/2 + 8, x2: x, y2: y + h/2 + 14, class: 'ref-tick' });
+      const txt = svgEl('text', { x, y: y + h/2 + 24, class: 'ref-tick-label' });
+      txt.textContent = (bp / 1000) + ' kb';
+    }
+
+    // SV band
+    if (svType !== 'TRA') {
+      svgEl('rect', {
+        x: refX(bp1), y: y + h/2 - 10,
+        width: refX(bp2) - refX(bp1), height: 20,
+        class: 'sv-band', rx: 1
+      });
+      const labelTxt = svgEl('text', {
+        x: (refX(bp1) + refX(bp2)) / 2,
+        y: y + h/2 - 14,
+        class: 'sv-band-label'
+      });
+      labelTxt.textContent = `${svType} · ${fmtBp(signals.svSize)}`;
+    } else {
+      // Translocation — one breakpoint in window, partner is 'chr5:elsewhere'.
+      const midX = refX((bp1 + bp2) / 2);
+      svgEl('line', { x1: midX, y1: y + 2, x2: midX, y2: y + h - 2, stroke: 'var(--warning)', 'stroke-width': 2, 'stroke-dasharray': '3 3' });
+      const lbl = svgEl('text', {
+        x: midX, y: y + h/2 - 14,
+        class: 'sv-band-label'
+      });
+      lbl.textContent = `TRA · chr1:15,000 ↔ chr5`;
+    }
+
+    // Left-edge label
+    const lab = svgEl('text', { x: 8, y: y + h/2 + 4, class: 'track-label' });
+    lab.textContent = 'Reference';
+  }
+
+  function drawTrackFrame(cfg) {
+    svgEl('rect', {
+      x: MARGIN_L, y: cfg.y, width: PLOT_W, height: cfg.h,
+      class: 'track-bg', rx: 3
+    });
+    const lab = svgEl('text', { x: 8, y: cfg.y + 14, class: 'track-label' });
+    lab.textContent = cfg.label;
+    const sub = svgEl('text', { x: 8, y: cfg.y + 28, class: 'track-sublabel' });
+    sub.textContent = cfg.sub;
+  }
+
+  function drawBreakpointGuides(signals, yTop, yBot) {
+    const { bp1, bp2, svType } = signals;
+    if (svType === 'TRA') {
+      const x = refX((bp1 + bp2) / 2);
+      svgEl('line', { x1: x, y1: yTop, x2: x, y2: yBot, class: 'breakpoint-line' });
+    } else {
+      svgEl('line', { x1: refX(bp1), y1: yTop, x2: refX(bp1), y2: yBot, class: 'breakpoint-line' });
+      svgEl('line', { x1: refX(bp2), y1: yTop, x2: refX(bp2), y2: yBot, class: 'breakpoint-line' });
+    }
+  }
+
+  // ─── Discordant arcs ───────────────────────────────────────────
+  function drawDiscordantTrack(signals) {
+    drawTrackFrame({ y: TRACK.disc.y, h: TRACK.disc.h, label: TRACK.disc.label, sub: TRACK.disc.sub });
+    const trackBottom = TRACK.disc.y + TRACK.disc.h - 6;
+    const trackTop    = TRACK.disc.y + 36;
+    drawBreakpointGuides(signals, TRACK.disc.y + 30, TRACK.disc.y + TRACK.disc.h - 2);
+
+    const { discCount, bp1, bp2, svType, meanInsert, svSize } = signals;
+    const rng = mulberry32(hashParams(svType, svSize, state.zygosity, state.depth, 'disc'));
+
+    // Expected insert label (observed anomaly based on SV type)
+    let observedInsert;
+    if (svType === 'DEL')      observedInsert = meanInsert + svSize;
+    else if (svType === 'DUP') observedInsert = meanInsert;           // FR orientation anomaly rather than insert size
+    else if (svType === 'INV') observedInsert = meanInsert;           // orientation anomaly (FF or RR)
+    else if (svType === 'INS') observedInsert = Math.max(120, meanInsert - Math.min(svSize, 280));
+    else                       observedInsert = meanInsert;           // TRA — mate lands on different chr
+
+    const badge = svgEl('text', {
+      x: MARGIN_L + PLOT_W - 8, y: TRACK.disc.y + 14,
+      class: 'count-badge', 'text-anchor': 'end'
+    });
+    badge.textContent = `${discCount} discordant pair${discCount === 1 ? '' : 's'}`;
+
+    const annot = svgEl('text', {
+      x: MARGIN_L + PLOT_W - 8, y: TRACK.disc.y + 28,
+      class: 'insert-label', 'text-anchor': 'end'
+    });
+    if (svType === 'TRA') {
+      annot.textContent = `expected ≈${meanInsert} bp on-chr · observed: mate on chr5`;
+    } else if (svType === 'INV' || svType === 'DUP') {
+      annot.textContent = `expected FR pairs · observed: ${svType === 'INV' ? 'FF/RR' : 'RF'} orientation`;
+    } else {
+      annot.textContent = `expected insert ≈${meanInsert} bp · observed ≈${Math.round(observedInsert)} bp`;
+    }
+
+    // If no discordant evidence, render a subtle placeholder band of concordant arcs (faint).
+    if (discCount === 0) {
+      for (let i = 0; i < 4; i++) {
+        const cx = MARGIN_L + 60 + rng() * (PLOT_W - 120);
+        const span = 280 + rng() * 120;
+        const ax = cx - span / 2;
+        const bx = cx + span / 2;
+        drawArc(ax, bx, trackBottom, trackBottom - 30, true);
+      }
+      return;
+    }
+
+    // Lay out discordant arcs — straddling the breakpoint region.
+    for (let i = 0; i < discCount; i++) {
+      let leftBp, rightBp;
+      if (svType === 'TRA') {
+        // One endpoint near BP, the other drawn as out-of-frame tick to right edge.
+        leftBp  = (bp1 + bp2) / 2 - (200 + rng() * 900);
+        rightBp = REF_END - 80 + rng() * 60;
+      } else if (svType === 'INS') {
+        leftBp  = bp1 - (50 + rng() * 300);
+        rightBp = bp2 + (50 + rng() * 300);
+      } else {
+        // DEL/INV/DUP: left mate before bp1, right mate after bp2
+        leftBp  = bp1 - (40 + rng() * (meanInsert * 1.4));
+        rightBp = bp2 + (40 + rng() * (meanInsert * 1.4));
+      }
+      leftBp  = Math.max(REF_START + 30, leftBp);
+      rightBp = Math.min(REF_END - 30, rightBp);
+      const ax = refX(leftBp);
+      const bx = refX(rightBp);
+      const arcH = 28 + (i * 5) % 30;
+      drawArc(ax, bx, trackBottom, trackBottom - arcH, false);
+    }
+  }
+
+  function drawArc(ax, bx, y, peak, faint) {
+    const cx = (ax + bx) / 2;
+    const d = `M ${ax} ${y} Q ${cx} ${peak * 2 - y} ${bx} ${y}`;
+    svgEl('path', { d, class: 'discordant-arc' + (faint ? ' faint' : '') });
+    svgEl('circle', { cx: ax, cy: y, r: 2.2, class: 'arc-endpoint' + (faint ? ' faint' : '') });
+    svgEl('circle', { cx: bx, cy: y, r: 2.2, class: 'arc-endpoint' + (faint ? ' faint' : '') });
+  }
+
+  // ─── Split reads ───────────────────────────────────────────────
+  function drawSplitTrack(signals) {
+    drawTrackFrame({ y: TRACK.split.y, h: TRACK.split.h, label: TRACK.split.label, sub: TRACK.split.sub });
+    drawBreakpointGuides(signals, TRACK.split.y + 30, TRACK.split.y + TRACK.split.h - 2);
+
+    const { splitCount, bp1, bp2, svType, svSize } = signals;
+    const rng = mulberry32(hashParams(svType, svSize, state.zygosity, state.depth, 'split'));
+
+    const badge = svgEl('text', {
+      x: MARGIN_L + PLOT_W - 8, y: TRACK.split.y + 14,
+      class: 'count-badge', 'text-anchor': 'end'
+    });
+    badge.textContent = `${splitCount} split read${splitCount === 1 ? '' : 's'}`;
+
+    if (splitCount === 0) {
+      const empty = svgEl('text', {
+        x: MARGIN_L + 12, y: TRACK.split.y + TRACK.split.h - 14,
+        class: 'track-sublabel'
+      });
+      empty.textContent = 'no soft-clipped reads crossing breakpoints';
+      return;
+    }
+
+    // Each split read gets its own row inside the track.
+    const rowStart = TRACK.split.y + 40;
+    const rowH = 6;
+    const rowPad = 2;
+    const readLen = 150;              // short read length px-equivalent (150 bp worth of pixels)
+    const readLenPx = (readLen / REF_SPAN) * PLOT_W;
+
+    for (let i = 0; i < splitCount; i++) {
+      const y = rowStart + i * (rowH + rowPad);
+      // Pick a side & breakpoint
+      let bpPos, otherBpPos;
+      if (svType === 'TRA') {
+        bpPos = (bp1 + bp2) / 2;
+        otherBpPos = REF_END - 400 + rng() * 200;
+      } else if (i % 2 === 0) {
+        bpPos = bp1; otherBpPos = bp2;
+      } else {
+        bpPos = bp2; otherBpPos = bp1;
+      }
+      const side = rng() < 0.5 ? 'left' : 'right';
+      const bpX = refX(bpPos);
+      const otherX = refX(otherBpPos);
+
+      // Mapped chunk and soft-clip chunk
+      const fracMapped = 0.45 + rng() * 0.2;         // how much of read maps 'here'
+      const mappedPx   = readLenPx * fracMapped;
+      const clipPx     = readLenPx - mappedPx;
+      let mapStart, mapEnd, clipStart, clipEnd;
+      if (side === 'left') {
+        // Read maps to left of breakpoint, soft-clips to right chunk.
+        mapEnd   = bpX - 0.5;
+        mapStart = mapEnd - mappedPx;
+        // Soft-clipped half-maps at the other side of the event.
+        clipStart = otherX + 0.5;
+        clipEnd   = clipStart + clipPx;
+      } else {
+        mapStart = bpX + 0.5;
+        mapEnd   = mapStart + mappedPx;
+        clipEnd   = otherX - 0.5;
+        clipStart = clipEnd - clipPx;
+      }
+      // Clamp within plot.
+      mapStart = Math.max(MARGIN_L + 2, mapStart);
+      mapEnd = Math.min(MARGIN_L + PLOT_W - 2, mapEnd);
+      clipStart = Math.max(MARGIN_L + 2, clipStart);
+      clipEnd = Math.min(MARGIN_L + PLOT_W - 2, clipEnd);
+
+      svgEl('line', { x1: mapStart,  y1: y, x2: mapEnd, y2: y, class: 'split-read left' });
+      svgEl('line', { x1: clipStart, y1: y, x2: clipEnd, y2: y, class: 'split-read right' });
+      // Little dashed marker indicating the soft-clip boundary at the breakpoint
+      svgEl('line', { x1: bpX, y1: y - 4, x2: bpX, y2: y + 4, class: 'split-break' });
+    }
+  }
+
+  // ─── Depth curve ───────────────────────────────────────────────
+  function drawDepthTrack(signals) {
+    drawTrackFrame({ y: TRACK.depth.y, h: TRACK.depth.h, label: TRACK.depth.label, sub: TRACK.depth.sub });
+    drawBreakpointGuides(signals, TRACK.depth.y + 30, TRACK.depth.y + TRACK.depth.h - 2);
+
+    const { depth, depthRatio, depthDetectable, bp1, bp2, svType, svSize } = signals;
+
+    // Plot area inside the track
+    const plotTop    = TRACK.depth.y + 42;
+    const plotBottom = TRACK.depth.y + TRACK.depth.h - 12;
+    const plotLeft   = MARGIN_L + 2;
+    const plotRight  = MARGIN_L + PLOT_W - 2;
+    const plotH      = plotBottom - plotTop;
+
+    // Y-axis: 0 to 2 × depth
+    const yMax = Math.max(depth * 2.1, depth + 10);
+    function yFor(d) {
+      return plotBottom - (d / yMax) * plotH;
+    }
+
+    // Baseline at 1× depth
+    const yBase = yFor(depth);
+    svgEl('line', { x1: plotLeft, y1: yBase, x2: plotRight, y2: yBase, class: 'depth-baseline' });
+    const baseLbl = svgEl('text', {
+      x: MARGIN_L - 6, y: yBase + 3, class: 'depth-axis-label'
+    });
+    baseLbl.textContent = `${depth}×`;
+    const zeroLbl = svgEl('text', {
+      x: MARGIN_L - 6, y: yFor(0) + 3, class: 'depth-axis-label'
+    });
+    zeroLbl.textContent = '0×';
+
+    // Step function across reference. Shelf inside SV where applicable.
+    const ratio = depthRatio;
+    // For undetectable depth changes at small sizes, dampen the drop to near
+    // baseline plus noise — to emphasize the "weak/invisible" feel.
+    const effectiveRatio = (depthDetectable || ratio === 1) ? ratio
+      : (1 + (ratio - 1) * Math.min(1, svSize / signals.depthMDC) * 0.4);
+    const insideDepth = depth * effectiveRatio;
+
+    // Add a touch of noise for realism (seeded).
+    const rng = mulberry32(hashParams(svType, svSize, state.zygosity, state.depth, 'depth'));
+    const NSAMPLES = 120;
+    const pts = [];
+    for (let i = 0; i <= NSAMPLES; i++) {
+      const bp = REF_START + (i / NSAMPLES) * REF_SPAN;
+      const inside = (svType !== 'TRA' && bp >= bp1 && bp <= bp2);
+      const base = inside ? insideDepth : depth;
+      const noise = (rng() - 0.5) * depth * 0.08;
+      const d = Math.max(0, base + noise);
+      pts.push({ x: refX(bp), y: yFor(d) });
+    }
+
+    // Shape a filled polygon underneath the step curve.
+    const poly = [`M ${pts[0].x} ${plotBottom}`, `L ${pts[0].x} ${pts[0].y}`];
+    for (let i = 1; i < pts.length; i++) poly.push(`L ${pts[i].x} ${pts[i].y}`);
+    poly.push(`L ${pts[pts.length-1].x} ${plotBottom}`);
+    poly.push('Z');
+    svgEl('path', { d: poly.join(' '), class: 'depth-fill' });
+
+    const lineD = pts.map((p, i) => (i === 0 ? 'M' : 'L') + ` ${p.x} ${p.y}`).join(' ');
+    svgEl('path', { d: lineD, class: 'depth-curve' });
+
+    // Annotate ratio
+    let ratioLabel;
+    if (svType === 'DEL') {
+      ratioLabel = depthDetectable
+        ? `${Math.round((1 - depthRatio) * 100)}% depth drop inside DEL`
+        : `event too small (${fmtBp(svSize)}) for depth signal`;
+    } else if (svType === 'DUP') {
+      ratioLabel = depthDetectable
+        ? `+${Math.round((depthRatio - 1) * 100)}% depth rise inside DUP`
+        : `event too small (${fmtBp(svSize)}) for depth signal`;
+    } else if (svType === 'INV') {
+      ratioLabel = 'flat — inversion preserves copy number';
+    } else if (svType === 'INS') {
+      ratioLabel = 'flat — inserted sequence is not in reference';
+    } else {
+      ratioLabel = 'flat here — partner locus on chr5 would be affected';
+    }
+    const badge = svgEl('text', {
+      x: MARGIN_L + PLOT_W - 8, y: TRACK.depth.y + 14,
+      class: 'count-badge', 'text-anchor': 'end'
+    });
+    badge.textContent = ratioLabel;
+  }
+
+  // ─── Long-read mode ────────────────────────────────────────────
+  function drawLongReadTrack(signals) {
+    const { bp1, bp2, svType, svSize } = signals;
+    const cfg = LONG_TRACK;
+    drawTrackFrame({ y: cfg.y, h: cfg.h, label: cfg.label, sub: cfg.sub });
+    drawBreakpointGuides(signals, cfg.y + 30, cfg.y + cfg.h - 2);
+
+    const rng = mulberry32(hashParams(svType, svSize, state.zygosity, state.depth, 'long'));
+
+    // 2 or 3 long reads, stacked.
+    const nReads = (state.depth < 20 ? 2 : 3);
+    const stackTop = cfg.y + 60;
+    const rowGap = Math.min(90, (cfg.h - 80) / nReads);
+
+    for (let i = 0; i < nReads; i++) {
+      const y = stackTop + i * rowGap;
+      // Long read length varies 12–25 kb
+      const lenBp = 12000 + rng() * 13000;
+      const startBp = (bp1 + bp2) / 2 - lenBp / 2 + (rng() - 0.5) * 800;
+      const endBp = startBp + lenBp;
+      const clampedStart = Math.max(REF_START + 200, startBp);
+      const clampedEnd   = Math.min(REF_END - 200, endBp);
+
+      const y1 = y - 10, y2 = y + 10;
+
+      if (svType === 'DEL') {
+        // Draw as two connected bars with a marked gap (the deleted chunk).
+        svgEl('rect', {
+          x: refX(clampedStart), y: y1,
+          width: refX(bp1) - refX(clampedStart), height: y2 - y1,
+          class: 'long-read-bar', rx: 2
+        });
+        svgEl('rect', {
+          x: refX(bp2), y: y1,
+          width: refX(clampedEnd) - refX(bp2), height: y2 - y1,
+          class: 'long-read-bar', rx: 2
+        });
+        // Gap line
+        svgEl('line', {
+          x1: refX(bp1), y1: (y1 + y2) / 2, x2: refX(bp2), y2: (y1 + y2) / 2,
+          class: 'long-read-gap-span'
+        });
+        svgEl('path', {
+          d: `M ${refX(bp1)} ${y1 - 4} L ${refX(bp2)} ${y1 - 4}`,
+          class: 'long-read-gap'
+        });
+        if (i === 0) {
+          const lbl = svgEl('text', {
+            x: (refX(bp1) + refX(bp2)) / 2, y: y1 - 10,
+            class: 'long-read-gap-label'
+          });
+          lbl.textContent = `${fmtBp(svSize)} gap in read`;
+        }
+        const readLbl = svgEl('text', {
+          x: refX(clampedStart), y: y2 + 14,
+          class: 'long-read-label'
+        });
+        readLbl.textContent = `read ${i + 1} · ${fmtBp(Math.round(lenBp))} · spans breakpoints, ${fmtBp(svSize)} deletion directly observed`;
+      } else if (svType === 'INS') {
+        // Solid bar with an 'inserted' bump annotated.
+        svgEl('rect', {
+          x: refX(clampedStart), y: y1,
+          width: refX(clampedEnd) - refX(clampedStart), height: y2 - y1,
+          class: 'long-read-bar', rx: 2
+        });
+        // Tick showing extra sequence
+        const midX = (refX(bp1) + refX(bp2)) / 2;
+        svgEl('line', {
+          x1: midX, y1: y1 - 10, x2: midX, y2: y2 + 10,
+          class: 'long-read-gap-span'
+        });
+        if (i === 0) {
+          const lbl = svgEl('text', {
+            x: midX, y: y1 - 14,
+            class: 'long-read-gap-label'
+          });
+          lbl.textContent = `+${fmtBp(svSize)} inserted`;
+        }
+        const readLbl = svgEl('text', {
+          x: refX(clampedStart), y: y2 + 14,
+          class: 'long-read-label'
+        });
+        readLbl.textContent = `read ${i + 1} · ${fmtBp(Math.round(lenBp))} · ${fmtBp(svSize)} insertion resolved inline`;
+      } else if (svType === 'INV') {
+        // Left chunk, inverted middle (shown with stripes), right chunk.
+        svgEl('rect', {
+          x: refX(clampedStart), y: y1,
+          width: refX(bp1) - refX(clampedStart), height: y2 - y1,
+          class: 'long-read-bar', rx: 2
+        });
+        svgEl('rect', {
+          x: refX(bp1), y: y1,
+          width: refX(bp2) - refX(bp1), height: y2 - y1,
+          fill: 'var(--warning)', opacity: 0.6
+        });
+        svgEl('rect', {
+          x: refX(bp2), y: y1,
+          width: refX(clampedEnd) - refX(bp2), height: y2 - y1,
+          class: 'long-read-bar', rx: 2
+        });
+        if (i === 0) {
+          const lbl = svgEl('text', {
+            x: (refX(bp1) + refX(bp2)) / 2, y: y1 - 6,
+            class: 'long-read-gap-label'
+          });
+          lbl.textContent = `${fmtBp(svSize)} inverted segment`;
+        }
+        const readLbl = svgEl('text', {
+          x: refX(clampedStart), y: y2 + 14,
+          class: 'long-read-label'
+        });
+        readLbl.textContent = `read ${i + 1} · ${fmtBp(Math.round(lenBp))} · inverted orientation middle segment`;
+      } else if (svType === 'DUP') {
+        svgEl('rect', {
+          x: refX(clampedStart), y: y1,
+          width: refX(clampedEnd) - refX(clampedStart), height: y2 - y1,
+          class: 'long-read-bar', rx: 2
+        });
+        // Second copy drawn above
+        svgEl('rect', {
+          x: refX(bp1), y: y1 - 10,
+          width: refX(bp2) - refX(bp1), height: 8,
+          fill: 'var(--success)', opacity: 0.7, rx: 1
+        });
+        if (i === 0) {
+          const lbl = svgEl('text', {
+            x: (refX(bp1) + refX(bp2)) / 2, y: y1 - 14,
+            class: 'long-read-gap-label'
+          });
+          lbl.textContent = `extra copy of ${fmtBp(svSize)} in read`;
+        }
+        const readLbl = svgEl('text', {
+          x: refX(clampedStart), y: y2 + 14,
+          class: 'long-read-label'
+        });
+        readLbl.textContent = `read ${i + 1} · ${fmtBp(Math.round(lenBp))} · tandem duplication of ${fmtBp(svSize)} observed directly`;
+      } else if (svType === 'TRA') {
+        // Left part on chr1, right part jumps to chr5.
+        const midBp = (bp1 + bp2) / 2;
+        svgEl('rect', {
+          x: refX(clampedStart), y: y1,
+          width: refX(midBp) - refX(clampedStart), height: y2 - y1,
+          class: 'long-read-bar', rx: 2
+        });
+        svgEl('rect', {
+          x: refX(midBp) + 10, y: y1,
+          width: 0.35 * (refX(clampedEnd) - refX(midBp)), height: y2 - y1,
+          fill: 'var(--accent-bright)', opacity: 0.7, rx: 2
+        });
+        if (i === 0) {
+          const lbl = svgEl('text', {
+            x: refX(midBp) + 20, y: y1 - 6,
+            class: 'long-read-gap-label', 'text-anchor': 'start'
+          });
+          lbl.textContent = `→ chr5 (translocated)`;
+        }
+        const readLbl = svgEl('text', {
+          x: refX(clampedStart), y: y2 + 14,
+          class: 'long-read-label'
+        });
+        readLbl.textContent = `read ${i + 1} · first half maps to chr1, second half maps to chr5`;
+      }
+    }
+
+    // Summary badge
+    const badge = svgEl('text', {
+      x: MARGIN_L + PLOT_W - 8, y: cfg.y + 14,
+      class: 'count-badge', 'text-anchor': 'end'
+    });
+    badge.textContent = `${nReads} long read${nReads === 1 ? '' : 's'} · each resolves the SV directly`;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Main render pipeline
+  // ─────────────────────────────────────────────────────────────────
+  function render() {
+    const signals = computeSignals();
+    clearViz();
+    drawRefTrack(signals);
+    if (state.tech === 'short') {
+      drawDiscordantTrack(signals);
+      drawSplitTrack(signals);
+      drawDepthTrack(signals);
+      viz.setAttribute('viewBox', `0 0 ${W} 470`);
+    } else {
+      drawLongReadTrack(signals);
+      viz.setAttribute('viewBox', `0 0 ${W} 470`);
+    }
+    renderLegend();
+    renderVerdict(signals);
+    renderChannelSummary(signals);
+  }
+
+  function renderLegend() {
+    if (state.tech === 'short') {
+      legendEl.innerHTML = `
+        <span><span class="sw disc"></span>discordant pair (anomalous insert)</span>
+        <span><span class="sw split-l"></span>split read, left half</span>
+        <span><span class="sw split-r"></span>split read, right half</span>
+        <span><span class="sw depth"></span>per-base coverage</span>
+      `;
+    } else {
+      legendEl.innerHTML = `
+        <span><span class="sw long"></span>long-read molecule</span>
+        <span><span class="sw gap"></span>gap / variant annotation in read</span>
+      `;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Verdict + summary
+  // ─────────────────────────────────────────────────────────────────
+  function renderVerdict(s) {
+    const { svType, svSize, zygosity, bp1, bp2, discCount, splitCount, depthRatio, depthDetectable, tech } = s;
+
+    // Confidence: 2/3 strong-or-moderate = high; 1 = low.
+    const isStrong = (b) => b === 'strong' || b === 'moderate';
+    const strongChannels = [s.discBand, s.splitBand, s.depthBand].filter(isStrong).length;
+
+    let title, body, cls;
+
+    if (tech === 'long') {
+      const spanKb = Math.round(s.svSize);
+      const zygText = zygosity === 'hom' ? 'homozygous' : 'heterozygous';
+      const bpText = svType === 'TRA'
+        ? `chr1:${fmtCoord((bp1 + bp2) / 2)} ↔ chr5`
+        : `chr1:${fmtCoord(bp1)}–${fmtCoord(bp2)}`;
+      title = `✓ SV call: ${svType} ${bpText} · ${zygText} · directly observed in long reads`;
+      body = `Each spanning long read resolves the event inline: no signal composition needed — the read <em>is</em> the evidence. Length ${fmtBp(svSize)}.`;
+      cls = 'verdict-banner';
+    } else if (strongChannels >= 2) {
+      const zygText = zygosity === 'hom' ? 'homozygous' : 'heterozygous';
+      const bpText = svType === 'TRA'
+        ? `chr1:${fmtCoord((bp1 + bp2) / 2)} ↔ chr5`
+        : `chr1:${fmtCoord(bp1)}–${fmtCoord(bp2)}`;
+      // Depth-drop phrase
+      let depthPhrase = 'no depth anomaly';
+      if (svType === 'DEL' && depthDetectable) {
+        depthPhrase = `${Math.round((1 - depthRatio) * 100)}% depth drop`;
+      } else if (svType === 'DUP' && depthDetectable) {
+        depthPhrase = `+${Math.round((depthRatio - 1) * 100)}% depth rise`;
+      } else if (svType === 'INV') {
+        depthPhrase = 'flat depth (as expected for INV)';
+      } else if (svType === 'INS') {
+        depthPhrase = 'flat depth (as expected for INS)';
+      } else if (svType === 'TRA') {
+        depthPhrase = 'flat depth (breakpoint-driven event)';
+      } else {
+        depthPhrase = `depth ratio ${depthRatio.toFixed(2)}×`;
+      }
+      title = `✓ SV call: ${svType} ${bpText} · ${zygText} · supported by ${discCount} discordant pair${discCount === 1 ? '' : 's'}, ${splitCount} split read${splitCount === 1 ? '' : 's'}, ${depthPhrase}`;
+      body = 'Two or more channels agree — caller emits a PASS variant with standard confidence.';
+      cls = 'verdict-banner';
+    } else {
+      title = `◯ Low-confidence call: ${svType} near chr1:${fmtCoord(bp1)}–${fmtCoord(bp2)}`;
+      body = `Only <strong>${strongChannels}</strong> of 3 short-read channels show moderate/strong signal at this size (${fmtBp(svSize)}) and depth (${s.depth}×). Short reads struggle with small events — a caller would flag this LowQual or miss it. Flip to long reads above to see the same variant resolved directly.`;
+      cls = 'verdict-banner lowconf';
+    }
+
+    verdictEl.className = cls;
+    verdictTitle.textContent = title;
+    verdictBody.innerHTML = body;
+  }
+
+  function bandClass(b) {
+    if (b === 'strong') return 'strong';
+    if (b === 'moderate') return 'strong';
+    if (b === 'weak') return 'weak';
+    return 'absent';
+  }
+
+  function renderChannelSummary(s) {
+    if (state.tech === 'long') {
+      summaryEl.innerHTML = `
+        <div class="channel-card">
+          <p class="chan-label">Long-read evidence</p>
+          <p class="chan-value strong">direct</p>
+          <p class="chan-note">Each spanning molecule shows the SV inline. No signal triangulation needed — the read itself is the variant observation.</p>
+        </div>
+        <div class="channel-card">
+          <p class="chan-label">Required reads</p>
+          <p class="chan-value">2–3 at ${s.depth}× mean depth</p>
+          <p class="chan-note">A single correctly-aligned long read is in principle enough; two or more provide independent confirmation and phase context.</p>
+        </div>
+        <div class="channel-card">
+          <p class="chan-label">Why it wins</p>
+          <p class="chan-value">read length ≫ event size</p>
+          <p class="chan-note">15–25 kb reads span 500 bp–5 kb events end-to-end, bypassing the three-channel composition entirely.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const dPhrase = s.svType === 'DEL' && s.depthDetectable
+      ? `${Math.round((1 - s.depthRatio) * 100)}% drop`
+      : s.svType === 'DUP' && s.depthDetectable
+        ? `+${Math.round((s.depthRatio - 1) * 100)}% rise`
+        : 'flat';
+    const dNote = (s.svType === 'DEL' || s.svType === 'DUP')
+      ? (s.depthDetectable
+          ? `${s.zygosity === 'hom' ? 'Homozygous' : 'Heterozygous'} dosage change visible against ${s.depth}× baseline.`
+          : `Event is smaller than min-detectable-change (~${fmtBp(Math.round(s.depthMDC))}) at ${s.depth}× — depth is blind.`)
+      : 'Copy number is preserved by this SV type.';
+
+    summaryEl.innerHTML = `
+      <div class="channel-card">
+        <p class="chan-label">Discordant pairs</p>
+        <p class="chan-value ${bandClass(s.discBand)}">${s.discCount} · ${s.discBand}</p>
+        <p class="chan-note">Pairs with insert ≠ ${s.meanInsert}±${s.insertSd} bp straddling the breakpoint. Efficiency ${(s.discEffective * 100).toFixed(0)}% at size ${fmtBp(s.svSize)}.</p>
+      </div>
+      <div class="channel-card">
+        <p class="chan-label">Split reads</p>
+        <p class="chan-value ${bandClass(s.splitBand)}">${s.splitCount} · ${s.splitBand}</p>
+        <p class="chan-note">Reads soft-clipped at the breakpoint; their clipped half maps across the SV junction. Scales with vaf × depth.</p>
+      </div>
+      <div class="channel-card">
+        <p class="chan-label">Read depth</p>
+        <p class="chan-value ${bandClass(s.depthBand)}">${dPhrase} · ${s.depthBand}</p>
+        <p class="chan-note">${dNote}</p>
+      </div>
+    `;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Controls wiring
+  // ─────────────────────────────────────────────────────────────────
+  function updateReadouts() {
+    svSizeReadout.textContent = fmtBp(state.svSize);
+    depthReadout.textContent = state.depth + '×';
+  }
+
+  function wireToggle(el, stateKey) {
+    el.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button');
+      if (!btn) return;
+      const val = btn.getAttribute('data-val');
+      if (val === state[stateKey]) return;
+      state[stateKey] = val;
+      [...el.querySelectorAll('button')].forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-val') === val);
+      });
+      render();
+    });
+  }
+
+  function wire() {
+    // Initialize from state
+    svTypeEl.value = state.svType;
+    svSizeEl.value = bpToSlider(state.svSize);
+    depthEl.value = state.depth;
+    updateReadouts();
+
+    svTypeEl.addEventListener('change', () => {
+      state.svType = svTypeEl.value;
+      render();
+    });
+    svSizeEl.addEventListener('input', () => {
+      state.svSize = sliderToBp(parseInt(svSizeEl.value, 10));
+      updateReadouts();
+      render();
+    });
+    depthEl.addEventListener('input', () => {
+      state.depth = parseInt(depthEl.value, 10);
+      updateReadouts();
+      render();
+    });
+
+    wireToggle(zygToggle, 'zygosity');
+    wireToggle(techToggle, 'tech');
+
+    render();
+  }
+
+  wire();
+})();
+</script>
+
+</body>
+</html>

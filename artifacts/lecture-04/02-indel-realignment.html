@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>INDEL Realignment Demo</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .artifact-head p  { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0; max-width: 62ch; }
+
+    .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .panel-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+
+    .field-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: var(--fg-muted); display: block; margin-bottom: 0.35rem; }
+
+    .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.5rem 0.9rem; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg); cursor: pointer; }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem 1.25rem; align-items: end; }
+    .select-field, .slider-field { display: flex; flex-direction: column; gap: 0.35rem; }
+
+    select { font-family: var(--font-sans); font-size: var(--text-sm); padding: 0.45rem 0.6rem; background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--fg); cursor: pointer; }
+    select:focus { outline: 2px solid var(--accent-bright); outline-offset: 1px; }
+
+    .slider-field .slider-row { display: flex; align-items: center; gap: 0.6rem; }
+    .slider-field input[type="range"] { accent-color: var(--accent); flex: 1; min-width: 0; }
+    .slider-field .slider-value { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg); min-width: 3.5rem; text-align: right; }
+
+    .toggle-group { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-elevated); }
+    .toggle-btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.5rem 0.95rem; background: transparent; border: none; color: var(--fg-muted); cursor: pointer; border-right: 1px solid var(--border); }
+    .toggle-btn:last-child { border-right: none; }
+    .toggle-btn.active { background: var(--accent); color: #fff; }
+    .toggle-btn:hover:not(.active) { background: var(--bg-muted); color: var(--fg); }
+
+    .align-wrap { background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem 1.25rem; overflow-x: auto; transition: opacity 200ms ease; }
+    .align-wrap.fading { opacity: 0; }
+
+    .ref-row, .read-row { display: flex; align-items: baseline; gap: 0.75rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.55; white-space: nowrap; }
+    .ref-row { margin-bottom: 0.35rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+
+    .row-label { display: inline-block; min-width: 4.5rem; color: var(--fg-subtle); font-size: var(--text-xs); font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; flex-shrink: 0; }
+
+    .seq { letter-spacing: 0.06em; }
+    .ref-seq .truevar { background: #fff4e0; color: var(--warning); font-weight: 700; padding: 0 2px; border-radius: 2px; border-bottom: 2px solid var(--warning); }
+    .ref-seq .truevar-gap { color: var(--warning); font-weight: 700; }
+
+    .read-seq .match    { color: var(--fg); }
+    .read-seq .mismatch { color: var(--error); background: #fdecea; font-weight: 700; padding: 0 2px; border-radius: 2px; }
+    .read-seq .gap      { color: var(--fg-muted); font-weight: 400; }
+    .read-seq .ins      { color: var(--success); background: #e6f4ea; font-weight: 700; padding: 0 2px; border-radius: 2px; }
+    .read-seq .outside  { color: var(--fg-subtle); opacity: 0.45; }
+
+    .ruler { font-family: var(--font-mono); font-size: 10px; color: var(--fg-subtle); letter-spacing: 0.06em; margin-left: 4.5rem; padding-left: 0.75rem; margin-bottom: 0.15rem; white-space: pre; }
+
+    .banner { border-radius: var(--radius-sm); padding: 0.85rem 1.1rem; font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 600; margin-top: 1rem; border: 1px solid; transition: background 200ms ease, color 200ms ease, border-color 200ms ease; }
+    .banner.ok  { background: #e6f4ea; border-color: var(--success); color: var(--success); }
+    .banner.bad { background: #fdecea; border-color: var(--error);   color: var(--error); }
+
+    .verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+    .verdict-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.85rem 1rem; background: var(--bg-muted); }
+    .verdict-card.active { border-color: var(--accent); background: var(--accent-bg); }
+    .verdict-card h4 { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.55rem; font-weight: 600; }
+    .verdict-card .stat { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: var(--text-sm); padding: 0.15rem 0; }
+    .verdict-card .stat .k { color: var(--fg-muted); }
+    .verdict-card .stat .v.bad  { color: var(--error);   font-weight: 700; }
+    .verdict-card .stat .v.good { color: var(--success); font-weight: 700; }
+    .verdict-card .stat .v.neutral { color: var(--fg); }
+
+    .legend { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-top: 0.75rem; font-size: var(--text-xs); color: var(--fg-muted); }
+    .legend-item { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .legend-swatch { width: 14px; height: 10px; border-radius: 2px; display: inline-block; border: 1px solid var(--border-strong); }
+    .legend-swatch.sw-mismatch { background: #fdecea; border-color: var(--error); }
+    .legend-swatch.sw-gap      { background: var(--bg-muted); border-color: var(--border-strong); }
+    .legend-swatch.sw-ins      { background: #e6f4ea; border-color: var(--success); }
+    .legend-swatch.sw-true     { background: #fff4e0; border-color: var(--warning); }
+
+    .status-line { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; padding: 0.85rem 1rem; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-top: 1rem; }
+    .status-line .label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-subtle); font-weight: 600; margin: 0; }
+    .status-line .value { font-family: var(--font-mono); font-size: var(--text-lg); color: var(--fg); margin: 0.15rem 0 0; }
+    .status-line .value.emphasis { color: var(--accent); }
+
+    .hint { font-size: var(--text-xs); color: var(--fg-muted); margin-top: 0.5rem; line-height: var(--leading-relaxed); }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .controls, .verdict { grid-template-columns: 1fr; }
+      .status-line { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="indel-realignment">
+
+  <header class="artifact-head">
+    <h1>INDEL Realignment Demo</h1>
+    <p>A true 2-bp deletion, viewed through a naive aligner that cannot open gaps, looks like a cluster of five false SNVs right next to one another. Local realignment reopens the window, lets the gap shift where it belongs, and the mismatch cluster collapses into a single clean DEL call. Toggle the alignment mode to watch the same read data produce completely different variant calls.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Scenario & Alignment Mode</p>
+    <div class="controls">
+      <div class="select-field">
+        <label class="field-label" for="scenario-select">Scenario</label>
+        <select id="scenario-select">
+          <option value="del2">2-bp deletion mid-read</option>
+          <option value="ins1">1-bp insertion</option>
+          <option value="del3end">3-bp deletion near read end</option>
+        </select>
+      </div>
+      <div class="select-field">
+        <label class="field-label">Alignment mode</label>
+        <div class="toggle-group" role="radiogroup" aria-label="Alignment mode">
+          <button id="mode-naive" class="toggle-btn" type="button" role="radio" aria-checked="false">Naive alignment</button>
+          <button id="mode-realigned" class="toggle-btn active" type="button" role="radio" aria-checked="true">Local realignment</button>
+        </div>
+      </div>
+      <div class="slider-field">
+        <label class="field-label" for="window-slider">Realignment window</label>
+        <div class="slider-row">
+          <input id="window-slider" type="range" min="0" max="2" value="2" step="1">
+          <span class="slider-value" id="window-value">±20 bp</span>
+        </div>
+      </div>
+    </div>
+    <p class="hint">The reads are simulated from a donor that carries a known INDEL; the reference is the unchanged template. Both alignments are baked in per scenario — the toggle just swaps which CIGAR the aligner emitted. The window slider controls how much flanking context the visualisation shows around the variant site.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Alignment over the variant window</p>
+    <div class="align-wrap" id="align-wrap"></div>
+    <div class="legend">
+      <span class="legend-item"><span class="legend-swatch sw-true"></span>True variant site on reference</span>
+      <span class="legend-item"><span class="legend-swatch sw-mismatch"></span>Mismatch (naive artefact)</span>
+      <span class="legend-item"><span class="legend-swatch sw-gap"></span>Aligned gap (correct DEL)</span>
+      <span class="legend-item"><span class="legend-swatch sw-ins"></span>Inserted base (correct INS)</span>
+    </div>
+    <div class="banner ok" id="outcome-banner">✓ Realigned: 1 true DEL, 0 false SNVs</div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Simulated variant caller verdict</p>
+    <div class="verdict">
+      <div class="verdict-card" id="verdict-naive">
+        <h4>Naive alignment</h4>
+        <div class="stat"><span class="k">False SNVs</span><span class="v bad" id="naive-snv">—</span></div>
+        <div class="stat"><span class="k">True INDELs</span><span class="v neutral" id="naive-indel">—</span></div>
+        <div class="stat"><span class="k">Reads supporting gap</span><span class="v neutral" id="naive-gapreads">—</span></div>
+      </div>
+      <div class="verdict-card active" id="verdict-realigned">
+        <h4>Local realignment</h4>
+        <div class="stat"><span class="k">False SNVs</span><span class="v good" id="real-snv">—</span></div>
+        <div class="stat"><span class="k">True INDELs</span><span class="v good" id="real-indel">—</span></div>
+        <div class="stat"><span class="k">Reads supporting gap</span><span class="v neutral" id="real-gapreads">—</span></div>
+      </div>
+    </div>
+
+    <div class="status-line">
+      <div>
+        <p class="label">Scenario</p>
+        <p class="value emphasis" id="stat-scenario">—</p>
+      </div>
+      <div>
+        <p class="label">True variant</p>
+        <p class="value" id="stat-truth">—</p>
+      </div>
+      <div>
+        <p class="label">Active mode</p>
+        <p class="value" id="stat-mode">—</p>
+      </div>
+      <div>
+        <p class="label">Window shown</p>
+        <p class="value" id="stat-window">—</p>
+      </div>
+    </div>
+    <p class="hint">The &ldquo;reads supporting gap&rdquo; counter is identical to the true INDEL allele depth: under naive alignment no read carries a gap, so the aligner offers the caller only scattered mismatches. Realignment recovers the gap across all six reads and the caller emits a single, confident INDEL.</p>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  // Each scenario holds a reference, a true variant, and 6 reads precomputed
+  // under two alignments: `naive` (no gaps allowed — downstream bases shift
+  // and create a mismatch cluster) and `realigned` (correct gap/insert).
+  // Cells: { base, kind: 'match'|'mismatch'|'gap'|'ins'|'outside' }.
+  const M = (b) => ({ base: b, kind: 'match' });
+  const X = (b) => ({ base: b, kind: 'mismatch' });
+  const G = ()  => ({ base: '-', kind: 'gap' });
+  const I = (b) => ({ base: b, kind: 'ins' });
+
+  const SCENARIOS = {
+    del2: {
+      label: '2-bp deletion mid-read',
+      reference: 'ACGTTAGCTAGCTAGGATCGATCGATCGATCGATCGATCG',
+      varStart: 15, varEnd: 17,
+      truthLabel: 'DEL chr1:15-16  (GA → -)',
+      kind: 'DEL', varBases: 'GA',
+      reads: (() => {
+        const ref = 'ACGTTAGCTAGCTAGGATCGATCGATCGATCGATCGATCG';
+        const donor = ref.slice(0, 15) + ref.slice(17); // 'GA' deleted
+        const starts = [5, 6, 8, 9, 10, 12];
+        return starts.map((rs) => {
+          const winLen = 22;
+          const refWin = ref.slice(rs, rs + winLen);
+          // Naive: donor is 2 bp short; ungapped comparison produces a run of
+          // mismatches starting at the variant site (donor's downstream bases
+          // have shifted left by 2) and the last 2 cells have no donor base.
+          const naive = [];
+          const donorSub = donor.slice(rs, rs + winLen - 2);
+          for (let i = 0; i < winLen; i++) {
+            if (i < donorSub.length) {
+              const rb = refWin[i], db = donorSub[i];
+              naive.push(rb === db ? M(db) : X(db));
+            } else {
+              naive.push({ base: ' ', kind: 'outside' });
+            }
+          }
+          // Realigned: open a 2-bp gap at reference positions 15-16.
+          const realigned = [];
+          let donorIdx = 0;
+          for (let i = 0; i < winLen; i++) {
+            const refPos = rs + i;
+            if (refPos === 15 || refPos === 16) {
+              realigned.push(G());
+            } else {
+              const rb = refWin[i];
+              const db = donor[rs + donorIdx];
+              realigned.push(rb === db ? M(db) : X(db));
+              donorIdx++;
+            }
+          }
+          return { refStart: rs, winLen, naive, realigned };
+        });
+      })(),
+    },
+
+    ins1: {
+      label: '1-bp insertion',
+      reference: 'ACGTTAGCTAGCTAGCATCGATCGATCGATCGATCGATCG',
+      varStart: 20, varEnd: 20,
+      truthLabel: 'INS chr1:20  (- → T)',
+      kind: 'INS', varBases: 'T',
+      reads: (() => {
+        const ref = 'ACGTTAGCTAGCTAGCATCGATCGATCGATCGATCGATCG';
+        const donor = ref.slice(0, 20) + 'T' + ref.slice(20);
+        const starts = [6, 8, 9, 10, 11, 13];
+        return starts.map((rs) => {
+          const winLen = 22;
+          const refWin = ref.slice(rs, rs + winLen);
+          // Naive: ungapped compare of donor[rs..rs+winLen) to refWin; the
+          // extra donor base pushes downstream bases out of register.
+          const donorSub = donor.slice(rs, rs + winLen);
+          const naive = [];
+          for (let i = 0; i < winLen; i++) {
+            const rb = refWin[i], db = donorSub[i];
+            naive.push(rb === db ? M(db) : X(db));
+          }
+          // Realigned: insert one 'T' column between ref 19 and 20.
+          const realigned = [];
+          let donorIdx = 0;
+          for (let i = 0; i < winLen; i++) {
+            const refPos = rs + i;
+            const rb = refWin[i];
+            const db = donor[rs + donorIdx];
+            realigned.push(rb === db ? M(db) : X(db));
+            donorIdx++;
+            if (refPos === 19) {
+              realigned.push(I(donor[rs + donorIdx]));
+              donorIdx++;
+            }
+          }
+          return { refStart: rs, winLen, naive, realigned, hasIns: true };
+        });
+      })(),
+    },
+
+    del3end: {
+      label: '3-bp deletion near read end',
+      reference: 'ACGTTAGCTAGCTAGCATCGATCGATCGAAACCCGGGTTT',
+      varStart: 28, varEnd: 31,
+      truthLabel: 'DEL chr1:28-30  (AAA → -)',
+      kind: 'DEL', varBases: 'AAA',
+      reads: (() => {
+        const ref = 'ACGTTAGCTAGCTAGCATCGATCGATCGAAACCCGGGTTT';
+        const donor = ref.slice(0, 28) + ref.slice(31);
+        const starts = [14, 16, 17, 18, 19, 20];
+        return starts.map((rs) => {
+          const winLen = 22;
+          const refWin = ref.slice(rs, rs + winLen);
+          const donorSub = donor.slice(rs, rs + winLen - 3);
+          const naive = [];
+          for (let i = 0; i < winLen; i++) {
+            if (i < donorSub.length) {
+              const rb = refWin[i], db = donorSub[i];
+              naive.push(rb === db ? M(db) : X(db));
+            } else {
+              naive.push({ base: ' ', kind: 'outside' });
+            }
+          }
+          const realigned = [];
+          let donorIdx = 0;
+          for (let i = 0; i < winLen; i++) {
+            const refPos = rs + i;
+            if (refPos >= 28 && refPos <= 30) {
+              realigned.push(G());
+            } else {
+              const rb = refWin[i];
+              const db = donor[rs + donorIdx];
+              realigned.push(rb === db ? M(db) : X(db));
+              donorIdx++;
+            }
+          }
+          return { refStart: rs, winLen, naive, realigned };
+        });
+      })(),
+    },
+  };
+
+  const state = { scenario: 'del2', mode: 'realigned', windowHalfBp: 20 };
+
+  const scenarioSelect = $('scenario-select');
+  const modeNaiveBtn   = $('mode-naive');
+  const modeRealBtn    = $('mode-realigned');
+  const windowSlider   = $('window-slider');
+  const windowValue    = $('window-value');
+  const alignWrap      = $('align-wrap');
+  const outcomeBanner  = $('outcome-banner');
+  const verdictNaive   = $('verdict-naive');
+  const verdictReal    = $('verdict-realigned');
+  const naiveSnv       = $('naive-snv');
+  const naiveIndel     = $('naive-indel');
+  const naiveGapReads  = $('naive-gapreads');
+  const realSnv        = $('real-snv');
+  const realIndel      = $('real-indel');
+  const realGapReads   = $('real-gapreads');
+  const statScenario   = $('stat-scenario');
+  const statTruth      = $('stat-truth');
+  const statMode       = $('stat-mode');
+  const statWindow     = $('stat-window');
+
+  const WINDOW_STEPS = [5, 10, 20];
+  const SNV_MIN = 3;
+
+  // Simulate a simple pileup-based caller. Naive reads carry no gaps, so the
+  // mismatch cluster becomes a run of false SNV calls; realigned reads carry
+  // the true gap (or insertion) and the caller emits one INDEL.
+  function simulateCaller(sc, mode) {
+    const mmCounts = new Array(sc.reference.length).fill(0);
+    for (const read of sc.reads) {
+      let refPos = read.refStart;
+      for (const c of read[mode]) {
+        if (c.kind === 'ins') continue;
+        if (c.kind === 'mismatch') mmCounts[refPos]++;
+        refPos++;
+      }
+    }
+    let falseSnv = 0;
+    for (const n of mmCounts) if (n >= SNV_MIN) falseSnv++;
+
+    let gapReads = 0;
+    if (sc.kind === 'DEL') {
+      for (const read of sc.reads) {
+        let refPos = read.refStart, hasGap = false;
+        for (const c of read[mode]) {
+          if (c.kind === 'ins') continue;
+          if (c.kind === 'gap' && refPos >= sc.varStart && refPos < sc.varEnd) hasGap = true;
+          refPos++;
+        }
+        if (hasGap) gapReads++;
+      }
+    } else {
+      for (const read of sc.reads) {
+        if (read[mode].some((c) => c.kind === 'ins')) gapReads++;
+      }
+    }
+    const trueIndel = gapReads >= SNV_MIN ? 1 : 0;
+    return { falseSnv, trueIndel, gapReads };
+  }
+
+  function renderAlignment() {
+    const sc = SCENARIOS[state.scenario];
+    const mode = state.mode;
+    const half = state.windowHalfBp;
+    const centre = Math.floor((sc.varStart + sc.varEnd) / 2);
+    let winStart = Math.max(0, centre - half);
+    let winEnd   = Math.min(sc.reference.length, centre + half);
+    if (winEnd - winStart < 12) {
+      winStart = Math.max(0, centre - 6);
+      winEnd   = Math.min(sc.reference.length, centre + 6);
+    }
+
+    const parts = [];
+    // Ruler: 10-bp pipe, 5-bp dot.
+    const rulerChars = [];
+    for (let p = winStart; p < winEnd; p++) {
+      rulerChars.push(p % 10 === 0 ? '|' : (p % 5 === 0 ? '.' : ' '));
+    }
+    parts.push(`<div class="ruler">${rulerChars.join(' ')}</div>`);
+
+    // Reference.
+    const refCells = [];
+    for (let p = winStart; p < winEnd; p++) {
+      const inVar = (p >= sc.varStart && p < sc.varEnd);
+      if (inVar && sc.kind === 'DEL') refCells.push(`<span class="truevar">${sc.reference[p]}</span>`);
+      else refCells.push(sc.reference[p]);
+    }
+    if (sc.kind === 'INS') {
+      const insIdx = sc.varStart - winStart;
+      if (insIdx > 0 && insIdx <= refCells.length) {
+        refCells.splice(insIdx, 0, `<span class="truevar-gap">^</span>`);
+      }
+    }
+    parts.push(
+      `<div class="ref-row"><span class="row-label">REF</span>` +
+      `<span class="seq ref-seq">${refCells.join(' ')}</span></div>`
+    );
+
+    sc.reads.forEach((read, ri) => {
+      const cells = read[mode];
+      const rs = read.refStart;
+      const tokens = [];
+      const leadingBlanks = Math.max(0, rs - winStart);
+      for (let i = 0; i < leadingBlanks; i++) tokens.push(`<span class="outside">·</span>`);
+
+      let refPos = rs;
+      for (const c of cells) {
+        if (refPos >= winEnd && c.kind !== 'ins') break;
+        if (c.kind === 'outside') {
+          if (refPos >= winStart && refPos < winEnd) tokens.push(`<span class="outside">·</span>`);
+          refPos++;
+          continue;
+        }
+        if (c.kind === 'ins') {
+          if (refPos - 1 >= winStart && refPos - 1 < winEnd) {
+            tokens.push(`<span class="ins">${c.base}</span>`);
+          }
+          continue;
+        }
+        if (refPos >= winStart && refPos < winEnd) {
+          if (c.kind === 'match')         tokens.push(`<span class="match">${c.base}</span>`);
+          else if (c.kind === 'mismatch') tokens.push(`<span class="mismatch">${c.base}</span>`);
+          else if (c.kind === 'gap')      tokens.push(`<span class="gap">-</span>`);
+        }
+        refPos++;
+      }
+      while (tokens.length < (winEnd - winStart)) {
+        tokens.push(`<span class="outside">·</span>`);
+      }
+
+      parts.push(
+        `<div class="read-row">` +
+        `<span class="row-label">R${String(ri + 1).padStart(2, '0')}</span>` +
+        `<span class="seq read-seq">${tokens.join(' ')}</span>` +
+        `</div>`
+      );
+    });
+
+    alignWrap.innerHTML = parts.join('');
+  }
+
+  function renderVerdict() {
+    const sc = SCENARIOS[state.scenario];
+    const naive = simulateCaller(sc, 'naive');
+    const real  = simulateCaller(sc, 'realigned');
+
+    naiveSnv.textContent     = naive.falseSnv;
+    naiveIndel.textContent   = naive.trueIndel;
+    naiveGapReads.textContent = naive.gapReads;
+    realSnv.textContent      = real.falseSnv;
+    realIndel.textContent    = real.trueIndel;
+    realGapReads.textContent = real.gapReads;
+
+    // Highlight active card.
+    verdictNaive.classList.toggle('active', state.mode === 'naive');
+    verdictReal.classList.toggle('active',  state.mode === 'realigned');
+
+    // Banner
+    if (state.mode === 'realigned') {
+      outcomeBanner.className = 'banner ok';
+      const kind = sc.kind === 'INS' ? 'INS' : 'DEL';
+      outcomeBanner.textContent =
+        `✓ Realigned: ${real.trueIndel} true ${kind}, ${real.falseSnv} false SNVs`;
+    } else {
+      outcomeBanner.className = 'banner bad';
+      outcomeBanner.textContent =
+        `✗ Naive: ${naive.falseSnv} false SNVs, ${naive.trueIndel} true INDELs`;
+    }
+
+    // Status line.
+    statScenario.textContent = sc.label;
+    statTruth.textContent    = sc.truthLabel;
+    statMode.textContent     = state.mode === 'realigned' ? 'Realigned' : 'Naive';
+    statWindow.textContent   = `±${state.windowHalfBp} bp`;
+  }
+
+  function renderAll() {
+    // Fade then swap.
+    alignWrap.classList.add('fading');
+    setTimeout(() => {
+      renderAlignment();
+      renderVerdict();
+      alignWrap.classList.remove('fading');
+    }, 180);
+  }
+
+  function renderImmediate() {
+    renderAlignment();
+    renderVerdict();
+  }
+
+  // ─── Events ────────────────────────────────────────────
+  scenarioSelect.addEventListener('change', () => {
+    state.scenario = scenarioSelect.value;
+    renderAll();
+  });
+
+  modeNaiveBtn.addEventListener('click', () => {
+    if (state.mode === 'naive') return;
+    state.mode = 'naive';
+    modeNaiveBtn.classList.add('active');
+    modeRealBtn.classList.remove('active');
+    modeNaiveBtn.setAttribute('aria-checked', 'true');
+    modeRealBtn.setAttribute('aria-checked', 'false');
+    renderAll();
+  });
+
+  modeRealBtn.addEventListener('click', () => {
+    if (state.mode === 'realigned') return;
+    state.mode = 'realigned';
+    modeRealBtn.classList.add('active');
+    modeNaiveBtn.classList.remove('active');
+    modeRealBtn.setAttribute('aria-checked', 'true');
+    modeNaiveBtn.setAttribute('aria-checked', 'false');
+    renderAll();
+  });
+
+  windowSlider.addEventListener('input', () => {
+    const step = +windowSlider.value;
+    state.windowHalfBp = WINDOW_STEPS[step] ?? 20;
+    windowValue.textContent = `±${state.windowHalfBp} bp`;
+    renderImmediate();
+  });
+
+  // Initial state.
+  windowValue.textContent = `±${state.windowHalfBp} bp`;
+  renderImmediate();
+})();
+</script>
+
+</body>
+</html>

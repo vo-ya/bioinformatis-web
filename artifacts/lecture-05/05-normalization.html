@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Normalisation Calculator — CPM, FPKM, TPM, Size Factors</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1200px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0; max-width: 72ch; }
+
+    .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .panel-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+
+    .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.5rem 0.9rem; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg); cursor: pointer; }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+
+    /* ─── Count matrix editor ─────────────────────────── */
+    .matrix-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-muted); }
+    table.matrix { border-collapse: collapse; width: 100%; font-family: var(--font-mono); font-size: var(--text-sm); }
+    table.matrix th, table.matrix td { border: 1px solid var(--border); padding: 0; text-align: right; background: var(--bg-elevated); }
+    table.matrix thead th { background: var(--bg-inset); padding: 0.45rem 0.6rem; font-family: var(--font-sans); font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; color: var(--fg-muted); text-transform: uppercase; }
+    table.matrix thead th.gene-col { text-align: left; }
+    table.matrix thead th.len-col { color: var(--accent); }
+    table.matrix td.gene-name { font-family: var(--font-mono); text-align: left; padding: 0; background: var(--bg-muted); color: var(--fg); font-weight: 500; }
+    table.matrix td input { width: 100%; border: 0; outline: none; background: transparent; padding: 0.45rem 0.6rem; font: inherit; color: inherit; text-align: right; font-family: var(--font-mono); }
+    table.matrix td.gene-name input { text-align: left; font-weight: 500; }
+    table.matrix td.len-cell input { color: var(--accent); font-weight: 500; }
+    table.matrix td input:focus { background: var(--accent-bg); outline: 1px solid var(--accent-bright); outline-offset: -1px; }
+    table.matrix td input.bad { background: #fef2f2; outline: 1px solid var(--error); outline-offset: -1px; }
+    table.matrix td.row-actions { background: var(--bg-muted); text-align: center; padding: 0 0.25rem; }
+    table.matrix td.row-actions button, table.matrix th.col-action button { background: transparent; border: 0; color: var(--fg-subtle); cursor: pointer; padding: 0.2rem 0.4rem; font-size: var(--text-sm); line-height: 1; }
+    table.matrix td.row-actions button:hover, table.matrix th.col-action button:hover { color: var(--error); }
+    table.matrix th.col-action { background: var(--bg-inset); text-align: center; padding: 0.2rem; }
+
+    /* ─── Output tables grid ──────────────────────────── */
+    .outputs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .output-card { background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.9rem 1rem; min-width: 0; }
+    .output-card h3 { font-family: var(--font-sans); font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-muted); margin: 0 0 0.1rem; }
+    .output-card .formula { font-family: var(--font-mono); font-size: 0.72rem; color: var(--fg-subtle); margin: 0 0 0.55rem; line-height: 1.4; }
+
+    table.output { border-collapse: collapse; width: 100%; font-family: var(--font-mono); font-size: var(--text-sm); }
+    table.output th, table.output td { padding: 0.35rem 0.55rem; border-bottom: 1px solid var(--border); text-align: right; }
+    table.output thead th { font-family: var(--font-sans); font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.05em; background: transparent; border-bottom: 1px solid var(--border-strong); cursor: pointer; user-select: none; }
+    table.output thead th.gene-col { text-align: left; cursor: default; }
+    table.output thead th.sortable:hover { color: var(--accent); }
+    table.output thead th.sorted-desc::after { content: " ▾"; color: var(--accent); }
+    table.output thead th.sorted-asc::after  { content: " ▴"; color: var(--accent); }
+    table.output td.gene-col { text-align: left; color: var(--fg); font-weight: 500; }
+    table.output tbody tr:last-child td { border-bottom: 0; }
+    table.output td.num.sorted-col { background: var(--accent-bg); }
+    table.output tr.top-rank td.num.sorted-col { color: var(--accent); font-weight: 600; }
+
+    /* ─── Size factors strip ──────────────────────────── */
+    .sf-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; }
+    .sf-card { background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.55rem 0.8rem; }
+    .sf-card .label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-subtle); font-weight: 600; }
+    .sf-card .value { font-family: var(--font-mono); font-size: var(--text-lg); color: var(--accent); margin-top: 0.15rem; font-weight: 600; }
+    .sf-card .sub { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-subtle); margin-top: 0.1rem; }
+
+    /* ─── Banner ─────────────────────────────────────── */
+    .outcome { background: var(--accent-bg); border: 1px solid #c7d2fe; border-radius: var(--radius-sm); padding: 0.7rem 0.95rem; color: var(--accent); font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--leading-normal); margin-bottom: 1.25rem; }
+    .outcome strong { font-weight: 600; }
+    .outcome.error { background: #fef2f2; border-color: #fecaca; color: var(--error); }
+
+    .inline-error { color: var(--error); font-family: var(--font-mono); font-size: var(--text-xs); margin: 0.5rem 0 0; min-height: 1em; }
+
+    .hint { font-size: var(--text-xs); color: var(--fg-muted); margin-top: 0.75rem; line-height: var(--leading-relaxed); }
+    .hint code { background: var(--bg-muted); padding: 0.05rem 0.35rem; border-radius: 2px; }
+
+    @media (max-width: 900px) { .outputs-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="normalization-calculator">
+
+  <header class="artifact-head">
+    <h1>Normalisation Calculator</h1>
+    <p>Four ways to make raw read counts comparable across genes and samples. Edit the matrix below and watch <strong>CPM</strong>, <strong>FPKM</strong>, <strong>TPM</strong>, and <strong>DESeq2 size-factor-adjusted counts</strong> update in lockstep. The aha: the four units can rank the same genes differently. Raw abundance wins one ordering; per-base density (length correction) wins another.</p>
+  </header>
+
+  <div class="outcome" id="outcome">—</div>
+
+  <section class="panel">
+    <p class="panel-label">Count matrix</p>
+    <div class="matrix-wrap">
+      <table class="matrix" id="matrix-table">
+        <thead id="matrix-head"></thead>
+        <tbody id="matrix-body"></tbody>
+      </table>
+    </div>
+    <p class="inline-error" id="error-msg"></p>
+
+    <div class="controls" style="margin-top: 0.9rem;">
+      <button id="add-gene" class="btn" type="button">+ Add gene</button>
+      <button id="add-sample" class="btn" type="button">+ Add sample</button>
+      <button id="reset-btn" class="btn btn--primary" type="button">Reset to preset</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Normalised outputs</p>
+    <div class="outputs-grid">
+      <div class="output-card">
+        <h3>CPM · counts per million</h3>
+        <p class="formula">CPM<sub>s,g</sub> = c<sub>s,g</sub> / (D<sub>s</sub> / 10<sup>6</sup>)</p>
+        <table class="output" id="out-cpm"></table>
+      </div>
+      <div class="output-card">
+        <h3>FPKM · per kb per million</h3>
+        <p class="formula">FPKM<sub>s,g</sub> = c<sub>s,g</sub> / ((D<sub>s</sub>/10<sup>6</sup>) · (ℓ<sub>g</sub>/1000))</p>
+        <table class="output" id="out-fpkm"></table>
+      </div>
+      <div class="output-card">
+        <h3>TPM · transcripts per million</h3>
+        <p class="formula">TPM<sub>s,g</sub> = (c<sub>s,g</sub>/ℓ<sub>g</sub>) / Σ(c<sub>s,·</sub>/ℓ<sub>·</sub>) · 10<sup>6</sup></p>
+        <table class="output" id="out-tpm"></table>
+      </div>
+      <div class="output-card">
+        <h3>Size-factor-adjusted counts</h3>
+        <p class="formula">adj<sub>s,g</sub> = c<sub>s,g</sub> / sf<sub>s</sub> &nbsp;(median-of-ratios, DESeq2)</p>
+        <table class="output" id="out-sf"></table>
+      </div>
+    </div>
+    <p class="hint">
+      Click any sample column header to sort by that unit. CPM and size-factor counts only correct for sequencing depth; FPKM and TPM also correct for gene length. TPM sums to exactly 10<sup>6</sup> per sample — a fixed-total unit, which makes it the only length-aware metric that is comparable across samples without further caveats.
+    </p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Size factors (median-of-ratios)</p>
+    <div class="sf-strip" id="sf-strip"></div>
+    <p class="hint">
+      For each gene, take the geometric mean of counts across samples. Then for each sample, the size factor is the median of <code>count / geo-mean</code> ratios across genes. Most genes have stable expression, so the median is robust — it resists outliers from truly differentially-expressed genes and gives a depth estimate that's not pulled by a handful of highly-expressed hits.
+    </p>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const matrixHead = $('matrix-head');
+  const matrixBody = $('matrix-body');
+  const errorMsg   = $('error-msg');
+  const outcome    = $('outcome');
+  const sfStrip    = $('sf-strip');
+
+  // ─── State ───────────────────────────────────────────
+  const PRESET = {
+    genes: [
+      { name: 'G1', length: 500,  counts: [120, 150, 100] },
+      { name: 'G2', length: 2000, counts: [400, 480, 350] },
+      { name: 'G3', length: 5000, counts: [200, 250, 180] },
+      { name: 'G4', length: 1200, counts: [80,  95,  70]  },
+      { name: 'G5', length: 800,  counts: [60,  72,  50]  },
+    ],
+    sampleNames: ['S1', 'S2', 'S3'],
+  };
+
+  // Deep-clone preset for mutable state
+  function clonePreset() {
+    return {
+      genes: PRESET.genes.map(g => ({
+        name: g.name,
+        length: g.length,
+        counts: g.counts.slice(),
+      })),
+      sampleNames: PRESET.sampleNames.slice(),
+    };
+  }
+
+  let state = clonePreset();
+
+  // Sort state: which sample column + unit is currently sorted, plus direction.
+  // null = no active sort, defaults to gene order.
+  let sortState = null; // { unit: 'cpm'|'fpkm'|'tpm'|'sf', sampleIdx: number, dir: 'desc'|'asc' }
+
+  // ─── DOM helpers ─────────────────────────────────────
+  function el(tag, opts = {}) {
+    const e = document.createElement(tag);
+    if (opts.className) e.className = opts.className;
+    if (opts.text != null) e.textContent = opts.text;
+    if (opts.attrs) for (const k in opts.attrs) e.setAttribute(k, opts.attrs[k]);
+    if (opts.on) for (const k in opts.on) e.addEventListener(k, opts.on[k]);
+    return e;
+  }
+
+  // ─── Matrix renderer ─────────────────────────────────
+  function renderMatrix() {
+    matrixHead.innerHTML = '';
+    matrixBody.innerHTML = '';
+
+    const tr = el('tr');
+    tr.appendChild(el('th', { className: 'gene-col', text: 'Gene' }));
+    tr.appendChild(el('th', { className: 'len-col', text: 'Length (bp)' }));
+
+    state.sampleNames.forEach((name, sIdx) => {
+      const th = el('th', { className: 'col-action' });
+      const wrap = el('div');
+      wrap.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:0.3rem';
+      const nameInp = el('input', {
+        attrs: { type: 'text', value: name, 'aria-label': 'Sample name' },
+        on: { change: () => {
+          state.sampleNames[sIdx] = nameInp.value.trim() || `S${sIdx + 1}`;
+          render();
+        }},
+      });
+      nameInp.style.cssText = 'width:3.5rem;background:transparent;border:0;text-align:center;font-family:var(--font-sans);font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--fg-muted)';
+      wrap.appendChild(nameInp);
+      if (state.sampleNames.length > 1) {
+        wrap.appendChild(el('button', {
+          attrs: { type: 'button', title: 'Remove sample' },
+          text: '×',
+          on: { click: () => {
+            state.sampleNames.splice(sIdx, 1);
+            state.genes.forEach(g => g.counts.splice(sIdx, 1));
+            if (sortState && sortState.sampleIdx === sIdx) sortState = null;
+            else if (sortState && sortState.sampleIdx > sIdx) sortState.sampleIdx -= 1;
+            render();
+          }},
+        }));
+      }
+      th.appendChild(wrap);
+      tr.appendChild(th);
+    });
+    tr.appendChild(el('th', { className: 'col-action' }));
+    matrixHead.appendChild(tr);
+
+    state.genes.forEach((gene, gIdx) => {
+      const row = el('tr');
+
+      const tdName = el('td', { className: 'gene-name' });
+      const nameInput = el('input', {
+        attrs: { type: 'text', value: gene.name, 'aria-label': `Gene ${gIdx + 1} name` },
+        on: { change: () => {
+          state.genes[gIdx].name = nameInput.value.trim() || `G${gIdx + 1}`;
+          render();
+        }},
+      });
+      tdName.appendChild(nameInput);
+      row.appendChild(tdName);
+
+      const tdLen = el('td', { className: 'len-cell' });
+      const lenInput = el('input', {
+        attrs: { type: 'number', min: '1', step: '1', value: gene.length, 'aria-label': 'Gene length' },
+        on: { input: () => {
+          state.genes[gIdx].length = Number(lenInput.value);
+          recompute();
+        }},
+      });
+      tdLen.appendChild(lenInput);
+      row.appendChild(tdLen);
+
+      state.sampleNames.forEach((_, sIdx) => {
+        const td = el('td');
+        const inp = el('input', {
+          attrs: {
+            type: 'number', min: '0', step: '1',
+            value: gene.counts[sIdx] ?? 0,
+            'aria-label': `Count for ${gene.name} in ${state.sampleNames[sIdx]}`,
+          },
+          on: { input: () => {
+            state.genes[gIdx].counts[sIdx] = Number(inp.value);
+            recompute();
+          }},
+        });
+        td.appendChild(inp);
+        row.appendChild(td);
+      });
+
+      const tdAct = el('td', { className: 'row-actions' });
+      if (state.genes.length > 1) {
+        tdAct.appendChild(el('button', {
+          attrs: { type: 'button', title: 'Remove gene' },
+          text: '×',
+          on: { click: () => { state.genes.splice(gIdx, 1); render(); } },
+        }));
+      }
+      row.appendChild(tdAct);
+      matrixBody.appendChild(row);
+    });
+  }
+
+  // ─── Validation ──────────────────────────────────────
+  function validate() {
+    const issues = [];
+    state.genes.forEach((g, gIdx) => {
+      if (!(Number.isFinite(g.length) && g.length > 0)) {
+        issues.push(`${g.name || 'row ' + (gIdx + 1)}: length must be a positive number.`);
+      }
+      g.counts.forEach((c, sIdx) => {
+        if (!Number.isFinite(c) || c < 0) {
+          issues.push(`${g.name || 'row ' + (gIdx + 1)} / ${state.sampleNames[sIdx]}: count must be a non-negative number.`);
+        }
+      });
+    });
+    return issues;
+  }
+
+  // ─── Normalisation core ──────────────────────────────
+  function computeAll() {
+    const G = state.genes.length;
+    const S = state.sampleNames.length;
+    const counts = state.genes.map(g => g.counts.slice(0, S));
+    const lengths = state.genes.map(g => g.length);
+
+    // Library sizes D_s
+    const D = new Array(S).fill(0);
+    for (let g = 0; g < G; g++) {
+      for (let s = 0; s < S; s++) {
+        D[s] += counts[g][s] || 0;
+      }
+    }
+
+    // CPM
+    const cpm = Array.from({ length: G }, () => new Array(S).fill(0));
+    for (let g = 0; g < G; g++) {
+      for (let s = 0; s < S; s++) {
+        cpm[g][s] = D[s] > 0 ? counts[g][s] / (D[s] / 1e6) : 0;
+      }
+    }
+
+    // FPKM
+    const fpkm = Array.from({ length: G }, () => new Array(S).fill(0));
+    for (let g = 0; g < G; g++) {
+      for (let s = 0; s < S; s++) {
+        const kbp = lengths[g] / 1000;
+        fpkm[g][s] = (D[s] > 0 && kbp > 0)
+          ? counts[g][s] / ((D[s] / 1e6) * kbp)
+          : 0;
+      }
+    }
+
+    // TPM — per-sample totals of (count / length)
+    const perKbTotals = new Array(S).fill(0);
+    for (let g = 0; g < G; g++) {
+      if (lengths[g] > 0) {
+        for (let s = 0; s < S; s++) {
+          perKbTotals[s] += (counts[g][s] || 0) / lengths[g];
+        }
+      }
+    }
+    const tpm = Array.from({ length: G }, () => new Array(S).fill(0));
+    for (let g = 0; g < G; g++) {
+      for (let s = 0; s < S; s++) {
+        if (perKbTotals[s] > 0 && lengths[g] > 0) {
+          tpm[g][s] = ((counts[g][s] || 0) / lengths[g]) / perKbTotals[s] * 1e6;
+        }
+      }
+    }
+
+    // Size factors — median-of-ratios.
+    // Gene's geo-mean is only defined when every sample's count > 0.
+    const geoMeans = new Array(G).fill(0);
+    const geneUsable = new Array(G).fill(false);
+    for (let g = 0; g < G; g++) {
+      let anyZero = false;
+      let logSum = 0;
+      for (let s = 0; s < S; s++) {
+        const c = counts[g][s];
+        if (!(c > 0)) { anyZero = true; break; }
+        logSum += Math.log(c);
+      }
+      if (!anyZero && S > 0) {
+        geoMeans[g] = Math.exp(logSum / S);
+        geneUsable[g] = true;
+      }
+    }
+    const sizeFactors = new Array(S).fill(1);
+    const sfSupport = new Array(S).fill(0);
+    for (let s = 0; s < S; s++) {
+      const ratios = [];
+      for (let g = 0; g < G; g++) {
+        if (geneUsable[g] && geoMeans[g] > 0) {
+          ratios.push(counts[g][s] / geoMeans[g]);
+        }
+      }
+      sfSupport[s] = ratios.length;
+      if (ratios.length > 0) {
+        ratios.sort((a, b) => a - b);
+        const mid = Math.floor(ratios.length / 2);
+        sizeFactors[s] = (ratios.length % 2 === 1)
+          ? ratios[mid]
+          : (ratios[mid - 1] + ratios[mid]) / 2;
+      } else {
+        sizeFactors[s] = NaN;
+      }
+    }
+
+    // Size-factor-adjusted counts
+    const sfAdj = Array.from({ length: G }, () => new Array(S).fill(0));
+    for (let g = 0; g < G; g++) {
+      for (let s = 0; s < S; s++) {
+        sfAdj[g][s] = Number.isFinite(sizeFactors[s]) && sizeFactors[s] > 0
+          ? counts[g][s] / sizeFactors[s]
+          : 0;
+      }
+    }
+
+    return { D, cpm, fpkm, tpm, sizeFactors, sfAdj, sfSupport, G, S };
+  }
+
+  // ─── Output rendering ────────────────────────────────
+  const UNIT_KEYS = ['cpm', 'fpkm', 'tpm', 'sf'];
+  const UNIT_TABLES = {
+    cpm:  { tableId: 'out-cpm',  valueOf: (r, g, s) => r.cpm[g][s] },
+    fpkm: { tableId: 'out-fpkm', valueOf: (r, g, s) => r.fpkm[g][s] },
+    tpm:  { tableId: 'out-tpm',  valueOf: (r, g, s) => r.tpm[g][s] },
+    sf:   { tableId: 'out-sf',   valueOf: (r, g, s) => r.sfAdj[g][s] },
+  };
+
+  function fmtNum(v) {
+    if (!Number.isFinite(v)) return '—';
+    if (v === 0) return '0';
+    const abs = Math.abs(v);
+    if (abs >= 10000) return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    if (abs >= 100)   return v.toLocaleString('en-US', { maximumFractionDigits: 1 });
+    if (abs >= 1)     return v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    return v.toLocaleString('en-US', { maximumFractionDigits: 3 });
+  }
+
+  function orderedGeneIndices(result, unit, sampleIdx, dir) {
+    const n = result.G;
+    const idx = Array.from({ length: n }, (_, i) => i);
+    if (unit && sampleIdx != null) {
+      const valueOf = UNIT_TABLES[unit].valueOf;
+      idx.sort((a, b) => {
+        const va = valueOf(result, a, sampleIdx);
+        const vb = valueOf(result, b, sampleIdx);
+        const aFin = Number.isFinite(va), bFin = Number.isFinite(vb);
+        if (!aFin && !bFin) return 0;
+        if (!aFin) return 1;
+        if (!bFin) return -1;
+        return dir === 'asc' ? va - vb : vb - va;
+      });
+    }
+    return idx;
+  }
+
+  function renderOutputTable(unit, result) {
+    const tbl = document.getElementById(UNIT_TABLES[unit].tableId);
+    tbl.innerHTML = '';
+
+    const thead = el('thead');
+    const tr = el('tr');
+    tr.appendChild(el('th', { className: 'gene-col', text: 'Gene' }));
+
+    state.sampleNames.forEach((name, sIdx) => {
+      const isActive = sortState && sortState.unit === unit && sortState.sampleIdx === sIdx;
+      const cls = 'sortable' + (isActive ? (sortState.dir === 'desc' ? ' sorted-desc' : ' sorted-asc') : '');
+      const th = el('th', {
+        className: cls,
+        text: name,
+        attrs: { title: `Sort ${unit.toUpperCase()} by ${name}` },
+        on: { click: () => {
+          if (sortState && sortState.unit === unit && sortState.sampleIdx === sIdx) {
+            if (sortState.dir === 'desc') sortState.dir = 'asc';
+            else sortState = null;
+          } else {
+            sortState = { unit, sampleIdx: sIdx, dir: 'desc' };
+          }
+          renderOutputs(result);
+          updateOutcome(result);
+        }},
+      });
+      tr.appendChild(th);
+    });
+
+    thead.appendChild(tr);
+    tbl.appendChild(thead);
+
+    const tbody = el('tbody');
+    const isSortedHere = sortState && sortState.unit === unit;
+    const order = isSortedHere
+      ? orderedGeneIndices(result, sortState.unit, sortState.sampleIdx, sortState.dir)
+      : Array.from({ length: result.G }, (_, i) => i);
+
+    order.forEach((gIdx, rowRank) => {
+      const row = el('tr', { className: (isSortedHere && rowRank === 0) ? 'top-rank' : '' });
+      row.appendChild(el('td', { className: 'gene-col', text: state.genes[gIdx].name }));
+      state.sampleNames.forEach((_, sIdx) => {
+        const cls = 'num' + (isSortedHere && sortState.sampleIdx === sIdx ? ' sorted-col' : '');
+        row.appendChild(el('td', {
+          className: cls,
+          text: fmtNum(UNIT_TABLES[unit].valueOf(result, gIdx, sIdx)),
+        }));
+      });
+      tbody.appendChild(row);
+    });
+    tbl.appendChild(tbody);
+  }
+
+  function renderOutputs(result) {
+    UNIT_KEYS.forEach(u => renderOutputTable(u, result));
+  }
+
+  function renderSizeFactors(result) {
+    sfStrip.innerHTML = '';
+    state.sampleNames.forEach((name, sIdx) => {
+      const card = el('div', { className: 'sf-card' });
+      card.appendChild(el('div', { className: 'label', text: name }));
+      const sf = result.sizeFactors[sIdx];
+      card.appendChild(el('div', {
+        className: 'value',
+        text: Number.isFinite(sf) ? sf.toFixed(4) : '—',
+      }));
+      card.appendChild(el('div', {
+        className: 'sub',
+        text: `D = ${fmtNum(result.D[sIdx])} · n = ${result.sfSupport[sIdx]}`,
+      }));
+      sfStrip.appendChild(card);
+    });
+  }
+
+  function topGene(result, unit, sampleIdx) {
+    if (result.G === 0 || result.S === 0) return null;
+    let bestG = 0;
+    let bestV = -Infinity;
+    for (let g = 0; g < result.G; g++) {
+      const v = UNIT_TABLES[unit].valueOf(result, g, sampleIdx);
+      if (Number.isFinite(v) && v > bestV) { bestV = v; bestG = g; }
+    }
+    return { name: state.genes[bestG].name, value: bestV };
+  }
+
+  function updateOutcome(result) {
+    if (result.G === 0 || result.S === 0) {
+      outcome.classList.remove('warn', 'error');
+      outcome.textContent = 'Add at least one gene and one sample to compute normalisations.';
+      return;
+    }
+
+    // Choose a reference sample. If the user is sorting, highlight that sample.
+    // Otherwise default to the second sample (classic "S2" example) when available, else S1.
+    const refIdx = (sortState && sortState.sampleIdx != null && sortState.sampleIdx < result.S)
+      ? sortState.sampleIdx
+      : Math.min(1, result.S - 1);
+    const refName = state.sampleNames[refIdx];
+
+    const topCpm = topGene(result, 'cpm', refIdx);
+    const topTpm = topGene(result, 'tpm', refIdx);
+    const topFpkm = topGene(result, 'fpkm', refIdx);
+
+    const flip = topCpm && topTpm && topCpm.name !== topTpm.name;
+    const tail = flip
+      ? 'length correction flips the rank'
+      : 'length correction leaves the top rank unchanged';
+
+    outcome.classList.remove('warn', 'error');
+    outcome.innerHTML =
+      `<strong>${result.G} gene${result.G === 1 ? '' : 's'} × ${result.S} sample${result.S === 1 ? '' : 's'} normalised</strong> · ` +
+      `${topCpm ? topCpm.name : '—'} highest CPM in ${refName}, ` +
+      `${topTpm ? topTpm.name : '—'} highest TPM in ${refName} ` +
+      `(FPKM top: ${topFpkm ? topFpkm.name : '—'}) — ${tail}.`;
+  }
+
+  function showError(msgs) {
+    errorMsg.textContent = msgs.join(' ');
+    outcome.classList.remove('warn');
+    outcome.classList.add('error');
+    outcome.textContent = 'Fix the highlighted cells to compute normalisations.';
+    // clear output tables
+    UNIT_KEYS.forEach(u => {
+      document.getElementById(UNIT_TABLES[u].tableId).innerHTML = '';
+    });
+    sfStrip.innerHTML = '';
+  }
+
+  // Mark bad cells visually (length <= 0, non-numeric counts, negative counts)
+  function markBadCells() {
+    const bodyRows = matrixBody.querySelectorAll('tr');
+    bodyRows.forEach((row, gIdx) => {
+      const gene = state.genes[gIdx];
+      if (!gene) return;
+      const lenInput = row.querySelector('td.len-cell input');
+      if (lenInput) {
+        if (!(Number.isFinite(gene.length) && gene.length > 0)) lenInput.classList.add('bad');
+        else lenInput.classList.remove('bad');
+      }
+      const countCells = row.querySelectorAll('td:not(.gene-name):not(.len-cell):not(.row-actions)');
+      countCells.forEach((td, sIdx) => {
+        const inp = td.querySelector('input');
+        if (!inp) return;
+        const c = gene.counts[sIdx];
+        if (!Number.isFinite(c) || c < 0) inp.classList.add('bad');
+        else inp.classList.remove('bad');
+      });
+    });
+  }
+
+  // ─── Orchestration ───────────────────────────────────
+  function recompute() {
+    markBadCells();
+    const issues = validate();
+    if (issues.length > 0) {
+      showError(issues.slice(0, 3));
+      return;
+    }
+    errorMsg.textContent = '';
+    const result = computeAll();
+    renderOutputs(result);
+    renderSizeFactors(result);
+    updateOutcome(result);
+  }
+
+  function render() {
+    renderMatrix();
+    recompute();
+  }
+
+  // ─── Controls ────────────────────────────────────────
+  $('add-gene').addEventListener('click', () => {
+    const n = state.genes.length + 1;
+    state.genes.push({
+      name: `G${n}`,
+      length: 1000,
+      counts: new Array(state.sampleNames.length).fill(0),
+    });
+    render();
+  });
+
+  $('add-sample').addEventListener('click', () => {
+    const n = state.sampleNames.length + 1;
+    state.sampleNames.push(`S${n}`);
+    state.genes.forEach(g => g.counts.push(0));
+    render();
+  });
+
+  $('reset-btn').addEventListener('click', () => {
+    state = clonePreset();
+    sortState = null;
+    render();
+  });
+
+  // ─── Initial render ──────────────────────────────────
+  render();
+})();
+</script>
+
+</body>
+</html>

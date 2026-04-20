@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STAR Seed-and-Extend Simulator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0; max-width: 68ch; }
+
+    .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .panel-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+    .field-label { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: var(--fg-muted); display: block; margin-bottom: 0.4rem; }
+
+    .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.5rem 0.9rem; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg); cursor: pointer; }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .controls { display: flex; gap: 0.55rem; align-items: center; flex-wrap: wrap; }
+    .controls select, .controls input[type="range"] { font-family: var(--font-sans); font-size: var(--text-sm); padding: 0.35rem 0.6rem; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+    .controls input[type="range"] { accent-color: var(--accent); width: 150px; padding: 0; }
+    .toggle-row { display: flex; flex-wrap: wrap; gap: 1.25rem 2rem; align-items: center; margin-top: 0.9rem; }
+    .toggle { display: inline-flex; align-items: center; gap: 0.5rem; font-family: var(--font-sans); font-size: var(--text-sm); color: var(--fg); cursor: pointer; user-select: none; }
+    .toggle input { accent-color: var(--accent); width: 16px; height: 16px; }
+    .toggle .hint { color: var(--fg-subtle); font-size: 0.78rem; letter-spacing: 0.02em; }
+    .read-input { width: 100%; min-height: 72px; resize: vertical; font-family: var(--font-mono); font-size: 0.92rem; letter-spacing: 0.05em; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.7rem 0.85rem; color: var(--fg); }
+    .read-input:focus { outline: 2px solid var(--accent-bright); outline-offset: 1px; }
+    .input-meta { font-family: var(--font-mono); font-size: 0.78rem; color: var(--fg-subtle); margin-top: 0.35rem; }
+    .input-meta .warn { color: var(--warning); font-weight: 600; }
+
+    .stage-wrap { background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem; }
+    svg.stage { display: block; width: 100%; height: auto; }
+    svg.stage text { font-family: var(--font-sans); fill: var(--fg); }
+    svg.stage .title { font-size: 11px; fill: var(--fg-subtle); letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; }
+    svg.stage .axis-lab { font-size: 10px; fill: var(--fg-subtle); font-family: var(--font-mono); }
+    svg.stage .read-bar { fill: var(--bg-elevated); stroke: var(--border-strong); stroke-width: 1; }
+    svg.stage .read-base { font-size: 9px; font-family: var(--font-mono); }
+    svg.stage .mmp-seg { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1.2; opacity: 0; }
+    svg.stage .mmp-seg.visible { opacity: 1; }
+    svg.stage .mmp-seg.winner { fill: #dcf0e3; stroke: var(--success); }
+    svg.stage .mmp-seg.discarded { fill: #f6e4e4; stroke: var(--error); stroke-dasharray: 3 2; }
+    svg.stage .mmp-lab { font-size: 9px; fill: var(--fg-muted); }
+    svg.stage .exon { fill: var(--accent); stroke: var(--accent-hover); stroke-width: 1; }
+    svg.stage .intron-line { stroke: var(--border-strong); stroke-width: 2; }
+    svg.stage .intron-label { font-size: 9px; fill: var(--fg-subtle); }
+    svg.stage .exon-label { font-size: 10px; fill: #fff; font-weight: 600; }
+    svg.stage .motif-box { fill: #fff4d6; stroke: var(--warning); stroke-width: 1; }
+    svg.stage .motif-text { font-size: 9px; font-family: var(--font-mono); fill: var(--warning); font-weight: 600; }
+    svg.stage .seed-arrow { stroke: var(--accent); stroke-width: 1; fill: none; opacity: 0; }
+    svg.stage .seed-arrow.visible { opacity: 0.7; }
+    svg.stage .seed-arrow.discarded { stroke: var(--error); stroke-dasharray: 2 2; }
+    svg.stage .cluster-ring { fill: none; stroke: var(--success); stroke-width: 1.4; stroke-dasharray: 4 3; opacity: 0; }
+    svg.stage .cluster-ring.visible { opacity: 1; }
+    svg.stage .splice-arc { fill: none; stroke: var(--success); stroke-width: 2; stroke-dasharray: 5 3; opacity: 0; }
+    svg.stage .splice-arc.visible { opacity: 1; }
+    svg.stage .splice-arc.penalised { stroke: var(--error); }
+    svg.stage .align-seg { fill: var(--success); stroke: var(--success); stroke-width: 1; opacity: 0; }
+    svg.stage .align-seg.visible { opacity: 0.85; }
+    svg.stage .align-seg.penalised { fill: var(--warning); stroke: var(--warning); }
+    svg.stage .phase-title { font-size: 11px; fill: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+
+    .trace { margin-top: 0.9rem; padding: 0.7rem 0.9rem; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 0.82rem; color: var(--fg); min-height: 72px; line-height: 1.55; }
+    .trace .line { display: block; padding: 1px 0; }
+    .trace .line.phase { color: var(--accent); font-weight: 600; }
+    .trace .line.win { color: var(--success); }
+    .trace .line.warn { color: var(--warning); }
+    .trace .line.err { color: var(--error); }
+    .trace .line.dim { color: var(--fg-subtle); }
+
+    .outcome { margin-top: 1rem; padding: 0.75rem 1rem; background: var(--bg-inset); border-left: 3px solid var(--border-strong); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font-family: var(--font-sans); font-size: var(--text-sm); color: var(--fg-muted); }
+    .outcome.ok   { border-left-color: var(--success); color: var(--fg); background: #e9f5ec; }
+    .outcome.warn { border-left-color: var(--warning); color: var(--fg); background: #fbf2e0; }
+    .outcome.bad  { border-left-color: var(--error);   color: var(--fg); background: #f7e6e6; }
+    .outcome strong { font-family: var(--font-mono); }
+
+    .legend { margin-top: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.85rem 1.4rem; font-family: var(--font-sans); font-size: 0.78rem; color: var(--fg-muted); }
+    .legend .swatch { display: inline-block; width: 12px; height: 12px; vertical-align: -2px; margin-right: 0.4rem; border-radius: 2px; border: 1px solid var(--border-strong); }
+    .legend .swatch.accent  { background: var(--accent-bg);  border-color: var(--accent); }
+    .legend .swatch.win     { background: #dcf0e3;           border-color: var(--success); }
+    .legend .swatch.lose    { background: #f6e4e4;           border-color: var(--error); }
+    .legend .swatch.exon    { background: var(--accent);     border-color: var(--accent-hover); }
+    .legend .swatch.motif   { background: #fff4d6;           border-color: var(--warning); }
+    .legend .swatch.splice  { background: repeating-linear-gradient(90deg, var(--success) 0 4px, transparent 4px 7px); border-color: transparent; }
+
+    @media (max-width: 780px) { body { padding: 1rem; } .panel { padding: 1rem; } .artifact-head h1 { font-size: var(--text-2xl); } }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="star-simulator">
+  <header class="artifact-head">
+    <h1>STAR Seed-and-Extend Simulator</h1>
+    <p>STAR maps RNA-seq reads in three phases: it searches for Maximum Mappable Prefixes (MMPs), clusters nearby hits into seed groups, then extends the winning cluster with Smith-Waterman that allows a spliced jump when a canonical GT-AG motif is present. Step through the phases and watch a spliced read fall into place.</p>
+  </header>
+
+  <section class="panel">
+    <div class="controls" style="margin-bottom: 0.6rem;">
+      <label class="field-label" for="preset" style="margin: 0;">Preset</label>
+      <select id="preset">
+        <option value="default">Default junction read (exon1-intron-exon2)</option>
+        <option value="unspliced">No splice needed (read inside one exon)</option>
+        <option value="noncanonical">Difficult splice, non-canonical (AT-AC) motif</option>
+        <option value="multi">Multi-junction (2 introns)</option>
+      </select>
+
+      <label class="field-label" style="margin: 0 0 0 1rem;">
+        Min MMP length <span id="mmp-readout">20</span>
+      </label>
+      <input id="mmp-slider" type="range" min="10" max="30" step="1" value="20">
+    </div>
+
+    <div class="toggle-row">
+      <label class="toggle">
+        <input type="checkbox" id="tg-motif" checked>
+        <span>canonical-GT-AG-bonus</span>
+        <span class="hint">(splice at canonical motif costs 0)</span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="tg-splice" checked>
+        <span>allow splicing</span>
+        <span class="hint">(off = STAR forced to linear SW)</span>
+      </label>
+    </div>
+
+    <div style="margin-top: 1rem;">
+      <label class="field-label" for="read-input">Read sequence (100-150 bp)</label>
+      <textarea id="read-input" class="read-input" spellcheck="false"></textarea>
+      <div class="input-meta"><span id="read-meta">—</span> <span id="read-warn" class="warn"></span></div>
+    </div>
+
+    <div class="controls" style="margin-top: 1rem;">
+      <button id="step-btn"  class="btn btn--primary" type="button">Step</button>
+      <button id="play-btn"  class="btn" type="button">Play</button>
+      <button id="pause-btn" class="btn" type="button" disabled>Pause</button>
+      <button id="reset-btn" class="btn" type="button">Reset</button>
+      <span id="phase-indicator" style="margin-left: 0.5rem; font-size: 0.82rem; color: var(--fg-subtle); font-family: var(--font-mono);">phase 0 / 3</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Read, reference, and algorithm trace</p>
+    <div class="stage-wrap">
+      <svg id="stage" class="stage" viewBox="0 0 1100 440" preserveAspectRatio="xMidYMid meet"
+           role="img" aria-label="STAR three-phase algorithm visualisation">
+        <!-- Phase title -->
+        <text class="phase-title" id="phase-title" x="20" y="22">Phase 0 · idle</text>
+
+        <!-- Read track -->
+        <text class="title" x="20" y="52">Read (5' to 3')</text>
+        <g id="read-layer" transform="translate(20, 58)"></g>
+
+        <!-- Reference track -->
+        <text class="title" x="20" y="238">Reference (genomic coordinates)</text>
+        <g id="ref-layer" transform="translate(20, 244)"></g>
+
+        <!-- Seed arrows & cluster rings overlay -->
+        <g id="seed-arrows-layer"></g>
+        <g id="cluster-layer"></g>
+
+        <!-- Alignment / splice overlay -->
+        <g id="align-layer"></g>
+
+        <!-- Axis scale -->
+        <g id="axis-layer"></g>
+      </svg>
+    </div>
+
+    <div class="legend">
+      <span><span class="swatch accent"></span>MMP candidate</span>
+      <span><span class="swatch win"></span>cluster / winner</span>
+      <span><span class="swatch lose"></span>discarded</span>
+      <span><span class="swatch exon"></span>exon</span>
+      <span><span class="swatch motif"></span>GT-AG motif</span>
+      <span><span class="swatch splice"></span>splice junction</span>
+    </div>
+
+    <div id="trace" class="trace"><span class="line dim">Press Step or Play to run phase 1…</span></div>
+
+    <div id="outcome" class="outcome">Run the three phases to see the outcome.</div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">How to read this</p>
+    <p style="margin: 0 0 0.5rem; font-size: var(--text-sm); color: var(--fg-muted); line-height: var(--leading-relaxed);">
+      Phase 1 finds MMPs — the longest substring starting at each read position that maps somewhere to the reference. Phase 2 groups nearby MMPs into clusters; clusters with high combined coverage survive. Phase 3 runs spliced Smith-Waterman: when a canonical GT-AG motif lines up between two MMPs, STAR takes the splice with zero intron penalty. Toggle the canonical-motif-bonus off to see what happens when the genome does not advertise splice sites.
+    </p>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ────────────────── Helpers ────────────────── */
+  const $ = (id) => document.getElementById(id);
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const make = (tag, attrs = {}, parent = null) => {
+    const el = document.createElementNS(svgNS, tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v == null) continue;
+      el.setAttribute(k, String(v));
+    }
+    if (parent) parent.appendChild(el);
+    return el;
+  };
+  const clearChildren = (el) => { while (el.firstChild) el.removeChild(el.firstChild); };
+
+  /* ────────────────── Presets ─────────────────── */
+  // Preset shape: { read, refLen, refExons, introns, mmps, clusters, alignment }
+  // mmps precomputed (don't run real suffix-array); alignment is the baked SW result.
+  const PRESETS = {
+    default: {
+      label: 'Default junction read',
+      read: 'ACGTGGATCCTAGACCGTTAGCTCAATGGCTAAGCCATGATCGGTAGCTAGTACCGGGTTAACCCGGATTACGGCTAGGCATGAGCTAGCGATCAGTACC',
+      refLen: 6100,
+      refExons: [ { start: 50, end: 1050, label: 'exon 1' }, { start: 5050, end: 6050, label: 'exon 2' } ],
+      introns: [ { start: 1050, end: 5050, motif: 'GTAG', label: '~4 kb intron' } ],
+      mmps: [
+        { readStart:  0, readEnd: 22, refPos:  900, cluster: 0 },
+        { readStart: 23, readEnd: 40, refPos:  923, cluster: 0 },
+        { readStart: 41, readEnd: 46, refPos: 3100, cluster: 2 }, // noise
+        { readStart: 47, readEnd: 70, refPos: 5050, cluster: 1 },
+        { readStart: 71, readEnd: 99, refPos: 5074, cluster: 1 },
+      ],
+      clusters: [
+        { members: [0, 1], span: [900, 941],  side: 'left'  },
+        { members: [3, 4], span: [5050, 5102], side: 'right' },
+        { members: [2],    span: [3100, 3106], discarded: true },
+      ],
+      alignment: { readBreak: 47, refLeft: { start: 900, end: 1050 }, refRight: { start: 5050, end: 5102 },
+                   spliceMotif: 'GT-AG', canonical: true, matchScore: 95, penalty: 0 },
+    },
+    unspliced: {
+      label: 'No splice needed',
+      read: 'CCGGATTACCGCGATTACCGTAGCTAGGCATACCATGCTAGCCAGTACGTAGCTAGACCGGTTAACCGGATCGATGCATCCATGCAGCTAGCATCGTAAC',
+      refLen: 2400,
+      refExons: [ { start: 100, end: 2300, label: 'exon 1 (single)' } ],
+      introns: [],
+      mmps: [
+        { readStart:  0, readEnd: 32, refPos: 1020, cluster: 0 },
+        { readStart: 33, readEnd: 65, refPos: 1053, cluster: 0 },
+        { readStart: 66, readEnd: 99, refPos: 1086, cluster: 0 },
+      ],
+      clusters: [ { members: [0, 1, 2], span: [1020, 1120], side: 'full' } ],
+      alignment: { readBreak: null, refLeft: { start: 1020, end: 1120 }, refRight: null,
+                   spliceMotif: null, canonical: null, matchScore: 100, penalty: 0 },
+    },
+    noncanonical: {
+      label: 'Difficult splice, non-canonical motif',
+      read: 'GGATCCTAGACCGTTAGCTCAATGGCTAAGCCATGATCGGTAGCTAGTACCGGGTTAACCCGGATTACGGCTAGGCATGAGCTAGCGATCAGTACCGGTA',
+      refLen: 7200,
+      refExons: [ { start: 100, end: 1100, label: 'exon 1' }, { start: 6100, end: 7100, label: 'exon 2' } ],
+      introns: [ { start: 1100, end: 6100, motif: 'ATAC', label: '~5 kb intron · AT-AC' } ],
+      mmps: [
+        { readStart:  0, readEnd: 20, refPos:  950, cluster: 0 },
+        { readStart: 21, readEnd: 45, refPos:  971, cluster: 0 },
+        { readStart: 46, readEnd: 52, refPos: 3500, cluster: 2 }, // noise
+        { readStart: 53, readEnd: 75, refPos: 6100, cluster: 1 },
+        { readStart: 76, readEnd: 99, refPos: 6123, cluster: 1 },
+      ],
+      clusters: [
+        { members: [0, 1], span: [950, 996],  side: 'left'  },
+        { members: [3, 4], span: [6100, 6147], side: 'right' },
+        { members: [2],    span: [3500, 3507], discarded: true },
+      ],
+      alignment: { readBreak: 53, refLeft: { start: 950, end: 1100 }, refRight: { start: 6100, end: 6147 },
+                   spliceMotif: 'AT-AC', canonical: false, matchScore: 72, penalty: 18 },
+    },
+    multi: {
+      label: 'Multi-junction (2 introns)',
+      read: 'ACCGGTTAACCGGATCCTAGACCGTTAGCTCAATGGCTAAGCCATGATCGGTAGCTAGTACCGGGTTAACCCGGATTACGGCTAGGCATGAGCTAGCGAT',
+      refLen: 9500,
+      refExons: [ { start: 100, end: 900, label: 'exon 1' }, { start: 4100, end: 4700, label: 'exon 2' }, { start: 8500, end: 9400, label: 'exon 3' } ],
+      introns: [ { start: 900, end: 4100, motif: 'GTAG', label: '~3 kb intron 1' }, { start: 4700, end: 8500, motif: 'GTAG', label: '~3.8 kb intron 2' } ],
+      mmps: [
+        { readStart:  0, readEnd: 18, refPos:  810, cluster: 0 },
+        { readStart: 19, readEnd: 35, refPos:  829, cluster: 0 },
+        { readStart: 36, readEnd: 60, refPos: 4100, cluster: 1 },
+        { readStart: 61, readEnd: 72, refPos: 4125, cluster: 1 },
+        { readStart: 73, readEnd: 99, refPos: 8500, cluster: 2 },
+      ],
+      clusters: [
+        { members: [0, 1], span: [810,  846],  side: 'left'  },
+        { members: [2, 3], span: [4100, 4137], side: 'mid'   },
+        { members: [4],    span: [8500, 8527], side: 'right' },
+      ],
+      alignment: { readBreak: [36, 73],
+                   refSegments: [ { start: 810, end: 900 }, { start: 4100, end: 4137 }, { start: 8500, end: 8527 } ],
+                   spliceMotif: 'GT-AG ×2', canonical: true, matchScore: 96, penalty: 0, multi: true },
+    },
+  };
+
+  /* ────────────────── State ──────────────────── */
+  const state = {
+    preset: 'default',
+    minMmp: 20,
+    motifBonus: true,
+    allowSplice: true,
+    phase: 0,        // 0 = idle / pre-phase-1, 1 = MMPs found, 2 = clustered, 3 = extended
+    playing: false,
+    playTimer: null,
+    customRead: null, // user-edited, validated
+  };
+
+  /* ────────────────── Elements & geometry ────── */
+  const presetSel = $('preset'), mmpSlider = $('mmp-slider'), mmpReadout = $('mmp-readout');
+  const tgMotif = $('tg-motif'), tgSplice = $('tg-splice');
+  const readInput = $('read-input'), readMeta = $('read-meta'), readWarn = $('read-warn');
+  const stepBtn = $('step-btn'), playBtn = $('play-btn'), pauseBtn = $('pause-btn'), resetBtn = $('reset-btn');
+  const phaseInd = $('phase-indicator'), phaseTitle = $('phase-title');
+  const traceEl = $('trace'), outcomeEl = $('outcome');
+  const readLayer = $('read-layer'), refLayer = $('ref-layer');
+  const seedLayer = $('seed-arrows-layer'), clusterLayer = $('cluster-layer'), alignLayer = $('align-layer');
+
+  const STAGE_W = 1100, MARGIN_X = 20, READ_Y = 58, READ_H = 28, REF_Y = 244, REF_EXON_H = 22;
+  const REF_W = STAGE_W - 2 * MARGIN_X;
+  const readX = (idx, readLen) => (idx / readLen) * REF_W;
+  const refX  = (bp, refLen)   => (bp / refLen)  * REF_W;
+
+  /* ────────────────── Init & handlers ─────── */
+  function init() {
+    presetSel.value = state.preset;
+    loadPresetIntoInput();
+    updatePhaseIndicator();
+    drawAll();
+    attachHandlers();
+  }
+
+  function onControlChange() { reset(); preloadFinalPhase(); }
+
+  function attachHandlers() {
+    presetSel.addEventListener('change', () => {
+      state.preset = presetSel.value; state.customRead = null;
+      loadPresetIntoInput(); onControlChange();
+    });
+    mmpSlider.addEventListener('input', () => {
+      state.minMmp = +mmpSlider.value; mmpReadout.textContent = state.minMmp; onControlChange();
+    });
+    tgMotif.addEventListener('change',  () => { state.motifBonus  = tgMotif.checked;  onControlChange(); });
+    tgSplice.addEventListener('change', () => { state.allowSplice = tgSplice.checked; onControlChange(); });
+    readInput.addEventListener('input', handleReadInput);
+    stepBtn.addEventListener('click', stepForward);
+    playBtn.addEventListener('click', play);
+    pauseBtn.addEventListener('click', pause);
+    resetBtn.addEventListener('click', () => { reset(); });
+  }
+
+  function loadPresetIntoInput() { readInput.value = PRESETS[state.preset].read; validateRead(); }
+
+  function handleReadInput() {
+    validateRead();
+    const v = cleanSeq(readInput.value);
+    state.customRead = (v && v !== PRESETS[state.preset].read) ? v : null;
+    onControlChange();
+  }
+
+  const cleanSeq = (s) => (s || '').toUpperCase().replace(/[^ACGTN]/g, '');
+
+  function validateRead() {
+    const cleaned = cleanSeq(readInput.value); const len = cleaned.length;
+    let warn = '';
+    if (len === 0) warn = 'Empty';
+    else if (len < 100) warn = `Short (${len} bp) — pad to ≥100`;
+    else if (len > 150) warn = `Long (${len} bp) — will truncate to 150`;
+    readMeta.textContent = `${len} bp · ${readInput.value.trim() === cleaned ? 'clean' : 'non-ACGTN chars auto-stripped'}`;
+    readWarn.textContent = warn;
+  }
+
+  /* ────────────────── Compute per state ─────── */
+  const currentPreset   = () => PRESETS[state.preset];
+  const currentReadLen  = () => state.customRead ? Math.min(150, Math.max(20, state.customRead.length)) : currentPreset().read.length;
+  const currentRead     = () => state.customRead ? state.customRead.slice(0, 150) : currentPreset().read;
+
+  function computeMmps() {
+    const p = currentPreset();
+    if (!state.customRead) {
+      return p.mmps.map(m => ({ ...m, tooShort: (m.readEnd - m.readStart + 1) < state.minMmp }));
+    }
+    // Custom read: synth 4 chunks across exon1/exon2.
+    const L = state.customRead.length, n = 4, chunkLen = Math.floor(L / n), out = [];
+    for (let i = 0; i < n; i++) {
+      const rs = i * chunkLen, re = (i === n - 1) ? L - 1 : (i + 1) * chunkLen - 1;
+      const refPos = (i < n / 2) ? 900 + i * chunkLen : 5050 + (i - Math.floor(n/2)) * chunkLen;
+      out.push({ readStart: rs, readEnd: re, refPos, cluster: i < n / 2 ? 0 : 1,
+                 tooShort: (re - rs + 1) < state.minMmp });
+    }
+    return out;
+  }
+
+  function computeClusters(mmps) {
+    if (!state.customRead) return currentPreset().clusters;
+    const groups = new Map();
+    mmps.forEach((m, i) => {
+      if (m.tooShort) return;
+      if (!groups.has(m.cluster)) groups.set(m.cluster, []);
+      groups.get(m.cluster).push(i);
+    });
+    return Array.from(groups.entries()).map(([cluster, members]) => {
+      const first = mmps[members[0]], last = mmps[members[members.length - 1]];
+      return { members, span: [first.refPos, last.refPos + (last.readEnd - last.readStart + 1)],
+               side: cluster === 0 ? 'left' : 'right' };
+    });
+  }
+
+  function computeAlignment(mmps, clusters) {
+    if (!state.customRead) {
+      const base = { ...currentPreset().alignment };
+      if (base.readBreak != null) {
+        if (!state.allowSplice) {
+          base.forcedLinear = true;
+          base.matchScore = Math.max(20, Math.floor(base.matchScore * 0.40));
+          base.penalty = 60;
+        } else if (!state.motifBonus) {
+          base.matchScore = Math.max(25, base.matchScore - 40);
+          base.penalty = 40;
+          base.canonicalPenalised = true;
+        }
+      }
+      return base;
+    }
+    // Custom: bake two-segment spliced alignment (default scaffold)
+    if (clusters.length >= 2 && state.allowSplice) {
+      const left = clusters[0], right = clusters[1];
+      const firstM = mmps[left.members[0]];
+      const firstRightM = mmps[right.members[0]];
+      const lastRightM  = mmps[right.members[right.members.length - 1]];
+      const refLeft  = { start: firstM.refPos, end: 1050 };
+      const refRight = { start: 5050, end: lastRightM.refPos + (lastRightM.readEnd - lastRightM.readStart + 1) };
+      const motifBonus = state.motifBonus;
+      return { readBreak: firstRightM.readStart, refLeft, refRight, spliceMotif: 'GT-AG',
+               canonical: true, matchScore: motifBonus ? 85 : 55, penalty: motifBonus ? 0 : 30,
+               canonicalPenalised: !motifBonus };
+    }
+    const all = mmps.filter(m => !m.tooShort);
+    if (!all.length) return { matchScore: 0, penalty: 0, noHits: true };
+    const last = all[all.length - 1];
+    return { readBreak: null,
+             refLeft: { start: all[0].refPos, end: last.refPos + (last.readEnd - last.readStart + 1) },
+             matchScore: state.allowSplice ? 40 : 35,
+             penalty: state.allowSplice ? 0 : 10,
+             forcedLinear: !state.allowSplice };
+  }
+
+  /* ────────────────── Drawing: scene ─────────── */
+  function drawAll() {
+    [readLayer, refLayer, seedLayer, clusterLayer, alignLayer].forEach(clearChildren);
+    drawReadBar();
+    drawReferenceBar();
+  }
+
+  const BASE_COLOR = { A: 'var(--base-a)', C: 'var(--base-c)', G: 'var(--base-g)', T: 'var(--base-t)', U: 'var(--base-u)' };
+  const baseColor = (b) => BASE_COLOR[b] || 'var(--base-n)';
+
+  function drawReadBar() {
+    const readLen = currentReadLen(), read = currentRead();
+    make('rect', { class: 'read-bar', x: 0, y: 0, width: REF_W, height: READ_H, rx: 3 }, readLayer);
+    const step = read.length > 100 ? 2 : 1, fontSize = read.length > 130 ? 7 : 9;
+    for (let i = 0; i < read.length; i += step) {
+      const t = make('text', { class: 'read-base', x: readX(i + 0.5, readLen), y: READ_H / 2 + 3,
+                               'text-anchor': 'middle', 'font-size': fontSize, fill: baseColor(read[i]) }, readLayer);
+      t.textContent = read[i];
+    }
+    for (const tick of [0, 25, 50, 75, 100]) {
+      if (tick > readLen) break;
+      const x = readX(tick, readLen);
+      make('line', { x1: x, y1: READ_H, x2: x, y2: READ_H + 4, stroke: 'var(--border-strong)' }, readLayer);
+      const t = make('text', { class: 'axis-lab', x, y: READ_H + 14, 'text-anchor': 'middle' }, readLayer);
+      t.textContent = tick + ' bp';
+    }
+  }
+
+  function drawReferenceBar() {
+    const p = currentPreset(), refLen = p.refLen;
+    make('line', { class: 'intron-line', x1: 0, y1: REF_EXON_H / 2, x2: REF_W, y2: REF_EXON_H / 2 }, refLayer);
+
+    p.refExons.forEach((ex) => {
+      const x1 = refX(ex.start, refLen), x2 = refX(ex.end, refLen);
+      make('rect', { class: 'exon', x: x1, y: 0, width: x2 - x1, height: REF_EXON_H, rx: 2 }, refLayer);
+      const lbl = make('text', { class: 'exon-label', x: (x1 + x2) / 2, y: REF_EXON_H / 2 + 4, 'text-anchor': 'middle' }, refLayer);
+      lbl.textContent = ex.label;
+    });
+
+    p.introns.forEach((intron) => {
+      const x1 = refX(intron.start, refLen), x2 = refX(intron.end, refLen);
+      make('rect', { class: 'motif-box', x: x1, y: 0, width: 12, height: REF_EXON_H, rx: 1 }, refLayer);
+      const m1 = make('text', { class: 'motif-text', x: x1 + 6, y: REF_EXON_H / 2 + 3, 'text-anchor': 'middle' }, refLayer);
+      m1.textContent = intron.motif.slice(0, 2);
+      make('rect', { class: 'motif-box', x: x2 - 12, y: 0, width: 12, height: REF_EXON_H, rx: 1 }, refLayer);
+      const m2 = make('text', { class: 'motif-text', x: x2 - 6, y: REF_EXON_H / 2 + 3, 'text-anchor': 'middle' }, refLayer);
+      m2.textContent = intron.motif.slice(2, 4);
+      const lbl = make('text', { class: 'intron-label', x: (x1 + x2) / 2, y: REF_EXON_H + 14, 'text-anchor': 'middle' }, refLayer);
+      lbl.textContent = intron.label;
+    });
+
+    for (let i = 0; i <= 5; i++) {
+      const bp = Math.round((i / 5) * refLen), x = refX(bp, refLen);
+      make('line', { x1: x, y1: REF_EXON_H + 18, x2: x, y2: REF_EXON_H + 22, stroke: 'var(--border-strong)' }, refLayer);
+      const t = make('text', { class: 'axis-lab', x, y: REF_EXON_H + 32, 'text-anchor': 'middle' }, refLayer);
+      t.textContent = bp + ' bp';
+    }
+  }
+
+  /* ────────────────── Phase 1: MMP search ─────── */
+  function drawMmps(mmps, phase) {
+    const readLen = currentReadLen(), p = currentPreset();
+    [...readLayer.querySelectorAll('.mmp-seg, .mmp-lab')].forEach(e => e.remove());
+    clearChildren(seedLayer);
+
+    mmps.forEach((m, i) => {
+      const segLen = m.readEnd - m.readStart + 1;
+      const x1 = readX(m.readStart, readLen), x2 = readX(m.readEnd + 1, readLen);
+      const cls = 'mmp-seg' + (phase >= 1 ? ' visible' : '') + (m.tooShort ? ' discarded' : '');
+      const seg = make('rect', { class: cls, x: x1, y: -4, width: x2 - x1, height: READ_H + 8, rx: 2 }, readLayer);
+      seg.dataset.idx = i;
+      const lbl = make('text', { class: 'mmp-lab', x: (x1 + x2) / 2, y: -8, 'text-anchor': 'middle' }, readLayer);
+      lbl.textContent = segLen + 'bp';
+
+      if (phase >= 1) {
+        const sx = (x1 + x2) / 2 + MARGIN_X, sy = READ_Y + READ_H + 4;
+        const ex = refX(m.refPos, p.refLen) + MARGIN_X, ey = REF_Y, my = (sy + ey) / 2;
+        const ar = make('path', {
+          class: 'seed-arrow visible' + (m.tooShort ? ' discarded' : ''),
+          d: `M ${sx} ${sy} C ${sx} ${my}, ${ex} ${my}, ${ex} ${ey}`,
+        }, seedLayer);
+        ar.dataset.idx = i;
+      }
+    });
+  }
+
+  /* ────────────────── Phase 2: clustering ─────── */
+  function drawClusters(mmps, clusters, phase) {
+    clearChildren(clusterLayer);
+    if (phase < 2) return;
+    const p = currentPreset();
+    let winnerIdx = 0, winnerScore = -1;
+    clusters.forEach((c, i) => {
+      if (c.discarded) return;
+      if (c.members.length > winnerScore) { winnerScore = c.members.length; winnerIdx = i; }
+    });
+    const multiWin = currentPreset().alignment && currentPreset().alignment.multi && !state.customRead;
+
+    clusters.forEach((c, i) => {
+      if (!c.members.length) return;
+      const firstM = mmps[c.members[0]], lastM = mmps[c.members[c.members.length - 1]];
+      if (!firstM || !lastM) return;
+      const xStart = refX(firstM.refPos, p.refLen) + MARGIN_X;
+      const xEnd   = refX(lastM.refPos + (lastM.readEnd - lastM.readStart + 1), p.refLen) + MARGIN_X;
+      const cx = (xStart + xEnd) / 2, cy = REF_Y + REF_EXON_H / 2;
+      const rx = Math.max(18, (xEnd - xStart) / 2 + 10), ry = REF_EXON_H + 6;
+      const isWin = multiWin ? !c.discarded : (i === winnerIdx && !c.discarded);
+      const color = c.discarded ? 'var(--error)' : (isWin ? 'var(--success)' : 'var(--accent)');
+      make('ellipse', { class: 'cluster-ring visible', cx, cy, rx, ry, stroke: color }, clusterLayer);
+
+      c.members.forEach((mi) => {
+        const el = readLayer.querySelector(`.mmp-seg[data-idx="${mi}"]`);
+        if (el) { if (c.discarded) el.classList.add('discarded'); else if (isWin) el.classList.add('winner'); }
+        const ar = seedLayer.querySelector(`.seed-arrow[data-idx="${mi}"]`);
+        if (ar && c.discarded) ar.classList.add('discarded');
+      });
+
+      const label = c.discarded ? 'discarded (singleton)' :
+                    multiWin ? `cluster ${i+1}` :
+                    (isWin ? 'winning cluster' : 'candidate cluster');
+      const t = make('text', { class: 'axis-lab', x: cx, y: cy + ry + 12, 'text-anchor': 'middle', fill: color }, clusterLayer);
+      t.textContent = label;
+    });
+  }
+
+  /* ────────────────── Phase 3: extension ──────── */
+  function drawAlignSeg(x1, x2, cls, layer) {
+    make('rect', { class: cls, x: x1, y: REF_Y - 4, width: x2 - x1, height: REF_EXON_H + 8, rx: 2 }, layer);
+  }
+  function drawSpliceArc(ax, bx, cls, peakDy, layer, labelText, labelColor) {
+    const peak = (ax + bx) / 2, peakY = REF_Y - peakDy;
+    make('path', { class: cls, d: `M ${ax} ${REF_Y} Q ${peak} ${peakY} ${bx} ${REF_Y}` }, layer);
+    if (labelText) {
+      const lab = make('text', { class: 'axis-lab', x: peak, y: peakY - 4, 'text-anchor': 'middle',
+                                 fill: labelColor, 'font-weight': '600' }, layer);
+      lab.textContent = labelText;
+    }
+  }
+
+  function drawAlignment(mmps, clusters, alignment, phase) {
+    clearChildren(alignLayer);
+    if (phase < 3 || !alignment || alignment.noHits) return;
+    const p = currentPreset();
+
+    if (alignment.multi && alignment.refSegments) {
+      const segs = alignment.refSegments;
+      segs.forEach((seg, i) => {
+        const x1 = refX(seg.start, p.refLen) + MARGIN_X, x2 = refX(seg.end, p.refLen) + MARGIN_X;
+        drawAlignSeg(x1, x2, 'align-seg visible', alignLayer);
+        if (i < segs.length - 1) {
+          const nx1 = refX(segs[i+1].start, p.refLen) + MARGIN_X;
+          drawSpliceArc(x2, nx1, 'splice-arc visible', 50, alignLayer, 'GT-AG splice', 'var(--success)');
+        }
+      });
+      return;
+    }
+
+    if (!alignment.readBreak && !alignment.refRight) {
+      const x1 = refX(alignment.refLeft.start, p.refLen) + MARGIN_X;
+      const x2 = refX(alignment.refLeft.end, p.refLen) + MARGIN_X;
+      drawAlignSeg(x1, x2, 'align-seg visible', alignLayer);
+      if (alignment.forcedLinear) {
+        const lab = make('text', { class: 'axis-lab', x: (x1 + x2) / 2, y: REF_Y - 12,
+                                   'text-anchor': 'middle', fill: 'var(--warning)' }, alignLayer);
+        lab.textContent = 'forced linear (low score)';
+      }
+      return;
+    }
+
+    const { refLeft: left, refRight: right } = alignment;
+    const lx1 = refX(left.start, p.refLen) + MARGIN_X, lx2 = refX(left.end, p.refLen) + MARGIN_X;
+    const rx1 = refX(right.start, p.refLen) + MARGIN_X, rx2 = refX(right.end, p.refLen) + MARGIN_X;
+    const isPenalised = alignment.canonicalPenalised || alignment.canonical === false;
+    const segCls = 'align-seg visible' + (isPenalised ? ' penalised' : '');
+    drawAlignSeg(lx1, lx2, segCls, alignLayer);
+    drawAlignSeg(rx1, rx2, segCls, alignLayer);
+
+    let lblTxt = alignment.spliceMotif + ' splice';
+    if (alignment.canonical === false) lblTxt += ' (non-canonical, penalised)';
+    if (alignment.canonicalPenalised) lblTxt = alignment.spliceMotif + ' splice — bonus OFF, penalised';
+    drawSpliceArc(lx2, rx1, 'splice-arc visible' + (isPenalised ? ' penalised' : ''), 60,
+                  alignLayer, lblTxt, isPenalised ? 'var(--error)' : 'var(--success)');
+
+    if (alignment.readBreak != null) {
+      const bx2 = readX(alignment.readBreak, currentReadLen()) + MARGIN_X;
+      make('line', { x1: bx2, y1: READ_Y - 6, x2: bx2, y2: READ_Y + READ_H + 6,
+                     stroke: isPenalised ? 'var(--error)' : 'var(--success)',
+                     'stroke-width': 1.2, 'stroke-dasharray': '3 2' }, alignLayer);
+    }
+  }
+
+  /* ────────────────── Trace log ─────────────── */
+  function addTrace(text, cls = '') {
+    if (traceEl.querySelector('.line.dim')) traceEl.innerHTML = '';
+    const line = document.createElement('span');
+    line.className = 'line ' + cls;
+    line.textContent = text;
+    traceEl.appendChild(line);
+  }
+
+  function resetTrace() {
+    traceEl.innerHTML = '<span class="line dim">Press Step or Play to run phase 1…</span>';
+  }
+
+  /* ────────────────── Phase driver ──────────── */
+  let cachedMmps = null, cachedClusters = null, cachedAlignment = null;
+
+  function recomputeAll() {
+    cachedMmps = computeMmps();
+    cachedClusters = computeClusters(cachedMmps);
+    cachedAlignment = computeAlignment(cachedMmps, cachedClusters);
+  }
+
+  function renderForPhase(phase) {
+    recomputeAll();
+    drawAll();
+    drawMmps(cachedMmps, phase);
+    drawClusters(cachedMmps, cachedClusters, phase);
+    drawAlignment(cachedMmps, cachedClusters, cachedAlignment, phase);
+    updatePhaseIndicator();
+  }
+
+  function updatePhaseIndicator() {
+    phaseInd.textContent = `phase ${state.phase} / 3`;
+    const titles = [
+      'Phase 0 · idle',
+      'Phase 1 · MMP search (longest mappable prefix at each read offset)',
+      'Phase 2 · clustering (group nearby MMPs; discard singletons)',
+      'Phase 3 · extension (Smith-Waterman with spliced jump at GT-AG)',
+    ];
+    phaseTitle.textContent = titles[state.phase];
+  }
+
+  function logPhase1() {
+    const n = cachedMmps.filter(m => !m.tooShort).length;
+    const nShort = cachedMmps.filter(m => m.tooShort).length;
+    addTrace(`Phase 1 · found ${n} MMP${n===1?'':'s'} ≥ ${state.minMmp} bp` +
+             (nShort ? ` (${nShort} shorter rejected)` : ''), 'phase');
+    cachedMmps.filter(m => !m.tooShort).slice(0, 5).forEach((m) => {
+      const len = m.readEnd - m.readStart + 1;
+      addTrace(`  · read[${m.readStart}-${m.readEnd}] (${len} bp) → ref:${m.refPos}`, 'dim');
+    });
+  }
+
+  function logPhase2() {
+    const kept = cachedClusters.filter(c => !c.discarded);
+    const dropped = cachedClusters.filter(c => c.discarded);
+    addTrace(`Phase 2 · clustered ${kept.length} winning group${kept.length===1?'':'s'}, discarded ${dropped.length} singleton${dropped.length===1?'':'s'}`, 'phase');
+    kept.forEach((c, i) => {
+      addTrace(`  · cluster ${i+1}: ${c.members.length} MMP${c.members.length===1?'':'s'} spanning ref[${c.span[0]}-${c.span[1]}]`, 'win');
+    });
+    dropped.forEach((c) => {
+      addTrace(`  · discarded: lone MMP at ref[${c.span[0]}]`, 'warn');
+    });
+  }
+
+  function logPhase3() {
+    const a = cachedAlignment;
+    if (!a || a.noHits) {
+      addTrace('Phase 3 · no anchor cluster — alignment failed', 'err');
+      return;
+    }
+    addTrace('Phase 3 · running spliced Smith-Waterman', 'phase');
+    if (a.multi) {
+      addTrace(`  · 3 exonic segments, 2 splice junctions (GT-AG ×2)`, 'win');
+      addTrace(`  · score ${a.matchScore} · splice penalty ${a.penalty}`, 'win');
+      return;
+    }
+    if (a.forcedLinear) {
+      addTrace(`  · splicing disabled — extended linearly across exon boundary`, 'warn');
+      addTrace(`  · score ${a.matchScore} · unsplit penalty ${a.penalty}`, 'warn');
+      return;
+    }
+    if (a.readBreak == null) {
+      addTrace(`  · no splice needed — single-exon alignment`, 'win');
+      addTrace(`  · score ${a.matchScore}`, 'win');
+      return;
+    }
+    const motifClass = (a.canonical && !a.canonicalPenalised) ? 'win' : 'warn';
+    addTrace(`  · spliced at read[${a.readBreak}] · motif ${a.spliceMotif}`, motifClass);
+    if (a.canonicalPenalised) addTrace(`  · canonical-motif-bonus OFF → splice penalised`, 'err');
+    if (a.canonical === false) addTrace(`  · non-canonical motif — heavy penalty applied`, 'warn');
+    addTrace(`  · score ${a.matchScore} · splice penalty ${a.penalty}`, motifClass);
+  }
+
+  function renderOutcome() {
+    const a = cachedAlignment;
+    if (state.phase < 3 || !a) {
+      outcomeEl.className = 'outcome';
+      outcomeEl.textContent = 'Run the three phases to see the outcome.';
+      return;
+    }
+    if (a.noHits) {
+      outcomeEl.className = 'outcome bad';
+      outcomeEl.innerHTML = '✗ <strong>No valid alignment.</strong> No MMP clusters found — try lowering the min MMP length.';
+      return;
+    }
+    if (a.multi) {
+      outcomeEl.className = 'outcome ok';
+      outcomeEl.innerHTML = `✓ <strong>Aligned with 2 splices</strong> (GT-AG ×2) · match score <strong>${a.matchScore}</strong> · splice penalty <strong>${a.penalty}</strong>.`;
+      return;
+    }
+    if (a.forcedLinear) {
+      outcomeEl.className = 'outcome bad';
+      outcomeEl.innerHTML = `✗ <strong>Spliced alignment disabled</strong> — STAR extended linearly and scored only <strong>${a.matchScore}</strong>. Turn "allow splicing" back on.`;
+      return;
+    }
+    if (a.readBreak == null) {
+      outcomeEl.className = 'outcome ok';
+      outcomeEl.innerHTML = `✓ <strong>Aligned unspliced</strong> at pos ${a.refLeft.start} · match score <strong>${a.matchScore}</strong>.`;
+      return;
+    }
+    if (a.canonicalPenalised) {
+      outcomeEl.className = 'outcome warn';
+      outcomeEl.innerHTML = `⚠ <strong>Aligned with penalised splice</strong> at pos ${a.refLeft.end} (${a.spliceMotif}) · match score <strong>${a.matchScore}</strong> · splice penalty <strong>${a.penalty}</strong>. Turn canonical-motif-bonus back on to recover quality.`;
+      return;
+    }
+    if (a.canonical === false) {
+      outcomeEl.className = 'outcome warn';
+      outcomeEl.innerHTML = `⚠ <strong>Aligned with 1 non-canonical splice</strong> at pos ${a.refLeft.end} (${a.spliceMotif}) · match score <strong>${a.matchScore}</strong> · splice penalty <strong>${a.penalty}</strong>.`;
+      return;
+    }
+    outcomeEl.className = 'outcome ok';
+    outcomeEl.innerHTML = `✓ <strong>Aligned with 1 splice</strong> at pos ${a.refLeft.end} (${a.spliceMotif} motif) · match score <strong>${a.matchScore}</strong> · splice penalty <strong>${a.penalty}</strong>.`;
+  }
+
+  function updateButtons() {
+    stepBtn.disabled = (state.phase >= 3) && !state.playing;
+    if (state.phase >= 3) stepBtn.textContent = 'Done';
+    else stepBtn.textContent = 'Step';
+    playBtn.disabled = state.playing || state.phase >= 3;
+    pauseBtn.disabled = !state.playing;
+  }
+
+  function stepForward() {
+    if (state.phase >= 3) return;
+    state.phase += 1;
+    renderForPhase(state.phase);
+    if (state.phase === 1) logPhase1();
+    if (state.phase === 2) logPhase2();
+    if (state.phase === 3) logPhase3();
+    renderOutcome();
+    updateButtons();
+  }
+
+  function play() {
+    if (state.phase >= 3) return;
+    state.playing = true;
+    updateButtons();
+    const tick = () => {
+      if (!state.playing) return;
+      stepForward();
+      if (state.phase < 3) {
+        state.playTimer = setTimeout(tick, 900);
+      } else {
+        state.playing = false;
+        updateButtons();
+      }
+    };
+    state.playTimer = setTimeout(tick, 200);
+  }
+
+  function pause() {
+    state.playing = false;
+    if (state.playTimer) { clearTimeout(state.playTimer); state.playTimer = null; }
+    updateButtons();
+  }
+
+  function reset() {
+    pause();
+    state.phase = 0;
+    recomputeAll();
+    drawAll();
+    drawMmps(cachedMmps, 0);
+    drawClusters(cachedMmps, cachedClusters, 0);
+    drawAlignment(cachedMmps, cachedClusters, cachedAlignment, 0);
+    resetTrace();
+    outcomeEl.className = 'outcome';
+    outcomeEl.textContent = 'Run the three phases to see the outcome.';
+    updatePhaseIndicator();
+    updateButtons();
+  }
+
+  // On startup: show the default preset pre-aligned (all 3 phases complete)
+  function preloadFinalPhase() {
+    state.phase = 3;
+    recomputeAll();
+    drawAll();
+    drawMmps(cachedMmps, 3);
+    drawClusters(cachedMmps, cachedClusters, 3);
+    drawAlignment(cachedMmps, cachedClusters, cachedAlignment, 3);
+    traceEl.innerHTML = '';
+    logPhase1();
+    logPhase2();
+    logPhase3();
+    renderOutcome();
+    updatePhaseIndicator();
+    updateButtons();
+  }
+
+  init();
+  preloadFinalPhase();
+})();
+</script>
+
+</body>
+</html>

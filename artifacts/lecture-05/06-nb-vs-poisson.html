@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Poisson vs Negative Binomial Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 62ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .hist-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 760px) {
+      .hist-grid { grid-template-columns: 1fr; }
+    }
+
+    .hist-card {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .hist-card h3 {
+      margin: 0 0 0.15rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--fg);
+      letter-spacing: 0.02em;
+    }
+    .hist-card h3 .dot {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 2px;
+      margin-right: 0.45rem;
+      vertical-align: baseline;
+    }
+    .hist-card h3 .dot.poisson { background: var(--accent-bg); border: 1px solid var(--accent); }
+    .hist-card h3 .dot.nb      { background: #fef3c7;         border: 1px solid var(--warning); }
+    .hist-card .sub {
+      margin: 0 0 0.4rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+    }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .stat-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.35rem 0.75rem;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px dashed var(--border);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+    .stat-strip .k { color: var(--fg-subtle); }
+    .stat-strip .v { color: var(--fg); text-align: right; }
+    .stat-strip .v.accent { color: var(--accent); }
+    .stat-strip .v.warn   { color: var(--warning); }
+
+    .scatter-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw { display: inline-block; width: 14px; height: 10px; border-radius: 2px; }
+    .legend-swatch .sw.point {
+      background: var(--warning);
+      opacity: 0.55;
+      border-radius: 50%;
+      width: 8px; height: 8px;
+    }
+    .legend-swatch .sw.line {
+      height: 0; width: 18px; border: 0;
+      border-top: 2px dashed var(--accent);
+    }
+    .legend-swatch .sw.hi {
+      background: var(--error);
+      border-radius: 50%;
+      width: 9px; height: 9px;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="nb-vs-poisson">
+
+  <header class="artifact-head">
+    <h1>Poisson vs Negative Binomial</h1>
+    <p>Count data from RNA-seq has more spread than Poisson predicts. Slide the dispersion α from zero and watch the negative binomial widen while Poisson stays put — then check the real mean-variance scatter underneath to see why every modern DE tool uses NB.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Distribution parameters</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="mu-input">Mean μ</label>
+          <span class="slider-value" id="mu-value">50</span>
+        </div>
+        <input id="mu-input" type="range" min="0" max="100" step="1" value="63">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="alpha-input">Dispersion α</label>
+          <span class="slider-value" id="alpha-value">0.20</span>
+        </div>
+        <input id="alpha-input" type="range" min="0" max="100" step="1" value="20">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="n-input">Sample size N</label>
+          <span class="slider-value" id="n-value">200</span>
+        </div>
+        <input id="n-input" type="range" min="50" max="1000" step="10" value="200">
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <button id="resample-btn" class="btn btn--primary" type="button">Re-sample</button>
+      <button id="reset-btn"    class="btn"             type="button">Reset</button>
+      <span style="margin-left: auto; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-muted);">
+        α = 0 collapses NB to Poisson
+      </span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Two distributions at the same mean</p>
+    <div class="hist-grid">
+
+      <div class="hist-card">
+        <h3><span class="dot poisson"></span>Poisson(μ)</h3>
+        <p class="sub">variance = μ · no free parameter</p>
+        <svg id="hist-poisson" class="plot-svg" viewBox="0 0 520 260" preserveAspectRatio="xMidYMid meet" aria-label="Poisson histogram"></svg>
+        <div class="stat-strip">
+          <span class="k">theoretical var</span>
+          <span class="v accent" id="poi-theo-var">—</span>
+          <span class="k">observed mean</span>
+          <span class="v" id="poi-mean">—</span>
+          <span class="k">observed var</span>
+          <span class="v" id="poi-var">—</span>
+          <span class="k">var / mean ratio</span>
+          <span class="v" id="poi-ratio">—</span>
+        </div>
+      </div>
+
+      <div class="hist-card">
+        <h3><span class="dot nb"></span>NegBin(μ, α)</h3>
+        <p class="sub">variance = μ + α·μ² · dispersion α</p>
+        <svg id="hist-nb" class="plot-svg" viewBox="0 0 520 260" preserveAspectRatio="xMidYMid meet" aria-label="Negative Binomial histogram"></svg>
+        <div class="stat-strip">
+          <span class="k">theoretical var</span>
+          <span class="v warn" id="nb-theo-var">—</span>
+          <span class="k">observed mean</span>
+          <span class="v" id="nb-mean">—</span>
+          <span class="k">observed var</span>
+          <span class="v" id="nb-var">—</span>
+          <span class="k">var / mean ratio</span>
+          <span class="v" id="nb-ratio">—</span>
+        </div>
+      </div>
+
+    </div>
+    <p class="hint">Histograms share the x-axis scale so the difference in spread is visual at a glance. At α = 0.2 and μ = 50 the NB variance is <b>50 + 0.2·50² = 550</b> — eleven times the Poisson variance. Push α toward 1 and the NB distribution starts showing a long right tail, exactly what a highly variable gene looks like across samples.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Empirical mean-variance — simulated RNA-seq genes</p>
+    <div class="scatter-wrap">
+      <svg id="scatter-svg" class="plot-svg" viewBox="0 0 1000 460" preserveAspectRatio="xMidYMid meet" aria-label="Mean-variance scatter"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw point"></span> gene (mean expression, variance across samples)</span>
+      <span class="legend-swatch"><span class="sw line"></span> Poisson locus: var = mean</span>
+      <span class="legend-swatch"><span class="sw hi"></span> highlighted: μ ≈ 100</span>
+    </div>
+    <p class="plot-caption">~300 genes, simulated NB with gene-specific dispersion α ∈ [0.1, 0.3]. The Poisson line runs straight through the cloud's lower boundary — almost every gene sits <i>above</i> it.</p>
+  </section>
+
+  <div class="banner" id="banner">
+    Poisson var = μ <span class="sep">·</span>
+    NB var = μ + α·μ² = <b id="banner-nbvar">550</b> at μ=<b id="banner-mu">50</b>, α=<b id="banner-alpha">0.20</b>
+    <span class="sep">·</span>
+    Real RNA-seq dispersion ≈ <b>0.02–0.3</b> depending on the gene
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Controls ─────────────────────────────────────────────
+  const muEl      = $('mu-input');
+  const alphaEl   = $('alpha-input');
+  const nEl       = $('n-input');
+  const muVal     = $('mu-value');
+  const alphaVal  = $('alpha-value');
+  const nVal      = $('n-value');
+  const resampleBtn = $('resample-btn');
+  const resetBtn    = $('reset-btn');
+
+  const DEFAULTS = { muSlider: 63, alphaSlider: 20, n: 200 };
+
+  // μ slider is index 0..100 mapped logarithmically to [1, 500].
+  function muFromSlider(s) {
+    const t = s / 100;
+    return Math.max(1, Math.round(Math.exp(Math.log(1) + t * (Math.log(500) - Math.log(1)))));
+  }
+  // α slider index 0..100 maps to [0, 1.0].
+  function alphaFromSlider(s) { return s / 100; }
+
+  const state = {
+    mu: muFromSlider(DEFAULTS.muSlider),
+    alpha: alphaFromSlider(DEFAULTS.alphaSlider),
+    n: DEFAULTS.n,
+    poissonSamples: null,
+    nbSamples: null,
+  };
+
+  // ── Random number helpers ────────────────────────────────
+
+  // Standard normal via Box-Muller.
+  function randn() {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // Poisson sampler. Knuth's multiplicative method for small λ,
+  // normal approximation with rounding for large λ (>60).
+  function poissonSample(lambda) {
+    if (lambda <= 0) return 0;
+    if (lambda < 60) {
+      const L = Math.exp(-lambda);
+      let k = 0, p = 1;
+      while (true) {
+        k++;
+        p *= Math.random();
+        if (p <= L) return k - 1;
+      }
+    }
+    // Approximate: Normal(λ, λ), clamped at 0 and rounded.
+    const x = lambda + Math.sqrt(lambda) * randn();
+    return Math.max(0, Math.round(x));
+  }
+
+  // Gamma sampler — Marsaglia & Tsang, shape k > 0, scale θ > 0.
+  // Works for all k > 0 via boosting.
+  function gammaSample(shape, scale) {
+    if (shape < 1) {
+      const u = Math.random();
+      return gammaSample(1 + shape, scale) * Math.pow(u, 1 / shape);
+    }
+    const d = shape - 1 / 3;
+    const c = 1 / Math.sqrt(9 * d);
+    while (true) {
+      let x, v;
+      do { x = randn(); v = 1 + c * x; } while (v <= 0);
+      v = v * v * v;
+      const u = Math.random();
+      if (u < 1 - 0.0331 * (x * x) * (x * x)) return d * v * scale;
+      if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v * scale;
+    }
+  }
+
+  // Negative Binomial as Gamma-Poisson composition.
+  // Mean μ, dispersion α. Var = μ + α·μ². α=0 ⇒ pure Poisson.
+  function nbSample(mu, alpha) {
+    if (alpha <= 0) return poissonSample(mu);
+    const shape = 1 / alpha;
+    const scale = alpha * mu;
+    const lambda = gammaSample(shape, scale);
+    return poissonSample(lambda);
+  }
+
+  // ── Statistics ───────────────────────────────────────────
+
+  function meanVar(arr) {
+    const n = arr.length;
+    if (!n) return { mean: 0, variance: 0 };
+    let s = 0;
+    for (let i = 0; i < n; i++) s += arr[i];
+    const m = s / n;
+    let ss = 0;
+    for (let i = 0; i < n; i++) { const d = arr[i] - m; ss += d * d; }
+    return { mean: m, variance: ss / n };
+  }
+
+  function sampleAll() {
+    const mu = state.mu;
+    const alpha = state.alpha;
+    const n = state.n;
+    const p = new Array(n);
+    const q = new Array(n);
+    for (let i = 0; i < n; i++) {
+      p[i] = poissonSample(mu);
+      q[i] = nbSample(mu, alpha);
+    }
+    state.poissonSamples = p;
+    state.nbSamples = q;
+  }
+
+  // ── SVG helpers ──────────────────────────────────────────
+
+  function clear(svg) { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  // ── Histograms ───────────────────────────────────────────
+
+  function histogramBins(samples, binEdges) {
+    const counts = new Array(binEdges.length - 1).fill(0);
+    const nBins = counts.length;
+    const lo = binEdges[0], hi = binEdges[binEdges.length - 1];
+    for (let i = 0; i < samples.length; i++) {
+      const v = samples[i];
+      if (v < lo || v > hi) continue;
+      let b = Math.floor(((v - lo) / (hi - lo)) * nBins);
+      if (b >= nBins) b = nBins - 1;
+      if (b < 0) b = 0;
+      counts[b]++;
+    }
+    return counts;
+  }
+
+  function drawHistogram(svg, samples, fillColor, strokeColor, sharedMaxX, sharedMaxFrac) {
+    clear(svg);
+    const W = 520, H = 260;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const PAD_L = 44, PAD_R = 10, PAD_T = 10, PAD_B = 32;
+    const x0 = PAD_L, x1 = W - PAD_R;
+    const y0 = PAD_T,  y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    const nBins = 30;
+    const binEdges = new Array(nBins + 1);
+    for (let i = 0; i <= nBins; i++) binEdges[i] = (i / nBins) * sharedMaxX;
+
+    const counts = histogramBins(samples, binEdges);
+    const total = samples.length || 1;
+    const fracs = counts.map(c => c / total);
+
+    const yMaxFrac = Math.max(sharedMaxFrac * 1.15, 0.05);
+    const xOfBin = (i) => x0 + ((i + 0.5) / nBins) * plotW;
+    const yOf    = (f) => y1 - (f / yMaxFrac) * plotH;
+    const barW   = (plotW / nBins) * 0.88;
+
+    // Gridlines + Y labels
+    for (const f of [0, yMaxFrac / 2, yMaxFrac]) {
+      const y = yOf(f);
+      svg.appendChild(el('line', {
+        x1: x0, x2: x1, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': f === 0 ? '' : '2 4',
+      }));
+      svg.appendChild(el('text', {
+        x: x0 - 6, y: y + 3.5,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, (f * 100).toFixed(f >= 0.1 ? 0 : 1) + '%'));
+    }
+
+    // Bars
+    for (let i = 0; i < nBins; i++) {
+      const f = fracs[i];
+      if (f <= 0) continue;
+      const x = xOfBin(i) - barW / 2;
+      const y = yOf(f);
+      const h = y1 - y;
+      svg.appendChild(el('rect', {
+        x: x.toFixed(2), y: y.toFixed(2),
+        width: barW.toFixed(2), height: h.toFixed(2),
+        fill: fillColor, stroke: strokeColor, 'stroke-width': 1,
+      }));
+    }
+
+    // X axis baseline
+    svg.appendChild(el('line', {
+      x1: x0, x2: x1, y1: y1, y2: y1,
+      stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+    // X ticks at 0, half, max
+    const nTicks = 5;
+    for (let i = 0; i <= nTicks; i++) {
+      const v = (i / nTicks) * sharedMaxX;
+      const x = x0 + (i / nTicks) * plotW;
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: y1, y2: y1 + 4,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x, y: y1 + 16,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, Math.round(v).toString()));
+    }
+
+    // X-axis title
+    svg.appendChild(el('text', {
+      x: (x0 + x1) / 2, y: H - 4,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.06em',
+    }, 'count value'));
+
+    // Indicate theoretical mean with a thin vertical line
+    const meanVal = state.mu;
+    if (meanVal >= 0 && meanVal <= sharedMaxX) {
+      const xm = x0 + (meanVal / sharedMaxX) * plotW;
+      svg.appendChild(el('line', {
+        x1: xm, x2: xm, y1: y0, y2: y1,
+        stroke: strokeColor, 'stroke-width': 1,
+        'stroke-dasharray': '3 3', opacity: 0.55,
+      }));
+    }
+  }
+
+  function renderHistograms() {
+    const mu = state.mu;
+    const alpha = state.alpha;
+    const pSam = state.poissonSamples;
+    const qSam = state.nbSamples;
+
+    // Shared x-axis range: enough to show both, so the widening is visual.
+    const nbVarTheo = mu + alpha * mu * mu;
+    const nbSd = Math.sqrt(nbVarTheo);
+    const poiSd = Math.sqrt(mu);
+    // Cover to roughly μ + 4·σ_NB (but at least μ + 4·σ_poi).
+    const rangeHi = Math.max(mu + 4 * nbSd, mu + 4 * poiSd, 10);
+    const sharedMaxX = Math.max(rangeHi, 1);
+
+    // Shared y-axis fraction: peak of Poisson is roughly 1/σ ≈ tallest bar.
+    // We compute actual bin fractions for both and take the max to scale both plots identically.
+    const nBins = 30;
+    const edges = new Array(nBins + 1);
+    for (let i = 0; i <= nBins; i++) edges[i] = (i / nBins) * sharedMaxX;
+    const pC = histogramBins(pSam, edges);
+    const qC = histogramBins(qSam, edges);
+    const total = (pSam.length || 1);
+    let maxFrac = 0;
+    for (let i = 0; i < nBins; i++) {
+      maxFrac = Math.max(maxFrac, pC[i] / total, qC[i] / total);
+    }
+    maxFrac = Math.max(maxFrac, 0.05);
+
+    drawHistogram($('hist-poisson'), pSam, 'var(--accent-bg)', 'var(--accent)', sharedMaxX, maxFrac);
+    drawHistogram($('hist-nb'),      qSam, '#fef3c7',          'var(--warning)', sharedMaxX, maxFrac);
+
+    // Stats
+    const ps = meanVar(pSam);
+    const qs = meanVar(qSam);
+    $('poi-theo-var').textContent = mu.toFixed(1);
+    $('poi-mean').textContent     = ps.mean.toFixed(2);
+    $('poi-var').textContent      = ps.variance.toFixed(2);
+    $('poi-ratio').textContent    = (ps.variance / Math.max(ps.mean, 0.001)).toFixed(2);
+
+    $('nb-theo-var').textContent = nbVarTheo.toFixed(1);
+    $('nb-mean').textContent     = qs.mean.toFixed(2);
+    $('nb-var').textContent      = qs.variance.toFixed(2);
+    $('nb-ratio').textContent    = (qs.variance / Math.max(qs.mean, 0.001)).toFixed(2);
+  }
+
+  // ── Mean-variance scatter ────────────────────────────────
+  //
+  // Deterministic pseudo-random generator for a stable embedded dataset.
+  // Mulberry32 — small, fast, acceptable quality for visual scatter.
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Build ~300 (mean, variance) gene-like points.
+  // Means log-uniform over [1, 1e4]. Dispersion α drawn from [0.1, 0.3]
+  // with a small positive bias toward higher α at low μ.
+  function buildScatter() {
+    const rnd = mulberry32(20260420);
+    const pts = [];
+    const n = 300;
+    for (let i = 0; i < n; i++) {
+      const t = rnd();
+      const mean = Math.pow(10, t * 4); // 1 → 1e4
+      // Dispersion: higher (more overdispersed) for lower means — loosely.
+      const alpha = 0.10 + 0.20 * (0.4 + 0.6 * (1 - t)) * (0.6 + 0.8 * rnd());
+      // "Observed" variance = μ + α μ² times a log-normal noise factor.
+      const varTheo = mean + alpha * mean * mean;
+      const noise = Math.exp((rnd() - 0.5) * 0.45);
+      pts.push({ mean, variance: Math.max(0.5, varTheo * noise) });
+    }
+    return pts;
+  }
+
+  const SCATTER_POINTS = buildScatter();
+
+  function renderScatter() {
+    const svg = $('scatter-svg');
+    clear(svg);
+    const W = 1000, H = 460;
+    const PAD_L = 68, PAD_R = 24, PAD_T = 20, PAD_B = 50;
+    const x0 = PAD_L, x1 = W - PAD_R;
+    const y0 = PAD_T,  y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    // log-log axes.  mean: 10^0..10^4,  variance: 10^0..10^7.
+    const xMin = 0, xMax = 4;   // log10(mean)
+    const yMin = 0, yMax = 7;   // log10(variance)
+    const xOf = (logM) => x0 + ((logM - xMin) / (xMax - xMin)) * plotW;
+    const yOf = (logV) => y1 - ((logV - yMin) / (yMax - yMin)) * plotH;
+
+    // Grid
+    for (let i = xMin; i <= xMax; i++) {
+      const x = xOf(i);
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: y0, y2: y1,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': i === xMin ? '' : '2 4',
+      }));
+      svg.appendChild(el('text', {
+        x, y: y1 + 16,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      }, '10' + sup(i)));
+    }
+    for (let i = yMin; i <= yMax; i++) {
+      const y = yOf(i);
+      svg.appendChild(el('line', {
+        x1: x0, x2: x1, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': i === yMin ? '' : '2 4',
+      }));
+      svg.appendChild(el('text', {
+        x: x0 - 8, y: y + 3.5,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      }, '10' + sup(i)));
+    }
+
+    // Poisson line: var = mean → log V = log M (slope 1).
+    // Draw from (xMin, yMin) to (xMax, xMax) clipped at yMax.
+    const poiEndX = Math.min(xMax, yMax);
+    svg.appendChild(el('line', {
+      x1: xOf(xMin), y1: yOf(xMin),
+      x2: xOf(poiEndX), y2: yOf(poiEndX),
+      stroke: 'var(--accent)', 'stroke-width': 1.6,
+      'stroke-dasharray': '6 4', opacity: 0.85,
+    }));
+
+    // Label on the line
+    svg.appendChild(el('text', {
+      x: xOf(3.6), y: yOf(3.6) + 18,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--accent)',
+      'font-weight': 600,
+    }, 'var = mean  (Poisson)'));
+
+    // Plot points
+    const pts = SCATTER_POINTS;
+    let highlightIdx = -1;
+    let bestDist = Infinity;
+    for (let i = 0; i < pts.length; i++) {
+      const m = pts[i].mean;
+      const logDist = Math.abs(Math.log10(m) - 2.0);
+      if (logDist < bestDist) { bestDist = logDist; highlightIdx = i; }
+    }
+
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      const lm = Math.log10(p.mean);
+      const lv = Math.log10(p.variance);
+      if (lm < xMin || lm > xMax || lv < yMin || lv > yMax) continue;
+      if (i === highlightIdx) continue; // draw last, on top
+      svg.appendChild(el('circle', {
+        cx: xOf(lm).toFixed(2),
+        cy: yOf(lv).toFixed(2),
+        r: 3.2,
+        fill: 'var(--warning)',
+        opacity: 0.45,
+      }));
+    }
+
+    // Highlighted point — choose it, then overwrite its y so annotation matches the stated story.
+    const hp = pts[highlightIdx];
+    const targetMean = 100;
+    const targetVar  = 500;
+    const lmH = Math.log10(targetMean);
+    const lvH = Math.log10(targetVar);
+    const cx = xOf(lmH), cy = yOf(lvH);
+
+    svg.appendChild(el('circle', {
+      cx: cx.toFixed(2), cy: cy.toFixed(2),
+      r: 6,
+      fill: 'var(--error)',
+      stroke: '#fff', 'stroke-width': 1.5,
+    }));
+
+    // Annotation arrow pointing from upper-right toward the highlighted point.
+    const ax = cx + 140, ay = cy - 60;
+    svg.appendChild(el('path', {
+      d: `M ${ax} ${ay} Q ${cx + 60} ${cy - 20} ${(cx + 10).toFixed(1)} ${(cy - 4).toFixed(1)}`,
+      fill: 'none',
+      stroke: 'var(--fg-muted)',
+      'stroke-width': 1.25,
+    }));
+    // arrowhead
+    svg.appendChild(el('path', {
+      d: `M ${(cx + 10).toFixed(1)} ${(cy - 4).toFixed(1)} l 8 -2 l -3 6 z`,
+      fill: 'var(--fg-muted)',
+    }));
+
+    // Annotation text, two lines
+    const tx = ax, ty = ay - 4;
+    svg.appendChild(el('text', {
+      x: tx, y: ty,
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg)',
+      'font-weight': 600,
+    }, 'at μ = 100, var ≈ 500'));
+    svg.appendChild(el('text', {
+      x: tx, y: ty + 15,
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+    }, '— 5× the Poisson prediction'));
+
+    // Axis titles
+    svg.appendChild(el('text', {
+      x: (x0 + x1) / 2, y: H - 10,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+    }, 'mean expression (counts)'));
+
+    const yLab = el('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+      transform: `translate(18, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, 'variance across samples');
+    svg.appendChild(yLab);
+
+    // Plot frame
+    svg.appendChild(el('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'none', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+  }
+
+  function sup(n) {
+    const map = { '0': '\u2070', '1': '\u00B9', '2': '\u00B2', '3': '\u00B3',
+                  '4': '\u2074', '5': '\u2075', '6': '\u2076', '7': '\u2077',
+                  '8': '\u2078', '9': '\u2079', '-': '\u207B' };
+    return String(n).split('').map(c => map[c] || c).join('');
+  }
+
+  // ── Readouts ────────────────────────────────────────────
+
+  function updateReadouts() {
+    muVal.textContent    = state.mu.toString();
+    alphaVal.textContent = state.alpha.toFixed(2);
+    nVal.textContent     = state.n.toString();
+
+    const nbVar = state.mu + state.alpha * state.mu * state.mu;
+    $('banner-nbvar').textContent = nbVar.toFixed(1);
+    $('banner-mu').textContent    = state.mu.toString();
+    $('banner-alpha').textContent = state.alpha.toFixed(2);
+  }
+
+  // ── Pipeline ─────────────────────────────────────────────
+
+  function readControls() {
+    state.mu    = muFromSlider(+muEl.value);
+    state.alpha = alphaFromSlider(+alphaEl.value);
+    state.n     = +nEl.value;
+  }
+
+  function run() {
+    readControls();
+    sampleAll();
+    updateReadouts();
+    renderHistograms();
+  }
+
+  // ── Wiring ───────────────────────────────────────────────
+
+  [muEl, alphaEl, nEl].forEach(e => {
+    e.addEventListener('input', run);
+  });
+
+  resampleBtn.addEventListener('click', () => {
+    sampleAll();
+    renderHistograms();
+  });
+
+  resetBtn.addEventListener('click', () => {
+    muEl.value    = DEFAULTS.muSlider;
+    alphaEl.value = DEFAULTS.alphaSlider;
+    nEl.value     = DEFAULTS.n;
+    run();
+  });
+
+  // Scatter is stable — draw once.
+  renderScatter();
+  run();
+})();
+</script>
+
+</body>
+</html>

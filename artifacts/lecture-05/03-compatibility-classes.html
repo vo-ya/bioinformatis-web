@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compatibility Class Viewer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 66ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .seq-input, .seq-area {
+      width: 100%;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      padding: 0.5rem 0.7rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      line-height: 1.5;
+      resize: vertical;
+    }
+    .seq-area { min-height: 2.4rem; }
+    .seq-input:focus, .seq-area:focus {
+      background: var(--bg-elevated);
+      border-color: var(--accent-bright);
+      outline: none;
+    }
+
+    select.select-input {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.45rem 0.7rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    select.select-input:focus {
+      outline: none;
+      border-color: var(--accent-bright);
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn--ghost {
+      background: transparent;
+      border: 1px dashed var(--border-strong);
+      color: var(--fg-muted);
+    }
+    .btn--ghost:hover:not(:disabled) { background: var(--bg-muted); color: var(--fg); }
+
+    .controls {
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .controls label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+    }
+    .controls input[type="range"] { accent-color: var(--accent); width: 140px; }
+    .controls .k-readout {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      min-width: 1.8em;
+      display: inline-block;
+      text-align: center;
+    }
+
+    /* ─── Transcriptome rows ─── */
+    .tx-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      margin-bottom: 0.75rem;
+    }
+    .tx-row {
+      display: grid;
+      grid-template-columns: 4.5rem 1fr;
+      gap: 0.7rem;
+      align-items: start;
+    }
+    .tx-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      padding: 0.45rem 0.55rem;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      min-width: 3rem;
+      text-align: center;
+      margin-top: 0.15rem;
+    }
+    .tx-tag[data-tx="T1"] { background: var(--base-a); }
+    .tx-tag[data-tx="T2"] { background: var(--base-t); }
+    .tx-tag[data-tx="T3"] { background: var(--base-c); }
+
+    /* Read input row */
+    .read-row {
+      display: grid;
+      grid-template-columns: 4.5rem 1fr;
+      gap: 0.7rem;
+      align-items: center;
+    }
+    .read-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      padding: 0.45rem 0.55rem;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      background: var(--accent);
+      letter-spacing: 0.04em;
+      line-height: 1;
+      min-width: 3rem;
+      text-align: center;
+    }
+
+    /* ─── Warnings ─── */
+    .warn {
+      margin-top: 0.6rem;
+      padding: 0.55rem 0.8rem;
+      border: 1px solid color-mix(in srgb, var(--warning) 40%, var(--border));
+      background: color-mix(in srgb, var(--warning) 8%, var(--bg-elevated));
+      color: var(--warning);
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      line-height: var(--leading-relaxed);
+      border-radius: var(--radius-sm);
+    }
+    .warn code {
+      font-family: var(--font-mono);
+      background: var(--bg-muted);
+      padding: 0.05rem 0.3rem;
+      border-radius: 2px;
+      color: var(--fg);
+    }
+
+    /* ─── Decomposition table ─── */
+    .kmer-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+    .kmer-table th, .kmer-table td {
+      text-align: left;
+      padding: 0.4rem 0.7rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .kmer-table th {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      background: var(--bg-muted);
+      border-bottom: 1px solid var(--border-strong);
+    }
+    .kmer-table td.col-idx {
+      color: var(--fg-subtle);
+      width: 2.5rem;
+    }
+    .kmer-table td.col-kmer {
+      color: var(--accent);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      width: 30%;
+    }
+    .kmer-table tr.is-empty-kmer td.col-kmer {
+      color: var(--error);
+    }
+    .kmer-table tr.is-empty-kmer {
+      background: color-mix(in srgb, var(--error) 5%, transparent);
+    }
+
+    .tx-chip {
+      display: inline-flex;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      padding: 0.15rem 0.45rem;
+      border-radius: 3px;
+      color: #fff;
+      margin-right: 0.3rem;
+      letter-spacing: 0.04em;
+      line-height: 1.3;
+    }
+    .tx-chip[data-tx="T1"] { background: var(--base-a); }
+    .tx-chip[data-tx="T2"] { background: var(--base-t); }
+    .tx-chip[data-tx="T3"] { background: var(--base-c); }
+    .tx-set {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      align-items: center;
+    }
+    .tx-set-empty {
+      font-family: var(--font-sans);
+      font-style: italic;
+      color: var(--error);
+      font-size: var(--text-xs);
+    }
+
+    /* ─── Intersection running panel ─── */
+    .inter-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+    .inter-step {
+      display: grid;
+      grid-template-columns: 2.5rem 9rem 1fr;
+      gap: 0.5rem;
+      padding: 0.35rem 0.55rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      align-items: center;
+    }
+    .inter-step.is-drop {
+      background: color-mix(in srgb, var(--error) 7%, var(--bg-muted));
+      border-color: color-mix(in srgb, var(--error) 40%, var(--border));
+    }
+    .inter-step .step-idx {
+      color: var(--fg-subtle);
+      font-size: var(--text-xs);
+    }
+    .inter-step .step-kmer {
+      color: var(--accent);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .inter-step .step-running {
+      color: var(--fg);
+    }
+    .inter-arrow {
+      color: var(--fg-subtle);
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-right: 0.3rem;
+    }
+
+    /* ─── Outcome banner ─── */
+    .banner {
+      margin-top: 0.5rem;
+      padding: 1rem 1.2rem;
+      border-radius: var(--radius);
+      font-family: var(--font-sans);
+      line-height: var(--leading-relaxed);
+      border: 1px solid var(--border);
+    }
+    .banner.banner--success {
+      background: color-mix(in srgb, var(--success) 8%, var(--bg-elevated));
+      border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+      color: var(--success);
+    }
+    .banner.banner--empty {
+      background: color-mix(in srgb, var(--error) 8%, var(--bg-elevated));
+      border-color: color-mix(in srgb, var(--error) 40%, var(--border));
+      color: var(--error);
+    }
+    .banner .banner-head {
+      font-size: var(--text-base);
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      letter-spacing: -0.005em;
+    }
+    .banner .banner-body {
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .banner .class-set {
+      display: inline-flex;
+      gap: 0.25rem;
+      margin: 0 0.2rem;
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+    .hint code {
+      font-family: var(--font-mono);
+      background: var(--bg-muted);
+      padding: 0.05rem 0.3rem;
+      border-radius: 2px;
+      color: var(--fg);
+    }
+
+    .empty-state {
+      padding: 1.5rem 1rem;
+      text-align: center;
+      color: var(--fg-subtle);
+      font-size: var(--text-sm);
+      font-family: var(--font-sans);
+    }
+
+    .preset-row {
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 0.9rem;
+    }
+    .preset-row label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+    }
+
+    .legend {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.35rem;
+    }
+    .legend .dot {
+      display: inline-block;
+      width: 0.75rem;
+      height: 0.75rem;
+      border-radius: 2px;
+      vertical-align: middle;
+      margin-right: 0.3rem;
+    }
+    .legend .dot[data-tx="T1"] { background: var(--base-a); }
+    .legend .dot[data-tx="T2"] { background: var(--base-t); }
+    .legend .dot[data-tx="T3"] { background: var(--base-c); }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .inter-step { grid-template-columns: 2rem 7rem 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="compatibility-classes">
+
+  <header class="artifact-head">
+    <h1>Compatibility Class Viewer</h1>
+    <p>A read's <em>compatibility class</em> is the intersection of transcript-sets over all its k-mers. Paste a read below, watch each k-mer tag itself with the transcripts it came from, and see the running intersection shrink. If one k-mer doesn't appear anywhere, the intersection collapses to the empty set and the read is discarded. Pseudoalignment is this, done fast.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Transcriptome — three reference transcripts</p>
+    <div class="tx-list" id="tx-list"></div>
+    <div class="legend">
+      <span><span class="dot" data-tx="T1"></span>T1</span>
+      <span><span class="dot" data-tx="T2"></span>T2</span>
+      <span><span class="dot" data-tx="T3"></span>T3</span>
+    </div>
+    <div id="tx-warn-slot"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Read &amp; parameters</p>
+
+    <div class="preset-row">
+      <label for="preset-select">Preset</label>
+      <select id="preset-select" class="select-input">
+        <option value="unique">unique match &rarr; {T1}</option>
+        <option value="multi">multi-match &rarr; {T1, T2, T3}</option>
+        <option value="partial" selected>partial &rarr; {T2, T3}</option>
+        <option value="novel">novel k-mer &rarr; empty class</option>
+      </select>
+    </div>
+
+    <div class="read-row" style="margin-bottom: 0.8rem;">
+      <span class="read-tag">READ</span>
+      <input id="read-input" type="text" class="seq-input" spellcheck="false"
+             placeholder="ACGT…" maxlength="60">
+    </div>
+
+    <div class="controls">
+      <label>k
+        <input id="k-slider" type="range" min="5" max="21" value="11">
+        <span class="k-readout" id="k-readout">11</span>
+      </label>
+      <button id="align-btn" class="btn btn--primary" type="button">Pseudoalign</button>
+      <button id="reset-btn" class="btn" type="button">&#8634; Reset preset</button>
+    </div>
+    <div id="read-warn-slot"></div>
+    <p class="hint">Try the <code>novel k-mer</code> preset: every k-mer but one lights up with transcripts — the odd one out annihilates the whole set. One unmatched k-mer is enough to drop a read.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">k-mer decomposition — one row per k-mer of the read</p>
+    <div id="kmer-table-wrap"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Running intersection — transcript set after folding in each k-mer</p>
+    <div id="inter-panel"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Compatibility class</p>
+    <div id="outcome-banner"></div>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  const txListEl      = $('tx-list');
+  const txWarnSlot    = $('tx-warn-slot');
+  const readInput     = $('read-input');
+  const readWarnSlot  = $('read-warn-slot');
+  const presetSelect  = $('preset-select');
+  const kSlider       = $('k-slider');
+  const kReadout      = $('k-readout');
+  const alignBtn      = $('align-btn');
+  const resetBtn      = $('reset-btn');
+  const kmerTableWrap = $('kmer-table-wrap');
+  const interPanel    = $('inter-panel');
+  const outcomeBanner = $('outcome-banner');
+
+  const TX_IDS = ['T1', 'T2', 'T3'];
+
+  /* ─── Presets ─────────────────────────────────────────────
+     Each preset supplies the three transcripts + a read that
+     produces a specific compatibility class at the default k.
+     ─────────────────────────────────────────────────────── */
+
+  const PRESETS = {
+    // The three transcripts share a common "backbone" in positions 0..29.
+    // Unique tails distinguish them from 30 onward.
+    unique: {
+      label: 'unique match → {T1}',
+      transcripts: {
+        T1: 'ATGCGTACGTTAGCCGATCAGTACGAATCGGGGTATACAACGTAGCTAGCTAGG',
+        T2: 'ATGCGTACGTTAGCCGATCAGTACGAATCGAAACCTTGGCATACGTAGTCGATC',
+        T3: 'ATGCGTACGTTAGCCGATCAGTACGAATCGTTTGGCCATTGACGATCTTAGCCA',
+      },
+      // Read drawn from T1's unique tail (positions 30-54)
+      read: 'GGGGTATACAACGTAGCTAGCTAGG',
+      k: 11,
+    },
+    multi: {
+      label: 'multi-match → {T1, T2, T3}',
+      transcripts: {
+        T1: 'ATGCGTACGTTAGCCGATCAGTACGAATCGGGGTATACAACGTAGCTAGCTAGG',
+        T2: 'ATGCGTACGTTAGCCGATCAGTACGAATCGAAACCTTGGCATACGTAGTCGATC',
+        T3: 'ATGCGTACGTTAGCCGATCAGTACGAATCGTTTGGCCATTGACGATCTTAGCCA',
+      },
+      // Read from the shared backbone (positions 3-25)
+      read: 'CGTACGTTAGCCGATCAGTACGA',
+      k: 11,
+    },
+    partial: {
+      label: 'partial → {T2, T3}',
+      transcripts: {
+        // T1 keeps the backbone but diverges in the middle
+        T1: 'ATGCGTACGTTAGCCGATCAGTACGAATCGGGGTATACAACGTAGCTAGCTAGG',
+        // T2 and T3 share a downstream segment that T1 lacks
+        T2: 'GACTCAGTTACGGATCAACGTTGCCAATAGCTGGACCATTGACGATCTTAGCCA',
+        T3: 'TTCAGGAACCTGAGCATAGCTCACCAATAGCTGGACCATTGACGATCTTAGCCA',
+      },
+      // Read from the T2/T3 shared tail
+      read: 'CAATAGCTGGACCATTGACGATCTT',
+      k: 11,
+    },
+    novel: {
+      label: 'novel k-mer → empty class',
+      transcripts: {
+        T1: 'ATGCGTACGTTAGCCGATCAGTACGAATCGGGGTATACAACGTAGCTAGCTAGG',
+        T2: 'ATGCGTACGTTAGCCGATCAGTACGAATCGAAACCTTGGCATACGTAGTCGATC',
+        T3: 'ATGCGTACGTTAGCCGATCAGTACGAATCGTTTGGCCATTGACGATCTTAGCCA',
+      },
+      // Read is mostly T1 backbone, with a central stretch that appears in NO transcript
+      // "GTACGAATCG" is from backbone; "ZZZ" segment "TTTCCCAAAG" is novel
+      read: 'CGTACGTTAGCTTTCCCAAAGTACGAATCG',
+      k: 11,
+    },
+  };
+
+  const state = {
+    preset: 'partial',
+    transcripts: {},  // { T1, T2, T3 } -> string
+    read: '',
+    k: 11,
+    // Derived:
+    hash: null,       // Map<kmer, Set<tx>>
+    lastResult: null, // { kmers, steps, finalSet, dropPos, ok }
+  };
+
+  /* ─── Utilities ─────────────────────────────────────────── */
+
+  function sanitize(s) {
+    return (s || '').toUpperCase().replace(/\s+/g, '');
+  }
+  function isValid(s) {
+    return /^[ACGT]*$/.test(s);
+  }
+  function invalidChars(s) {
+    const bad = new Set();
+    for (const c of s) { if (!/[ACGT]/.test(c)) bad.add(c); }
+    return [...bad];
+  }
+
+  function setNamesFromSet(set) {
+    return TX_IDS.filter(t => set.has(t));
+  }
+
+  function formatSetHTML(set) {
+    const items = setNamesFromSet(set);
+    if (items.length === 0) {
+      return '<span class="tx-set-empty">&empty; (empty set)</span>';
+    }
+    return '<span class="tx-set">' + items.map(t =>
+      `<span class="tx-chip" data-tx="${t}">${t}</span>`
+    ).join('') + '</span>';
+  }
+
+  function formatSetText(set) {
+    const items = setNamesFromSet(set);
+    return items.length ? '{' + items.join(', ') + '}' : '{}';
+  }
+
+  /* ─── Preset loading ────────────────────────────────────── */
+
+  function loadPreset(name) {
+    const p = PRESETS[name];
+    if (!p) return;
+    state.preset = name;
+    state.transcripts = { T1: p.transcripts.T1, T2: p.transcripts.T2, T3: p.transcripts.T3 };
+    state.read = p.read;
+    state.k = p.k;
+    kSlider.value = String(p.k);
+    kReadout.textContent = String(p.k);
+    readInput.value = p.read;
+    renderTxInputs();
+  }
+
+  /* ─── Transcriptome inputs ──────────────────────────────── */
+
+  function renderTxInputs() {
+    txListEl.innerHTML = '';
+    TX_IDS.forEach(tid => {
+      const row = document.createElement('div');
+      row.className = 'tx-row';
+
+      const tag = document.createElement('span');
+      tag.className = 'tx-tag';
+      tag.dataset.tx = tid;
+      tag.textContent = tid;
+
+      const area = document.createElement('textarea');
+      area.className = 'seq-area';
+      area.spellcheck = false;
+      area.rows = 2;
+      area.value = state.transcripts[tid] || '';
+      area.placeholder = 'ACGT…';
+      area.addEventListener('input', (e) => {
+        state.transcripts[tid] = sanitize(e.target.value);
+        // Keep the textarea in sync (strip spaces visually) but preserve case
+        e.target.value = state.transcripts[tid];
+        runPipeline();
+      });
+
+      row.appendChild(tag);
+      row.appendChild(area);
+      txListEl.appendChild(row);
+    });
+  }
+
+  /* ─── Hash build: k-mer -> Set<transcript> ──────────────── */
+
+  function buildHash() {
+    const k = state.k;
+    const h = new Map();
+    TX_IDS.forEach(tid => {
+      const seq = state.transcripts[tid] || '';
+      if (seq.length < k) return;
+      for (let i = 0; i <= seq.length - k; i++) {
+        const kmer = seq.substring(i, i + k);
+        if (!h.has(kmer)) h.set(kmer, new Set());
+        h.get(kmer).add(tid);
+      }
+    });
+    return h;
+  }
+
+  /* ─── Pseudoalign: extract read k-mers, intersect sets ─── */
+
+  function pseudoalign() {
+    const k = state.k;
+    const read = state.read;
+    const result = {
+      kmers: [],     // [{ pos, kmer, txSet: Set<tx>, present: bool }]
+      steps: [],     // [{ pos, kmer, txSet, running: Set<tx>, isDrop }]
+      finalSet: null,
+      dropPos: -1,
+      ok: false,
+      reason: '',
+    };
+
+    if (read.length < k) {
+      result.reason = `Read shorter than k (${read.length} < ${k}). No k-mers extracted.`;
+      return result;
+    }
+
+    // Extract
+    for (let i = 0; i <= read.length - k; i++) {
+      const kmer = read.substring(i, i + k);
+      const txSet = state.hash.get(kmer) || new Set();
+      result.kmers.push({ pos: i, kmer, txSet, present: txSet.size > 0 });
+    }
+
+    // Running intersection. Start with "universe" = all transcripts; the
+    // first k-mer's txSet replaces it. (Standard kallisto behaviour.)
+    let running = null;
+    let dropped = false;
+    for (let i = 0; i < result.kmers.length; i++) {
+      const { pos, kmer, txSet } = result.kmers[i];
+      let nextRunning;
+      if (running === null) {
+        nextRunning = new Set(txSet);
+      } else {
+        nextRunning = new Set();
+        for (const t of running) if (txSet.has(t)) nextRunning.add(t);
+      }
+      const isDrop = nextRunning.size === 0;
+      result.steps.push({
+        pos, kmer, txSet,
+        running: new Set(nextRunning),
+        isDrop,
+      });
+      running = nextRunning;
+      if (isDrop && !dropped) {
+        dropped = true;
+        result.dropPos = pos;
+        // Keep computing so the student sees all k-mers, but note the drop.
+      }
+    }
+
+    result.finalSet = running || new Set();
+    result.ok = !dropped && result.finalSet.size > 0;
+    return result;
+  }
+
+  /* ─── Rendering: decomposition table ────────────────────── */
+
+  function renderKmerTable(result) {
+    kmerTableWrap.innerHTML = '';
+    if (result.kmers.length === 0) {
+      const e = document.createElement('div');
+      e.className = 'empty-state';
+      e.textContent = result.reason || 'No k-mers — check read length.';
+      kmerTableWrap.appendChild(e);
+      return;
+    }
+
+    const tbl = document.createElement('table');
+    tbl.className = 'kmer-table';
+    tbl.innerHTML = `
+      <thead>
+        <tr>
+          <th class="col-idx">#</th>
+          <th>k-mer</th>
+          <th>belongs to</th>
+        </tr>
+      </thead>`;
+    const tbody = document.createElement('tbody');
+    result.kmers.forEach((km, i) => {
+      const tr = document.createElement('tr');
+      if (!km.present) tr.className = 'is-empty-kmer';
+      tr.innerHTML =
+        `<td class="col-idx">${i + 1}</td>` +
+        `<td class="col-kmer">${km.kmer}</td>` +
+        `<td>${km.present
+          ? formatSetHTML(km.txSet)
+          : '<span class="tx-set-empty">&empty; (no transcript)</span>'}</td>`;
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);
+    kmerTableWrap.appendChild(tbl);
+  }
+
+  /* ─── Rendering: running intersection ───────────────────── */
+
+  function renderIntersection(result) {
+    interPanel.innerHTML = '';
+    if (result.steps.length === 0) {
+      const e = document.createElement('div');
+      e.className = 'empty-state';
+      e.textContent = result.reason || 'Nothing to intersect.';
+      interPanel.appendChild(e);
+      return;
+    }
+
+    const list = document.createElement('div');
+    list.className = 'inter-list';
+    let alreadyDropped = false;
+    result.steps.forEach((step, i) => {
+      const row = document.createElement('div');
+      row.className = 'inter-step';
+      if (step.isDrop && !alreadyDropped) {
+        row.classList.add('is-drop');
+        alreadyDropped = true;
+      }
+      row.innerHTML =
+        `<span class="step-idx">${i + 1}.</span>` +
+        `<span class="step-kmer">${step.kmer}</span>` +
+        `<span class="step-running">` +
+          `<span class="inter-arrow">&cap;</span>` +
+          formatSetHTML(step.txSet) +
+          `<span class="inter-arrow" style="margin-left:0.5rem">=</span>` +
+          formatSetHTML(step.running) +
+        `</span>`;
+      list.appendChild(row);
+    });
+    interPanel.appendChild(list);
+  }
+
+  /* ─── Rendering: outcome banner ─────────────────────────── */
+
+  function renderBanner(result) {
+    outcomeBanner.innerHTML = '';
+    const banner = document.createElement('div');
+    banner.className = 'banner';
+
+    if (result.kmers.length === 0) {
+      banner.classList.add('banner--empty');
+      banner.innerHTML =
+        `<div class="banner-head">&#10007; No k-mers extracted</div>` +
+        `<div class="banner-body">${result.reason || 'Increase the read length or decrease k.'}</div>`;
+      outcomeBanner.appendChild(banner);
+      return;
+    }
+
+    if (result.ok) {
+      banner.classList.add('banner--success');
+      const names = setNamesFromSet(result.finalSet);
+      banner.innerHTML =
+        `<div class="banner-head">&#10003; Compatibility class: ` +
+          `<span class="class-set">${formatSetHTML(result.finalSet)}</span></div>` +
+        `<div class="banner-body">Read compatible with <strong>${names.length}</strong> of ${TX_IDS.length} transcripts. ` +
+          `In pseudoalignment this read contributes one count to the equivalence class <code>${formatSetText(result.finalSet)}</code>, ` +
+          `which an EM step later distributes across its members.</div>`;
+    } else {
+      banner.classList.add('banner--empty');
+      const dropStep = result.steps.find(s => s.isDrop);
+      const dropIdx  = result.steps.indexOf(dropStep);
+      const dropKmer = dropStep ? dropStep.kmer : '';
+      const cause = dropStep && dropStep.txSet.size === 0
+        ? `k-mer <code>${dropKmer}</code> appears in <em>no</em> transcript (novel k-mer)`
+        : `k-mer <code>${dropKmer}</code>'s transcript set has no overlap with the prior running intersection`;
+      banner.innerHTML =
+        `<div class="banner-head">&#10007; Empty compatibility class &mdash; drop read</div>` +
+        `<div class="banner-body">At position <strong>${result.dropPos}</strong> (k-mer #${dropIdx + 1}), ` +
+          `${cause}. The intersection collapses to &empty; and no further k-mer can rescue it. ` +
+          `A single unmatched k-mer is enough to discard the read.</div>`;
+    }
+    outcomeBanner.appendChild(banner);
+  }
+
+  /* ─── Feasibility gate: warnings ────────────────────────── */
+
+  function renderWarnings() {
+    txWarnSlot.innerHTML = '';
+    readWarnSlot.innerHTML = '';
+
+    // Transcript warnings
+    const txProblems = [];
+    TX_IDS.forEach(tid => {
+      const raw = state.transcripts[tid] || '';
+      if (raw.length === 0) {
+        txProblems.push(`${tid} is empty — it will contribute no k-mers.`);
+      } else if (raw.length < state.k) {
+        txProblems.push(`${tid} is shorter than k (${raw.length} &lt; ${state.k}) — contributes no k-mers.`);
+      }
+    });
+    if (txProblems.length) {
+      const w = document.createElement('div');
+      w.className = 'warn';
+      w.innerHTML = '<strong>Transcript notice.</strong> ' + txProblems.join(' ');
+      txWarnSlot.appendChild(w);
+    }
+
+    // Read warnings
+    const readRaw = readInput.value || '';
+    const bad = invalidChars(readRaw.toUpperCase().replace(/\s+/g, ''));
+    if (bad.length) {
+      const w = document.createElement('div');
+      w.className = 'warn';
+      w.innerHTML = `<strong>Invalid characters</strong> in read: <code>${bad.join(' ')}</code>. ` +
+                    `Only <code>A C G T</code> are allowed. Non-ACGT characters were stripped.`;
+      readWarnSlot.appendChild(w);
+    }
+    if (state.read && state.read.length < state.k) {
+      const w = document.createElement('div');
+      w.className = 'warn';
+      w.innerHTML = `Read length <code>${state.read.length}</code> is shorter than k <code>${state.k}</code>. ` +
+                    `Lower k or paste a longer read.`;
+      readWarnSlot.appendChild(w);
+    }
+  }
+
+  /* ─── Orchestration ─────────────────────────────────────── */
+
+  function runPipeline() {
+    state.k = +kSlider.value;
+    kReadout.textContent = state.k;
+    state.hash = buildHash();
+    state.read = sanitize(readInput.value || '');
+    // Don't clobber the user's input box with sanitized value every keystroke
+    // unless they typed whitespace. We just use state.read internally.
+    const result = pseudoalign();
+    state.lastResult = result;
+    renderWarnings();
+    renderKmerTable(result);
+    renderIntersection(result);
+    renderBanner(result);
+  }
+
+  /* ─── Wiring ────────────────────────────────────────────── */
+
+  presetSelect.addEventListener('change', (e) => {
+    loadPreset(e.target.value);
+    runPipeline();
+  });
+
+  readInput.addEventListener('input', (e) => {
+    // Gentle sanitization: uppercase in place, keep cursor position,
+    // but drop invalid characters for the internal state only.
+    const before = e.target.value;
+    const upper = before.toUpperCase();
+    if (upper !== before) {
+      const pos = e.target.selectionStart;
+      e.target.value = upper;
+      e.target.setSelectionRange(pos, pos);
+    }
+    runPipeline();
+  });
+
+  kSlider.addEventListener('input', () => {
+    kReadout.textContent = kSlider.value;
+    runPipeline();
+  });
+
+  alignBtn.addEventListener('click', runPipeline);
+
+  resetBtn.addEventListener('click', () => {
+    loadPreset(state.preset);
+    runPipeline();
+  });
+
+  /* ─── Init ──────────────────────────────────────────────── */
+
+  presetSelect.value = 'partial';
+  loadPreset('partial');
+  runPipeline();
+
+})();
+</script>
+
+</body>
+</html>

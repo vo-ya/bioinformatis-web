@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EM Iteration Visualizer — RNA-seq Quantification</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 62ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    select.seq-input, input.seq-input {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.55rem 0.75rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    select.seq-input { min-width: 320px; }
+
+    textarea.edge-input {
+      width: 100%;
+      min-height: 90px;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      padding: 0.6rem 0.8rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      line-height: 1.5;
+      resize: vertical;
+    }
+    textarea.edge-input:focus { background: var(--bg-elevated); border-color: var(--accent-bright); }
+
+    .source-toggle {
+      display: inline-flex;
+      gap: 0;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 2px;
+      margin-bottom: 0.75rem;
+    }
+    .source-toggle button {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.45rem 0.9rem;
+      background: transparent;
+      border: 0;
+      color: var(--fg-muted);
+      cursor: pointer;
+      border-radius: calc(var(--radius-sm) - 1px);
+    }
+    .source-toggle button.active {
+      background: var(--bg-elevated);
+      color: var(--accent);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    /* Feasibility badge */
+    .feasibility {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      padding: 0.9rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-top: 0.75rem;
+      font-size: var(--text-sm);
+      line-height: 1.5;
+    }
+    .feasibility.ok {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #064e3b;
+    }
+    .feasibility.err {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #7f1d1d;
+    }
+    .feasibility .icon {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
+    .feasibility .body strong { display: block; margin-bottom: 0.15rem; }
+    .feasibility .body code {
+      font-family: var(--font-mono);
+      font-size: 0.92em;
+      background: rgba(255,255,255,0.6);
+      padding: 0 0.25rem;
+      border-radius: 2px;
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    /* Vote matrix */
+    .matrix-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      overflow-x: auto;
+    }
+    table.vote-matrix {
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      margin: 0 auto;
+    }
+    table.vote-matrix th, table.vote-matrix td {
+      padding: 0.35rem 0.55rem;
+      text-align: center;
+      border: 1px solid var(--border);
+      min-width: 56px;
+    }
+    table.vote-matrix thead th {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 10px;
+      color: var(--fg-subtle);
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-strong);
+    }
+    table.vote-matrix td.read-col {
+      text-align: left;
+      font-weight: 600;
+      color: var(--fg-muted);
+      background: var(--bg-elevated);
+    }
+    table.vote-matrix td.class-col {
+      text-align: left;
+      font-size: 10px;
+      color: var(--fg-subtle);
+      background: var(--bg-elevated);
+    }
+    table.vote-matrix td.vote-cell {
+      position: relative;
+      transition: background 200ms ease;
+    }
+    table.vote-matrix td.vote-cell.zero {
+      color: var(--fg-subtle);
+      background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 4px,
+        rgba(0,0,0,0.04) 4px,
+        rgba(0,0,0,0.04) 5px
+      );
+    }
+    table.vote-matrix td.vote-cell .val {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Abundance bars */
+    .theta-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.85rem;
+      margin-top: 0.9rem;
+    }
+    .theta-cell {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.9rem;
+    }
+    .theta-cell .tname {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--fg-muted);
+      letter-spacing: 0.06em;
+    }
+    .theta-cell .tlen {
+      font-family: var(--font-sans);
+      font-size: 10px;
+      color: var(--fg-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .theta-bar-outer {
+      height: 10px;
+      background: var(--bg-inset);
+      border-radius: 999px;
+      margin-top: 0.4rem;
+      overflow: hidden;
+    }
+    .theta-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 999px;
+      transition: width 260ms ease;
+    }
+    .theta-cell .tval {
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      color: var(--fg);
+      margin-top: 0.45rem;
+      font-weight: 600;
+    }
+    .theta-cell .tdelta {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--fg-subtle);
+      margin-top: 0.1rem;
+    }
+
+    /* Status line */
+    .status-line {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      padding: 0.85rem 1rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-top: 1rem;
+    }
+    .status-line .label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin: 0;
+    }
+    .status-line .value {
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      color: var(--fg);
+      margin: 0.15rem 0 0;
+      word-break: break-all;
+    }
+    .status-line .value.emphasis { color: var(--accent); }
+    .status-line .value.warn { color: var(--warning); }
+    .status-line .value.err  { color: var(--error); }
+
+    /* Log-likelihood chart */
+    .ll-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem;
+    }
+    svg.ll-chart {
+      width: 100%;
+      height: 200px;
+      display: block;
+    }
+    .ll-axis line { stroke: var(--border-strong); stroke-width: 1; }
+    .ll-axis text {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      fill: var(--fg-subtle);
+    }
+    .ll-axis-label {
+      font-family: var(--font-sans);
+      font-size: 10px;
+      fill: var(--fg-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .ll-line {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 1.8;
+    }
+    .ll-area {
+      fill: var(--accent-bg);
+      opacity: 0.6;
+    }
+    .ll-point {
+      fill: var(--accent);
+    }
+    .ll-point.latest {
+      fill: var(--accent-bright);
+      stroke: #fff;
+      stroke-width: 1.5;
+    }
+
+    /* Result banner */
+    .result-banner {
+      margin-top: 1rem;
+      padding: 0.9rem 1.1rem;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      line-height: 1.5;
+    }
+    .result-banner.success {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #064e3b;
+    }
+    .result-banner.failure {
+      background: #fef3c7;
+      border: 1px solid #fde68a;
+      color: #78350f;
+    }
+
+    .legend {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch {
+      display: inline-block;
+      width: 14px;
+      height: 10px;
+      vertical-align: middle;
+      margin-right: 0.35rem;
+      border-radius: 2px;
+      border: 1px solid var(--border);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      select.seq-input { min-width: 100%; }
+      .theta-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="em-visualizer">
+
+  <header class="artifact-head">
+    <h1>EM Iteration Visualizer</h1>
+    <p>Step through Expectation-Maximization on a small RNA-seq quantification problem. Three transcripts with known lengths share a pool of reads; some reads are uniquely mappable, others are multi-mapped. Watch the fractional assignments and abundance estimates converge &mdash; or fail to, when the compatibility classes leave EM degenerate.</p>
+  </header>
+
+  <!-- Scenario source ------------------------------------------------ -->
+  <section class="panel">
+    <p class="panel-label">Scenario</p>
+
+    <div class="source-toggle" role="tablist" aria-label="Scenario source">
+      <button id="src-preset" class="active" type="button" role="tab" aria-selected="true">Preset</button>
+      <button id="src-custom"            type="button" role="tab" aria-selected="false">Custom classes</button>
+    </div>
+
+    <div id="preset-pane">
+      <label class="field-label" for="preset-select">Choose a scenario</label>
+      <select id="preset-select" class="seq-input"></select>
+      <p id="preset-hint" class="hint"></p>
+    </div>
+
+    <div id="custom-pane" hidden>
+      <label class="field-label" for="class-input">Pipe-separated compatibility classes (one per read). Transcripts: <code>T1</code>, <code>T2</code>, <code>T3</code>.</label>
+      <textarea id="class-input" class="edge-input" spellcheck="false" placeholder="T1,T2|T2|T1,T2,T3|T3|T2,T3|T1"></textarea>
+      <p class="hint">Each segment between <code>|</code> is one read. List the transcripts it is compatible with, comma-separated: <code>T1,T2</code> means the read maps to both T1 and T2. Transcript lengths are fixed at (500, 1500, 2000) across all scenarios.</p>
+      <div class="controls" style="margin-top: 0.6rem;">
+        <button id="analyze-btn" class="btn btn--primary" type="button">Load classes</button>
+        <button id="example-btn" class="btn" type="button">Load example</button>
+      </div>
+    </div>
+
+    <div id="feasibility" class="feasibility" hidden></div>
+  </section>
+
+  <!-- Playback controls ---------------------------------------------- -->
+  <section class="panel">
+    <p class="panel-label">Iteration control</p>
+    <div class="controls">
+      <button id="step-btn"     class="btn btn--primary" type="button">Step EM</button>
+      <button id="play-btn"     class="btn"              type="button">Play</button>
+      <button id="pause-btn"    class="btn"              type="button" disabled>Pause</button>
+      <button id="converge-btn" class="btn"              type="button">Run to convergence</button>
+      <button id="reset-btn"    class="btn"              type="button">Reset</button>
+    </div>
+    <p class="hint">Each step runs one full EM iteration: the <strong>E-step</strong> splits every read&rsquo;s vote across its compatibility class in proportion to <code>&theta;<sub>t</sub> / &ell;<sub>t</sub></code>, then the <strong>M-step</strong> normalises the column sums into the next <code>&theta;</code>. Convergence is declared when max |&Delta;&theta;| &lt; 10<sup>&minus;6</sup>; the safety cap is 200 iterations.</p>
+    <div class="legend">
+      <span><span class="legend-swatch" style="background: var(--accent-bg);"></span>low vote</span>
+      <span><span class="legend-swatch" style="background: var(--accent);"></span>high vote (&rarr; 1)</span>
+      <span><span class="legend-swatch" style="background: repeating-linear-gradient(45deg, var(--bg-muted), var(--bg-muted) 4px, #ddd 4px, #ddd 5px);"></span>incompatible</span>
+    </div>
+  </section>
+
+  <!-- Status --------------------------------------------------------- -->
+  <section class="panel">
+    <p class="panel-label">State</p>
+    <div class="status-line">
+      <div>
+        <p class="label">Iteration</p>
+        <p class="value" id="stat-iter">0</p>
+      </div>
+      <div>
+        <p class="label">Phase</p>
+        <p class="value emphasis" id="stat-phase">ready</p>
+      </div>
+      <div>
+        <p class="label">Max |&Delta;&theta;|</p>
+        <p class="value" id="stat-delta">&mdash;</p>
+      </div>
+      <div>
+        <p class="label">Log-likelihood</p>
+        <p class="value" id="stat-ll">&mdash;</p>
+      </div>
+    </div>
+    <div id="result-banner" class="result-banner" hidden></div>
+  </section>
+
+  <!-- Vote matrix + abundance --------------------------------------- -->
+  <section class="panel">
+    <p class="panel-label">Fractional vote matrix &nbsp;&middot;&nbsp; z<sub>r,t</sub></p>
+    <div class="matrix-wrap">
+      <table class="vote-matrix" id="vote-table">
+        <thead>
+          <tr>
+            <th>read</th><th>class</th><th>T1</th><th>T2</th><th>T3</th>
+          </tr>
+        </thead>
+        <tbody id="vote-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="theta-grid" id="theta-grid">
+      <!-- populated by JS -->
+    </div>
+  </section>
+
+  <!-- Log-likelihood chart ------------------------------------------ -->
+  <section class="panel">
+    <p class="panel-label">Log-likelihood trajectory</p>
+    <div class="ll-wrap">
+      <svg id="ll-chart" class="ll-chart" viewBox="0 0 600 200" preserveAspectRatio="none"></svg>
+    </div>
+    <p class="hint">Monotone non-decreasing &mdash; a defining property of EM. If the curve flattens early, EM has found a stationary point; if it keeps drifting by tiny amounts, the likelihood surface has a ridge (look at the fully-ambiguous preset).</p>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  // ----------------------------------------------------------------
+  // DOM
+  // ----------------------------------------------------------------
+  const $ = (id) => document.getElementById(id);
+  const srcPresetBtn = $('src-preset');
+  const srcCustomBtn = $('src-custom');
+  const presetPane   = $('preset-pane');
+  const customPane   = $('custom-pane');
+  const presetSelect = $('preset-select');
+  const presetHint   = $('preset-hint');
+  const classInput   = $('class-input');
+  const analyzeBtn   = $('analyze-btn');
+  const exampleBtn   = $('example-btn');
+  const feasibilityEl = $('feasibility');
+
+  const stepBtn     = $('step-btn');
+  const playBtn     = $('play-btn');
+  const pauseBtn    = $('pause-btn');
+  const convergeBtn = $('converge-btn');
+  const resetBtn    = $('reset-btn');
+
+  const statIter  = $('stat-iter');
+  const statPhase = $('stat-phase');
+  const statDelta = $('stat-delta');
+  const statLL    = $('stat-ll');
+  const resultBanner = $('result-banner');
+
+  const voteTbody = $('vote-tbody');
+  const thetaGrid = $('theta-grid');
+  const llChart   = $('ll-chart');
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ----------------------------------------------------------------
+  // Constants
+  // ----------------------------------------------------------------
+  const TRANSCRIPTS = ['T1', 'T2', 'T3'];
+  const LENGTHS     = [500, 1500, 2000];
+  const T_INDEX = { T1: 0, T2: 1, T3: 2 };
+  const CONVERGE_EPS = 1e-6;
+  const MAX_ITER = 200;
+
+  // ----------------------------------------------------------------
+  // Presets
+  // ----------------------------------------------------------------
+  const PRESETS = {
+    default_balanced: {
+      name: 'Default balanced — mixed unique + multi-mapped',
+      hint: 'Each transcript has some unique reads plus some multi-mapped reads. The length normalisation pulls the longer transcripts down; a handful of iterations suffice.',
+      classes: [
+        ['T1'],
+        ['T1','T2'],
+        ['T2'],
+        ['T2'],
+        ['T2','T3'],
+        ['T1','T2','T3'],
+        ['T3'],
+        ['T2'],
+        ['T1','T2'],
+        ['T3']
+      ]
+    },
+    heavy_skew: {
+      name: 'Heavy skew — one transcript dominant',
+      hint: 'Most reads are compatible only with T2, with a few weak multi-maps. EM converges to a heavy concentration on T2 despite its length penalty.',
+      classes: [
+        ['T2'],
+        ['T2'],
+        ['T2'],
+        ['T2','T3'],
+        ['T2'],
+        ['T1','T2'],
+        ['T2'],
+        ['T2'],
+        ['T2','T3'],
+        ['T2']
+      ]
+    },
+    fully_ambiguous: {
+      name: 'Fully-ambiguous — every read compatible with every transcript',
+      hint: 'No read distinguishes transcripts. The likelihood is ridge-shaped &mdash; any theta with sum = 1 that lies on the l_t-weighted ridge gives the same likelihood. EM will drift but never sharpen.',
+      classes: [
+        ['T1','T2','T3'],
+        ['T1','T2','T3'],
+        ['T1','T2','T3'],
+        ['T1','T2','T3'],
+        ['T1','T2','T3'],
+        ['T1','T2','T3'],
+        ['T1','T2','T3'],
+        ['T1','T2','T3'],
+        ['T1','T2','T3'],
+        ['T1','T2','T3']
+      ]
+    }
+  };
+
+  // ----------------------------------------------------------------
+  // Parsing
+  // ----------------------------------------------------------------
+  function parseClasses(text) {
+    const errors = [];
+    const trimmed = (text || '').trim();
+    if (!trimmed) {
+      errors.push('Input is empty. Enter at least one read class, e.g. T1,T2|T2|T3.');
+      return { classes: [], errors };
+    }
+    const segments = trimmed.split('|').map(s => s.trim()).filter(s => s.length > 0);
+    if (segments.length === 0) {
+      errors.push('Could not find any read classes between pipes.');
+      return { classes: [], errors };
+    }
+    const classes = [];
+    segments.forEach((seg, i) => {
+      const tokens = seg.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      if (tokens.length === 0) {
+        errors.push(`Read ${i+1}: empty class — need at least one transcript.`);
+        return;
+      }
+      const seen = new Set();
+      for (const tok of tokens) {
+        if (!(tok in T_INDEX)) {
+          errors.push(`Read ${i+1}: unknown transcript "${tok}" (allowed: T1, T2, T3).`);
+          return;
+        }
+        if (seen.has(tok)) continue;
+        seen.add(tok);
+      }
+      classes.push([...seen].sort());
+    });
+    return { classes, errors };
+  }
+
+  // ----------------------------------------------------------------
+  // EM algorithm
+  // ----------------------------------------------------------------
+  function initTheta() {
+    // Uniform prior.
+    return [1/3, 1/3, 1/3];
+  }
+
+  // E-step: z[r][t] = (theta[t]/l[t]) / sum_{t' in class(r)} (theta[t']/l[t'])
+  // Returns dense 3-column matrix (zeros for incompatible transcripts).
+  function eStep(classes, theta) {
+    const N = classes.length;
+    const z = [];
+    for (let r = 0; r < N; r++) {
+      const cls = classes[r];
+      const row = [0, 0, 0];
+      let total = 0;
+      for (const tname of cls) {
+        const ti = T_INDEX[tname];
+        row[ti] = theta[ti] / LENGTHS[ti];
+        total += row[ti];
+      }
+      if (total > 0) {
+        for (let t = 0; t < 3; t++) row[t] /= total;
+      }
+      z.push(row);
+    }
+    return z;
+  }
+
+  // M-step: theta[t] = sum_r z[r][t] / sum_r sum_t' z[r][t']
+  // Denominator is N because each read's row sums to 1.
+  function mStep(z) {
+    const N = z.length;
+    const sums = [0, 0, 0];
+    for (let r = 0; r < N; r++) {
+      for (let t = 0; t < 3; t++) sums[t] += z[r][t];
+    }
+    const total = sums[0] + sums[1] + sums[2];
+    if (total <= 0) return [1/3, 1/3, 1/3];
+    return [sums[0]/total, sums[1]/total, sums[2]/total];
+  }
+
+  // Incomplete log-likelihood: sum_r log( sum_{t in class(r)} theta[t] / l[t] ).
+  function logLikelihood(classes, theta) {
+    let ll = 0;
+    for (const cls of classes) {
+      let s = 0;
+      for (const tname of cls) {
+        const ti = T_INDEX[tname];
+        s += theta[ti] / LENGTHS[ti];
+      }
+      if (s <= 0) return -Infinity;
+      ll += Math.log(s);
+    }
+    return ll;
+  }
+
+  function maxAbsDelta(a, b) {
+    let m = 0;
+    for (let i = 0; i < a.length; i++) m = Math.max(m, Math.abs(a[i] - b[i]));
+    return m;
+  }
+
+  // ----------------------------------------------------------------
+  // State
+  // ----------------------------------------------------------------
+  const state = {
+    classes: null,
+    theta: null,
+    prevTheta: null,
+    z: null,
+    iter: 0,
+    llHistory: [],
+    deltaHistory: [],
+    converged: false,
+    stalled: false,
+    playTimer: null,
+    playing: false
+  };
+
+  function freshState(classes) {
+    state.classes = classes;
+    state.theta = initTheta();
+    state.prevTheta = initTheta();
+    state.z = eStep(classes, state.theta); // initial E-step at uniform theta for display
+    state.iter = 0;
+    state.llHistory = [logLikelihood(classes, state.theta)];
+    state.deltaHistory = [];
+    state.converged = false;
+    state.stalled = false;
+    stopPlay();
+  }
+
+  // ----------------------------------------------------------------
+  // Rendering
+  // ----------------------------------------------------------------
+  function formatNum(x, digits = 4) {
+    if (!isFinite(x)) return '—';
+    return x.toFixed(digits);
+  }
+
+  function shadeFor(v) {
+    // Map v in [0,1] to a background colour. 0 => nearly-white, 1 => accent.
+    if (v <= 0) return 'transparent';
+    const alpha = Math.min(1, 0.12 + v * 0.78);
+    // Compose using the accent RGB 30,58,138 (cobalt).
+    return `rgba(30, 58, 138, ${alpha.toFixed(3)})`;
+  }
+
+  function textColourForVote(v) {
+    return v > 0.55 ? '#ffffff' : 'var(--fg)';
+  }
+
+  function renderMatrix() {
+    if (!state.classes) {
+      voteTbody.innerHTML = '<tr><td colspan="5" style="padding: 1rem; color: var(--fg-subtle);">Load a scenario to populate the matrix.</td></tr>';
+      return;
+    }
+    const rows = state.classes.map((cls, r) => {
+      const row = state.z[r] || [0, 0, 0];
+      const cells = [0, 1, 2].map(t => {
+        const inClass = cls.includes(TRANSCRIPTS[t]);
+        if (!inClass) {
+          return '<td class="vote-cell zero"><span class="val">&middot;</span></td>';
+        }
+        const v = row[t];
+        const bg = shadeFor(v);
+        const colour = textColourForVote(v);
+        return `<td class="vote-cell" style="background:${bg}; color:${colour};"><span class="val">${formatNum(v, 3)}</span></td>`;
+      }).join('');
+      const classStr = cls.join(',');
+      return `<tr><td class="read-col">r${r+1}</td><td class="class-col">${classStr}</td>${cells}</tr>`;
+    }).join('');
+    voteTbody.innerHTML = rows;
+  }
+
+  function renderTheta() {
+    if (!state.theta) { thetaGrid.innerHTML = ''; return; }
+    const prev = state.prevTheta || state.theta;
+    const parts = TRANSCRIPTS.map((name, t) => {
+      const v = state.theta[t];
+      const d = v - prev[t];
+      const dStr = (d === 0 ? '0.0000' : (d > 0 ? '+' : '') + d.toFixed(4));
+      const pct = (v * 100).toFixed(1) + '%';
+      return `
+        <div class="theta-cell">
+          <div><span class="tname">${name}</span> <span class="tlen">&ell; = ${LENGTHS[t]}</span></div>
+          <div class="theta-bar-outer"><div class="theta-bar-fill" style="width: ${(v*100).toFixed(2)}%;"></div></div>
+          <div class="tval">${formatNum(v, 4)} <span style="font-size: 11px; color: var(--fg-subtle); font-weight: 400;">(${pct})</span></div>
+          <div class="tdelta">&Delta; ${dStr}</div>
+        </div>
+      `;
+    }).join('');
+    thetaGrid.innerHTML = parts;
+  }
+
+  function renderStatus() {
+    statIter.textContent = String(state.iter);
+    if (state.iter === 0) {
+      statPhase.textContent = state.classes ? 'ready · uniform θ' : 'no data';
+      statPhase.className = 'value emphasis';
+      statDelta.textContent = '—';
+    } else if (state.converged) {
+      statPhase.textContent = 'converged';
+      statPhase.className = 'value emphasis';
+      statDelta.textContent = formatNum(state.deltaHistory[state.deltaHistory.length - 1], 8);
+    } else if (state.stalled) {
+      statPhase.textContent = 'max iter';
+      statPhase.className = 'value warn';
+      statDelta.textContent = formatNum(state.deltaHistory[state.deltaHistory.length - 1], 8);
+    } else {
+      statPhase.textContent = 'iterating';
+      statPhase.className = 'value emphasis';
+      statDelta.textContent = formatNum(state.deltaHistory[state.deltaHistory.length - 1], 8);
+    }
+    const ll = state.llHistory[state.llHistory.length - 1];
+    statLL.textContent = formatNum(ll, 4);
+  }
+
+  function renderResultBanner() {
+    if (!state.classes) { hideBanner(); return; }
+    const allAmbig = state.classes.every(cls => cls.length === TRANSCRIPTS.length);
+    if (state.converged) {
+      const thetaStr = state.theta.map(v => v.toFixed(2)).join(', ');
+      const lastLL = state.llHistory[state.llHistory.length - 1];
+      const firstLL = state.llHistory[0];
+      const margin = lastLL - firstLL;
+      if (allAmbig) {
+        // Degenerate: every read compatible with every transcript — EM is
+        // just optimising theta against length priors. The "MLE" is on a
+        // corner, but it carries no biological information.
+        resultBanner.hidden = false;
+        resultBanner.className = 'result-banner failure';
+        resultBanner.innerHTML = `<strong>⚠ Iter ${state.iter}, not converging to an informative estimate.</strong> Every read is compatible with every transcript — the likelihood has no data-driven mode. EM finds a corner dictated purely by the length priors; θ ≈ (${thetaStr}) carries no biological signal. Compatibility classes must span multiple subsets for EM to discriminate transcripts.`;
+      } else {
+        resultBanner.hidden = false;
+        resultBanner.className = 'result-banner success';
+        resultBanner.innerHTML = `<strong>✓ Converged at iter ${state.iter}</strong> · log-L margin = ${margin.toFixed(2)} · Final θ = (${thetaStr})`;
+      }
+    } else if (state.stalled) {
+      const thetaStr = state.theta.map(v => v.toFixed(2)).join(', ');
+      resultBanner.hidden = false;
+      resultBanner.className = 'result-banner failure';
+      resultBanner.innerHTML = `<strong>⚠ Iter ${state.iter}, not converging cleanly.</strong> θ still drifting; current θ ≈ (${thetaStr}). Likelihood surface has a ridge or plateau. Try a scenario where compatibility classes pin transcripts.`;
+    } else {
+      hideBanner();
+    }
+  }
+  function hideBanner() {
+    resultBanner.hidden = true;
+    resultBanner.innerHTML = '';
+  }
+
+  // ----------------------------------------------------------------
+  // Log-likelihood chart
+  // ----------------------------------------------------------------
+  function renderLLChart() {
+    const W = 600, H = 200;
+    const padL = 52, padR = 16, padT = 14, padB = 32;
+    const innerW = W - padL - padR;
+    const innerH = H - padT - padB;
+
+    // Clear
+    while (llChart.firstChild) llChart.removeChild(llChart.firstChild);
+
+    // Axes group
+    const axG = document.createElementNS(SVG_NS, 'g');
+    axG.setAttribute('class', 'll-axis');
+    llChart.appendChild(axG);
+
+    const n = state.llHistory.length;
+    if (n === 0) return;
+
+    // x-domain: [0, max(iter, 12)]
+    const maxIter = Math.max(12, n - 1);
+    // y-domain: from min to max with a tiny pad
+    let minY = Infinity, maxY = -Infinity;
+    for (const v of state.llHistory) {
+      if (!isFinite(v)) continue;
+      if (v < minY) minY = v;
+      if (v > maxY) maxY = v;
+    }
+    if (minY === Infinity) { minY = -1; maxY = 0; }
+    if (maxY - minY < 1e-6) { const c = maxY; minY = c - 1; maxY = c + 1; }
+    const yPad = (maxY - minY) * 0.08;
+    const yMin = minY - yPad;
+    const yMax = maxY + yPad;
+
+    const xScale = (i) => padL + (i / maxIter) * innerW;
+    const yScale = (v) => padT + (1 - (v - yMin) / (yMax - yMin)) * innerH;
+
+    // Axis lines
+    const xAxis = document.createElementNS(SVG_NS, 'line');
+    xAxis.setAttribute('x1', padL); xAxis.setAttribute('x2', padL + innerW);
+    xAxis.setAttribute('y1', padT + innerH); xAxis.setAttribute('y2', padT + innerH);
+    axG.appendChild(xAxis);
+    const yAxis = document.createElementNS(SVG_NS, 'line');
+    yAxis.setAttribute('x1', padL); yAxis.setAttribute('x2', padL);
+    yAxis.setAttribute('y1', padT); yAxis.setAttribute('y2', padT + innerH);
+    axG.appendChild(yAxis);
+
+    // X ticks
+    const xticks = 6;
+    for (let i = 0; i <= xticks; i++) {
+      const xv = Math.round((maxIter * i) / xticks);
+      const x = xScale(xv);
+      const tk = document.createElementNS(SVG_NS, 'line');
+      tk.setAttribute('x1', x); tk.setAttribute('x2', x);
+      tk.setAttribute('y1', padT + innerH); tk.setAttribute('y2', padT + innerH + 4);
+      axG.appendChild(tk);
+      const tx = document.createElementNS(SVG_NS, 'text');
+      tx.setAttribute('x', x); tx.setAttribute('y', padT + innerH + 16);
+      tx.setAttribute('text-anchor', 'middle');
+      tx.textContent = String(xv);
+      axG.appendChild(tx);
+    }
+    // Y ticks
+    const yticks = 4;
+    for (let i = 0; i <= yticks; i++) {
+      const yv = yMin + (yMax - yMin) * (i / yticks);
+      const y = yScale(yv);
+      const tk = document.createElementNS(SVG_NS, 'line');
+      tk.setAttribute('x1', padL - 4); tk.setAttribute('x2', padL);
+      tk.setAttribute('y1', y); tk.setAttribute('y2', y);
+      axG.appendChild(tk);
+      const tx = document.createElementNS(SVG_NS, 'text');
+      tx.setAttribute('x', padL - 6); tx.setAttribute('y', y + 3);
+      tx.setAttribute('text-anchor', 'end');
+      tx.textContent = yv.toFixed(2);
+      axG.appendChild(tx);
+    }
+
+    // Axis labels
+    const xLab = document.createElementNS(SVG_NS, 'text');
+    xLab.setAttribute('class', 'll-axis-label');
+    xLab.setAttribute('x', padL + innerW / 2);
+    xLab.setAttribute('y', H - 6);
+    xLab.setAttribute('text-anchor', 'middle');
+    xLab.textContent = 'iteration';
+    llChart.appendChild(xLab);
+
+    const yLab = document.createElementNS(SVG_NS, 'text');
+    yLab.setAttribute('class', 'll-axis-label');
+    yLab.setAttribute('x', 12);
+    yLab.setAttribute('y', padT + innerH / 2);
+    yLab.setAttribute('text-anchor', 'middle');
+    yLab.setAttribute('transform', `rotate(-90 12 ${padT + innerH / 2})`);
+    yLab.textContent = 'log-L';
+    llChart.appendChild(yLab);
+
+    // Area + line
+    if (n >= 2) {
+      let areaD = `M ${xScale(0)} ${padT + innerH}`;
+      for (let i = 0; i < n; i++) areaD += ` L ${xScale(i)} ${yScale(state.llHistory[i])}`;
+      areaD += ` L ${xScale(n-1)} ${padT + innerH} Z`;
+      const area = document.createElementNS(SVG_NS, 'path');
+      area.setAttribute('class', 'll-area');
+      area.setAttribute('d', areaD);
+      llChart.appendChild(area);
+
+      let lineD = `M ${xScale(0)} ${yScale(state.llHistory[0])}`;
+      for (let i = 1; i < n; i++) lineD += ` L ${xScale(i)} ${yScale(state.llHistory[i])}`;
+      const line = document.createElementNS(SVG_NS, 'path');
+      line.setAttribute('class', 'll-line');
+      line.setAttribute('d', lineD);
+      llChart.appendChild(line);
+    }
+
+    // Points
+    for (let i = 0; i < n; i++) {
+      const cx = xScale(i), cy = yScale(state.llHistory[i]);
+      const c = document.createElementNS(SVG_NS, 'circle');
+      c.setAttribute('cx', cx); c.setAttribute('cy', cy);
+      c.setAttribute('r', i === n - 1 ? 4 : 2.5);
+      c.setAttribute('class', 'll-point' + (i === n - 1 ? ' latest' : ''));
+      llChart.appendChild(c);
+    }
+  }
+
+  function renderAll() {
+    renderMatrix();
+    renderTheta();
+    renderStatus();
+    renderResultBanner();
+    renderLLChart();
+    updateButtons();
+  }
+
+  // ----------------------------------------------------------------
+  // Stepping
+  // ----------------------------------------------------------------
+  function stepOnce() {
+    if (!state.classes) return false;
+    if (state.converged || state.stalled) return false;
+    state.prevTheta = state.theta.slice();
+    // E-step for the *next* theta
+    const z = eStep(state.classes, state.theta);
+    // M-step
+    const newTheta = mStep(z);
+    state.z = z;
+    state.theta = newTheta;
+    state.iter += 1;
+    const delta = maxAbsDelta(newTheta, state.prevTheta);
+    state.deltaHistory.push(delta);
+    state.llHistory.push(logLikelihood(state.classes, state.theta));
+    if (delta < CONVERGE_EPS) state.converged = true;
+    if (state.iter >= MAX_ITER && !state.converged) state.stalled = true;
+    renderAll();
+    return !state.converged && !state.stalled;
+  }
+
+  function runToConvergence() {
+    stopPlay();
+    let guard = 0;
+    while (stepOnce() && guard < MAX_ITER + 5) guard++;
+  }
+
+  function play() {
+    if (state.playing || !state.classes) return;
+    if (state.converged || state.stalled) return;
+    state.playing = true;
+    updateButtons();
+    state.playTimer = setInterval(() => {
+      const more = stepOnce();
+      if (!more) stopPlay();
+    }, 450);
+  }
+  function stopPlay() {
+    state.playing = false;
+    if (state.playTimer) { clearInterval(state.playTimer); state.playTimer = null; }
+    updateButtons();
+  }
+
+  function reset() {
+    if (!state.classes) return;
+    freshState(state.classes);
+    renderAll();
+  }
+
+  function updateButtons() {
+    const hasData = !!state.classes;
+    const done = state.converged || state.stalled;
+    stepBtn.disabled     = !hasData || done;
+    playBtn.disabled     = !hasData || done || state.playing;
+    pauseBtn.disabled    = !state.playing;
+    convergeBtn.disabled = !hasData || done;
+    resetBtn.disabled    = !hasData;
+  }
+
+  // ----------------------------------------------------------------
+  // Loading
+  // ----------------------------------------------------------------
+  function showFeasibility(kind, html) {
+    feasibilityEl.hidden = false;
+    feasibilityEl.className = 'feasibility ' + (kind === 'ok' ? 'ok' : 'err');
+    const icon = kind === 'ok' ? '✓' : '✗';
+    feasibilityEl.innerHTML = `<span class="icon">${icon}</span><div class="body">${html}</div>`;
+  }
+  function hideFeasibility() {
+    feasibilityEl.hidden = true;
+    feasibilityEl.innerHTML = '';
+  }
+
+  function loadClasses(classes) {
+    if (!Array.isArray(classes) || classes.length === 0) {
+      state.classes = null;
+      voteTbody.innerHTML = '';
+      thetaGrid.innerHTML = '';
+      statIter.textContent = '0';
+      statPhase.textContent = 'no data';
+      statPhase.className = 'value err';
+      statDelta.textContent = '—';
+      statLL.textContent = '—';
+      renderLLChart();
+      hideBanner();
+      updateButtons();
+      return;
+    }
+    const uniqueOnly = new Set();
+    for (const cls of classes) for (const t of cls) uniqueOnly.add(t);
+    const allAmbig = classes.every(cls => cls.length === TRANSCRIPTS.length);
+    const distinguishingReads = classes.filter(cls => cls.length < TRANSCRIPTS.length).length;
+    let fb;
+    if (classes.length < 2) {
+      fb = `<strong>Loaded.</strong> Only ${classes.length} read — EM will still run, but the outcome is dominated by length priors.`;
+    } else if (allAmbig) {
+      fb = `<strong>Loaded (fully-ambiguous).</strong> Every read maps to all 3 transcripts. EM is degenerate: the likelihood is flat along a ridge and θ will drift without sharpening.`;
+    } else {
+      fb = `<strong>Loaded.</strong> ${classes.length} reads across ${uniqueOnly.size} transcripts; ${distinguishingReads} read(s) discriminate among transcripts. Press <code>Step EM</code> or <code>Play</code>.`;
+    }
+    showFeasibility('ok', fb);
+    freshState(classes);
+    renderAll();
+  }
+
+  function loadPreset(key) {
+    const p = PRESETS[key];
+    if (!p) return;
+    presetHint.textContent = p.hint;
+    loadClasses(p.classes.map(cls => [...cls]));
+  }
+
+  function loadCustom() {
+    const { classes, errors } = parseClasses(classInput.value);
+    if (errors.length) {
+      showFeasibility('err', `<strong>Could not parse input.</strong> ${errors.map(e => `<div><code>${e}</code></div>`).join('')}`);
+      state.classes = null;
+      voteTbody.innerHTML = '';
+      thetaGrid.innerHTML = '';
+      statIter.textContent = '0';
+      statPhase.textContent = 'error';
+      statPhase.className = 'value err';
+      statDelta.textContent = '—';
+      statLL.textContent = '—';
+      renderLLChart();
+      hideBanner();
+      updateButtons();
+      return;
+    }
+    loadClasses(classes);
+  }
+
+  // ----------------------------------------------------------------
+  // UI wiring
+  // ----------------------------------------------------------------
+  function populatePresets() {
+    for (const [key, p] of Object.entries(PRESETS)) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = p.name;
+      presetSelect.appendChild(opt);
+    }
+  }
+
+  function switchSource(which) {
+    const preset = which === 'preset';
+    srcPresetBtn.classList.toggle('active', preset);
+    srcCustomBtn.classList.toggle('active', !preset);
+    srcPresetBtn.setAttribute('aria-selected', preset);
+    srcCustomBtn.setAttribute('aria-selected', !preset);
+    presetPane.hidden = !preset;
+    customPane.hidden = preset;
+    if (preset) loadPreset(presetSelect.value);
+  }
+
+  function wire() {
+    populatePresets();
+    presetSelect.value = 'default_balanced';
+
+    srcPresetBtn.addEventListener('click', () => switchSource('preset'));
+    srcCustomBtn.addEventListener('click', () => switchSource('custom'));
+    presetSelect.addEventListener('change', () => loadPreset(presetSelect.value));
+
+    analyzeBtn.addEventListener('click', loadCustom);
+    exampleBtn.addEventListener('click', () => {
+      classInput.value = 'T1|T1,T2|T2|T2|T2,T3|T1,T2,T3|T3|T2|T1,T2|T3';
+      loadCustom();
+    });
+
+    stepBtn.addEventListener('click', () => { stopPlay(); stepOnce(); });
+    playBtn.addEventListener('click', play);
+    pauseBtn.addEventListener('click', stopPlay);
+    convergeBtn.addEventListener('click', runToConvergence);
+    resetBtn.addEventListener('click', reset);
+
+    loadPreset(presetSelect.value);
+  }
+
+  wire();
+})();
+</script>
+
+</body>
+</html>

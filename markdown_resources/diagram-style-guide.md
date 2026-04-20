@@ -131,6 +131,7 @@ SVG embeds its own typography; use the site's font stack directly via `font-fami
 - **Figure titles inside the SVG** (rare — usually handled by the surrounding HTML `<figcaption>`): Source Serif 4, weight 500, size 16–20
 - **Never use italic serif inside diagrams** — reserve serif italic for the surrounding prose
 - **Uppercase kicker labels** (e.g., "ZOOM", "STEP 1"): Inter, weight 600, `letter-spacing="0.08em"`, color `#1e3a8a`, size 10–11
+- **Escape `&` in text content as `&amp;`** — SVG text is XML, not HTML. A raw `&` in a label like `ORDERED & ORIENTED` renders visually but fails `xml.etree.ElementTree.parse()` and trips the C6 smoke test. Same for `<` (`&lt;`) and `>` (`&gt;`) when they appear as literal characters in labels rather than as tags.
 
 ## 7. Arrows
 

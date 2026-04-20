@@ -303,6 +303,22 @@ Always include specific numbers when you have them. Prefix with `~` when approxi
 - Scientific notation with `×`: `2³⁰ ≈ 10⁹×`.
 - Ranges with en-dash: `10–25 kb`, `55–65°C`.
 
+### 5.9 When a figure carries a worked example, prose gestures — it doesn't re-run
+
+If the next figure walks a concrete example (three input reads producing a six-node graph; a 10-contig assembly producing an N50 of 2,800), the prose above the figure must not independently spell out the same steps. Name the example, point at the figure, and move on.
+
+Good:
+
+> Figure 6 walks through the construction from three small reads and shows why the assembled sequence falls out of the graph: walk every edge exactly once, keep the last character of each node you enter, and the genome emerges.
+
+Bad (the pattern this rule exists to prevent):
+
+> Example. Reads: `ACGTCC`, `CGTCCA`, `GTCCAT`. With *k* = 4, the *k*-mers are ACGT, CGTC, GTCC, TCCA, CCAT. The (*k*−1)-mers — nodes — are: ACG, CGT, GTC, TCC, CCA, CAT. Edges: …
+>
+> *[figure then shows the same thing, node-for-node]*
+
+The figure is a denser, clearer presentation of the walk-through. Redundant prose pushes the figure down and makes both harder to skim.
+
 ---
 
 ## 6. Scrollable Format — Implications for Writing
@@ -391,6 +407,8 @@ Quick list of patterns to avoid, collected from the above:
 - ❌ "Think of X as Y" metaphors that aren't followed up with the actual mechanism.
 - ❌ Tables that would read better as prose.
 - ❌ Mid-section summaries.
+- ❌ Prose that re-runs a worked example the adjacent figure already visualises (§5.9).
+- ❌ Sections that don't earn their seat. If the load-bearing content of a subsection is one paragraph plus one callout, it should *be* one paragraph plus one callout — not three paragraphs recapping material from a previous lecture. Recap sections are the usual offender; trim to the delta that's new.
 - ❌ Absolute URLs to the site or artifact files — use relative paths.
 - ❌ Calling things "cutting-edge", "revolutionary", "state-of-the-art" without specifics.
 

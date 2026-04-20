@@ -60,7 +60,9 @@ Naming conventions:
 
 - **`lecture-NN.md`** — follows `lecture-style-guide.md` §3 skeleton exactly: Duration/Audience/File top-matter blockquote, Learning Objectives (5–8 items, verb-first), numbered Parts with duration, hierarchically numbered subsections, `**EMBED — Artifact #k: Name**` markers, `**FIGURE — Figure #k: Name**` markers, Wrap-up block, Appendix timing table. Every callout uses one of the approved labels (Intuition box, EE framing, Historical pointer, Discussion prompt, Warning box).
 - **`figures-spec.md`** — one section per figure, in the order they appear in the lecture. Each section: file path, lecture anchor (§x.y), viewBox, purpose, content description, style notes, style guide §references. Follows the format of `lesson2_md_files/figures-spec.md`.
-- **`artifacts-spec.md`** — one section per artifact. Each: file path, lecture anchor, teaching purpose, UI layout (text sketch), student controls, what they see, target "aha moment", technical notes, acceptance criteria. Follows the format of `lesson2_md_files/artifacts-spec.md`.
+- **`artifacts-spec.md`** — one section per artifact. Each: file path, lecture anchor, teaching purpose, UI layout (text sketch), student controls, what they see, target "aha moment", technical notes, acceptance criteria. Follows the format of `lesson2_md_files/artifacts-spec.md`. Two conventions every spec must honour:
+    - **Explicit outcome.** Each artifact answers its own question at the end — a success/failure banner, a final metric, a matched/not-matched verdict. Don't stop at "the animation played"; make the artifact state the result.
+    - **Feasibility gate for user input.** If the artifact accepts arbitrary user input, it runs a pre-flight check and reports *why* the input will or won't work before the visualisation runs (e.g. the Eulerian Path Finder in Lecture 3 classifies the graph — balanced, 2-unbalanced, disconnected — before stepping).
 
 ### Phase A exit check — embed-marker consistency
 
@@ -206,6 +208,8 @@ Rules (from `artifacts-spec.md` §1 and `website-spec.md` §7):
 
 Validation: inline JS passes `node --check`; HTML parses well-formed; artifact opens standalone in a browser with no console errors; each acceptance criterion in its `artifacts-spec.md` section passes.
 
+**Parallelising B4.** For a lecture with 5+ artifacts, delegate each artifact to a separate background agent (all launched in a single message so they run concurrently). Each agent gets its own `artifacts-spec.md` section plus a reference path to a known-good artifact in `artifacts/lecture-01/` or `lecture-02/` as a style anchor. Wait for *every* agent to report complete before committing B4 — an agent that lands a refinement after the commit forces a follow-up commit.
+
 Commit: `Lecture NN artifacts`.
 
 ### B5 · Promote homepage card
@@ -235,7 +239,17 @@ Start `python3 -m http.server 8000` at the repo root. Verify:
 - All `diagrams/lecture-NN/*.svg` return 200.
 - `lecture-NN.html` parses well-formed (no unclosed tags).
 - Every inline `<script>` block in the lecture and in each artifact passes `node --check`.
-- Every new SVG parses as XML.
+- Every new SVG parses as XML (`python3 -c "import xml.etree.ElementTree as ET; ET.parse(path)"`). The most common failure mode: unescaped `&` in SVG text content — must be `&amp;`.
+- **Asset-link walk.** Extract every `src=` and `href=` from the lecture HTML and curl each against the local server; every one must return 200. One-liner:
+  ```python
+  import re, urllib.request
+  html = open('lectures/lecture-NN.html').read()
+  for s in set(re.findall(r'(?:src|href)="([^"]+)"', html)):
+      if s.startswith(('#','http')): continue
+      path = '/' + s[3:] if s.startswith('../') else '/lectures/' + s
+      code = urllib.request.urlopen('http://localhost:8000'+path).status
+      assert code == 200, (code, path)
+  ```
 - Opening the lecture in a browser: no console errors; iframes auto-size; scroll-progress bar tracks scroll; TOC highlights current section.
 
 ### C7 · Review pass
@@ -247,8 +261,10 @@ Open the rendered lecture and check:
 3. **Artifact placement** matches `artifacts-spec.md` anchors. Every artifact's default state is visible without user interaction.
 4. **Equations** render (KaTeX auto-render fired). No $ leakage.
 5. **Cross-references** — every "see Part N" / "Figure K" pointer is correct.
-6. **Responsive** — check 720 px (prose column), 1024 px (lecture content), and 1400 px (artifact-wide). Mobile TOC collapses to `<details>`.
-7. **Accessibility** — focus-visible outlines; all interactive elements Tab-reachable; no colour-alone signals.
+6. **Within-Part redundancy scan.** Within each Part, check that no single claim is restated in consecutive subsections. This is harder to see than cross-Part repetition because the reader's recent context is short; the author's isn't. Especially watch: the same definition re-explained, the same example walked through in both prose and an adjacent figure, and the same warning made twice (once as a prose sentence, once as a Warning-box opener).
+7. **Every section earns its seat.** If a section's load-bearing teaching point fits in one paragraph plus one callout, trim to that. Sections that recap material from earlier lectures ("here's what BAM is, recap from Lecture 1") are the usual offenders — trim to the delta that's actually new in this lecture.
+8. **Responsive** — check 720 px (prose column), 1024 px (lecture content), and 1400 px (artifact-wide). Mobile TOC collapses to `<details>`.
+9. **Accessibility** — focus-visible outlines; all interactive elements Tab-reachable; no colour-alone signals.
 
 ### C8 · Commit cadence and push
 
@@ -296,3 +312,8 @@ One commit per Phase B step (B2, B3, B4, B5) plus any review-pass polish commits
 ## Version history of this flow
 
 - **v1 (2026-04-19).** Initial draft, derived from the Lecture 1 and Lecture 2 builds. Lecture 1 was built before this flow was written; Lecture 2 was the first lecture to approximately follow it. Lecture 3 onward should follow it exactly.
+- **v1.1 (2026-04-20).** Revisions from the Lecture 3 build:
+  - Phase A: artifact-spec must require explicit outcome reporting and a feasibility gate on user input.
+  - B4: note that background agents parallelise artifact building well, but wait for all agents before committing.
+  - C6: add the asset-link walk (curl every `src`/`href` from the lecture HTML) and the SVG `&amp;`-escape gotcha.
+  - C7: split the review pass into "within-Part redundancy scan" and "every section earns its seat" as explicit items — both were load-bearing in the Lecture 3 polish pass.

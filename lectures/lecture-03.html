@@ -361,7 +361,7 @@
 
           <ul>
             <li>Graphs are everywhere in EE: circuit topology, control-flow diagrams of a program, the state-transition diagram of a finite-state machine, the Markov chain of a channel, the trellis of a Viterbi decoder.</li>
-            <li>An <strong>Eulerian path</strong> on a graph visits every edge exactly once. A <strong>Hamiltonian path</strong> visits every node exactly once. These are different problems. Eulerian paths are easy (polynomial time). Hamiltonian paths are NP-hard. This distinction determines the entire design of assembly algorithms.</li>
+            <li>Two kinds of path show up constantly: an <strong>Eulerian path</strong> visits every edge exactly once; a <strong>Hamiltonian path</strong> visits every node exactly once. Which one you need reshapes the algorithm — §3.3 and §3.4 use this.</li>
             <li>The <strong>degree</strong> of a node is the number of edges touching it. For directed graphs, you have <strong>in-degree</strong> and <strong>out-degree</strong> separately. Graph algorithms usually look at degree as their first signal.</li>
           </ul>
 
@@ -406,7 +406,7 @@
 
           <aside class="callout callout--info">
             <span class="callout-label">EE framing</span>
-            <p>A de Bruijn graph is the state-transition diagram of a shift register whose state is the current (<em>k</em>−1)-mer. Every time you slide the window forward by one base, the oldest letter shifts out and the new letter shifts in — that's the register's transition. The edges of the graph are exactly the transitions the shift register performs as it processes a string. Which means assembly is deriving a string from observations of its shift-register state transitions — exactly the problem a Viterbi decoder solves against a convolutional-code trellis. The algebraic structure is the same; only the cost function and the target representation differ.</p>
+            <p>A de Bruijn graph is the state-transition diagram of a shift register whose state is the current (<em>k</em>−1)-mer. The edges are exactly the shift transitions the register performs as it processes a string, which makes assembly the problem of recovering a string from observations of its state transitions — the same problem a Viterbi decoder solves against a convolutional-code trellis. Same algebraic structure; only the cost function and the target representation differ.</p>
           </aside>
 
           <aside class="callout callout--note">
@@ -422,15 +422,7 @@
 
           <p>Euler (the Euler) proved in 1735 — studying whether you could walk all seven bridges of Königsberg without crossing any of them twice — that an Eulerian path exists in a connected graph if and only if every node has even degree, or exactly two nodes have odd degree (and those two are the start and end of the path). For directed graphs: in-degree equals out-degree everywhere, or exactly two nodes have imbalanced degree by one (one source, one sink).</p>
 
-          <p>The construction, Hierholzer's algorithm, is linear-time: start at the source, walk edges until you return to your starting point (forming a cycle), then walk any remaining unvisited edges by finding an intermediate node on your current path that has unvisited edges and splicing a new cycle in there.</p>
-
-          <pre class="code-block">walk the graph, keeping track of unvisited edges
-if stuck mid-path:
-    find the most recent node with unvisited edges
-    recurse into the subgraph from that node
-    splice the returned subpath into the main path</pre>
-
-          <p>This is <em>O</em>(|<em>E</em>|) — linear in the number of edges. For a bacterial genome at 30× coverage and <em>k</em> = 25, |<em>E</em>| ≈ 5 × 10⁶ · 30 = 1.5 × 10⁸, which is a few seconds on modern hardware.</p>
+          <p>The construction, Hierholzer's algorithm, is linear-time: start at the source, walk edges until you return to your starting point (forming a cycle), then for any remaining unvisited edges, find an intermediate node on your current path that has one and splice a new cycle in there. <em>O</em>(|<em>E</em>|) — for a bacterial genome at 30× coverage and <em>k</em> = 25, that's about 1.5 × 10⁸ edges, a few seconds on modern hardware.</p>
 
           <figure class="artifact-embed artifact-embed--wide">
             <figcaption class="artifact-caption">
@@ -579,7 +571,7 @@ if stuck mid-path:
 
           <aside class="callout callout--warning">
             <span class="callout-label">Warning box</span>
-            <p><strong>Repeats are the fundamental limit of assembly.</strong> Any repeat longer than the read length cannot be resolved from the reads alone — the reads don't span it, so there is no information to distinguish the copies. Long reads help (if the read spans the repeat, the repeat is resolved). Mate-pair reads help (if the insert spans the repeat, scaffolding can bridge it). But no algorithm resolves all repeats. Published genomes with "complete" in the title usually have gaps inside centromeric or telomeric repeat arrays.</p>
+            <p>Any repeat longer than the read length cannot be resolved from the reads alone — the reads don't span it, so there is no information to distinguish the copies. Long reads help (if the read spans the repeat, the repeat is resolved). Mate-pair reads help (if the insert spans the repeat, scaffolding can bridge it). But no algorithm resolves all repeats. Published genomes with "complete" in the title usually have gaps inside centromeric or telomeric repeat arrays.</p>
           </aside>
 
           <p>Assemblers handle repeats in three ways, in increasing order of honesty:</p>
@@ -707,32 +699,20 @@ if stuck mid-path:
         </section>
 
         <section id="sec-5-3">
-          <h3>5.3 BAM format for aligned reads</h3>
+          <h3>5.3 BAM outputs from an assembly pipeline</h3>
 
-          <p>Once you have an assembly, the first thing you do is align the reads back to it — to polish, to estimate coverage, to detect residual errors, to check for sample contamination. Those alignments are stored in <strong>BAM</strong> format.</p>
-
-          <p>BAM is the binary, compressed version of SAM (Sequence Alignment/Map format). One BAM file stores the alignments of an entire sequencing run. Typical structure:</p>
+          <p>After assembly, the next step is almost always to align the reads back to the assembly — to polish, to estimate per-contig coverage, to detect residual errors, to check for sample contamination. Those alignments land in <strong>BAM</strong> files (the binary, indexed form of SAM; Lecture 1 covered the field layout). The useful tools for assembly work are the same family as in resequencing:</p>
 
           <ul>
-            <li><strong>Header</strong> (marked with <code>@</code> lines if you open it as SAM text): reference sequences and their lengths, program that produced the file, read group information.</li>
-            <li><strong>Alignment records</strong>: one per read, with 11 mandatory fields — read name, flags (paired? unmapped? secondary?), reference name, position, MAPQ, CIGAR, mate reference, mate position, insert size, sequence, quality — plus optional tags.</li>
-          </ul>
-
-          <p>A BAM file has the same alignment as a SAM file but stored in BGZF-compressed binary — roughly 3–4× smaller than gzipped SAM, and indexable so you can seek to any genomic region in constant time.</p>
-
-          <p>For assembly work, the most relevant BAM tools are:</p>
-
-          <ul>
-            <li><code>samtools view</code> to read and filter.</li>
-            <li><code>samtools depth</code> to compute per-position coverage.</li>
-            <li><code>samtools flagstat</code> to count reads in each alignment category.</li>
-            <li><code>samtools sort</code> and <code>samtools index</code> to prepare a BAM for fast region access.</li>
-            <li><code>bcftools mpileup</code> or <code>DeepVariant</code> to call variants from the pileup.</li>
+            <li><code>samtools sort</code> / <code>index</code> — prepare the BAM for fast per-region access.</li>
+            <li><code>samtools depth</code> — per-position coverage, the input to every assembly-QC plot.</li>
+            <li><code>samtools flagstat</code> — sanity-check mapping rates and pair concordance.</li>
+            <li><code>bcftools mpileup</code> or <code>DeepVariant</code> — call variants from the pileup if you're calling against the assembly itself.</li>
           </ul>
 
           <aside class="callout callout--warning">
             <span class="callout-label">Warning box</span>
-            <p>BAM files from an assembler pipeline are not interchangeable with BAM files from a resequencing pipeline. An assembly BAM has reads aligned to the <strong>assembly itself</strong> (the contigs), not to a reference genome — so the "reference" column lists contig names like <code>NODE_1_length_12345</code>, not chromosome names like <code>chr3</code>. Tools that assume reference-aligned BAMs will silently produce nonsense output on an assembly BAM. Always confirm what the reference was before using a BAM downstream.</p>
+            <p>An assembly BAM is not interchangeable with a reference BAM. The reads are aligned to the <strong>assembly itself</strong> (the contigs), not to a reference genome — so the reference column carries contig names like <code>NODE_1_length_12345</code>, not chromosome names like <code>chr3</code>. Tools that assume reference-aligned BAMs will silently produce nonsense output on an assembly BAM. Always confirm what was used as the reference before feeding a BAM downstream.</p>
           </aside>
         </section>
       </section>
@@ -759,9 +739,8 @@ if stuck mid-path:
         <h3>Homework</h3>
         <ol>
           <li>Download a small bacterial genome (<em>E. coli</em> K-12, ~4.6&nbsp;Mb). Simulate 30× Illumina-style reads at 150&nbsp;bp with <code>wgsim</code> (default error rate).</li>
-          <li>Assemble the simulated reads with SPAdes in isolate mode. Report: number of contigs, largest contig, N50, NG50, total assembly length. Compare to the true genome length.</li>
+          <li>Assemble the simulated reads with SPAdes in isolate mode. Report: number of contigs, largest contig, N50, NG50, total assembly length. Compare to the true genome length. (Use the Assembly Metrics Calculator in §5.2 to verify your N50/NG50 by pasting the contig lengths.)</li>
           <li>By hand, construct the de Bruijn graph (<em>k</em> = 4) from these three reads: <code>ACAGACGT</code>, <code>CAGACGTA</code>, <code>AGACGTAC</code>. Draw the graph. Find the Eulerian path. Read off the contig.</li>
-          <li>For a hypothetical genome with contig lengths [4500, 3200, 2800, 2100, 1500, 900, 700, 600, 400, 300], compute N50, NG50 (assume genome size = 18&nbsp;kb), and plot the Nx curve.</li>
           <li>Explain in one paragraph why a perfect tandem repeat of exactly (<em>k</em> − 1) base pairs will NOT collapse in a de Bruijn graph with parameter <em>k</em>. (Hint: think about what happens to the k-mer at the boundary.)</li>
         </ol>
 

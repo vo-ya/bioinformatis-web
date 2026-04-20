@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 4 — Variant Calling: From Aligned Reads to Called Differences</title>
+  <meta name="description" content="Variant calling from aligned reads: variant taxonomy, SNVs and INDELs, pileup format, Bayesian genotype likelihoods, INDEL realignment and BQSR, germline and somatic callers, structural variants, VCF format, and variant annotation.">
+
+  <meta property="og:title" content="Lecture 4 — Variant Calling">
+  <meta property="og:description" content="From BAMs to VCFs: pileups, genotype likelihoods, somatic vs germline, structural variants, and annotation.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — What is a Variant?</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Variants and mutations</a></li>
+          <li><a href="#sec-1-2">1.2 Size and structure</a></li>
+          <li><a href="#sec-1-3">1.3 SNVs and consequences</a></li>
+          <li><a href="#sec-1-4">1.4 INDELs and frameshifts</a></li>
+          <li><a href="#sec-1-5">1.5 Why we care</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Calling Mechanics</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 Pipeline overview</a></li>
+          <li><a href="#sec-2-2">2.2 The pileup</a></li>
+          <li><a href="#sec-2-3">2.3 Variant vocabulary</a></li>
+          <li><a href="#sec-2-4">2.4 Ideal vs real</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Making It Work</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Pre-calling pipeline</a></li>
+          <li><a href="#sec-3-2">3.2 Caller families</a></li>
+          <li><a href="#sec-3-3">3.3 Quality &amp; filtering</a></li>
+          <li><a href="#sec-3-4">3.4 Somatic vs germline</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Structural Variants</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Why SVs are different</a></li>
+          <li><a href="#sec-4-2">4.2 Genome structure</a></li>
+          <li><a href="#sec-4-3">4.3 SV types</a></li>
+          <li><a href="#sec-4-4">4.4 SV callers</a></li>
+          <li><a href="#sec-4-5">4.5 Long reads</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Outputs</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 VCF format</a></li>
+          <li><a href="#sec-5-2">5.2 Filtering in practice</a></li>
+          <li><a href="#sec-5-3">5.3 Variant annotation</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 04</div>
+      <h1 class="lecture-title">Variant Calling: From Aligned Reads to Called Differences</h1>
+      <p class="lecture-subtitle">BAMs to VCFs — pileups, genotype likelihoods, the pre-calling pipeline, structural variants, and the annotations that turn calls into decisions.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — What is a Variant?</a></li>
+        <li><a href="#part-2">Part 2 — Calling Mechanics</a></li>
+        <li><a href="#part-3">Part 3 — Making It Work</a></li>
+        <li><a href="#part-4">Part 4 — Structural Variants</a></li>
+        <li><a href="#part-5">Part 5 — Outputs</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Four moves:</em>
+        <span class="lecture-tagline-beat">stack the reads</span>,
+        <span class="lecture-tagline-beat">call by likelihood</span>,
+        <span class="lecture-tagline-beat">filter honestly</span>,
+        <span class="lecture-tagline-beat">annotate to action</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Classify a DNA variant by size and structure (SNV, INDEL, SV, CNV) and name the clinical consequence of each class.</li>
+          <li>Read a samtools pileup and describe what each column means.</li>
+          <li>Compute a genotype likelihood from a small pileup by hand, and explain why variant calling is Bayesian rather than thresholding.</li>
+          <li>Name the three pre-calling pipeline steps (mark duplicates, INDEL realignment, base-quality recalibration) and explain what each removes.</li>
+          <li>Pick the right caller (GATK, bcftools, DeepVariant, Strelka2, Manta) given a problem — germline SNVs, somatic variants, structural variants.</li>
+          <li>Read a VCF line and extract REF, ALT, QUAL, GT, AD, DP, GQ, VAF.</li>
+          <li>Explain why SVs need a different algorithm family, and name the three signal channels SV callers exploit.</li>
+          <li>Annotate a VCF with functional consequences and identify the canonical public databases at each stage.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 30 min</span>
+          What is a Variant?
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Variants and mutations</h3>
+
+          <p>Two people's genomes differ. On average, at one base out of every thousand. Multiplied across a 3.1&nbsp;Gb human genome, that's roughly three to four million differences per individual. Every clinical diagnostic genomics workflow and every population-genetics study in the last twenty years exists to find and interpret those differences.</p>
+
+          <p>A <strong>variant</strong> is a position in a genome where the sample sequence differs from a reference sequence. A <strong>mutation</strong> is a change in DNA sequence that happened during replication, repair, or environmental damage — a dynamic event in time. In practice the two words are used interchangeably, but the distinction matters: "variant" is what you observe in a dataset; "mutation" is the biological process that created it. A variant at the same position in millions of people is still a variant but hardly a mutation anymore; a variant unique to one patient's tumor is both.</p>
+
+          <p>Variants arise in three regimes:</p>
+
+          <ul>
+            <li><strong>Inherited (germline).</strong> Present in the sample from the time of conception. Found in roughly every cell of the body. The substrate of inheritance and population genetics.</li>
+            <li><strong>Somatic.</strong> Arose after conception in a subset of cells — most infamously in cancer, where a lineage of cells accumulates driver mutations. Found in only a fraction of the sample's cells, which means variant-supporting reads are a <em>minority</em> of reads at that position.</li>
+            <li><strong>De novo.</strong> Present in a child but in neither parent — arose in the parental germline or in the embryo. A specific, important subset of germline variants.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>A variant is a diff between two genome strings. Two genomes are 99.9% identical, and variant calling is the process of finding that last 0.1%. The inputs are aligned reads (from Lecture 2 or an assembly from Lecture 3); the output is a list of positions where the sample disagrees with the reference, with evidence attached.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 Classification by size and structure</h3>
+
+          <p>Variants form a continuous size spectrum, but we chop that spectrum into four operational bins because different tools work on different bins.</p>
+
+          <ul>
+            <li><strong>Single-nucleotide variants (SNVs)</strong> — one-base substitution. A:T → G:C, or any other flip. The most common variant class by a factor of ten.</li>
+            <li><strong>Insertions / deletions (INDELs)</strong> — a few bases inserted or deleted, typically 1–50&nbsp;bp. Orders of magnitude rarer than SNVs but disproportionately impactful: a 1-bp deletion inside a coding region creates a frameshift that can knock a protein out entirely.</li>
+            <li><strong>Structural variants (SVs)</strong> — large changes, typically ≥50&nbsp;bp: deletions, insertions, duplications, inversions, translocations. Rarer still per individual but implicated in a large fraction of rare disease and cancer.</li>
+            <li><strong>Copy-number variants (CNVs)</strong> — a sub-class of SV where the dosage of a large region changes (usually duplication or loss). Can be a single extra copy or many.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-04/01-variant-taxonomy.svg"
+                 alt="Log-scale size axis from 1 bp to 10 Mb. Four coloured bins stacked along it: SNVs at 1 bp, INDELs at 1–50 bp, SVs at 50 bp–10 Mb, CNVs at 1 kb–10 Mb. Per-genome counts annotated above each bin.">
+            <figcaption>Figure 1. The variant taxonomy laid out along a log-scale size axis, with typical per-genome counts. SNVs dominate by count; SVs dominate in total affected bases.</figcaption>
+          </figure>
+
+          <p>The other axis people care about is <strong>inheritance</strong>: germline (present at birth, in every cell) vs somatic (acquired, subset of cells). Germline callers expect every variant to be at ~50% or ~100% allele frequency (one copy of two, or two of two). Somatic callers have to handle a variant present in 5% of reads because only 5% of cells in the tumor have it. Completely different statistical problem on the same pileup.</p>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 SNVs and their consequences</h3>
+
+          <p>SNVs are the dominant variant class — about 3 million per human genome, out of the 3–4 million total variants. The vast majority are neutral; a small minority are clinically or evolutionarily consequential. The consequence depends on where the SNV falls.</p>
+
+          <p>If the SNV is in a <strong>non-coding region</strong> (about 98% of the genome), it may do nothing, or it may alter a regulatory element (promoter, enhancer, splice site) with effects that range from subtle to dramatic. If the SNV is in a <strong>coding region</strong>, the effect depends on how it changes the codon at that position:</p>
+
+          <ul>
+            <li><strong>Synonymous / silent.</strong> The new codon still codes for the same amino acid. No protein change. Historically treated as neutral; modern genetics has caught a few exceptions involving splicing or codon-usage effects, but the default assumption holds.</li>
+            <li><strong>Missense.</strong> The new codon codes for a different amino acid. Protein sequence changes. Impact ranges from "no detectable effect" to "complete loss of function," depending on which residue and how the chemistry shifts.</li>
+            <li><strong>Nonsense.</strong> The new codon is a stop codon. Protein is truncated — usually a loss-of-function allele, because truncated proteins are degraded or non-functional.</li>
+            <li><strong>Splice-region.</strong> The SNV disrupts a splice donor or acceptor site at an exon boundary. Can produce a frameshift, skip an exon, or introduce an intron — consequences ripple through the resulting protein.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-04/02-snv-consequences.svg"
+                 alt="A short mRNA segment with three adjacent codons; four panels below show the four SNV-consequence classes (silent, missense, nonsense, splice-region) with the resulting codon and amino acid.">
+            <figcaption>Figure 2. Four consequence classes for a coding-region SNV. The codon context determines whether a single-base change is silent, changes an amino acid, creates a stop, or disrupts splicing.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>A SNV is a single-bit error in a long genome string. What makes DNA different from a random bit stream is the <em>non-uniform cost landscape</em> — most positions tolerate substitutions (synonymous SNVs, non-coding SNVs), but a sparse set of positions have catastrophic costs (active-site residues, splice boundaries). Variant <em>calling</em> is detection; variant <em>interpretation</em> is reading out the cost landscape at each called position. The same "error-found / error-cost" split applies to convolutional-code decoding and to any error-correcting system with positional weighting.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 INDELs and frameshifts</h3>
+
+          <p>INDELs are insertions and deletions of small numbers of bases. They are much rarer than SNVs — roughly 1:10 ratio of INDELs:SNVs per genome — but they cause disproportionate harm because of a single arithmetic fact: <strong>DNA is read in triplets.</strong></p>
+
+          <p>An INDEL of length that is a multiple of 3 adds or removes whole codons. The protein is one or a few amino acids longer or shorter, but the <strong>reading frame</strong> downstream is preserved. Impact is like a missense variant: sometimes benign, sometimes severe.</p>
+
+          <p>An INDEL of length that is <em>not</em> a multiple of 3 shifts the reading frame. Every codon downstream of the INDEL is now wrong. The translation machinery reads random-looking nonsense until it hits a premature stop codon — the protein is truncated, and the truncated transcript is usually degraded by nonsense-mediated decay. This is a <strong>frameshift</strong> variant, and it is almost always a complete loss-of-function of the affected allele.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-04/03-indel-frameshift.svg"
+                 alt="Two coding sequences, one with a 3-bp deletion (in-frame, one amino acid removed, rest intact) and one with a 1-bp deletion (frameshift, everything downstream changes until a premature stop).">
+            <figcaption>Figure 3. Frameshift vs in-frame INDEL. Same size range, radically different protein consequences, driven entirely by whether the length is a multiple of three.</figcaption>
+          </figure>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>INDELs are harder to align and harder to call than SNVs. A single 2-bp deletion near the end of a read can be misrepresented as a cluster of ten false SNVs if the aligner doesn't open a gap. This is why the pre-calling pipeline does <strong>INDEL realignment</strong> (§3.1) as a separate step — and why most false-positive SNV calls in a typical pipeline are actually mishandled INDELs.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-5">
+          <h3>1.5 Why we care</h3>
+
+          <p>The stakes for variant calling are not abstract:</p>
+
+          <ul>
+            <li><strong>Clinical diagnostics.</strong> A single pathogenic variant in BRCA1 changes cancer surveillance recommendations. A SERPINA1 Z/Z genotype changes pulmonary care. Every week a radiologist's or oncologist's decision hinges on a variant call from a pipeline like the one in this lecture.</li>
+            <li><strong>Rare disease.</strong> Whole-genome / whole-exome sequencing identifies causal variants for otherwise-undiagnosed conditions. The clinical labs running this in 2024 produce ~40% diagnostic yields.</li>
+            <li><strong>Population genetics.</strong> gnomAD's ~1 million exomes / ~100k genomes catalog lets every new variant be looked up for population frequency, which is the strongest single predictor of clinical significance.</li>
+            <li><strong>Cancer genomics.</strong> Somatic variant calling from tumor/normal pairs identifies driver mutations and informs targeted therapy choices (EGFR variants → specific TKI choices in NSCLC).</li>
+          </ul>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The move from Sanger-era single-gene variant testing to genome-wide variant calling happened between 2008 and 2015, and it was infrastructure-driven. GATK (Broad Institute, first release 2010) and bcftools (Heng Li, 2011) made calling 3 million variants feasible and reproducible. ClinVar (NCBI, 2012) made the clinical-interpretation layer sharable. By 2020 a full clinical-grade germline VCF for a whole exome cost ~$200 to produce, with turnaround under 24 hours.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 40 min</span>
+          Variant Calling Mechanics
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 What variant calling is, start to finish</h3>
+
+          <p>Variant calling is the bridge between a BAM file (reads aligned to a reference) and a VCF file (a list of positions where the sample differs from the reference, with evidence). In between sits the caller.</p>
+
+          <p>The canonical inputs:</p>
+
+          <ul>
+            <li>A <strong>reference FASTA</strong> (the reference genome sequence, e.g. GRCh38).</li>
+            <li>An <strong>aligned BAM</strong> of reads from the sample, coordinate-sorted and indexed.</li>
+            <li>Optionally, a <strong>known-variants VCF</strong> (dbSNP, ClinVar) for base-quality recalibration and joint calling.</li>
+          </ul>
+
+          <p>The canonical output:</p>
+
+          <ul>
+            <li>A <strong>VCF file</strong> — one row per variant site per sample, with reference allele, alternate allele(s), per-sample genotype, quality scores, and caller-specific fields.</li>
+          </ul>
+
+          <p>The canonical pipeline:</p>
+
+          <pre class="sequence-block">[reads] → align → [BAM] → mark duplicates → realign INDELs → recalibrate base qualities → [clean BAM]
+        → caller → [raw VCF] → filter → [filtered VCF] → annotate → [final VCF]</pre>
+
+          <p>Every stage matters. Skipping any one produces a VCF that looks normal until someone runs downstream analysis on it and the numbers stop making sense.</p>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 The pileup: aligned reads, column by column</h3>
+
+          <p>Before a caller runs, the information at each position is organised into a <strong>pileup</strong>: at every reference position, list every read that overlaps it, along with the base that read carries at that position and the quality score of that base.</p>
+
+          <p>The <code>samtools mpileup</code> format is the canonical text representation:</p>
+
+          <pre class="sequence-block">chr1    1000    A    8    ,,...,.,^]   IIIII!III</pre>
+
+          <p>Column-by-column:</p>
+
+          <ul>
+            <li><strong>Chromosome</strong> (<code>chr1</code>).</li>
+            <li><strong>Position</strong> (<code>1000</code>, 1-based).</li>
+            <li><strong>Reference base</strong> at that position (<code>A</code>).</li>
+            <li><strong>Depth</strong> — number of reads overlapping the position (<code>8</code>).</li>
+            <li><strong>Read bases</strong> — one character per read. <code>.</code> means "same as reference, on forward strand." <code>,</code> means "same as reference, on reverse strand." Upper-case letter (<code>ACGT</code>) means "mismatch, forward strand." Lower-case (<code>acgt</code>) means "mismatch, reverse strand." <code>^]</code> starts a new read; <code>$</code> ends one; <code>+3AAA</code> / <code>-2TT</code> encode INDELs at the next position.</li>
+            <li><strong>Base qualities</strong> — one ASCII character per read, Phred-encoded (§Lecture 1).</li>
+          </ul>
+
+          <p>The compressed grammar is dense but lets you eyeball a variant: a column with <code>,,.,,.,</code> shows seven reference bases; a column with <code>,,A,A,A,</code> shows seven reads where three call <code>A</code> and four call reference. That's a candidate heterozygous SNV at frequency 3/7.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-04/04-pileup-anatomy.svg"
+                 alt="A real-looking samtools pileup line decomposed column-by-column with labeled callouts for chromosome, position, reference base, depth, read bases, and base qualities, plus an inset showing the special tokens like ^], $, +N, -N.">
+            <figcaption>Figure 4. A samtools pileup line, decomposed. The format is terse but lossless — every column can be re-derived from the underlying alignment.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Pileup Viewer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-04/01-pileup-viewer.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-04/01-pileup-viewer.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Pileup Viewer"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>A pileup is a histogram per genome column. For every column of the reference, you have a small count of bases seen and a small count of quality scores attached. Variant calling is the task of deciding, column by column, whether the column's distribution of bases looks like "all reference" or "one of the non-reference genotypes."</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 The vocabulary of a variant record</h3>
+
+          <p>Every caller (and the VCF format itself) speaks the same vocabulary. Learning it is half the battle.</p>
+
+          <ul>
+            <li><strong>REF</strong> — the reference allele. Usually one base for a SNV, longer for an INDEL.</li>
+            <li><strong>ALT</strong> — the alternate allele. Can be multiple if the site is multiallelic (e.g., <code>REF=A, ALT=C,G</code>).</li>
+            <li><strong>DP</strong> — depth of coverage at the site. Number of reads usable for calling.</li>
+            <li><strong>AD</strong> — allelic depths. Reads-per-allele as a comma-separated list. <code>AD=12,5</code> means 12 reads support REF, 5 support ALT.</li>
+            <li><strong>VAF / AF</strong> — variant allele frequency. <code>ALT_reads / total_reads</code> = 5/17 = 0.294 in the example above. For germline diploid samples, expected VAFs are approximately 0 (homozygous reference), 0.5 (heterozygous), or 1.0 (homozygous alternate).</li>
+            <li><strong>GT</strong> — genotype. For diploids, written as <code>0/0</code>, <code>0/1</code>, <code>1/1</code>, or <code>./.</code>. The digits are indices into <code>[REF, ALT1, ALT2, …]</code>. <code>0/0</code> = homozygous reference. <code>0/1</code> = heterozygous. <code>1/1</code> = homozygous alternate. <code>1/2</code> = compound heterozygous with two different ALT alleles. <code>./.</code> = missing, caller couldn't decide.</li>
+            <li><strong>GQ</strong> — genotype quality. Phred-scaled confidence that the called genotype is correct. <code>GQ=30</code> means probability of error ≤ 10⁻³.</li>
+            <li><strong>QUAL</strong> — site-level variant quality. Phred-scaled probability that there is <em>any</em> variant at this site.</li>
+            <li><strong>FILTER</strong> — a string label summarising whether the caller thinks this call is real. <code>PASS</code> means the call survived all filters; anything else is a named failure (e.g., <code>LowQual</code>, <code>HighDP</code>, <code>StrandBias</code>).</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-04/05-variant-record-anatomy.svg"
+                 alt="A pileup column with 17 reads (12 A, 5 G); below it, the derived VCF-level fields: REF=A, ALT=G, DP=17, AD=12,5, VAF=0.294, GT=0/1, GQ=95, QUAL=420, plus the final VCF line.">
+            <figcaption>Figure 5. One position, from reads to VCF line. Every field in the variant record is a specific statistic over the pileup column.</figcaption>
+          </figure>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>VCFs are 1-based and inclusive on both ends. BED files are 0-based and half-open. samtools internally uses both. A variant reported in a VCF at <code>chr1:1000</code> is the same position as <code>chr1:999-1000</code> in a BED file. Silently mixing the two produces off-by-one errors in every downstream analysis — one of the most common real-world bugs in genomic pipelines.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 The ideal case — and why it doesn't exist</h3>
+
+          <p>If everything worked perfectly, variant calling would be trivial.</p>
+
+          <p>Imagine a 100× coverage sample with zero sequencing errors and perfect alignment. At a true heterozygous SNV, you'd see 50 reads carrying the reference base and 50 reads carrying the variant base. At a true homozygous site, 100 reads all agree. At a true reference site, 100 reads all match reference. A threshold — "call a variant if ALT count ≥ some number" — would work perfectly.</p>
+
+          <p>Real data looks nothing like that. Seven things break the ideal:</p>
+
+          <ol>
+            <li><strong>Sequencing errors.</strong> Illumina reads have ~0.1–1% per-base error. At 100× coverage, a true reference site will show 0–2 spurious non-reference bases on average — enough to create false positives if you just threshold.</li>
+            <li><strong>Non-uniform coverage.</strong> Some positions have 10×, some have 150×. Thresholds that work at 30× either miss variants at 10× or over-call at 150×.</li>
+            <li><strong>Mapping errors.</strong> Reads from repeats, paralogs, or pseudogenes can land on the wrong homologous region and show up as fake variants.</li>
+            <li><strong>INDELs near the position of interest.</strong> If a nearby indel isn't realigned (§3.1), it gets expressed as a cluster of fake SNVs — a well-known source of noise.</li>
+            <li><strong>Strand bias.</strong> True variants typically show approximately equal support from forward and reverse strands. A variant called entirely from one strand is almost always an artifact of library prep or PCR.</li>
+            <li><strong>Systematic base-quality errors.</strong> Certain sequence contexts have elevated error rates that the machine's quality-score assignment underestimates. Uncalibrated quality scores over-confidently endorse real errors.</li>
+            <li><strong>Low allele frequency (somatic calling).</strong> A tumor at 30% purity harboring a variant in 50% of cancer cells shows the variant at VAF = 0.15 — well within noise for germline-style thresholds. Somatic callers have to distinguish 0.15-VAF true calls from noise at the same VAF.</li>
+          </ol>
+
+          <p>Every one of those problems has a corresponding fix in modern pipelines. The next three subsections cover the fixes.</p>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>Why not just call every position where ≥3 reads disagree with reference as a variant? (You'd get on the order of millions of false positives per sample. At 30× coverage and 1% per-base error, each position has roughly 30 × 0.01 = 0.3 expected erroneous reads; Poisson probability of ≥3 errors at a single position is ~0.5%; across 3 × 10⁹ positions, that's ~15 million false positives. A threshold approach fails by five orders of magnitude; you need a model.)</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 45 min</span>
+          Making Variant Calling Work
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 The pre-calling pipeline</h3>
+
+          <p>Before a caller runs, three pre-processing steps clean up the BAM. Each removes a specific class of artifact.</p>
+
+          <p><strong>1. Mark duplicates.</strong> PCR amplification during library prep creates multiple reads from the same original template fragment. Those duplicates carry identical sequence and identical errors; counting them as independent evidence overstates the evidence for any artifact they contain. <code>Picard MarkDuplicates</code> or <code>samtools markdup</code> flags duplicate reads so the caller ignores them. Cost: a few CPU-minutes. Saves: dozens of spurious variants per genome.</p>
+
+          <p><strong>2. INDEL realignment.</strong> A single INDEL near the end of a read is often misaligned as many small substitutions — the aligner preferred to call mismatches rather than open a gap because mismatches were locally cheaper. Local realignment around known or candidate INDEL sites revisits the region with a gap-aware aligner and produces a cleaner BAM.</p>
+
+          <p>Historically, GATK's <code>IndelRealigner</code> was a required step. Modern callers (GATK4 HaplotypeCaller, DeepVariant) do local re-assembly internally and don't need a separate realignment pass — they look at the reads in windows and construct candidate haplotypes on the fly, effectively doing the realignment inside the caller. If you're running an older pipeline or a simpler caller (bcftools), explicit INDEL realignment still matters.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-04/07-indel-realignment.svg"
+                 alt="Top: reads aligned around a true 2-bp deletion, with most reads expressing the deletion as a cluster of 5–6 fake SNVs. Bottom: after local realignment, reads show a clean 2-bp gap and no false SNVs.">
+            <figcaption>Figure 7. INDEL misalignment and the local-realignment fix. A single true INDEL manifests as a cluster of false SNVs under naive alignment; local realignment converges the reads onto a single gap.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">INDEL Realignment Demo</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-04/02-indel-realignment.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-04/02-indel-realignment.html"
+                    class="artifact-frame" loading="lazy"
+                    title="INDEL Realignment Demo"></iframe>
+          </figure>
+
+          <p><strong>3. Base-quality score recalibration (BQSR).</strong> The sequencer assigns a Phred quality score to every base. These raw scores are systematically off: the machine uses a calibration learned at manufacturing time, but sequence context (homopolymers, GC-extreme regions) and sample-specific chemistry produce error rates that deviate from the nominal curve. BQSR re-estimates the quality scores empirically by looking at <em>known</em> variant sites (dbSNP, known polymorphisms) and assuming any mismatch not at a known site is an error — then bucketing mismatches by context and computing the empirical error rate per bucket. The output is a new per-base quality string that is closer to the empirical truth.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>BQSR is systematic-error calibration of a measurement instrument. The sequencer is a noisy channel with a systematic distortion — context-dependent transition rates among bases. Calibration against known-good reference positions fits an error model per context, then corrects measurements at unknown positions. The same procedure exists in every serious measurement pipeline: dark-frame subtraction in astronomy, bias-current compensation in ADCs, NTP clock-drift correction in network timing. Without it, your downstream statistics (genotype likelihoods) are computed against an overconfident noise model.</p>
+          </aside>
+
+          <p>BQSR matters most when your caller is Bayesian and uses quality scores as likelihoods. If the caller treats Q30 as "10⁻³ error probability" but the real error rate at that context is 10⁻², the caller under-weights errors and over-calls variants.</p>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Caller families — from thresholds to deep learning</h3>
+
+          <p>Variant callers have evolved through three generations:</p>
+
+          <p><strong>Generation 1 — Heuristic.</strong> Count reads. Apply thresholds. SOAPsnp, early MAQ. Fast, brittle, obsolete.</p>
+
+          <p><strong>Generation 2 — Bayesian.</strong> Treat genotype calling as posterior-probability estimation. For every position, given the observed bases and qualities, compute</p>
+
+          <div class="equation-block">
+            $$ P(G \mid D)  \propto  P(D \mid G) \cdot P(G) $$
+          </div>
+
+          <p>where <em>G</em> ranges over possible genotypes (<code>0/0, 0/1, 1/1</code>), <em>D</em> is the observed reads-and-qualities at the position, and <em>P(G)</em> is a prior over genotypes given population allele frequencies. The likelihood <em>P(D | G)</em> factors across reads: each read's contribution is <em>P(observed base | true genotype, quality)</em> computed from the Phred score. Then the caller picks the maximum-posterior genotype.</p>
+
+          <p>bcftools and GATK UnifiedGenotyper are second-generation callers. GATK HaplotypeCaller is the modern workhorse — local de-novo assembly of reads in a window, candidate haplotype scoring, and a pair-HMM likelihood for each read against each haplotype. Gives up pure per-position independence for local context.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-04/06-bayesian-genotyping.svg"
+                 alt="A pileup column, three likelihood calculations for genotypes 0/0, 0/1, 1/1, a prior bar chart, and the resulting posterior with the MAP genotype highlighted.">
+            <figcaption>Figure 6. Bayesian genotype calling at one position. Posterior = likelihood × prior, taken over three candidate genotypes; the MAP genotype is the call.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Genotype Likelihood Calculator</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-04/03-genotype-likelihoods.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-04/03-genotype-likelihoods.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Genotype Likelihood Calculator"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>Bayesian variant calling is posterior estimation with a discrete hypothesis set. The three genotype hypotheses are mutually exclusive, the likelihood factors across independent-read evidence, and the prior is learned from population data. This is the same structure as optimal detection with a finite-alphabet hypothesis set — MAP decoding of convolutional codes, digital-modulation symbol decoding, and classifier-combination in ensemble learning. The Phred score serves as the log-likelihood-ratio contribution of each read, which is why Q30 literally means "one error in 1000" at the likelihood-ratio level.</p>
+          </aside>
+
+          <p><strong>Generation 3 — Deep learning.</strong> DeepVariant (Google, 2018) dispenses with an explicit statistical model. Instead:</p>
+
+          <ol>
+            <li>Convert the pileup at every candidate position into a small RGB image — columns are genome positions, rows are reads, pixel colours encode base identity, quality, strand, and mismatch-to-reference.</li>
+            <li>Feed the image through a convolutional neural network trained on millions of benchmarked variant examples.</li>
+            <li>Output: a three-way classification — homozygous reference, heterozygous, homozygous alternate — and a confidence score.</li>
+          </ol>
+
+          <p>The training data is standardised (Genome in a Bottle's HG001–HG007 samples with orthogonal-truth VCFs), and the CNN — initially Inception-v3, now a custom architecture — learns context-specific features that a Bayesian model would have to encode explicitly. DeepVariant beats every Bayesian caller on benchmark accuracy, at the cost of ~2–3× runtime and GPU dependence.</p>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The shift from Bayesian to CNN-based calling tracks a wider pattern in ML-heavy bioinformatics. AlphaFold did it for protein structure; DeepVariant did it for variant calling; Inception-like CNNs showed up in pathology and radiology before either. The common structure: a well-defined biological inference task with millions of labeled training examples becomes a supervised-learning problem the moment someone is willing to build the training set. The Bayesian formulation is still useful for understanding what the network is implicitly learning and for calibrating on corner cases the training distribution missed.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Variant-call quality and filtering</h3>
+
+          <p>A raw VCF from any caller contains both high-confidence calls and noise. Filtering splits the two. The standard quality signals:</p>
+
+          <ul>
+            <li><strong>QUAL</strong> — site-level variant quality (§2.3). Usually a per-caller empirical scale, not directly comparable across callers.</li>
+            <li><strong>DP</strong> — too low means too little evidence; too high usually means a mapping-error region (repeat, paralog). Both tails should be filtered.</li>
+            <li><strong>GQ</strong> — genotype quality. Low GQ means the caller couldn't cleanly decide between two genotypes.</li>
+            <li><strong>FS / StrandOddsRatio (SOR)</strong> — strand-bias metrics. A variant supported only by forward-strand reads is probably an artifact.</li>
+            <li><strong>MQ / MQRankSum</strong> — mapping-quality metrics. Variants in low-mapping-quality regions (repeats) are suspect.</li>
+            <li><strong>ReadPosRankSum</strong> — whether variant-supporting reads cluster near read ends (where quality is worst). Clustering = artifact.</li>
+          </ul>
+
+          <p>Two filtering paradigms:</p>
+
+          <ul>
+            <li><strong>Hard filtering.</strong> Apply per-metric thresholds. <code>QUAL &lt; 30</code> → reject. <code>DP &lt; 10</code> → reject. Simple, interpretable, tunable. Used by bcftools pipelines, and recommended for small-sample studies where you can't train a model.</li>
+            <li><strong>VQSR / ML-based.</strong> Fit a Gaussian mixture model (GATK's VQSR) or a neural network (hap.py's filter) to a labeled subset of variants from known-truth sites; use the model to classify all sites. Strictly better than hard filtering when you have the data to train it; worse when you don't.</li>
+          </ul>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Over-filtering is the failure mode nobody talks about. A pipeline tuned to maximise precision (low false-positive rate) by aggressive filtering throws away true variants at low depth or in difficult contexts. A variant you filtered out doesn't generate an error — it generates a missed diagnosis. Always report both precision and recall on a held-out truth set; accepting that 99% precision at 85% recall is worse than 95% precision at 98% recall for most clinical applications.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Somatic vs germline calling</h3>
+
+          <p>Germline and somatic callers share the pipeline (aligned BAMs → VCF) but solve different statistical problems.</p>
+
+          <p><strong>Germline callers</strong> assume a diploid genome. At every position, the true genotype is one of three (<code>0/0, 0/1, 1/1</code>), and the VAF of a variant should be very close to 0, 0.5, or 1.0. Evidence of a variant at VAF = 0.15 means <em>something is wrong</em> — probably a mapping artifact or sample contamination. Germline callers: GATK HaplotypeCaller, DeepVariant, bcftools call, Strelka2 (germline mode).</p>
+
+          <p><strong>Somatic callers</strong> expect a mixture. The sample is a tumor with unknown purity (say, 30% tumor, 70% surrounding normal tissue) harboring a subset of variants each present in a subset of cancer cells. A variant in 50% of tumor cells in a 30% pure sample shows at VAF = 0.15 — that's a real, important variant. The caller has to distinguish it from sequencing noise at the same apparent frequency.</p>
+
+          <p>The standard approach: <strong>matched tumor/normal calling.</strong> Sequence both the tumor and a matched normal tissue (usually blood) from the same patient. At every candidate position, compare the tumor pileup to the normal pileup: a true somatic variant is present in the tumor <em>and absent from the normal</em>. Callers: Mutect2 (GATK), Strelka2, VarScan2, DeepVariant's somatic mode.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>Somatic calling is signal detection with a prior subtraction. The "signal" is the tumor-specific variant allele; the "background" is the normal-tissue pileup carrying germline variants that you do <em>not</em> want to call as somatic. Subtracting the two distributions (or modelling them jointly, which is what Mutect2 does with a paired-sample likelihood) is the direct analogue of heterodyne detection or differential amplification — measure the difference, not the individual levels. The noise floor drops accordingly.</p>
+          </aside>
+
+          <p>Somatic callers also have to handle <strong>subclonal structure</strong>: a single tumor is often a mixture of sub-populations (clones) with different variant complements. A variant in 80% of cells is a "clonal" driver; one in 5% of cells is a late "sub-clonal" event. Both are real, and both carry different implications — clonal variants inform what the tumor "is," sub-clonal variants inform resistance and heterogeneity.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 45 min</span>
+          Structural Variants
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 Why SVs need a different algorithm</h3>
+
+          <p>SNVs and small INDELs are within-read events — a single read can carry the complete signal of the variant. A 150 bp read has a SNV visible as one mismatched base; it has a 5 bp deletion visible as a 5 bp gap inside the read's alignment.</p>
+
+          <p>Structural variants span distances much larger than a read. A 5 kb deletion cannot be seen inside a 150 bp read — no single read carries the break. Instead, the evidence shows up as a pattern across <em>multiple</em> reads: some read pairs land much further apart than expected, some reads split across the breakpoint and half-map to each side, the coverage dips to zero inside the deleted region. A SV caller reconstructs the event from this multi-read evidence.</p>
+
+          <p>The three signal channels every SV caller uses:</p>
+
+          <ul>
+            <li><strong>Discordant read pairs.</strong> A paired-end read library has known insert-size distribution (say, mean 400 bp, SD 100 bp). If a read pair lands with 5000 bp between ends, that pair has probably straddled a ~4600 bp deletion. Collect enough discordant pairs clustering around the same two positions and you've localised a deletion.</li>
+            <li><strong>Split reads.</strong> A single read spanning a breakpoint aligns to the reference with the first half matching one location and the second half matching a distant location. The aligner reports both alignment segments; the break in between is the breakpoint itself. Split reads give <strong>single-base-resolution</strong> breakpoints — the gold standard for SV calls.</li>
+            <li><strong>Read depth.</strong> A homozygous deletion drops the coverage inside the deleted region to zero. A heterozygous deletion halves it. A duplication doubles it. Depth-based calling alone can detect large CNVs from a single sample; combined with discordant pairs and split reads, it disambiguates tough cases.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-04/09-sv-detection-signals.svg"
+                 alt="A reference region with a 3 kb deletion, and three signal tracks below: discordant read pairs clustering at the breakpoints, split reads mapping half-left half-right with a visible break, and a depth curve dropping to zero inside the deletion.">
+            <figcaption>Figure 9. The three signal channels SV callers exploit, all reporting on the same deletion event. Individually each signal is weak; clustered and combined, they localise the event to single-base resolution.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>SNV calling looks at one column of the pileup at a time. SV calling looks at patterns that span thousands or millions of columns. Different scales, different algorithms. The algorithmic bottleneck is clustering: a thousand discordant pairs near the same ~500 bp region collectively imply a single SV event, and the caller has to group them correctly.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 Genome structure context</h3>
+
+          <p>SVs reshape the genome at scales that matter for its biology. To understand why a deletion or inversion is consequential, you need a minimum mental model of genome organisation:</p>
+
+          <ul>
+            <li>The human genome is about 3.1&nbsp;Gb of DNA, distributed across 22 autosomes plus the X, Y, and mitochondrial chromosomes.</li>
+            <li>Each chromosome is a single linear DNA molecule, with <strong>centromeres</strong> (dense, repeat-rich regions used for chromosome segregation during mitosis) and <strong>telomeres</strong> (protective caps at the ends).</li>
+            <li>Genes — the protein-coding and RNA-coding units — are spaced across chromosomes at densities of roughly 1 per 50&nbsp;kb, with huge regional variation. About 2% of the genome codes for protein.</li>
+            <li>The remaining ~98% is non-coding: regulatory regions (promoters, enhancers, insulators), transcribed-but-untranslated RNAs, transposable elements, pseudogenes, and large tracts of "junk" whose function is contested.</li>
+          </ul>
+
+          <p>Structural variants affect function in two regimes:</p>
+
+          <ul>
+            <li><strong>Local effects</strong> — a deletion removes a gene; an insertion disrupts a splice site; a small inversion flips a regulatory element. Effect is confined to the immediate genomic neighborhood.</li>
+            <li><strong>Global effects</strong> — a translocation joins two chromosomes in a way that fuses two genes (BCR-ABL in CML is the canonical example: a t(9;22) fusion creates a constitutively active tyrosine kinase that drives the cancer). A megabase-scale inversion can disrupt large chromatin domains and affect many genes at once.</li>
+          </ul>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 SV types and naming</h3>
+
+          <p>Structural variants are classified by what they do to the genome, not by their size (though size is correlated). The six canonical types:</p>
+
+          <ul>
+            <li><strong>Deletion (DEL).</strong> A contiguous region is absent from the sample. Loss of sequence. Can be heterozygous (one copy lost, one retained) or homozygous (both copies lost).</li>
+            <li><strong>Insertion (INS).</strong> A sequence is inserted at a position. Can be a new novel sequence, a transposable-element insertion (SINE, LINE), or a tandem duplication of an adjacent sequence.</li>
+            <li><strong>Inversion (INV).</strong> A segment is reversed in orientation — the sequence is the reverse complement of the reference in that region. No loss or gain of sequence, but breakpoints can disrupt genes and regulatory units crossed at the boundaries.</li>
+            <li><strong>Duplication (DUP).</strong> A contiguous region is present in multiple copies. Can be a simple tandem duplication (adjacent copies), a dispersed duplication (copies at other locations), or a segmental duplication (large, historically shared between genomic regions).</li>
+            <li><strong>Copy-number variant (CNV).</strong> The specific case of a DEL or DUP where the number of copies changes. Not a distinct biological mechanism — a CNV is a deletion or duplication measured as a copy-number shift rather than as two breakpoints.</li>
+            <li><strong>Translocation (TRA or BND).</strong> A piece of one chromosome is joined to a different chromosome. Reciprocal translocations swap arms; non-reciprocal translocations insert one chromosome's material into another unidirectionally. Represented in VCFs as breakend ("BND") records rather than as simple deletions/duplications.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-04/08-sv-types.svg"
+                 alt="Five side-by-side panels showing a reference region and the SV-altered version: deletion, insertion, inversion, duplication (tandem), translocation between two chromosomes.">
+            <figcaption>Figure 8. The five canonical SV types, each altering the reference in a distinct structural way. Size and mechanism vary; the breakpoint bookkeeping varies accordingly.</figcaption>
+          </figure>
+
+          <p>Two details worth knowing:</p>
+
+          <ul>
+            <li><strong>Complex SVs</strong> — real genomes often contain events that chain multiple primitive operations: an inversion flanked by deletions ("inverted deletion"), a duplication-inversion, chromothripsis (a region shattered and re-assembled). Modern SV callers recognise some of these; most don't.</li>
+            <li><strong>Mobile-element insertions</strong> are a distinct sub-class of INS that deserve their own callers (MELT, xTea). The inserted sequence is a known transposable element (Alu, LINE-1, SVA); the insertion can be typed and annotated even when the breakpoint uncertainty is high.</li>
+          </ul>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 SV callers and their tradeoffs</h3>
+
+          <p>SV callers specialise by signal channel and by input data. The dominant options in 2024:</p>
+
+          <ul>
+            <li><strong>Manta (Illumina / Strelka).</strong> Read-pair + split-read. Short-read focused. Fast, conservative. The workhorse for germline SV calling on clinical WGS.</li>
+            <li><strong>Delly.</strong> Read-pair + split-read. Short-read. More sensitive than Manta but higher false-positive rate. Good for tumor work with aggressive filtering.</li>
+            <li><strong>GRIDSS.</strong> Read-pair + split-read + local assembly. Short-read. State-of-the-art accuracy for complex SVs but slower.</li>
+            <li><strong>SvABA.</strong> Split-read + local assembly. Short-read; supports tumor/normal.</li>
+            <li><strong>LUMPY.</strong> Multi-signal integration framework. Open-source, flexible; requires a separate input from a structural-variant-aware aligner.</li>
+            <li><strong>CNVkit / cnvpytor.</strong> Depth-based CNV calling. For large (≥10&nbsp;kb) copy-number events; complementary to the breakpoint callers above.</li>
+          </ul>
+
+          <p>Long reads (PacBio HiFi, ONT) change the picture. A single 20&nbsp;kb read spans most of an SV, so read-based detection becomes direct: if the read's alignment shows a 5&nbsp;kb gap, that's the deletion. Long-read-focused callers — <strong>Sniffles</strong>, <strong>pbsv</strong>, <strong>CuteSV</strong> — routinely detect SVs that short-read callers miss, especially those in repeat-rich regions.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">SV Signature Explorer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-04/04-sv-signatures.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-04/04-sv-signatures.html"
+                    class="artifact-frame" loading="lazy"
+                    title="SV Signature Explorer"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>Split-read detection is discontinuity detection on a spatially-aligned signal. The read's alignment score-vs-position profile has a step at the breakpoint — the aligner either confidently maps through the break or it doesn't. Either way, the discontinuity localises the event to single-base resolution. This is the same problem signal-processing tools solve for edge detection, change-point detection in time series, and glitch detection in telemetry. SV callers differ mostly in how aggressively they consolidate multiple weak discontinuities into a single strong event.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 Long reads and the future of SV discovery</h3>
+
+          <p>Between 2010 and 2020, short-read SV calling was a discipline of workarounds. Every caller hedged against the fundamental limitation that a 150&nbsp;bp read can't span a 500&nbsp;bp repeat, and the bulk of SVs live in exactly those repeat-rich regions.</p>
+
+          <p>Long reads removed the limitation. PacBio HiFi (15–25&nbsp;kb, &lt;&nbsp;0.1% error) and ONT (up to 100&nbsp;kb+, 5–15% raw error with error correction) span individual SVs directly. The same Telomere-to-Telomere Consortium whose T2T-CHM13 assembly closed the last gaps in the human reference also reported thousands of SVs that were invisible to the short-read-only 1000 Genomes Project dataset.</p>
+
+          <p>The current state of SV discovery:</p>
+
+          <ul>
+            <li><strong>Short reads are the workhorse</strong> for general clinical WGS because of cost (~$500/genome vs $1500–3000/genome for HiFi). They catch ~60–70% of SVs accurately.</li>
+            <li><strong>Long reads are the gold standard</strong> for research-grade SV catalogues and for any rare-disease case where short-read analysis has gone nowhere. They catch &gt;95% of SVs, including the hard ones in repeats.</li>
+            <li><strong>Ensemble methods</strong> (calling with multiple tools and intersecting) beat any single caller in benchmarks. The nf-core/structural-variants pipeline and HGSVC's ensemble workflow are the clinical-grade templates.</li>
+          </ul>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The first SV-comprehensive human dataset was HGSVC's 2019 release: three family trios sequenced with short-reads + HiFi + ONT + Strand-seq + BioNano optical maps + Hi-C. Processing produced ~27,000 SVs per haplotype — four to five times as many as short-read-only analyses had reported for the same samples. It was the moment the field accepted that short-read-only SV catalogues were systematically incomplete.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 40 min</span>
+          Outputs: VCF and Annotation
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 The VCF file format</h3>
+
+          <p>VCF (Variant Call Format) is the text format for variant-call output. Every caller emits VCF; every downstream tool reads it. Understanding it is non-optional.</p>
+
+          <p>A VCF file has three sections:</p>
+
+          <ul>
+            <li><strong>Header.</strong> Lines starting with <code>##</code> are meta-information: reference genome, caller version, contig lengths, INFO-field and FORMAT-field definitions, FILTER definitions. One line starting with <code>#CHROM</code> defines the column names for the data rows.</li>
+            <li><strong>Data rows.</strong> One per variant site. Fixed first 8 columns (CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO), then per-sample columns.</li>
+            <li><strong>Compression + indexing.</strong> VCF is plain text; compressed to <code>.vcf.gz</code> (bgzip, block-gzip, indexable) and indexed with a <code>.tbi</code> file for random access by genomic range.</li>
+          </ul>
+
+          <p>A simple single-sample example:</p>
+
+          <pre class="sequence-block">##fileformat=VCFv4.3
+##reference=GRCh38
+##INFO=&lt;ID=DP,Number=1,Type=Integer,Description="Total depth"&gt;
+##INFO=&lt;ID=AF,Number=A,Type=Float,Description="Allele frequency"&gt;
+##FORMAT=&lt;ID=GT,Number=1,Type=String,Description="Genotype"&gt;
+##FORMAT=&lt;ID=AD,Number=R,Type=Integer,Description="Allelic depths"&gt;
+##FORMAT=&lt;ID=DP,Number=1,Type=Integer,Description="Per-sample depth"&gt;
+##FORMAT=&lt;ID=GQ,Number=1,Type=Integer,Description="Genotype quality"&gt;
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE1
+chr1	100234	.	A	G	420	PASS	DP=45;AF=0.51	GT:AD:DP:GQ	0/1:22,23:45:99
+chr1	100501	rs12345	C	T	612	PASS	DP=52;AF=1.0	GT:AD:DP:GQ	1/1:0,52:52:99</pre>
+
+          <p>Two rows: a heterozygous SNV at 100234 and a homozygous alternate SNV at 100501 (the second one has a dbSNP rsID in the ID column). Every column has a defined meaning; every piece of software reading the file relies on the header declarations to interpret the INFO and FORMAT fields.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-04/10-vcf-anatomy.svg"
+                 alt="A VCF file fragment with meta-lines, column-header line, and two data rows; each column annotated with its meaning; a callout showing the FORMAT string and how it maps to per-sample values.">
+            <figcaption>Figure 10. The anatomy of a VCF file. Header declares the schema; data rows carry one variant per line; per-sample columns follow the FORMAT-string grammar.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">VCF Parser and Filter</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-04/05-vcf-parser.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-04/05-vcf-parser.html"
+                    class="artifact-frame" loading="lazy"
+                    title="VCF Parser and Filter"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>VCF is a sparse differential encoding of a genome. Instead of transmitting 3&nbsp;Gb of sequence per sample, you transmit only the ~4M differences from reference — a compression ratio of ~750×. This is Huffman/entropy coding at the file-format level: the reference is the shared codebook, the VCF is the per-sample delta. Indexable compressed VCFs (bgzip + tabix) are the same design as indexed compressed time-series databases: block-level compression to allow random access into specific regions without decompressing the whole file.</p>
+          </aside>
+
+          <p><strong>Multi-sample VCFs.</strong> A single VCF can hold many samples (a cohort, a trio, a tumor/normal pair). Each sample gets its own data column with its own GT, AD, DP, GQ. Sites are included if <em>any</em> sample has a non-reference call; samples at sites they don't call get a <code>0/0</code> or <code>./.</code> entry.</p>
+
+          <p><strong>Phased vs unphased genotypes.</strong> <code>0|1</code> (pipe, phased) means the caller knows which allele sits on which of the two parental chromosomes. <code>0/1</code> (slash, unphased) means the allele-to-chromosome assignment is unknown. Phasing matters for compound-heterozygous analysis and for trio inheritance — unphased data fundamentally cannot distinguish two heterozygous variants in trans (on different chromosomes) from in cis (on the same chromosome). Long-read sequencing and parental trios are the two reliable paths to phasing.</p>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Filtering VCFs in practice</h3>
+
+          <p>A raw VCF straight off a caller is not a final product. Filtering workflow typically:</p>
+
+          <ul>
+            <li><strong>Quality hard filters.</strong> Drop QUAL &lt; 30, DP &lt; 10 or DP &gt; 2×median, GQ &lt; 20. These alone remove most noise without sophisticated training.</li>
+            <li><strong>Region filters.</strong> Drop variants in low-complexity regions, segmental duplications, known-problematic regions (the "decoy" regions and centromeric repeats in GRCh38). The <code>ENCODE blacklist</code> is the canonical source.</li>
+            <li><strong>Allele-frequency filters.</strong> For germline research analyses, drop common variants (MAF &gt; 1% in gnomAD) if you're looking for rare-disease variants. For population analyses, keep them.</li>
+            <li><strong>Consequence filters.</strong> After annotation (§5.3), keep only protein-coding consequences — remove intergenic and intronic variants unless you have a specific reason to analyse them.</li>
+          </ul>
+
+          <p>The filters compose: hard-filter → region-filter → annotate → consequence-filter → output. Every step is a line in a shell script; every step removes orders of magnitude of variants to leave a human-manageable list at the end.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Filtering is where pipelines go wrong silently. A too-aggressive filter removes real variants without raising an alarm. Always compute concordance against a benchmark truth set (Genome in a Bottle's HG002 or similar) before trusting a pipeline's output. A 1% drop in recall on the benchmark predicts a 1% miss rate on real samples — unacceptable for a diagnostic pipeline, acceptable for a population-scale study.</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Variant annotation</h3>
+
+          <p>A VCF says "there's a variant at chr7:140753336, REF=A, ALT=T." That doesn't tell a clinician anything. <strong>Annotation</strong> is the step where each variant is enriched with the information needed to interpret it:</p>
+
+          <ul>
+            <li><strong>Gene and transcript context.</strong> Which gene does this variant fall in? Which exon? Which codon? What amino acid change?</li>
+            <li><strong>Consequence classification.</strong> Missense, nonsense, splice-region, intronic, upstream, intergenic.</li>
+            <li><strong>Population frequency.</strong> How common is this variant in gnomAD? In 1000 Genomes? In population-specific sub-cohorts?</li>
+            <li><strong>Clinical significance.</strong> Is this variant in ClinVar? With what pathogenicity classification?</li>
+            <li><strong>Functional predictions.</strong> Computational scores estimating whether a missense variant is deleterious (SIFT, PolyPhen, REVEL, CADD).</li>
+            <li><strong>Splicing predictions.</strong> Computational scores for variants near splice sites (SpliceAI).</li>
+          </ul>
+
+          <p>Two annotators dominate the ecosystem:</p>
+
+          <ul>
+            <li><strong>Ensembl VEP</strong> (Variant Effect Predictor). Gold standard, supports every species, maintained by Ensembl. Slowest but most complete. Reads a VCF, outputs an annotated VCF with CSQ fields.</li>
+            <li><strong>snpEff / snpSift.</strong> Faster, Java-based, widely used in research pipelines. Similar capabilities to VEP with different database cadence.</li>
+          </ul>
+
+          <p>A typical annotation adds INFO fields like:</p>
+
+          <pre class="sequence-block">CSQ=T|missense_variant|MODERATE|BRAF|ENSG00000157764|Transcript|ENST00000288602|
+    protein_coding|15/18||...|p.Val600Glu|...|REVEL=0.932|SpliceAI=0.01</pre>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-04/11-annotation-pipeline.svg"
+                 alt="A single SNV flowing through a pipeline: input VCF → VEP/snpEff (gene + consequence) → gnomAD (population frequency) → ClinVar (clinical significance) → REVEL/CADD (functional prediction) → annotated VCF with all fields and a final verdict banner.">
+            <figcaption>Figure 11. The variant-annotation pipeline. Each stage joins the variant to a reference database and appends fields; the final output is clinically actionable.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Variant Annotator</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-04/06-variant-annotator.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-04/06-variant-annotator.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Variant Annotator"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>Annotation is joining a variant table to several reference tables. For every variant, look up the gene it's in, the population frequency in gnomAD, the clinical classification in ClinVar, the functional prediction from whatever tool applies. The same variant at <code>chr7:140753336 A&gt;T</code> becomes, after annotation, "BRAF V600E, MODERATE impact, gnomAD AF &lt; 1e-5, ClinVar Pathogenic, REVEL 0.932" — which is actionable.</p>
+          </aside>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>Why keep annotation separate from variant calling rather than baking it into the caller? (Keeping them separate means the same caller output can be re-annotated when databases update — new ClinVar classifications, new gnomAD frequencies, new functional predictions. A VCF called in 2020 and annotated with 2024 databases gives a materially different clinical interpretation than one with 2020-era annotation, even though the called variants are identical. Annotation is intentionally the volatile layer.)</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup" class="lecture-wrapup">
+        <h2>
+          <span class="part-kicker">Wrap-up · 10 min</span>
+          Takeaways, homework, and next lecture
+        </h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Variant calling bridges alignment and interpretation.</strong> Aligned reads in; a filtered, annotated VCF out. Every step in between exists because real data breaks the idealised thresholding model.</li>
+          <li><strong>Calling is Bayesian, not thresholding.</strong> Per-position posterior genotype probabilities, computed from per-read evidence weighted by Phred quality. DeepVariant replaces the Bayesian layer with a CNN; the underlying inference structure is the same.</li>
+          <li><strong>The pre-calling pipeline is not optional.</strong> Mark duplicates, INDEL realignment (or haplotype-aware calling), BQSR. Each removes a specific class of artifact; skipping any one leaves a systematic bias that a good caller can't recover from.</li>
+          <li><strong>SVs need different algorithms.</strong> Read pairs, split reads, and depth are the three signal channels. Short-read SV callers (Manta, Delly, GRIDSS) and long-read callers (Sniffles, pbsv) serve different read regimes; ensembling wins on benchmarks.</li>
+          <li><strong>VCF is a sparse encoding.</strong> Understand the field grammar and you can reason about what any variant call means. Annotation is the volatile layer that turns calls into clinical interpretations — and should be re-run whenever databases update.</li>
+          <li><strong>Filtering is where pipelines silently fail.</strong> Over-filtering removes true variants without errors. Always benchmark against a truth set; a 1% recall drop on the benchmark predicts a 1% miss rate on real samples.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Gene expression analysis: from RNA-seq reads to quantified transcript abundances. Pseudo-alignment vs full alignment, count-to-TPM, differential expression, and the statistical models that underlie DESeq2 and limma.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Download a public tumor/normal BAM pair (e.g., HCC1143 from the SEQC2 project, or the Genome in a Bottle HG002 reference). Run a germline caller (bcftools or DeepVariant) on the normal. Report: total variants called, PASS fraction, heterozygous/homozygous ratio (should be ~2:1 for a healthy human).</li>
+          <li>Take any VCF from step 1. Annotate with Ensembl VEP (web interface is fine). Report: how many missense variants, how many synonymous, how many nonsense. Does the missense:synonymous ratio match expectations from gnomAD summary statistics?</li>
+          <li>Using the Genotype Likelihood Calculator in §3.2, set up a pileup with 20 reads: 14 REF, 6 ALT, all Q30. Compute P(D|0/0), P(D|0/1), P(D|1/1) by hand (or with the artifact). Which genotype wins, and by what log-likelihood margin?</li>
+          <li>For a hypothetical 2&nbsp;kb deletion in a heterozygous sample sequenced at 30× short-read coverage: estimate (a) how many discordant read pairs you expect to straddle the breakpoint, (b) how many split reads, (c) the expected depth inside the deletion. Show the arithmetic.</li>
+          <li>Read the VCFv4.3 spec for multi-allelic sites. Explain in one paragraph how a site with <code>REF=AT, ALT=A,ATT</code> (a deletion and an insertion at the same position) is represented, and how a downstream tool should handle the two alternates.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>McKenna, A., Hanna, M., Banks, E., et al. (2010). The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. <em>Genome Research</em> 20, 1297–1303.</li>
+          <li>Poplin, R., Chang, P.-C., Alexander, D., et al. (2018). A universal SNP and small-indel variant caller using deep neural networks. <em>Nature Biotechnology</em> 36, 983–987.</li>
+          <li>Li, H. (2011). A statistical framework for SNP calling, mutation discovery, association mapping and population genetical parameter estimation from sequencing data. <em>Bioinformatics</em> 27, 2987–2993.</li>
+          <li>Chen, X., Schulz-Trieglaff, O., Shaw, R., et al. (2016). Manta: rapid detection of structural variants and indels for germline and cancer sequencing applications. <em>Bioinformatics</em> 32, 1220–1222.</li>
+          <li>Ebler, J., Ebert, P., Clarke, W. E., et al. (2022). Pangenome-based genome inference allows efficient and accurate genotyping across a wide spectrum of variant classes. <em>Nature Genetics</em> 54, 518–525.</li>
+          <li>VCFv4.3 specification: <a href="https://samtools.github.io/hts-specs/VCFv4.3.pdf" target="_blank" rel="noopener">samtools.github.io/hts-specs/VCFv4.3.pdf</a></li>
+          <li>GATK Best Practices: <a href="https://gatk.broadinstitute.org/hc/en-us/sections/360007226651" target="_blank" rel="noopener">gatk.broadinstitute.org</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — What is a Variant?</td>              <td>30&nbsp;min</td><td>0:30</td></tr>
+            <tr><td>Part 2 — Variant Calling Mechanics</td>       <td>40&nbsp;min</td><td>1:10</td></tr>
+            <tr><td>Part 3 — Making Variant Calling Work</td>     <td>45&nbsp;min</td><td>1:55</td></tr>
+            <tr><td>Part 4 — Structural Variants</td>             <td>45&nbsp;min</td><td>2:40</td></tr>
+            <tr><td>Part 5 — Outputs: VCF and Annotation</td>     <td>40&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                  <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys())
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) {
+          f.style.height = d.height + 'px';
+        }
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

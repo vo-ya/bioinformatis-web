@@ -249,6 +249,12 @@ Start `python3 -m http.server 8000` at the repo root. Verify:
 - `lecture-NN.html` parses well-formed (no unclosed tags).
 - Every inline `<script>` block in the lecture and in each artifact passes `node --check`.
 - Every new SVG parses as XML (`python3 -c "import xml.etree.ElementTree as ET; ET.parse(path)"`). The most common failure mode: unescaped `&` in SVG text content — must be `&amp;`.
+- **Every artifact embeds `resize.js`.** Grep each new artifact for `_shared/resize.js`; the count must be exactly 1. Missing this tag is silent — the iframe stays at its default CSS height and the content scrolls inside a fixed window instead of flowing full-height. Two artifacts in Lecture 4 shipped missing it and needed a follow-up commit:
+  ```sh
+  for f in artifacts/lecture-NN/*.html; do
+    [ "$(grep -c '_shared/resize.js' "$f")" = "1" ] || echo "MISSING: $f"
+  done
+  ```
 - **Asset-link walk.** Extract every `src=` and `href=` from the lecture HTML and curl each against the local server; every one must return 200. One-liner:
   ```python
   import re, urllib.request
@@ -331,3 +337,5 @@ One commit per Phase B step (B2, B3, B4, B5) plus any review-pass polish commits
   - Callout distribution promoted from B1 soft guidance to a Phase A exit gate (item #6). Cheaper to rebalance at spec-time than during B2.
   - New item #8: duration sum. Part kickers + Wrap-up kicker must equal the top-matter Duration field.
   - Added `scripts/phase-a-check.py` as the automated runner for all 8 checks. Invoke: `python3 scripts/phase-a-check.py markdown_resources/lessonN_md_files/`.
+- **v1.3 (2026-04-20).** Revision from the Lecture 4 B4 run:
+  - C6 now explicitly greps each new artifact for `_shared/resize.js` and requires exactly one match. Two Lecture 4 artifacts (Genotype Likelihood Calculator, VCF Parser) shipped missing the embed — the iframe stayed at its default CSS height and content scrolled inside. Silent failure until a user noticed.

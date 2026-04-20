@@ -68,6 +68,8 @@ Naming conventions:
 
 Before handing off to Phase B, verify that the three files agree with each other. This is the single most common source of downstream rework.
 
+**Automated runner**: `python3 scripts/phase-a-check.py markdown_resources/lessonN_md_files/` runs all 8 checks below and exits non-zero if any fails. Use it as the gate; the prose below documents what the script verifies.
+
 **1. Artifact count matches.**
 
 - Count `**EMBED — Artifact #k: …**` markers in `lecture-NN.md`. Call this `N_a`.
@@ -84,23 +86,41 @@ Before handing off to Phase B, verify that the three files agree with each other
 
 Both artifacts and figures are numbered `1..N` with no gaps. If the lecture text says "Artifact #3" but only Artifacts #1, #2, #4 exist in the spec, fix the spec or the lecture before proceeding.
 
-**4. Filename alignment.**
+**4. Filename alignment and well-formedness.**
 
 Each EMBED marker in `lecture-NN.md` names a target path like `artifacts/lecture-NN/NN-name.html`. The corresponding section in `artifacts-spec.md` must declare the same filename under its `File:` field. Same rule for figures.
+
+Every referenced path must also be *well-formed* — strictly matching `(artifacts|diagrams)/lecture-NN/NN-kebab-name.(html|svg)`. Paths with stray characters (a `` ` `` mistyped as `*`, underscores instead of hyphens, uppercase), zero-padding mismatches, or a numeric prefix that doesn't match the entry number all fail. This pattern-level check catches the recurring "closing backtick became `*`" typo that otherwise aligns-but-poisons B3 and B4.
 
 **5. Section-anchor alignment.**
 
 Each artifact and figure names a `Lecture anchor:` (e.g. `§2.2 Suffix arrays`). That subsection must actually exist in `lecture-NN.md`. If the spec says `§3.4` but the lecture has no 3.4, fix before proceeding.
 
-**6. Callout sanity.**
+**6. Callout labels and distribution.**
 
-Skim `lecture-NN.md` once. Every callout uses one of the six labels in `lecture-style-guide.md` §4 — no invented types, no missing colons. The soft count targets (§B1 below) are not enforced here, but clearly off-target distributions (e.g. 20 EE framings or zero Intuition boxes) are cheap to flag now and expensive to rebalance later.
+Every callout uses one of the five approved labels in `lecture-style-guide.md` §4 — no invented types, no missing colons. Subtitles after an em-dash or in parentheses (`EE framing — dB`, `EE framing (dB)`) are treated as the parent label.
+
+Distribution must fall within per-lecture targets (promoted from "soft guidance" to a Phase A gate because rebalancing is cheap at spec-time, expensive during B2):
+
+| Label | Target count |
+|---|---|
+| Intuition box | 3–4 |
+| EE framing | 5–7 |
+| Historical pointer | 1–3 |
+| Discussion prompt | 1–3 |
+| Warning box | 2–5 |
+
+Out-of-range distributions fail Phase A. To widen the range for a particular lecture, update this table first — don't quietly ship outside it.
 
 **7. Top-matter exists.**
 
 `lecture-NN.md` has the Duration/Audience/File blockquote at the very top. File value matches `lectures/lecture-NN.html`.
 
-**If any of 1–7 fails, Phase A is not done.** Send the author back to the generator chat with the specific mismatch; do not start Phase B. A 5-minute fix here saves hours of rework in B2-B5.
+**8. Duration sum is consistent.**
+
+Sum the Part kicker durations (`## Part K — Title (≈M min)`) and the Wrap-up kicker (`## Wrap-up (≈M min)`); the total must equal the `**Duration**` value in the top-matter. Catches silent drift between the skeleton and the lecture budget.
+
+**If any of 1–8 fails, Phase A is not done.** Send the author back to the generator with the specific mismatch; do not start Phase B. A 5-minute fix here saves hours of rework in B2-B5.
 
 ---
 
@@ -121,18 +141,7 @@ Eight steps, executed in order, one commit per Phase B step or at natural bounda
 
 If the inventory flags anything blocking (missing spec, contradictions), stop and fix the specs before moving on.
 
-**Soft target for callout balance per lecture** (from `lecture-style-guide.md` §4):
-
-| Label | Target count |
-|---|---|
-| Intuition box | 3–4 |
-| EE framing | 5–7 |
-| Historical pointer | 1–3 |
-| Discussion prompt | 1–3 |
-| Warning box | 2–5 |
-| Section emphasis (§4.7 bolded lead, no label) | 0–1 |
-
-These are guidance, not gates. The review pass (step C7) checks the distribution and rebalances if needed.
+**Callout balance targets** are gated at Phase A exit check #6 (see Phase A above for the ranges). B1 only reports the counts; it does not re-enforce the gate.
 
 ### B2 · Build lecture HTML (scaffold + prose, one pass)
 
@@ -317,3 +326,8 @@ One commit per Phase B step (B2, B3, B4, B5) plus any review-pass polish commits
   - B4: note that background agents parallelise artifact building well, but wait for all agents before committing.
   - C6: add the asset-link walk (curl every `src`/`href` from the lecture HTML) and the SVG `&amp;`-escape gotcha.
   - C7: split the review pass into "within-Part redundancy scan" and "every section earns its seat" as explicit items — both were load-bearing in the Lecture 3 polish pass.
+- **v1.2 (2026-04-20).** Revisions from the Lecture 4 Phase A run:
+  - Exit check item #4 now validates filename *shape* (`NN-kebab.{html,svg}` under the right lecture folder), not just cross-file equality. Catches the recurring "stray `*` at closing backtick" typo, which occurred in both Lesson 3 and Lesson 4.
+  - Callout distribution promoted from B1 soft guidance to a Phase A exit gate (item #6). Cheaper to rebalance at spec-time than during B2.
+  - New item #8: duration sum. Part kickers + Wrap-up kicker must equal the top-matter Duration field.
+  - Added `scripts/phase-a-check.py` as the automated runner for all 8 checks. Invoke: `python3 scripts/phase-a-check.py markdown_resources/lessonN_md_files/`.

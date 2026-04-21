@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400" role="img" aria-labelledby="t d">
+  <title id="t">Doublet detection strategy</title>
+  <desc id="d">Three panels showing the Scrublet / DoubletFinder strategy: (1) two real cells of distinct types have their expression profiles averaged to produce a simulated doublet, (2) the simulated doublet projects into the gap region between clusters on UMAP, (3) a classifier decision boundary and per-cell doublet score histogram.</desc>
+
+  <text x="450" y="28" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">DOUBLET DETECTION · SIMULATE, CLASSIFY</text>
+
+  <!-- PANEL 1: Two real cells + synthetic doublet -->
+  <g transform="translate(30 60)">
+    <text x="130" y="0" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a">1. SIMULATE DOUBLETS</text>
+
+    <!-- Real cell A -->
+    <circle cx="40" cy="50" r="14" fill="#c4342c" opacity="0.8"/>
+    <text x="40" y="54" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#ffffff">A</text>
+    <!-- Expression profile A -->
+    <g fill="#c4342c" opacity="0.6">
+      <rect x="22" y="75" width="6" height="16"/>
+      <rect x="30" y="78" width="6" height="13"/>
+      <rect x="38" y="72" width="6" height="19"/>
+      <rect x="46" y="80" width="6" height="11"/>
+      <rect x="54" y="76" width="6" height="15"/>
+    </g>
+
+    <text x="125" y="55" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" fill="#525252">+</text>
+
+    <!-- Real cell B -->
+    <circle cx="210" cy="50" r="14" fill="#0d7377" opacity="0.8"/>
+    <text x="210" y="54" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#ffffff">B</text>
+    <!-- Expression profile B -->
+    <g fill="#0d7377" opacity="0.6">
+      <rect x="192" y="80" width="6" height="11"/>
+      <rect x="200" y="74" width="6" height="17"/>
+      <rect x="208" y="82" width="6" height="9"/>
+      <rect x="216" y="78" width="6" height="13"/>
+      <rect x="224" y="72" width="6" height="19"/>
+    </g>
+
+    <!-- Arrow down -->
+    <line x1="130" y1="110" x2="130" y2="135" stroke="#1e3a8a" stroke-width="1.5" marker-end="url(#arr-06)"/>
+
+    <!-- Synthetic doublet -->
+    <circle cx="125" cy="160" r="16" fill="none" stroke="#b45309" stroke-width="2" stroke-dasharray="4 2"/>
+    <text x="125" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b45309">A+B</text>
+
+    <!-- Combined profile -->
+    <g fill="#b45309" opacity="0.6">
+      <rect x="90" y="192" width="6" height="14"/>
+      <rect x="98" y="188" width="6" height="18"/>
+      <rect x="106" y="185" width="6" height="21"/>
+      <rect x="114" y="190" width="6" height="16"/>
+      <rect x="122" y="186" width="6" height="20"/>
+      <rect x="130" y="192" width="6" height="14"/>
+      <rect x="138" y="187" width="6" height="19"/>
+      <rect x="146" y="190" width="6" height="16"/>
+      <rect x="154" y="185" width="6" height="21"/>
+    </g>
+
+    <text x="125" y="230" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#b45309">simulated doublet</text>
+
+    <defs>
+      <marker id="arr-06" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+      </marker>
+    </defs>
+  </g>
+
+  <!-- Divider -->
+  <line x1="290" y1="50" x2="290" y2="320" stroke="#e5e3dc" stroke-width="1"/>
+
+  <!-- PANEL 2: UMAP with synthetic doublets in between-cluster gaps -->
+  <g transform="translate(310 60)">
+    <text x="125" y="0" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a">2. PROJECT INTO UMAP</text>
+
+    <rect x="0" y="10" width="250" height="220" rx="4" fill="#f4f3ee" stroke="#c4c1b6"/>
+
+    <!-- Cluster A (red) at top-left -->
+    <g fill="#c4342c" opacity="0.7">
+      <circle cx="50" cy="55" r="3"/><circle cx="55" cy="60" r="3"/><circle cx="60" cy="50" r="3"/>
+      <circle cx="45" cy="65" r="3"/><circle cx="62" cy="65" r="3"/><circle cx="48" cy="50" r="3"/>
+      <circle cx="53" cy="70" r="3"/><circle cx="40" cy="55" r="3"/><circle cx="58" cy="75" r="3"/>
+      <circle cx="44" cy="60" r="3"/><circle cx="64" cy="58" r="3"/>
+    </g>
+
+    <!-- Cluster B (teal) at bottom-right -->
+    <g fill="#0d7377" opacity="0.7">
+      <circle cx="190" cy="165" r="3"/><circle cx="195" cy="170" r="3"/><circle cx="200" cy="160" r="3"/>
+      <circle cx="185" cy="175" r="3"/><circle cx="202" cy="175" r="3"/><circle cx="188" cy="160" r="3"/>
+      <circle cx="193" cy="180" r="3"/><circle cx="180" cy="165" r="3"/><circle cx="198" cy="185" r="3"/>
+      <circle cx="184" cy="170" r="3"/><circle cx="204" cy="168" r="3"/>
+    </g>
+
+    <!-- Cluster C (amber) at bottom-left -->
+    <g fill="#b45309" opacity="0.7">
+      <circle cx="50" cy="170" r="3"/><circle cx="55" cy="175" r="3"/><circle cx="60" cy="165" r="3"/>
+      <circle cx="45" cy="180" r="3"/><circle cx="62" cy="180" r="3"/><circle cx="48" cy="165" r="3"/>
+      <circle cx="53" cy="185" r="3"/>
+    </g>
+
+    <!-- Synthetic doublets in between-cluster gaps (outlined) -->
+    <g fill="none" stroke="#b45309" stroke-width="1.8" stroke-dasharray="2 2">
+      <circle cx="125" cy="110" r="4"/>
+      <circle cx="130" cy="120" r="4"/>
+      <circle cx="120" cy="125" r="4"/>
+      <circle cx="115" cy="115" r="4"/>
+      <circle cx="135" cy="128" r="4"/>
+      <circle cx="108" cy="122" r="4"/>
+    </g>
+
+    <!-- Label for doublets -->
+    <text x="150" y="108" font-family="Inter, sans-serif" font-size="9" fill="#b45309" font-weight="600">simulated</text>
+    <text x="150" y="120" font-family="Inter, sans-serif" font-size="9" fill="#b45309" font-weight="600">doublets</text>
+
+    <!-- Decision boundary: a curved line separating doublet region -->
+    <path d="M 85 90 Q 140 105, 160 135 Q 165 165, 100 150" fill="none" stroke="#1e3a8a" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="90" y="200" font-family="Inter, sans-serif" font-size="9" fill="#1e3a8a" font-style="italic">decision boundary</text>
+
+    <text x="125" y="250" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">doublets land between cluster centres</text>
+  </g>
+
+  <!-- Divider -->
+  <line x1="580" y1="50" x2="580" y2="320" stroke="#e5e3dc" stroke-width="1"/>
+
+  <!-- PANEL 3: Histogram of doublet scores -->
+  <g transform="translate(600 60)">
+    <text x="135" y="0" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a">3. DOUBLET SCORE</text>
+
+    <!-- Axes -->
+    <line x1="20" y1="200" x2="270" y2="200" stroke="#c4c1b6" stroke-width="1"/>
+    <line x1="20" y1="60" x2="20" y2="200" stroke="#c4c1b6" stroke-width="1"/>
+
+    <!-- Histogram: tall peak near 0 (real cells), small bump near 0.7 (doublets) -->
+    <g fill="#eef2ff" stroke="#1e3a8a" stroke-width="1">
+      <rect x="22" y="70" width="16" height="130"/>
+      <rect x="40" y="90" width="16" height="110"/>
+      <rect x="58" y="115" width="16" height="85"/>
+      <rect x="76" y="140" width="16" height="60"/>
+      <rect x="94" y="155" width="16" height="45"/>
+      <rect x="112" y="170" width="16" height="30"/>
+      <rect x="130" y="180" width="16" height="20"/>
+      <rect x="148" y="187" width="16" height="13"/>
+      <rect x="166" y="191" width="16" height="9"/>
+    </g>
+    <g fill="#fef3c7" stroke="#b45309" stroke-width="1">
+      <rect x="184" y="182" width="16" height="18"/>
+      <rect x="202" y="170" width="16" height="30"/>
+      <rect x="220" y="165" width="16" height="35"/>
+      <rect x="238" y="175" width="16" height="25"/>
+      <rect x="256" y="188" width="16" height="12"/>
+    </g>
+
+    <!-- Threshold line -->
+    <line x1="175" y1="55" x2="175" y2="200" stroke="#b91c1c" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="175" y="50" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#b91c1c" font-weight="600">threshold = 0.3</text>
+
+    <g font-family="JetBrains Mono, monospace" font-size="9" fill="#8a8a85" text-anchor="middle">
+      <text x="20" y="215">0</text>
+      <text x="145" y="215">0.5</text>
+      <text x="270" y="215">1.0</text>
+    </g>
+    <text x="145" y="232" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#525252">doublet score</text>
+
+    <!-- Legend -->
+    <g transform="translate(20 255)" font-family="Inter, sans-serif" font-size="9" fill="#0a0a0a">
+      <rect x="0" y="0" width="14" height="10" fill="#eef2ff" stroke="#1e3a8a"/>
+      <text x="18" y="9">real cells</text>
+      <rect x="130" y="0" width="14" height="10" fill="#fef3c7" stroke="#b45309"/>
+      <text x="148" y="9" fill="#b45309">flagged doublets</text>
+    </g>
+  </g>
+</svg>

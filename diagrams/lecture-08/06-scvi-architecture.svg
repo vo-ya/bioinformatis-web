@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 480" role="img" aria-labelledby="t d">
+  <title id="t">scVI VAE architecture</title>
+  <desc id="d">Left-to-right VAE architecture. Input: a count vector x_i and one-hot batch label s_i. Encoder: a stacked multilayer perceptron producing a Gaussian posterior q_phi(z given x, s). Latent z with a unit-Gaussian prior and a KL-divergence arrow. Decoder: another multilayer perceptron taking z and s, producing rho. Final block: a negative-binomial likelihood with library-size latent and per-gene dispersion. The ELBO equation is written below with coloured brackets tying each term to its corresponding block.</desc>
+
+  <defs>
+    <marker id="arrow-cobalt" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M 0 0 L 8 4 L 0 8 z" fill="#1e3a8a"/>
+    </marker>
+    <marker id="arrow-fg" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M 0 0 L 8 4 L 0 8 z" fill="#0a0a0a"/>
+    </marker>
+  </defs>
+
+  <text x="540" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">scVI · VAE WITH BATCH CONDITIONING · NEGATIVE-BINOMIAL LIKELIHOOD</text>
+
+  <!-- ── Block 1: Input ── -->
+  <g>
+    <rect x="30" y="80" width="160" height="180" rx="6" fill="#ffffff" stroke="#c4c1b6" stroke-width="1.5"/>
+    <text x="110" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">input</text>
+
+    <!-- Count vector -->
+    <text x="45" y="128" font-family="Source Serif 4, serif" font-size="13" font-style="italic" fill="#0a0a0a">x_i (counts)</text>
+    <g font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">
+      <rect x="45" y="134" width="20" height="14" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.7"/>
+      <text x="55" y="144" text-anchor="middle">5</text>
+      <rect x="65" y="134" width="20" height="14" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.7"/>
+      <text x="75" y="144" text-anchor="middle">0</text>
+      <rect x="85" y="134" width="20" height="14" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.7"/>
+      <text x="95" y="144" text-anchor="middle">12</text>
+      <rect x="105" y="134" width="20" height="14" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.7"/>
+      <text x="115" y="144" text-anchor="middle">0</text>
+      <rect x="125" y="134" width="20" height="14" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.7"/>
+      <text x="135" y="144" text-anchor="middle">3</text>
+      <rect x="145" y="134" width="20" height="14" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.7"/>
+      <text x="155" y="144" text-anchor="middle">0</text>
+      <text x="168" y="144" fill="#525252">…</text>
+    </g>
+    <text x="45" y="164" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">per-cell gene counts (sparse)</text>
+
+    <!-- Batch label -->
+    <text x="45" y="198" font-family="Source Serif 4, serif" font-size="13" font-style="italic" fill="#0a0a0a">s_i (batch)</text>
+    <g font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">
+      <rect x="45" y="204" width="24" height="14" fill="#fef3c7" stroke="#b45309" stroke-width="0.7"/>
+      <text x="57" y="214" text-anchor="middle">1</text>
+      <rect x="69" y="204" width="24" height="14" fill="#fef3c7" stroke="#b45309" stroke-width="0.7"/>
+      <text x="81" y="214" text-anchor="middle">0</text>
+      <rect x="93" y="204" width="24" height="14" fill="#fef3c7" stroke="#b45309" stroke-width="0.7"/>
+      <text x="105" y="214" text-anchor="middle">0</text>
+    </g>
+    <text x="45" y="234" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">one-hot batch id</text>
+  </g>
+
+  <!-- Arrow 1 -->
+  <line x1="190" y1="170" x2="223" y2="170" stroke="#1e3a8a" stroke-width="1.5" marker-end="url(#arrow-cobalt)"/>
+
+  <!-- ── Block 2: Encoder ── -->
+  <g>
+    <rect x="225" y="80" width="160" height="180" rx="6" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5"/>
+    <text x="305" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a">encoder</text>
+
+    <!-- MLP stack -->
+    <g stroke="#1e3a8a" stroke-width="1" fill="#ffffff">
+      <rect x="252" y="120" width="106" height="20" rx="3"/>
+      <rect x="252" y="150" width="106" height="20" rx="3"/>
+      <rect x="252" y="180" width="106" height="20" rx="3"/>
+    </g>
+    <g font-family="JetBrains Mono, monospace" font-size="9" fill="#1e3a8a">
+      <text x="305" y="134" text-anchor="middle">linear + ReLU</text>
+      <text x="305" y="164" text-anchor="middle">linear + ReLU</text>
+      <text x="305" y="194" text-anchor="middle">linear</text>
+    </g>
+
+    <text x="305" y="220" text-anchor="middle" font-family="Source Serif 4, serif" font-size="12" font-style="italic" fill="#1e3a8a">q_φ(z | x, s)</text>
+    <text x="305" y="240" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">→ (μ_z, σ_z)</text>
+  </g>
+
+  <!-- Arrow 2 (with reparameterise label) -->
+  <line x1="385" y1="170" x2="418" y2="170" stroke="#1e3a8a" stroke-width="1.5" marker-end="url(#arrow-cobalt)"/>
+  <text x="400" y="158" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#525252" font-style="italic">reparam.</text>
+
+  <!-- ── Block 3: Latent z ── -->
+  <g>
+    <rect x="420" y="80" width="180" height="180" rx="6" fill="#ffffff" stroke="#1e3a8a" stroke-width="1.5"/>
+    <text x="510" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a">latent z</text>
+
+    <!-- Cloud shape via ellipses -->
+    <ellipse cx="510" cy="165" rx="60" ry="40" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.8" stroke-dasharray="2 2"/>
+    <g fill="#1e3a8a">
+      <circle cx="495" cy="150" r="2.5"/><circle cx="518" cy="142" r="2.5"/>
+      <circle cx="530" cy="160" r="2.5"/><circle cx="502" cy="175" r="2.5"/>
+      <circle cx="520" cy="183" r="2.5"/><circle cx="488" cy="168" r="2.5"/>
+      <circle cx="540" cy="180" r="2.5"/><circle cx="512" cy="160" r="2.5"/>
+    </g>
+    <text x="510" y="230" text-anchor="middle" font-family="Source Serif 4, serif" font-size="12" font-style="italic" fill="#1e3a8a">z ∈ ℝ^10</text>
+    <text x="510" y="246" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">biology-only representation</text>
+  </g>
+
+  <!-- Prior + KL -->
+  <g>
+    <rect x="420" y="275" width="180" height="80" rx="6" fill="#fef3c7" stroke="#b45309" stroke-width="1"/>
+    <text x="510" y="293" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#b45309">prior</text>
+    <text x="510" y="313" text-anchor="middle" font-family="Source Serif 4, serif" font-size="12" font-style="italic" fill="#b45309">𝒩(0, I)</text>
+    <text x="510" y="333" text-anchor="middle" font-family="Source Serif 4, serif" font-size="11" font-style="italic" fill="#b45309">KL(q_φ ‖ p)</text>
+    <text x="510" y="348" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">regularizer</text>
+  </g>
+  <!-- KL arrow -->
+  <line x1="510" y1="265" x2="510" y2="275" stroke="#b45309" stroke-width="1.2" stroke-dasharray="3 2"/>
+
+  <!-- Arrow 3 -->
+  <line x1="600" y1="170" x2="633" y2="170" stroke="#1e3a8a" stroke-width="1.5" marker-end="url(#arrow-cobalt)"/>
+
+  <!-- Batch label feed into decoder (dashed from input block) -->
+  <path d="M 117 220 Q 400 360, 710 250" fill="none" stroke="#b45309" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="380" y="356" font-family="Inter, sans-serif" font-size="9" fill="#b45309" font-style="italic">s_i also fed to decoder</text>
+
+  <!-- ── Block 4: Decoder ── -->
+  <g>
+    <rect x="635" y="80" width="160" height="180" rx="6" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5"/>
+    <text x="715" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a">decoder</text>
+
+    <g stroke="#1e3a8a" stroke-width="1" fill="#ffffff">
+      <rect x="662" y="120" width="106" height="20" rx="3"/>
+      <rect x="662" y="150" width="106" height="20" rx="3"/>
+      <rect x="662" y="180" width="106" height="20" rx="3"/>
+    </g>
+    <g font-family="JetBrains Mono, monospace" font-size="9" fill="#1e3a8a">
+      <text x="715" y="134" text-anchor="middle">linear + ReLU</text>
+      <text x="715" y="164" text-anchor="middle">linear + ReLU</text>
+      <text x="715" y="194" text-anchor="middle">softmax</text>
+    </g>
+
+    <text x="715" y="220" text-anchor="middle" font-family="Source Serif 4, serif" font-size="12" font-style="italic" fill="#1e3a8a">f_θ(z, s)</text>
+    <text x="715" y="240" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">→ ρ (expression profile)</text>
+  </g>
+
+  <!-- Arrow 4 -->
+  <line x1="795" y1="170" x2="828" y2="170" stroke="#1e3a8a" stroke-width="1.5" marker-end="url(#arrow-cobalt)"/>
+
+  <!-- ── Block 5: NB likelihood ── -->
+  <g>
+    <rect x="830" y="80" width="220" height="180" rx="6" fill="#ffffff" stroke="#b45309" stroke-width="2"/>
+    <text x="940" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#b45309">NB likelihood</text>
+
+    <text x="940" y="135" text-anchor="middle" font-family="Source Serif 4, serif" font-size="13" font-style="italic" fill="#0a0a0a">x_ij ~ NB(ρ_ij · l_i, φ_j)</text>
+
+    <g font-family="Inter, sans-serif" font-size="9" fill="#525252">
+      <text x="850" y="165">ρ_ij  : decoded expression mean</text>
+      <text x="850" y="180">l_i   : per-cell library size (latent)</text>
+      <text x="850" y="195">φ_j   : per-gene dispersion (learned)</text>
+    </g>
+
+    <text x="940" y="222" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="#b45309">callback · Lecture 6 NB count model</text>
+    <text x="940" y="240" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">NB, not Gaussian — shape-matches the count data</text>
+  </g>
+
+  <!-- ── ELBO equation ── -->
+  <g transform="translate(30 380)">
+    <rect x="0" y="0" width="1020" height="80" rx="6" fill="#f6f4ee" stroke="#c4c1b6"/>
+    <text x="20" y="24" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">Evidence Lower Bound (ELBO) — the training objective</text>
+
+    <text x="20" y="55" font-family="Source Serif 4, serif" font-size="16" fill="#0a0a0a">
+      ELBO = <tspan fill="#b45309" font-weight="600">𝔼_q[log p(x | z, s)]</tspan>
+      <tspan fill="#0a0a0a"> − </tspan>
+      <tspan fill="#7c3aed" font-weight="600">KL(q_φ(z|x,s) ‖ p(z))</tspan>
+    </text>
+
+    <text x="350" y="73" font-family="Inter, sans-serif" font-size="9" fill="#b45309">↑ reconstruction (NB likelihood, block 5)</text>
+    <text x="685" y="73" font-family="Inter, sans-serif" font-size="9" fill="#7c3aed">↑ KL regularizer (prior, block 3)</text>
+  </g>
+</svg>

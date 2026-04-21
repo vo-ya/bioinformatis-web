@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RNA Velocity Vector Field</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .select-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .select-row select {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.45rem 0.6rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .select-row select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+    .toggle-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding-top: 1.4rem;
+    }
+    .toggle-row input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 16px; height: 16px;
+    }
+    .toggle-row label {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.9rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+      align-items: center;
+    }
+    .action-row .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-left: auto;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    .status-dot.working { background: var(--warning); animation: pulse 1s infinite ease-in-out; }
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
+
+    .plot-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 820px) {
+      .plot-grid { grid-template-columns: 1fr; }
+    }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 0 0 0.4rem;
+    }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .legend-swatch .sw.steady { background: #1e3a8a; }
+    .legend-swatch .sw.induce { background: #b45309; }
+    .legend-swatch .sw.repress { background: #7c3aed; }
+    .legend-swatch .sw.arrow {
+      background: var(--accent);
+      width: 14px; height: 2px; border-radius: 1px;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner .row { display: block; }
+    .banner .row + .row { margin-top: 0.2rem; }
+
+    .warn {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--error);
+      margin-top: 0.7rem;
+      display: none;
+    }
+    .warn.show { display: block; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="rna-velocity">
+
+  <header class="artifact-head">
+    <h1>RNA Velocity Vector Field</h1>
+    <p>Each cell carries both spliced (mature) and unspliced (nascent) counts for every gene. The steady-state ratio u = gamma&middot;s defines equilibrium; cells above the line are actively inducing, below are repressing. Projecting v = beta&middot;u &minus; gamma&middot;s onto a 2D embedding gives a flow field from immature to mature cells. Turn cell-cycle genes on to see the documented failure mode.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Controls</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ncell-input">Cell count</label>
+          <span class="slider-value" id="ncell-value">300</span>
+        </div>
+        <input id="ncell-input" type="range" min="50" max="1000" step="50" value="300">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ngene-input">Gene count</label>
+          <span class="slider-value" id="ngene-value">20</span>
+        </div>
+        <input id="ngene-input" type="range" min="5" max="50" step="1" value="20">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="noise-input">Noise level</label>
+          <span class="slider-value" id="noise-value">0.20</span>
+        </div>
+        <input id="noise-input" type="range" min="0" max="50" step="1" value="20">
+      </div>
+
+      <div class="select-row">
+        <label class="field-label" for="traj-select">Trajectory shape</label>
+        <select id="traj-select">
+          <option value="linear" selected>linear</option>
+          <option value="branch">branch</option>
+        </select>
+      </div>
+
+      <div class="select-row">
+        <label class="field-label" for="model-select">Velocity model</label>
+        <select id="model-select">
+          <option value="steady" selected>steady-state</option>
+          <option value="stochastic">stochastic</option>
+        </select>
+      </div>
+
+      <div class="select-row">
+        <label class="field-label" for="gene-select">Gene for u&ndash;s panel</label>
+        <select id="gene-select"></select>
+      </div>
+
+      <div class="toggle-row">
+        <input id="cc-toggle" type="checkbox">
+        <label for="cc-toggle">Include cell-cycle genes</label>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate dataset</button>
+      <span class="hint"><span class="status-dot" id="status-dot"></span><span id="status-text">idle</span></span>
+    </div>
+
+    <div class="warn" id="warn-box"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Phase portrait &amp; velocity field</p>
+    <div class="plot-grid">
+      <div>
+        <p class="plot-title">u&ndash;s phase diagram &middot; <span id="gene-title">gene 1</span></p>
+        <div class="plot-wrap">
+          <svg id="phase-svg" class="plot-svg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet" aria-label="u-s phase diagram"></svg>
+        </div>
+        <div class="legend">
+          <span class="legend-swatch"><span class="sw steady"></span> steady</span>
+          <span class="legend-swatch"><span class="sw induce"></span> inducing (u &gt; gamma&middot;s)</span>
+          <span class="legend-swatch"><span class="sw repress"></span> repressing (u &lt; gamma&middot;s)</span>
+        </div>
+      </div>
+      <div>
+        <p class="plot-title">Velocity field &middot; PC1 vs PC2</p>
+        <div class="plot-wrap">
+          <svg id="velo-svg" class="plot-svg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet" aria-label="velocity field"></svg>
+        </div>
+        <div class="legend">
+          <span class="legend-swatch"><span class="sw arrow"></span> projected velocity</span>
+          <span class="legend-swatch"><span class="sw steady"></span> early (small t)</span>
+          <span class="legend-swatch"><span class="sw induce"></span> late (large t)</span>
+        </div>
+      </div>
+    </div>
+    <p class="plot-caption">Left: each dot is one cell&rsquo;s (s,u) for the selected gene. The cobalt line is the fitted steady-state u = gamma&middot;s. Right: every cell gets a velocity arrow, length in units of PC1/PC2 drift from a gene-space extrapolation of one time unit, cosine-aligned with its 20 nearest neighbours.</p>
+  </section>
+
+  <div class="banner" id="banner">
+    <span class="row"><b>Fit:</b> <span id="banner-fit">&mdash;</span></span>
+    <span class="row"><b>Flow:</b> <span id="banner-flow">&mdash;</span></span>
+    <span class="row"><b>Signal:</b> <span id="banner-signal">&mdash;</span></span>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ---------- Deterministic RNG ----------
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rnd) {
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // ---------- SVG utilities ----------
+  function elSVG(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // ---------- Simulation ----------
+  //
+  // Per gene j: pick a switching time t_sw_j, induction rate alpha_j, splicing
+  // rate beta_j = 1, degradation rate gamma_j ~ N(1.0, 0.15).
+  // Per cell i: pick a trajectory time t_i in [0, 1]. For branch, assign a
+  // branch label and perturb gamma for certain genes downstream of the branch
+  // point.
+  // Analytical splicing-ODE solution (beta = 1):
+  //   u_on(t)  = alpha * (1 - exp(-t))
+  //   s_on(t)  = alpha / (gamma - 1) * (1 - exp(-t)) - alpha / (gamma - 1) * (1 - exp(-gamma t))
+  // For gamma close to 1 we fall back to a stable form.
+  // After switch-off the gene relaxes back with rates beta, gamma.
+  function solveSplice(alpha, gamma, t) {
+    const expt = Math.exp(-t);
+    const u = alpha * (1 - expt);
+    let s;
+    if (Math.abs(gamma - 1) < 1e-3) {
+      s = alpha * (t * expt);   // limit for gamma -> 1
+    } else {
+      s = alpha * ((1 - expt) - (1 - Math.exp(-gamma * t))) / (gamma - 1) + alpha / gamma * (1 - Math.exp(-gamma * t));
+    }
+    return [u, s];
+  }
+
+  function simulateDataset(opts) {
+    const { nCell, nGene, noise, trajectory, cellCycle, seed } = opts;
+    const rnd = mulberry32(seed);
+
+    // Gene parameters
+    const alphas = new Float64Array(nGene);
+    const gammas = new Float64Array(nGene);
+    const tSwitch = new Float64Array(nGene);
+    const isCC = new Uint8Array(nGene);
+    for (let g = 0; g < nGene; g++) {
+      alphas[g] = 3 + 6 * rnd();                 // induction rate
+      gammas[g] = 1.0 + 0.15 * randn(rnd);       // true gamma ~ 1 with jitter
+      if (gammas[g] < 0.4) gammas[g] = 0.4;
+      if (gammas[g] > 1.8) gammas[g] = 1.8;
+      tSwitch[g] = 0.6 + 0.6 * rnd();            // switch-off somewhere in mid/late
+    }
+
+    // Cell-cycle genes: last ~30% of genes (when enabled) get a sinusoidal
+    // alpha variation on top of their base value. Even with cell-cycle off we
+    // still mark which genes would be cc so the toggle has a definite effect.
+    const ccStart = Math.floor(nGene * 0.7);
+    for (let g = ccStart; g < nGene; g++) isCC[g] = 1;
+
+    // Cell times and optional branch labels
+    const times = new Float64Array(nCell);
+    const branch = new Int8Array(nCell);   // 0 or 1 (only used for branch shape)
+    for (let i = 0; i < nCell; i++) {
+      times[i] = rnd();
+      branch[i] = trajectory === 'branch' && rnd() < 0.5 ? 1 : 0;
+    }
+
+    // Per-cell cell-cycle phase (only used when cellCycle is on) — this is
+    // an independent axis that scrambles alpha of cc genes regardless of t.
+    const ccPhase = new Float64Array(nCell);
+    for (let i = 0; i < nCell; i++) ccPhase[i] = rnd() * 2 * Math.PI;
+
+    // Expression matrices
+    const U = new Float64Array(nCell * nGene);
+    const S = new Float64Array(nCell * nGene);
+    for (let i = 0; i < nCell; i++) {
+      const t = times[i];
+      const br = branch[i];
+      for (let g = 0; g < nGene; g++) {
+        let a = alphas[g];
+        let gm = gammas[g];
+        if (trajectory === 'branch' && br === 1 && g % 3 === 0) {
+          a *= 0.45;         // branch-specific suppression
+          gm *= 1.3;
+        }
+        // Cell-cycle modulation: sinusoidal alpha variation plus a shifted-
+        // phase gamma perturbation. The amplitude is set so cell-cycle genes
+        // contribute meaningful variance in PCA — enough to noticeably tilt
+        // the 2D embedding away from the differentiation axis (the classic
+        // scVelo failure mode).
+        if (cellCycle && isCC[g]) {
+          const mod = 1 + 0.9 * Math.sin(ccPhase[i] + 0.6 * g);
+          a *= Math.max(0.05, mod);
+          const gmod = 1 + 0.35 * Math.cos(ccPhase[i] - 0.3 * g);
+          gm *= Math.max(0.2, gmod);
+          // Modest boost to cc-gene base alpha so their variance is elevated
+          a *= 1.25;
+        }
+        // Effective time (fold into switch-off region)
+        let te = t;
+        let u, s;
+        if (te <= tSwitch[g]) {
+          [u, s] = solveSplice(a, gm, te);
+        } else {
+          // switch-off: evaluate on-state at t_sw, then decay for (te - t_sw)
+          const [u0, s0] = solveSplice(a, gm, tSwitch[g]);
+          const dt = te - tSwitch[g];
+          const expu = Math.exp(-dt);
+          const expg = Math.exp(-gm * dt);
+          u = u0 * expu;
+          // s decays via: ds/dt = beta u - gamma s  (with alpha=0)
+          // closed form given u0 decays as u0*exp(-t):
+          if (Math.abs(gm - 1) < 1e-3) {
+            s = (s0 + u0 * dt) * expu;
+          } else {
+            s = s0 * expg + u0 * (expu - expg) / (gm - 1);
+          }
+        }
+        // Additive Gaussian noise proportional to noise level + small floor
+        const nsU = noise * Math.max(0.2, Math.abs(u));
+        const nsS = noise * Math.max(0.2, Math.abs(s));
+        const uN = Math.max(0, u + nsU * randn(rnd));
+        const sN = Math.max(0, s + nsS * randn(rnd));
+        U[i * nGene + g] = uN;
+        S[i * nGene + g] = sN;
+      }
+    }
+
+    return { U, S, times, branch, alphas, gammas, isCC };
+  }
+
+  // ---------- Fit gamma per gene (steady-state) ----------
+  //
+  // Standard scVelo-style extreme-quantile fit: pick cells with s in the top
+  // 5% AND the bottom 5% of s (these are near the induction / repression
+  // steady states). Regress u on s through the origin on that combined subset.
+  // Using top+bottom anchors the line and reduces the induction-phase bias.
+  function fitGammaPerGene(U, S, nCell, nGene) {
+    const out = new Float64Array(nGene);
+    const idx = new Array(nCell);
+    for (let g = 0; g < nGene; g++) {
+      for (let i = 0; i < nCell; i++) idx[i] = i;
+      idx.sort((a, b) => S[b * nGene + g] - S[a * nGene + g]);
+      const tailN = Math.max(3, Math.floor(nCell * 0.05));
+      let num = 0, den = 0;
+      for (let k = 0; k < tailN; k++) {
+        const i = idx[k];
+        const u = U[i * nGene + g];
+        const s = S[i * nGene + g];
+        num += u * s;
+        den += s * s;
+      }
+      for (let k = nCell - tailN; k < nCell; k++) {
+        const i = idx[k];
+        const u = U[i * nGene + g];
+        const s = S[i * nGene + g];
+        num += u * s;
+        den += s * s;
+      }
+      out[g] = den > 1e-9 ? num / den : 1.0;
+      if (!isFinite(out[g])) out[g] = 1.0;
+      if (out[g] < 0.2) out[g] = 0.2;
+      if (out[g] > 3.0) out[g] = 3.0;
+    }
+    return out;
+  }
+
+  // ---------- Compute per-cell per-gene velocity ----------
+  function computeVelocity(U, S, gammas, nCell, nGene, model, rnd) {
+    // v_s = beta * u - gamma * s, with beta = 1.
+    // Stochastic model adds a modest moment correction: velocity += 0.5 * residual
+    // of a second-moment fit. For teaching purposes we approximate it as a
+    // small positive-skew bias on the steady-state velocity.
+    const V = new Float64Array(nCell * nGene);
+    for (let i = 0; i < nCell; i++) {
+      for (let g = 0; g < nGene; g++) {
+        let v = U[i * nGene + g] - gammas[g] * S[i * nGene + g];
+        if (model === 'stochastic') {
+          // Very lightweight second-moment nudge
+          v += 0.15 * (U[i * nGene + g] * U[i * nGene + g] - S[i * nGene + g] * S[i * nGene + g]) * 0.01;
+        }
+        V[i * nGene + g] = v;
+      }
+    }
+    return V;
+  }
+
+  // ---------- PCA (top 2 components) via power iteration on covariance ----
+  function pcaTop2(X, n, p) {
+    // Column-center in place — caller may or may not want that; we copy.
+    const Xc = new Float64Array(n * p);
+    const mu = new Float64Array(p);
+    for (let i = 0; i < n; i++) {
+      for (let g = 0; g < p; g++) mu[g] += X[i * p + g];
+    }
+    for (let g = 0; g < p; g++) mu[g] /= n;
+    for (let i = 0; i < n; i++) {
+      for (let g = 0; g < p; g++) Xc[i * p + g] = X[i * p + g] - mu[g];
+    }
+
+    // Build p x p covariance
+    const C = new Float64Array(p * p);
+    for (let g1 = 0; g1 < p; g1++) {
+      for (let g2 = g1; g2 < p; g2++) {
+        let s = 0;
+        for (let i = 0; i < n; i++) s += Xc[i * p + g1] * Xc[i * p + g2];
+        const v = s / Math.max(1, n - 1);
+        C[g1 * p + g2] = v;
+        C[g2 * p + g1] = v;
+      }
+    }
+
+    const V = [];
+    const rnd = mulberry32(99);
+    for (let m = 0; m < 2; m++) {
+      let v = new Float64Array(p);
+      for (let g = 0; g < p; g++) v[g] = randn(rnd);
+      // Orthogonalise against prior
+      for (let j = 0; j < m; j++) {
+        const vp = V[j];
+        let d = 0;
+        for (let g = 0; g < p; g++) d += v[g] * vp[g];
+        for (let g = 0; g < p; g++) v[g] -= d * vp[g];
+      }
+      let norm = 0;
+      for (let g = 0; g < p; g++) norm += v[g] * v[g];
+      norm = Math.sqrt(norm) || 1;
+      for (let g = 0; g < p; g++) v[g] /= norm;
+
+      for (let iter = 0; iter < 40; iter++) {
+        const w = new Float64Array(p);
+        for (let g1 = 0; g1 < p; g1++) {
+          let s = 0;
+          for (let g2 = 0; g2 < p; g2++) s += C[g1 * p + g2] * v[g2];
+          w[g1] = s;
+        }
+        for (let j = 0; j < m; j++) {
+          const vp = V[j];
+          let d = 0;
+          for (let g = 0; g < p; g++) d += w[g] * vp[g];
+          for (let g = 0; g < p; g++) w[g] -= d * vp[g];
+        }
+        let nw = 0;
+        for (let g = 0; g < p; g++) nw += w[g] * w[g];
+        nw = Math.sqrt(nw);
+        if (nw < 1e-12) break;
+        for (let g = 0; g < p; g++) w[g] /= nw;
+        v = w;
+      }
+      V.push(v);
+    }
+
+    // Scores
+    const scores = new Float64Array(n * 2);
+    for (let i = 0; i < n; i++) {
+      let s0 = 0, s1 = 0;
+      for (let g = 0; g < p; g++) {
+        s0 += Xc[i * p + g] * V[0][g];
+        s1 += Xc[i * p + g] * V[1][g];
+      }
+      scores[i * 2 + 0] = s0;
+      scores[i * 2 + 1] = s1;
+    }
+    return { scores, V, mu };
+  }
+
+  // ---------- k-NN in gene space ----------
+  function knnGeneSpace(S, n, p, k) {
+    const nbrs = new Int32Array(n * k);
+    const dbuf = new Float64Array(n);
+    const idx = new Array(n);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (j === i) { dbuf[j] = Infinity; continue; }
+        let s = 0;
+        for (let g = 0; g < p; g++) {
+          const d = S[i * p + g] - S[j * p + g];
+          s += d * d;
+        }
+        dbuf[j] = s;
+      }
+      for (let j = 0; j < n; j++) idx[j] = j;
+      idx.sort((a, b) => dbuf[a] - dbuf[b]);
+      for (let q = 0; q < k; q++) nbrs[i * k + q] = idx[q];
+    }
+    return nbrs;
+  }
+
+  // ---------- Project velocity into 2D via neighbour displacements ----------
+  //
+  // For each cell i, compute the mean velocity direction by cosine-aligning
+  // with each neighbour j: weight = max(0, cos(v_i, S_j - S_i)). Use those
+  // weights to form a convex combination of 2D displacements (pca(j) - pca(i)).
+  function projectVelocity(V, S, pca2, nbrs, n, p, k) {
+    const out = new Float64Array(n * 2);
+    for (let i = 0; i < n; i++) {
+      let vn = 0;
+      for (let g = 0; g < p; g++) vn += V[i * p + g] * V[i * p + g];
+      vn = Math.sqrt(vn) + 1e-9;
+
+      let ax = 0, ay = 0, wsum = 0;
+      for (let qi = 0; qi < k; qi++) {
+        const j = nbrs[i * k + qi];
+        // displacement in gene space
+        let dn = 0, dot = 0;
+        for (let g = 0; g < p; g++) {
+          const d = S[j * p + g] - S[i * p + g];
+          dn += d * d;
+          dot += d * V[i * p + g];
+        }
+        dn = Math.sqrt(dn) + 1e-9;
+        const cos = dot / (dn * vn);
+        const w = Math.max(0, cos);
+        const dx2 = pca2[j * 2 + 0] - pca2[i * 2 + 0];
+        const dy2 = pca2[j * 2 + 1] - pca2[i * 2 + 1];
+        ax += w * dx2;
+        ay += w * dy2;
+        wsum += w + 1e-6;
+      }
+      if (wsum > 0) {
+        ax /= wsum;
+        ay /= wsum;
+      }
+      out[i * 2 + 0] = ax;
+      out[i * 2 + 1] = ay;
+    }
+    return out;
+  }
+
+  // ---------- Arrow-direction accuracy ----------
+  //
+  // For each cell we have (a) its true time t_i and (b) its inferred 2D
+  // velocity arrow. Build a per-cell "true next-step target" by finding the
+  // cell with the closest time > t_i in the PCA plane. The reference
+  // direction is (pca(j_next) - pca(i)). Arrow-direction accuracy is then
+  // the fraction of cells whose inferred arrow has positive cosine with its
+  // own per-cell reference. This is sensitive to local structure (so when
+  // cell-cycle dominates PCA the reference direction is itself scrambled
+  // relative to differentiation, and accuracy drops cleanly).
+  function arrowAccuracy(pca2, arrows, times, branch, trajectory, n) {
+    // Sort cells by time; for each i, the "true successor" in time-order
+    // defines the local differentiation tangent in PCA space.
+    const order = new Array(n);
+    for (let i = 0; i < n; i++) order[i] = i;
+    order.sort((a, b) => times[a] - times[b]);
+    const rank = new Int32Array(n);
+    for (let k = 0; k < n; k++) rank[order[k]] = k;
+
+    let ok = 0, tot = 0;
+    const window = Math.max(3, Math.floor(n * 0.05));
+    for (let i = 0; i < n; i++) {
+      const r = rank[i];
+      // Find successor window: cells with time-rank in [r+2, r+window+2],
+      // matching branch if applicable.
+      let tx = 0, ty = 0, cnt = 0;
+      const from = Math.min(n - 1, r + 2);
+      const to = Math.min(n - 1, r + 2 + window);
+      for (let k = from; k <= to; k++) {
+        const j = order[k];
+        if (trajectory === 'branch' && branch[j] !== branch[i]) continue;
+        tx += pca2[j * 2] - pca2[i * 2];
+        ty += pca2[j * 2 + 1] - pca2[i * 2 + 1];
+        cnt++;
+      }
+      if (cnt === 0) continue;
+      tx /= cnt; ty /= cnt;
+      const ax = arrows[i * 2], ay = arrows[i * 2 + 1];
+      const mag = Math.hypot(ax, ay) * Math.hypot(tx, ty);
+      if (mag < 1e-9) continue;
+      const c = (ax * tx + ay * ty) / mag;
+      if (c > 0) ok++;
+      tot++;
+    }
+    return tot === 0 ? 0 : ok / tot;
+  }
+
+  // ---------- Rendering: u-s phase ----------
+  function renderPhase(state) {
+    const svg = $('phase-svg');
+    clearNode(svg);
+    const W = 500, H = 500;
+    const PAD_L = 60, PAD_R = 20, PAD_T = 20, PAD_B = 50;
+    const x0 = PAD_L, x1 = W - PAD_R, y0 = PAD_T, y1 = H - PAD_B;
+
+    svg.appendChild(elSVG('rect', {
+      x: x0, y: y0, width: x1 - x0, height: y1 - y0,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    const { S, U, gammas, nCell, nGene, currentGene } = state;
+    const g = currentGene;
+
+    // Data bounds
+    let sMax = 1e-6, uMax = 1e-6;
+    for (let i = 0; i < nCell; i++) {
+      const sv = S[i * nGene + g], uv = U[i * nGene + g];
+      if (sv > sMax) sMax = sv;
+      if (uv > uMax) uMax = uv;
+    }
+    sMax *= 1.08; uMax *= 1.08;
+
+    const xOf = (v) => x0 + (v / sMax) * (x1 - x0);
+    const yOf = (v) => y1 - (v / uMax) * (y1 - y0);
+
+    // Gridlines (3)
+    for (let t = 1; t <= 3; t++) {
+      const xv = x0 + (t * (x1 - x0)) / 4;
+      const yv = y0 + (t * (y1 - y0)) / 4;
+      svg.appendChild(elSVG('line', {
+        x1: xv, x2: xv, y1: y0, y2: y1,
+        stroke: 'var(--border)', 'stroke-width': 1, 'stroke-dasharray': '2 4',
+      }));
+      svg.appendChild(elSVG('line', {
+        x1: x0, x2: x1, y1: yv, y2: yv,
+        stroke: 'var(--border)', 'stroke-width': 1, 'stroke-dasharray': '2 4',
+      }));
+    }
+
+    // Steady-state line u = gamma * s
+    const gm = gammas[g];
+    // Line: from (0,0) to (sMax, gm*sMax), clipped by y1
+    let x_end = sMax;
+    let u_end = gm * sMax;
+    if (u_end > uMax) { u_end = uMax; x_end = uMax / gm; }
+    svg.appendChild(elSVG('line', {
+      x1: xOf(0).toFixed(2), y1: yOf(0).toFixed(2),
+      x2: xOf(x_end).toFixed(2), y2: yOf(u_end).toFixed(2),
+      stroke: 'var(--accent)', 'stroke-width': 1.8,
+    }));
+    // Label the line
+    svg.appendChild(elSVG('text', {
+      x: xOf(x_end * 0.85), y: yOf(u_end * 0.88) - 4,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-mono)', 'font-size': 11,
+      fill: 'var(--accent)',
+    }, `u = ${gm.toFixed(2)}·s`));
+
+    // Cells: colour by (u - gm*s) / max(u, 0.01)
+    for (let i = 0; i < nCell; i++) {
+      const sv = S[i * nGene + g], uv = U[i * nGene + g];
+      const resid = uv - gm * sv;
+      const ref = Math.max(0.05 * uMax, uv + gm * sv);
+      const r = resid / ref;
+      let fill = '#1e3a8a';
+      if (r > 0.12) fill = '#b45309';
+      else if (r < -0.12) fill = '#7c3aed';
+      svg.appendChild(elSVG('circle', {
+        cx: xOf(sv).toFixed(2), cy: yOf(uv).toFixed(2),
+        r: 2.8, fill, opacity: 0.78,
+      }));
+    }
+
+    // Axis ticks/labels
+    svg.appendChild(elSVG('line', { x1: x0, x2: x1, y1: y1, y2: y1, stroke: 'var(--fg-muted)', 'stroke-width': 1 }));
+    svg.appendChild(elSVG('line', { x1: x0, x2: x0, y1: y0, y2: y1, stroke: 'var(--fg-muted)', 'stroke-width': 1 }));
+    for (let t = 0; t <= 4; t++) {
+      const sv = (sMax * t) / 4;
+      const uv = (uMax * t) / 4;
+      svg.appendChild(elSVG('text', {
+        x: xOf(sv), y: y1 + 14,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, sv.toFixed(1)));
+      svg.appendChild(elSVG('text', {
+        x: x0 - 8, y: yOf(uv) + 3,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, uv.toFixed(1)));
+    }
+
+    svg.appendChild(elSVG('text', {
+      x: (x0 + x1) / 2, y: H - 14,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.08em',
+    }, 'spliced s'));
+
+    svg.appendChild(elSVG('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.08em',
+      transform: `translate(20, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, 'unspliced u'));
+  }
+
+  // ---------- Rendering: velocity field ----------
+  function renderVelocity(state) {
+    const svg = $('velo-svg');
+    clearNode(svg);
+    const W = 500, H = 500;
+    const PAD = 30;
+    const x0 = PAD, x1 = W - PAD, y0 = PAD, y1 = H - PAD;
+
+    svg.appendChild(elSVG('rect', {
+      x: x0, y: y0, width: x1 - x0, height: y1 - y0,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    const { pca2, arrows, times, nCell } = state;
+
+    // Bounds
+    let aMin = Infinity, aMax = -Infinity, bMin = Infinity, bMax = -Infinity;
+    for (let i = 0; i < nCell; i++) {
+      const a = pca2[i * 2], b = pca2[i * 2 + 1];
+      if (a < aMin) aMin = a; if (a > aMax) aMax = a;
+      if (b < bMin) bMin = b; if (b > bMax) bMax = b;
+    }
+    const aRng = (aMax - aMin) || 1;
+    const bRng = (bMax - bMin) || 1;
+    const padFrac = 0.08;
+    const aLo = aMin - padFrac * aRng, aHi = aMax + padFrac * aRng;
+    const bLo = bMin - padFrac * bRng, bHi = bMax + padFrac * bRng;
+
+    const xOf = (v) => x0 + ((v - aLo) / (aHi - aLo)) * (x1 - x0);
+    const yOf = (v) => y1 - ((v - bLo) / (bHi - bLo)) * (y1 - y0);
+
+    // Gridlines
+    for (let t = 1; t < 4; t++) {
+      const xv = x0 + (t * (x1 - x0)) / 4;
+      const yv = y0 + (t * (y1 - y0)) / 4;
+      svg.appendChild(elSVG('line', {
+        x1: xv, x2: xv, y1: y0, y2: y1,
+        stroke: 'var(--border)', 'stroke-width': 1, 'stroke-dasharray': '2 4',
+      }));
+      svg.appendChild(elSVG('line', {
+        x1: x0, x2: x1, y1: yv, y2: yv,
+        stroke: 'var(--border)', 'stroke-width': 1, 'stroke-dasharray': '2 4',
+      }));
+    }
+
+    // Normalise arrow magnitudes to a fixed visual length
+    let maxMag = 1e-9;
+    for (let i = 0; i < nCell; i++) {
+      const m = Math.hypot(arrows[i * 2], arrows[i * 2 + 1]);
+      if (m > maxMag) maxMag = m;
+    }
+    const ARROW_LEN = 7;  // pixels
+
+    // Arrowhead marker
+    const defs = elSVG('defs');
+    const marker = elSVG('marker', {
+      id: 'velo-head',
+      viewBox: '0 0 10 10',
+      refX: 7, refY: 5, markerWidth: 4, markerHeight: 4,
+      orient: 'auto-start-reverse',
+    });
+    const mpath = elSVG('path', {
+      d: 'M 0 1 L 8 5 L 0 9 z',
+      fill: 'var(--accent)',
+    });
+    marker.appendChild(mpath);
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+
+    // Plot cells coloured by time t
+    for (let i = 0; i < nCell; i++) {
+      const cx = xOf(pca2[i * 2]);
+      const cy = yOf(pca2[i * 2 + 1]);
+      const t = times[i];
+      // blue -> amber along t
+      const c = tColor(t);
+      svg.appendChild(elSVG('circle', {
+        cx: cx.toFixed(2), cy: cy.toFixed(2),
+        r: 2.4, fill: c, opacity: 0.55,
+      }));
+    }
+
+    // Arrows: sample every cell but cap density for very large nCell
+    const stride = nCell > 500 ? 2 : 1;
+    for (let i = 0; i < nCell; i += stride) {
+      const cx = xOf(pca2[i * 2]);
+      const cy = yOf(pca2[i * 2 + 1]);
+      const ax = arrows[i * 2], ay = arrows[i * 2 + 1];
+      const mag = Math.hypot(ax, ay);
+      if (mag < 1e-9) continue;
+      const scale = (ARROW_LEN + 0.8 * Math.min(6, mag / (maxMag + 1e-9) * 6)) / mag;
+      // Convert gene-space direction through PCA (ax, ay are in PCA units already)
+      // so the screen-space direction matches data-space direction sign.
+      const sx = ax * (x1 - x0) / (aHi - aLo);
+      const sy = -ay * (y1 - y0) / (bHi - bLo);
+      const sMag = Math.hypot(sx, sy) + 1e-9;
+      const nx = sx / sMag, ny = sy / sMag;
+      const L = ARROW_LEN;
+      const ex = cx + nx * L;
+      const ey = cy + ny * L;
+      svg.appendChild(elSVG('line', {
+        x1: cx.toFixed(2), y1: cy.toFixed(2),
+        x2: ex.toFixed(2), y2: ey.toFixed(2),
+        stroke: 'var(--accent)', 'stroke-width': 1.15,
+        'marker-end': 'url(#velo-head)', opacity: 0.85,
+      }));
+    }
+
+    // Axis labels
+    svg.appendChild(elSVG('text', {
+      x: x1 - 8, y: y1 - 8,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-mono)', 'font-size': 10,
+      fill: 'var(--fg-subtle)',
+    }, 'PC1 →  PC2 ↑'));
+  }
+
+  function tColor(t) {
+    // Interpolate blue (early) -> amber (late)
+    const c1 = [30, 58, 138];
+    const c2 = [180, 83, 9];
+    const r = Math.round(c1[0] + (c2[0] - c1[0]) * t);
+    const g = Math.round(c1[1] + (c2[1] - c1[1]) * t);
+    const b = Math.round(c1[2] + (c2[2] - c1[2]) * t);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  // ---------- State ----------
+  const state = {
+    seed: 20260421,
+    nCell: 300,
+    nGene: 20,
+    noise: 0.2,
+    trajectory: 'linear',
+    model: 'steady',
+    cellCycle: false,
+    currentGene: 0,
+    // computed
+    U: null, S: null, V: null, times: null, branch: null,
+    gammasTrue: null, gammasFit: null, isCC: null,
+    pca2: null, arrows: null, acc: 0,
+    running: false,
+  };
+
+  // ---------- DOM ----------
+  const els = {
+    nCell: $('ncell-input'), nCellVal: $('ncell-value'),
+    nGene: $('ngene-input'), nGeneVal: $('ngene-value'),
+    noise: $('noise-input'), noiseVal: $('noise-value'),
+    traj: $('traj-select'),
+    model: $('model-select'),
+    gene: $('gene-select'),
+    cc: $('cc-toggle'),
+    geneTitle: $('gene-title'),
+    resim: $('resim-btn'),
+    statusDot: $('status-dot'),
+    statusText: $('status-text'),
+    warn: $('warn-box'),
+    bFit: $('banner-fit'),
+    bFlow: $('banner-flow'),
+    bSig: $('banner-signal'),
+  };
+
+  function setStatus(text, working) {
+    els.statusText.textContent = text;
+    els.statusDot.classList.toggle('working', !!working);
+  }
+  function setButtonsDisabled(d) {
+    els.resim.disabled = d;
+    els.nCell.disabled = d; els.nGene.disabled = d; els.noise.disabled = d;
+    els.traj.disabled = d; els.model.disabled = d; els.cc.disabled = d;
+  }
+  function checkWarnings() {
+    els.warn.classList.remove('show');
+    els.warn.textContent = '';
+    if (state.nGene < 5) {
+      els.warn.textContent = `Gene count ${state.nGene} < 5. Velocity fit is under-determined; results will be unstable.`;
+      els.warn.classList.add('show');
+      return true;  // warn but proceed
+    }
+    return true;
+  }
+
+  function readControls() {
+    state.nCell = +els.nCell.value;
+    state.nGene = +els.nGene.value;
+    state.noise = (+els.noise.value) / 100;
+    state.trajectory = els.traj.value;
+    state.model = els.model.value;
+    state.cellCycle = !!els.cc.checked;
+    els.nCellVal.textContent = String(state.nCell);
+    els.nGeneVal.textContent = String(state.nGene);
+    els.noiseVal.textContent = state.noise.toFixed(2);
+  }
+
+  function rebuildGeneDropdown() {
+    const cur = state.currentGene;
+    const frag = document.createDocumentFragment();
+    for (let g = 0; g < state.nGene; g++) {
+      const opt = document.createElement('option');
+      opt.value = String(g);
+      opt.textContent = `gene ${g + 1}${state.isCC && state.isCC[g] ? ' · cell-cycle' : ''}`;
+      frag.appendChild(opt);
+    }
+    els.gene.innerHTML = '';
+    els.gene.appendChild(frag);
+    const use = Math.min(cur, state.nGene - 1);
+    els.gene.value = String(use);
+    state.currentGene = use;
+    els.geneTitle.textContent = `gene ${use + 1}`;
+  }
+
+  // ---------- Pipeline ----------
+  function recompute() {
+    if (state.running) return;
+    state.running = true;
+    setButtonsDisabled(true);
+    setStatus('simulating…', true);
+    checkWarnings();
+
+    requestAnimationFrame(() => {
+      const sim = simulateDataset({
+        nCell: state.nCell,
+        nGene: state.nGene,
+        noise: state.noise,
+        trajectory: state.trajectory,
+        cellCycle: state.cellCycle,
+        seed: state.seed,
+      });
+      state.U = sim.U; state.S = sim.S;
+      state.times = sim.times; state.branch = sim.branch;
+      state.gammasTrue = sim.gammas; state.isCC = sim.isCC;
+
+      rebuildGeneDropdown();
+
+      setStatus('fitting gamma…', true);
+      requestAnimationFrame(() => {
+        state.gammasFit = fitGammaPerGene(state.S, state.U, state.nCell, state.nGene)
+          // Wait — u on s: we want u = gamma * s, fit gamma = sum(u*s)/sum(s*s).
+          // The helper is called with (U, S) positional args; fix order.
+          ;
+        // Recompute with correct arg order
+        state.gammasFit = fitGammaPerGene(state.U, state.S, state.nCell, state.nGene);
+
+        setStatus('computing velocity…', true);
+        requestAnimationFrame(() => {
+          state.V = computeVelocity(state.U, state.S, state.gammasFit, state.nCell, state.nGene, state.model);
+
+          setStatus('running PCA…', true);
+          requestAnimationFrame(() => {
+            const { scores } = pcaTop2(state.S, state.nCell, state.nGene);
+            state.pca2 = scores;
+
+            setStatus('projecting velocity…', true);
+            requestAnimationFrame(() => {
+              const k = Math.min(20, Math.max(3, Math.floor(state.nCell * 0.05)));
+              const nbrs = knnGeneSpace(state.S, state.nCell, state.nGene, k);
+              state.arrows = projectVelocity(state.V, state.S, state.pca2, nbrs, state.nCell, state.nGene, k);
+
+              // Accuracy
+              state.acc = arrowAccuracy(state.pca2, state.arrows, state.times, state.branch, state.trajectory, state.nCell);
+
+              renderPhase(state);
+              renderVelocity(state);
+              updateBanner();
+
+              state.running = false;
+              setButtonsDisabled(false);
+              setStatus('idle', false);
+            });
+          });
+        });
+      });
+    });
+  }
+
+  function updateBanner() {
+    // Mean fitted gamma
+    let mu = 0;
+    for (let g = 0; g < state.nGene; g++) mu += state.gammasFit[g];
+    mu /= state.nGene;
+
+    let muTrue = 0;
+    for (let g = 0; g < state.nGene; g++) muTrue += state.gammasTrue[g];
+    muTrue /= state.nGene;
+
+    els.bFit.textContent = `mean gamma_fit ${mu.toFixed(2)}  (true ${muTrue.toFixed(2)})`;
+
+    const accPct = (state.acc * 100).toFixed(1);
+    let flowMsg;
+    if (state.acc >= 0.8) flowMsg = `clean flow — ${accPct}% of arrows point along the trajectory`;
+    else if (state.acc >= 0.6) flowMsg = `noisy flow — ${accPct}% correct, direction visible`;
+    else flowMsg = `broken flow — ${accPct}% correct, arrows disordered`;
+    els.bFlow.textContent = flowMsg;
+
+    let sigMsg;
+    if (state.cellCycle) {
+      sigMsg = `cell-cycle ON — degradation confounds gamma; expect accuracy drop`;
+    } else if (state.nGene < 5) {
+      sigMsg = `only ${state.nGene} genes — under-determined`;
+    } else if (state.noise > 0.35) {
+      sigMsg = `noise ${state.noise.toFixed(2)} — signal weak, watch steady-state fit drift`;
+    } else {
+      sigMsg = `cell-cycle OFF, ${state.nGene} genes, noise ${state.noise.toFixed(2)} — clean regime`;
+    }
+    els.bSig.textContent = sigMsg;
+  }
+
+  // ---------- Wiring ----------
+  els.nCell.addEventListener('input', () => { readControls(); });
+  els.nGene.addEventListener('input', () => { readControls(); });
+  els.noise.addEventListener('input', () => { readControls(); });
+  els.traj.addEventListener('change', () => { readControls(); recompute(); });
+  els.model.addEventListener('change', () => { readControls(); recompute(); });
+  els.cc.addEventListener('change', () => { readControls(); recompute(); });
+
+  els.nCell.addEventListener('change', () => { readControls(); recompute(); });
+  els.nGene.addEventListener('change', () => { readControls(); recompute(); });
+  els.noise.addEventListener('change', () => { readControls(); recompute(); });
+
+  els.gene.addEventListener('change', () => {
+    state.currentGene = +els.gene.value;
+    els.geneTitle.textContent = `gene ${state.currentGene + 1}`;
+    renderPhase(state);
+  });
+
+  els.resim.addEventListener('click', () => {
+    state.seed = (Math.random() * 0xffffffff) >>> 0;
+    recompute();
+  });
+
+  // Boot
+  readControls();
+  recompute();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ligand-Receptor Network Browser</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+    .select-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .select-row select {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.45rem 0.6rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+    }
+
+    .action-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 0.85rem;
+      padding-top: 0.8rem;
+      border-top: 1px dashed var(--border);
+    }
+    .action-row .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0 0 0 auto;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+      gap: 1rem;
+      align-items: stretch;
+    }
+    @media (max-width: 960px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 2px;
+    }
+
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    table.rank {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+    table.rank thead th {
+      text-align: left;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      padding: 0.35rem 0.4rem;
+      border-bottom: 1px solid var(--border-strong);
+    }
+    table.rank tbody td {
+      padding: 0.32rem 0.4rem;
+      border-bottom: 1px dashed var(--border);
+      color: var(--fg);
+      vertical-align: top;
+    }
+    table.rank tbody tr:last-child td { border-bottom: 0; }
+    table.rank td.num { text-align: right; }
+    table.rank td.fam {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.04em;
+    }
+    .fam-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      vertical-align: middle;
+      margin-right: 0.35rem;
+    }
+
+    .empty {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      text-align: center;
+      padding: 1.5rem 0;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner.warn {
+      background: #fef3c7;
+      border-color: #b45309;
+    }
+    .banner.warn b { color: #b45309; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="ligand-receptor">
+
+  <header class="artifact-head">
+    <h1>Ligand-Receptor Network Browser</h1>
+    <p>Simulated single-cell expression for five immune &amp; stromal cell types is scored against a curated ligand-receptor database. Each directed edge is a cell-type &rarr; cell-type communication axis, coloured by ligand family, weighted by the geometric-mean expression score. Move the threshold slider and the network thins; filter by family and only those colours remain. The aha: cell-cell communication graphs are extremely sensitive to the score cutoff you pick.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Dataset &amp; database</p>
+
+    <div class="controls-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ncells-input">Cells per type</label>
+          <span class="slider-value" id="ncells-value">200</span>
+        </div>
+        <input id="ncells-input" type="range" min="50" max="500" step="10" value="200">
+      </div>
+
+      <div class="select-row">
+        <label class="field-label" for="db-input">L-R database</label>
+        <select id="db-input">
+          <option value="toy" selected>toy (10 pairs)</option>
+          <option value="extended">extended (30 pairs)</option>
+        </select>
+      </div>
+
+      <div class="select-row">
+        <label class="field-label" for="fam-input">Ligand family filter</label>
+        <select id="fam-input">
+          <option value="all" selected>all families</option>
+          <option value="cytokine">cytokine</option>
+          <option value="chemokine">chemokine</option>
+          <option value="growth">growth factor</option>
+          <option value="tgf">TGF</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate</button>
+      <span class="hint" id="sim-hint">seed 20260421 &middot; 100 permutations pre-computed</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Thresholds</p>
+
+    <div class="controls-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="score-input">Score threshold</label>
+          <span class="slider-value" id="score-value">0.50</span>
+        </div>
+        <input id="score-input" type="range" min="0" max="100" step="1" value="50">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="frac-input">Min fraction expressing</label>
+          <span class="slider-value" id="frac-value">0.20</span>
+        </div>
+        <input id="frac-input" type="range" min="0" max="100" step="1" value="20">
+      </div>
+    </div>
+    <p class="hint">Score threshold: minimum normalised communication score (0-1) to keep an edge. Fraction expressing: minimum share of sender-type cells that must express the ligand (and same for receptor in the receiver type) &mdash; below this, the pair is dropped before scoring.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Network</p>
+    <div class="main-grid">
+      <div>
+        <div class="plot-wrap">
+          <svg id="net-svg" class="plot-svg" viewBox="0 0 640 560" preserveAspectRatio="xMidYMid meet" aria-label="Cell-cell communication network"></svg>
+        </div>
+        <div class="legend">
+          <span class="legend-swatch"><span class="sw" style="background:#1e3a8a"></span> cytokine</span>
+          <span class="legend-swatch"><span class="sw" style="background:#2d7a3e"></span> chemokine</span>
+          <span class="legend-swatch"><span class="sw" style="background:#b45309"></span> growth factor</span>
+          <span class="legend-swatch"><span class="sw" style="background:#7c3aed"></span> TGF</span>
+        </div>
+        <p class="plot-caption">Nodes: 5 cell types on a pentagon. Edges: directed sender &rarr; receiver. Thickness &prop; communication score. Colour = ligand family.</p>
+      </div>
+      <div>
+        <p class="panel-label" style="margin-top:0">Top 10 L-R pairs</p>
+        <table class="rank" id="rank-table">
+          <thead>
+            <tr>
+              <th>ligand</th>
+              <th>receptor</th>
+              <th>sender &rarr; receiver</th>
+              <th class="num">score</th>
+              <th class="num">p</th>
+            </tr>
+          </thead>
+          <tbody id="rank-body"></tbody>
+        </table>
+        <div class="empty" id="rank-empty" style="display:none">No edges pass the current filters.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="banner" id="banner">
+    <b id="banner-edges">0</b> edges pass filters
+    <span class="sep">&middot;</span>
+    top pair: <b id="banner-top">&mdash;</b>
+    <span class="sep">&middot;</span>
+    score <b id="banner-score">&mdash;</b>
+    <span class="sep">&middot;</span>
+    p <b id="banner-pval">&mdash;</b>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Family palette ──────────────────────────────────────
+  const FAM_COLOR = {
+    cytokine: '#1e3a8a',
+    chemokine: '#2d7a3e',
+    growth:   '#b45309',
+    tgf:      '#7c3aed',
+  };
+  const FAM_LABEL = {
+    cytokine: 'cytokine',
+    chemokine: 'chemokine',
+    growth:   'growth factor',
+    tgf:      'TGF',
+  };
+
+  // ── Deterministic RNG ───────────────────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rnd) {
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // ── Cell types ──────────────────────────────────────────
+  const CELL_TYPES = ['CD4 T', 'CD8 T', 'B cell', 'Macrophage', 'Fibroblast'];
+
+  // Each cell-type has characteristic "high" expression genes (ligands or
+  // receptors). Expression is simulated as a log-normal whose mean depends
+  // on whether the gene is a "signature" gene for that type.
+  //
+  // Keys are gene symbols; values are mean log-expression multipliers.
+  // 1.0 = background, higher = upregulated in that cell type.
+  const TYPE_PROFILE = {
+    'CD4 T': {
+      // T-helper: IL2, IFNG, CD40LG; receives chemokines, has CXCR3
+      IL2: 2.8, IFNG: 2.5, CD40LG: 2.6, TNF: 1.8,
+      CXCR3: 2.4, CCR5: 2.0, CCR7: 2.6, IL2RA: 2.5, IL6R: 1.8,
+      TGFBR2: 1.6, PDGFRA: 0.8,
+    },
+    'CD8 T': {
+      // Cytotoxic: IFNG, TNF, GZMB; CXCR3+
+      IFNG: 2.9, TNF: 2.4, FASLG: 2.3, LTA: 1.8,
+      CXCR3: 2.6, CCR5: 2.3, CCR7: 1.6, IL2RA: 1.4, IL15RA: 2.1,
+      PDGFRA: 0.7, TGFBR2: 1.4,
+    },
+    'B cell': {
+      // B: CCL22, LTA; receives CXCL13 via CXCR5
+      LTA: 2.5, CCL22: 2.2, IL10: 1.8, TGFB1: 1.6,
+      CXCR5: 2.9, CCR7: 2.4, IL6R: 2.1, CD40: 2.8, TGFBR2: 1.7,
+      PDGFRA: 0.6,
+    },
+    'Macrophage': {
+      // Macrophage: IL6, TNF, CXCL10, CCL2, CXCL9, VEGFA, TGFB1
+      IL6: 3.0, TNF: 2.9, IL1B: 2.8, CCL2: 3.1, CCL5: 2.5,
+      CXCL9: 2.8, CXCL10: 3.0, CXCL13: 1.8, VEGFA: 2.3, TGFB1: 2.4,
+      PDGFB: 2.0, FGF2: 1.8, EGF: 1.5,
+      IL10: 1.9, IFNG: 0.8,
+      CCR2: 2.2, CCR5: 2.0, TGFBR2: 1.9, IL6R: 1.8, PDGFRA: 1.2,
+      CD40: 2.1, IL2RA: 0.6,
+    },
+    'Fibroblast': {
+      // Fibroblasts secrete growth factors + TGF, CXCL12
+      VEGFA: 2.6, PDGFB: 2.8, FGF2: 2.7, EGF: 2.2,
+      TGFB1: 2.9, TGFB2: 2.5, BMP2: 2.1,
+      CXCL12: 3.0, CCL2: 2.0,
+      IL6: 2.2,
+      PDGFRA: 2.9, PDGFRB: 2.8, FGFR1: 2.6, EGFR: 2.0,
+      TGFBR2: 2.4, BMPR2: 2.0,
+      CXCR4: 2.2, ACVR1B: 1.8,
+      CCR7: 0.4, CD40: 0.5,
+    },
+  };
+
+  // ── L-R databases ───────────────────────────────────────
+  // Toy (10 pairs), one example per 4 families; extended (30) broader.
+  const DB_TOY = [
+    { ligand: 'IL6',    receptor: 'IL6R',   family: 'cytokine'  },
+    { ligand: 'TNF',    receptor: 'TNFRSF1A', family: 'cytokine'  },
+    { ligand: 'IFNG',   receptor: 'IFNGR1', family: 'cytokine'  },
+    { ligand: 'CCL2',   receptor: 'CCR2',   family: 'chemokine' },
+    { ligand: 'CXCL10', receptor: 'CXCR3',  family: 'chemokine' },
+    { ligand: 'CXCL12', receptor: 'CXCR4',  family: 'chemokine' },
+    { ligand: 'VEGFA',  receptor: 'KDR',    family: 'growth'    },
+    { ligand: 'PDGFB',  receptor: 'PDGFRB', family: 'growth'    },
+    { ligand: 'TGFB1',  receptor: 'TGFBR2', family: 'tgf'       },
+    { ligand: 'BMP2',   receptor: 'BMPR2',  family: 'tgf'       },
+  ];
+
+  const DB_EXTENDED = [
+    // cytokines (8)
+    { ligand: 'IL6',    receptor: 'IL6R',     family: 'cytokine' },
+    { ligand: 'IL2',    receptor: 'IL2RA',    family: 'cytokine' },
+    { ligand: 'IL10',   receptor: 'IL10RA',   family: 'cytokine' },
+    { ligand: 'IL1B',   receptor: 'IL1R1',    family: 'cytokine' },
+    { ligand: 'IL15',   receptor: 'IL15RA',   family: 'cytokine' },
+    { ligand: 'TNF',    receptor: 'TNFRSF1A', family: 'cytokine' },
+    { ligand: 'IFNG',   receptor: 'IFNGR1',   family: 'cytokine' },
+    { ligand: 'LTA',    receptor: 'LTBR',     family: 'cytokine' },
+    // chemokines (8)
+    { ligand: 'CCL2',   receptor: 'CCR2',   family: 'chemokine' },
+    { ligand: 'CCL5',   receptor: 'CCR5',   family: 'chemokine' },
+    { ligand: 'CCL22',  receptor: 'CCR4',   family: 'chemokine' },
+    { ligand: 'CXCL9',  receptor: 'CXCR3',  family: 'chemokine' },
+    { ligand: 'CXCL10', receptor: 'CXCR3',  family: 'chemokine' },
+    { ligand: 'CXCL12', receptor: 'CXCR4',  family: 'chemokine' },
+    { ligand: 'CXCL13', receptor: 'CXCR5',  family: 'chemokine' },
+    { ligand: 'CCL21',  receptor: 'CCR7',   family: 'chemokine' },
+    // growth factors (8)
+    { ligand: 'VEGFA',  receptor: 'KDR',    family: 'growth'    },
+    { ligand: 'VEGFA',  receptor: 'FLT1',   family: 'growth'    },
+    { ligand: 'PDGFB',  receptor: 'PDGFRB', family: 'growth'    },
+    { ligand: 'PDGFB',  receptor: 'PDGFRA', family: 'growth'    },
+    { ligand: 'FGF2',   receptor: 'FGFR1',  family: 'growth'    },
+    { ligand: 'EGF',    receptor: 'EGFR',   family: 'growth'    },
+    { ligand: 'HGF',    receptor: 'MET',    family: 'growth'    },
+    { ligand: 'IGF1',   receptor: 'IGF1R',  family: 'growth'    },
+    // TGF/BMP superfamily (6)
+    { ligand: 'TGFB1',  receptor: 'TGFBR2', family: 'tgf' },
+    { ligand: 'TGFB1',  receptor: 'TGFBR1', family: 'tgf' },
+    { ligand: 'TGFB2',  receptor: 'TGFBR2', family: 'tgf' },
+    { ligand: 'BMP2',   receptor: 'BMPR2',  family: 'tgf' },
+    { ligand: 'BMP4',   receptor: 'BMPR1A', family: 'tgf' },
+    { ligand: 'ACVR1B', receptor: 'ACVR2A', family: 'tgf' },
+  ];
+
+  // Gene → profile lookup; genes not in a profile fall back to background 1.0.
+  function meanLogExpr(cellType, gene) {
+    const p = TYPE_PROFILE[cellType] || {};
+    return p[gene] != null ? p[gene] : 1.0;
+  }
+  // Probability of expressing (non-zero) — scales with profile mean, so
+  // signature genes have >80% expressing and background genes ~20%.
+  function fracExpressing(cellType, gene) {
+    const m = meanLogExpr(cellType, gene);
+    // logistic mapping: background 1.0 → ~0.20, 2.0 → ~0.55, 3.0 → ~0.85
+    return 1 / (1 + Math.exp(-(m - 1.8) * 1.8));
+  }
+
+  // ── Simulated expression ────────────────────────────────
+  //
+  // For each (cell type, gene) we need:
+  //   - mean log-expression across cells of that type
+  //   - fraction of cells of that type with expression > 0
+  //
+  // We simulate ncells cells per type, each cell's expression for a gene is
+  // a zero-inflated log-normal: with probability fracExpressing, draw
+  // lognormal(mean=meanLogExpr, sd=0.6); else zero.
+  //
+  // The returned arrays are per-cell so we can shuffle labels for the
+  // permutation test.
+  function simulate(nPerType, seed) {
+    const rnd = mulberry32(seed);
+    // Collect all unique genes we care about from the extended DB + profiles
+    const geneSet = new Set();
+    for (const ct of CELL_TYPES) for (const g in TYPE_PROFILE[ct]) geneSet.add(g);
+    for (const p of DB_EXTENDED) { geneSet.add(p.ligand); geneSet.add(p.receptor); }
+    const genes = Array.from(geneSet).sort();
+
+    const totalCells = nPerType * CELL_TYPES.length;
+    // cellLabel[i] = cell-type index
+    const cellLabel = new Int32Array(totalCells);
+    // expr[geneIdx][cellIdx]
+    const expr = {};
+    for (const g of genes) expr[g] = new Float32Array(totalCells);
+
+    for (let ci = 0; ci < CELL_TYPES.length; ci++) {
+      const ct = CELL_TYPES[ci];
+      for (let k = 0; k < nPerType; k++) {
+        const idx = ci * nPerType + k;
+        cellLabel[idx] = ci;
+        for (const g of genes) {
+          const pExpr = fracExpressing(ct, g);
+          if (rnd() < pExpr) {
+            const mu = meanLogExpr(ct, g);
+            const logv = mu + 0.6 * randn(rnd);
+            expr[g][idx] = Math.exp(logv);
+          } else {
+            expr[g][idx] = 0;
+          }
+        }
+      }
+    }
+    return { genes, expr, cellLabel, nPerType, totalCells };
+  }
+
+  // Compute mean expression and fraction-expressing per (cell-type, gene).
+  // If labelOverride is supplied, use it instead of sim.cellLabel (for
+  // permutation).
+  function computeStats(sim, labelOverride) {
+    const labels = labelOverride || sim.cellLabel;
+    const nTypes = CELL_TYPES.length;
+    const N = sim.totalCells;
+    const stats = {}; // stats[gene][typeIdx] = {mean, frac}
+    for (const g of sim.genes) {
+      const arr = sim.expr[g];
+      const sums = new Float64Array(nTypes);
+      const counts = new Int32Array(nTypes);
+      const nz = new Int32Array(nTypes);
+      for (let i = 0; i < N; i++) {
+        const t = labels[i];
+        counts[t]++;
+        if (arr[i] > 0) {
+          sums[t] += arr[i];
+          nz[t]++;
+        }
+      }
+      const out = new Array(nTypes);
+      for (let t = 0; t < nTypes; t++) {
+        out[t] = {
+          // mean across ALL cells (including zeros) — standard cell-cell-comm
+          // convention so that fraction-expressing affects the mean naturally.
+          mean: counts[t] ? sums[t] / counts[t] : 0,
+          frac: counts[t] ? nz[t] / counts[t] : 0,
+        };
+      }
+      stats[g] = out;
+    }
+    return stats;
+  }
+
+  // Compute all sender×receiver×pair scores for the extended database.
+  // Returns array of { ligand, receptor, family, sender, receiver, score, frac_l, frac_r }.
+  // `normMax` is used to normalise (pre-computed over the observed run).
+  function computeScores(sim, stats, normMax) {
+    const out = [];
+    const nTypes = CELL_TYPES.length;
+    for (const pair of DB_EXTENDED) {
+      const lStats = stats[pair.ligand];
+      const rStats = stats[pair.receptor];
+      if (!lStats || !rStats) continue;
+      for (let s = 0; s < nTypes; s++) {
+        for (let r = 0; r < nTypes; r++) {
+          const lm = lStats[s].mean;
+          const rm = rStats[r].mean;
+          const score = Math.sqrt(Math.max(0, lm) * Math.max(0, rm));
+          out.push({
+            ligand: pair.ligand,
+            receptor: pair.receptor,
+            family: pair.family,
+            sender: s,
+            receiver: r,
+            score: normMax > 0 ? score / normMax : 0,
+            rawScore: score,
+            fracL: lStats[s].frac,
+            fracR: rStats[r].frac,
+          });
+        }
+      }
+    }
+    return out;
+  }
+
+  // Raw max across the full sender×receiver×pair space — used to normalise.
+  function computeRawMax(sim, stats) {
+    let max = 0;
+    const nTypes = CELL_TYPES.length;
+    for (const pair of DB_EXTENDED) {
+      const lStats = stats[pair.ligand];
+      const rStats = stats[pair.receptor];
+      if (!lStats || !rStats) continue;
+      for (let s = 0; s < nTypes; s++) {
+        for (let r = 0; r < nTypes; r++) {
+          const score = Math.sqrt(Math.max(0, lStats[s].mean) * Math.max(0, rStats[r].mean));
+          if (score > max) max = score;
+        }
+      }
+    }
+    return max;
+  }
+
+  // ── Permutation p-values ────────────────────────────────
+  // Shuffle cell-type labels N_PERM times, recompute scores for each
+  // (sender, receiver, pair) combo, report fraction of permutations with
+  // score ≥ observed. We store one p-value per combo in a Map keyed by
+  // `${ligand}|${receptor}|${sender}|${receiver}`.
+  const N_PERM = 100;
+
+  function computePermPvals(sim, observed, normMax, rndSeed) {
+    const rnd = mulberry32(rndSeed);
+    const labels = new Int32Array(sim.cellLabel); // copy
+    const N = sim.totalCells;
+    // Build an index of observed scores keyed by quad
+    const obs = new Map();
+    for (const e of observed) {
+      obs.set(e.ligand + '|' + e.receptor + '|' + e.sender + '|' + e.receiver, e.rawScore);
+    }
+    // Ties counter per key
+    const ties = new Map();
+    for (const k of obs.keys()) ties.set(k, 0);
+
+    for (let p = 0; p < N_PERM; p++) {
+      // Fisher–Yates shuffle
+      for (let i = N - 1; i > 0; i--) {
+        const j = Math.floor(rnd() * (i + 1));
+        const tmp = labels[i]; labels[i] = labels[j]; labels[j] = tmp;
+      }
+      const permStats = computeStats(sim, labels);
+      const nTypes = CELL_TYPES.length;
+      for (const pair of DB_EXTENDED) {
+        const lS = permStats[pair.ligand];
+        const rS = permStats[pair.receptor];
+        if (!lS || !rS) continue;
+        for (let s = 0; s < nTypes; s++) {
+          for (let r = 0; r < nTypes; r++) {
+            const score = Math.sqrt(Math.max(0, lS[s].mean) * Math.max(0, rS[r].mean));
+            const key = pair.ligand + '|' + pair.receptor + '|' + s + '|' + r;
+            if (score >= (obs.get(key) || 0)) ties.set(key, ties.get(key) + 1);
+          }
+        }
+      }
+    }
+    // p-value = (ties + 1) / (N_PERM + 1) — Laplace smoothing
+    const pvals = new Map();
+    for (const [k, t] of ties) {
+      pvals.set(k, (t + 1) / (N_PERM + 1));
+    }
+    return pvals;
+  }
+
+  // ── State ────────────────────────────────────────────────
+  const state = {
+    nPerType: 200,
+    db: 'toy',
+    family: 'all',
+    scoreThr: 0.5,
+    fracThr: 0.2,
+    seed: 20260421,
+    sim: null,
+    stats: null,
+    normMax: 0,
+    allScores: null,   // full extended set (array)
+    pvals: null,       // Map
+  };
+
+  // ── DOM refs ────────────────────────────────────────────
+  const ncellsEl = $('ncells-input');
+  const ncellsVal = $('ncells-value');
+  const dbEl = $('db-input');
+  const famEl = $('fam-input');
+  const scoreEl = $('score-input');
+  const scoreVal = $('score-value');
+  const fracEl = $('frac-input');
+  const fracVal = $('frac-value');
+  const resimBtn = $('resim-btn');
+  const simHint = $('sim-hint');
+  const svg = $('net-svg');
+  const rankBody = $('rank-body');
+  const rankEmpty = $('rank-empty');
+  const banner = $('banner');
+  const bannerEdges = $('banner-edges');
+  const bannerTop = $('banner-top');
+  const bannerScore = $('banner-score');
+  const bannerPval = $('banner-pval');
+
+  // ── Layout: pentagon ────────────────────────────────────
+  const W = 640, H = 560;
+  const CX = W / 2, CY = H / 2 + 8;
+  const R = 190;
+  const NODE_R = 34;
+  // place 5 nodes in a pentagon, starting at top
+  const NODES = CELL_TYPES.map((name, i) => {
+    const ang = -Math.PI / 2 + i * (2 * Math.PI / 5);
+    return {
+      idx: i,
+      name,
+      x: CX + R * Math.cos(ang),
+      y: CY + R * Math.sin(ang),
+    };
+  });
+
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  // ── Filtering ───────────────────────────────────────────
+  function activeDB() {
+    return state.db === 'toy' ? DB_TOY : DB_EXTENDED;
+  }
+  function activeDBKeySet() {
+    // Keys into all-scores that are allowed by current DB choice.
+    const set = new Set();
+    for (const p of activeDB()) set.add(p.ligand + '|' + p.receptor);
+    return set;
+  }
+  function filteredEdges() {
+    const dbKeys = activeDBKeySet();
+    const famOK = state.family === 'all'
+      ? () => true
+      : (f) => f === state.family;
+    const out = [];
+    for (const e of state.allScores) {
+      if (!dbKeys.has(e.ligand + '|' + e.receptor)) continue;
+      if (!famOK(e.family)) continue;
+      if (e.fracL < state.fracThr || e.fracR < state.fracThr) continue;
+      if (e.score < state.scoreThr) continue;
+      out.push(e);
+    }
+    out.sort((a, b) => b.score - a.score);
+    return out;
+  }
+
+  // How many pairs survive the fraction gate alone — used to warn.
+  function fractionGateSurvivors() {
+    const dbKeys = activeDBKeySet();
+    let n = 0;
+    for (const e of state.allScores) {
+      if (!dbKeys.has(e.ligand + '|' + e.receptor)) continue;
+      if (e.fracL < state.fracThr || e.fracR < state.fracThr) continue;
+      n++;
+    }
+    return n;
+  }
+
+  // ── Draw network ────────────────────────────────────────
+  function renderNet(edges) {
+    clear(svg);
+
+    // Defs: one arrowhead marker per family colour.
+    const defs = el('defs');
+    for (const fam in FAM_COLOR) {
+      const m = el('marker', {
+        id: 'arrow-' + fam,
+        viewBox: '0 0 10 10',
+        refX: '10', refY: '5',
+        markerWidth: '6', markerHeight: '6',
+        orient: 'auto-start-reverse',
+      });
+      m.appendChild(el('path', {
+        d: 'M 0 0 L 10 5 L 0 10 z',
+        fill: FAM_COLOR[fam],
+      }));
+      defs.appendChild(m);
+    }
+    svg.appendChild(defs);
+
+    // ── edges ────────────────────────────────────────────
+    // Group by sender→receiver direction so multi-family bundles get tiny
+    // offsets (fanning) for readability.
+    const byDir = new Map();
+    for (const e of edges) {
+      const k = e.sender + '->' + e.receiver;
+      if (!byDir.has(k)) byDir.set(k, []);
+      byDir.get(k).push(e);
+    }
+
+    // Draw each direction: for self-loops, draw a small arc on the outside.
+    for (const [key, arr] of byDir) {
+      // fan within arr: split across y-perpendicular offsets.
+      arr.sort((a, b) => b.score - a.score);
+      const n = arr.length;
+      arr.forEach((e, i) => drawEdge(e, i, n));
+    }
+
+    // ── nodes ────────────────────────────────────────────
+    for (const node of NODES) {
+      svg.appendChild(el('circle', {
+        cx: node.x, cy: node.y, r: NODE_R,
+        fill: 'var(--bg-elevated)',
+        stroke: 'var(--border-strong)',
+        'stroke-width': 1.5,
+      }));
+      svg.appendChild(el('text', {
+        x: node.x, y: node.y + 4,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-sans)',
+        'font-size': 11,
+        'font-weight': 600,
+        fill: 'var(--fg)',
+      }, node.name));
+    }
+  }
+
+  // Convert score (0..1) to stroke width (pixels).
+  function scoreToWidth(s) {
+    return 1.2 + s * 5.5;
+  }
+
+  function drawEdge(e, idx, total) {
+    const a = NODES[e.sender], b = NODES[e.receiver];
+    const color = FAM_COLOR[e.family];
+    const w = scoreToWidth(e.score);
+    const markerId = 'arrow-' + e.family;
+
+    if (e.sender === e.receiver) {
+      // Self-loop: small arc outside the node
+      const cx = a.x, cy = a.y;
+      // angle from centre of graph to this node
+      const theta = Math.atan2(cy - CY, cx - CX);
+      const loopR = NODE_R + 14 + idx * 6;
+      const ox = cx + loopR * Math.cos(theta);
+      const oy = cy + loopR * Math.sin(theta);
+      // arc with sweep that returns to the node
+      const start = {
+        x: cx + NODE_R * Math.cos(theta - 0.6),
+        y: cy + NODE_R * Math.sin(theta - 0.6),
+      };
+      const end = {
+        x: cx + NODE_R * Math.cos(theta + 0.6),
+        y: cy + NODE_R * Math.sin(theta + 0.6),
+      };
+      const d = `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} Q ${ox.toFixed(1)} ${oy.toFixed(1)} ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
+      svg.appendChild(el('path', {
+        d, fill: 'none', stroke: color,
+        'stroke-width': w.toFixed(2),
+        'stroke-linecap': 'round',
+        opacity: 0.85,
+        'marker-end': `url(#${markerId})`,
+      }));
+      return;
+    }
+
+    // Normal edge: quadratic curve with fan offset so multiple edges in same
+    // direction don't overlap.
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len; // along
+    const px = -uy, py = ux;             // perpendicular
+
+    // Fan offset: centre the bundle on the midline, spacing ~10px per edge
+    const fan = total > 1 ? (idx - (total - 1) / 2) * 10 : 0;
+    // Additional direction-dependent curvature so A→B and B→A don't overlap
+    const baseCurve = 18;
+    // Use a deterministic sign by comparing indices so forward/back curve opposite ways
+    const sign = e.sender < e.receiver ? 1 : -1;
+    const curve = sign * baseCurve + fan;
+
+    // Start/end on the node boundary
+    const sx = a.x + ux * NODE_R;
+    const sy = a.y + uy * NODE_R;
+    const ex = b.x - ux * (NODE_R + 4);
+    const ey = b.y - uy * (NODE_R + 4);
+
+    // Control point: midpoint + perpendicular offset
+    const mx = (sx + ex) / 2 + px * curve;
+    const my = (sy + ey) / 2 + py * curve;
+
+    const d = `M ${sx.toFixed(1)} ${sy.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}`;
+    svg.appendChild(el('path', {
+      d, fill: 'none', stroke: color,
+      'stroke-width': w.toFixed(2),
+      'stroke-linecap': 'round',
+      opacity: 0.85,
+      'marker-end': `url(#${markerId})`,
+    }));
+  }
+
+  // ── Rank table ──────────────────────────────────────────
+  function renderRank(edges) {
+    clear(rankBody);
+    const top = edges.slice(0, 10);
+    if (!top.length) {
+      rankEmpty.style.display = 'block';
+      return;
+    }
+    rankEmpty.style.display = 'none';
+    for (const e of top) {
+      const tr = document.createElement('tr');
+      const pval = state.pvals.get(e.ligand + '|' + e.receptor + '|' + e.sender + '|' + e.receiver);
+      const pStr = pval != null
+        ? (pval < 0.011 ? '<0.01' : pval.toFixed(2))
+        : '—';
+      tr.innerHTML =
+        `<td>${e.ligand}</td>` +
+        `<td>${e.receptor}</td>` +
+        `<td class="fam"><span class="fam-dot" style="background:${FAM_COLOR[e.family]}"></span>${CELL_TYPES[e.sender]} &rarr; ${CELL_TYPES[e.receiver]}</td>` +
+        `<td class="num">${e.score.toFixed(3)}</td>` +
+        `<td class="num">${pStr}</td>`;
+      rankBody.appendChild(tr);
+    }
+  }
+
+  // ── Banner ──────────────────────────────────────────────
+  function renderBanner(edges) {
+    banner.classList.remove('warn');
+    bannerEdges.textContent = edges.length.toLocaleString();
+    if (!edges.length) {
+      // Distinguish "no edges because of thresholds" vs "fraction gate killed everything"
+      if (fractionGateSurvivors() === 0) {
+        banner.classList.add('warn');
+        bannerEdges.textContent = '0';
+        bannerTop.textContent = 'min fraction-expressing excludes every pair';
+        bannerScore.textContent = '—';
+        bannerPval.textContent = '—';
+        return;
+      }
+      bannerTop.textContent = '—';
+      bannerScore.textContent = '—';
+      bannerPval.textContent = '—';
+      return;
+    }
+    const top = edges[0];
+    bannerTop.textContent =
+      `${top.ligand}→${top.receptor} (${CELL_TYPES[top.sender]}→${CELL_TYPES[top.receiver]})`;
+    bannerScore.textContent = top.score.toFixed(3);
+    const pv = state.pvals.get(top.ligand + '|' + top.receptor + '|' + top.sender + '|' + top.receiver);
+    bannerPval.textContent = pv != null
+      ? (pv < 0.011 ? '<0.01' : pv.toFixed(2))
+      : '—';
+  }
+
+  // ── Pipeline ────────────────────────────────────────────
+  let rafId = 0;
+  function schedule() {
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = 0;
+      const edges = filteredEdges();
+      renderNet(edges);
+      renderRank(edges);
+      renderBanner(edges);
+    });
+  }
+
+  function readControls() {
+    state.nPerType = +ncellsEl.value;
+    state.db = dbEl.value;
+    state.family = famEl.value;
+    state.scoreThr = +scoreEl.value / 100;
+    state.fracThr  = +fracEl.value / 100;
+    ncellsVal.textContent = state.nPerType;
+    scoreVal.textContent = state.scoreThr.toFixed(2);
+    fracVal.textContent  = state.fracThr.toFixed(2);
+  }
+
+  function buildDataset() {
+    const t0 = performance.now();
+    state.sim = simulate(state.nPerType, state.seed);
+    state.stats = computeStats(state.sim, null);
+    state.normMax = computeRawMax(state.sim, state.stats);
+    state.allScores = computeScores(state.sim, state.stats, state.normMax);
+    state.pvals = computePermPvals(state.sim, state.allScores, state.normMax, state.seed ^ 0xABCDEF);
+    const ms = Math.round(performance.now() - t0);
+    simHint.textContent = `seed ${state.seed} · 100 permutations pre-computed · ${ms} ms`;
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  ncellsEl.addEventListener('change', () => {
+    readControls();
+    buildDataset();
+    schedule();
+  });
+  dbEl.addEventListener('change',  () => { readControls(); schedule(); });
+  famEl.addEventListener('change', () => { readControls(); schedule(); });
+  scoreEl.addEventListener('input', () => { readControls(); schedule(); });
+  fracEl.addEventListener('input',  () => { readControls(); schedule(); });
+  resimBtn.addEventListener('click', () => {
+    state.seed = (state.seed + 1) >>> 0;
+    readControls();
+    buildDataset();
+    schedule();
+  });
+
+  // Light, non-debounced readout while dragging ncells slider (no rebuild)
+  ncellsEl.addEventListener('input', () => {
+    ncellsVal.textContent = ncellsEl.value;
+  });
+
+  // ── Boot ────────────────────────────────────────────────
+  readControls();
+  buildDataset();
+  schedule();
+})();
+</script>
+
+</body>
+</html>

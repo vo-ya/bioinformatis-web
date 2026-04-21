@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CITE-seq Joint Embedding · WNN vs RNA vs Protein</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1200px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.9rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+      align-items: center;
+    }
+    .action-row .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-left: auto;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    .status-dot.working { background: var(--warning); animation: pulse 1s infinite ease-in-out; }
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
+
+    .plot-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 960px) {
+      .plot-grid { grid-template-columns: 1fr; }
+    }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 0 0 0.4rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+    }
+    .plot-title .ari {
+      font-family: var(--font-mono);
+      letter-spacing: 0.04em;
+      text-transform: none;
+      color: var(--fg);
+      font-weight: 500;
+    }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.85rem 1.1rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .legend-swatch .sw.t0 { background: #1e3a8a; }
+    .legend-swatch .sw.t1 { background: #c4342c; }
+    .legend-swatch .sw.t2 { background: #b45309; }
+    .legend-swatch .sw.t3 { background: #15803d; }
+    .legend-swatch .sw.t4 { background: #ec4899; }
+    .legend-swatch .sw.t5 {
+      background: #7c3aed;
+      box-shadow: 0 0 0 2px #fcfcfa, 0 0 0 3px #7c3aed;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .row { display: block; }
+    .banner .row + .row { margin-top: 0.2rem; }
+
+    .warn {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--error);
+      margin-top: 0.7rem;
+      display: none;
+    }
+    .warn.show { display: block; }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="cite-seq-joint">
+
+  <header class="artifact-head">
+    <h1>CITE-seq Joint Embedding</h1>
+    <p>Each cell is measured twice: RNA (50 genes) and surface protein (20 markers). Five true cell types are consistent across modalities, but a sixth group is <em>discrepant</em> — its RNA looks like type A while its proteins look like type B (a stand-in for post-transcriptional regulation or protein degradation). Compare three UMAPs: RNA-only, protein-only, and a WNN joint embedding that fuses the two kNN graphs with per-cell weights.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Controls</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="n-input">Cells total</label>
+          <span class="slider-value" id="n-value">400</span>
+        </div>
+        <input id="n-input" type="range" min="100" max="1000" step="50" value="400">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="rnoise-input">RNA noise</label>
+          <span class="slider-value" id="rnoise-value">0.30</span>
+        </div>
+        <input id="rnoise-input" type="range" min="0" max="100" step="1" value="30">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="pnoise-input">Protein noise</label>
+          <span class="slider-value" id="pnoise-value">0.50</span>
+        </div>
+        <input id="pnoise-input" type="range" min="0" max="100" step="1" value="50">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="disc-input">Discrepant cells</label>
+          <span class="slider-value" id="disc-value">80</span>
+        </div>
+        <input id="disc-input" type="range" min="0" max="150" step="5" value="80">
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate &amp; recompute</button>
+      <span class="hint"><span class="status-dot" id="status-dot"></span><span id="status-text">idle</span></span>
+    </div>
+
+    <div class="warn" id="warn-box"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Three UMAPs · coloured by true cell-type label</p>
+    <div class="plot-grid">
+      <div>
+        <p class="plot-title"><span>(a) RNA-only</span><span class="ari" id="ari-rna">ARI —</span></p>
+        <div class="plot-wrap">
+          <svg id="rna-svg" class="plot-svg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet" aria-label="RNA UMAP"></svg>
+        </div>
+        <p class="plot-caption">PCA (50→15) then UMAP on RNA alone.</p>
+      </div>
+      <div>
+        <p class="plot-title"><span>(b) Protein-only</span><span class="ari" id="ari-prot">ARI —</span></p>
+        <div class="plot-wrap">
+          <svg id="prot-svg" class="plot-svg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet" aria-label="Protein UMAP"></svg>
+        </div>
+        <p class="plot-caption">PCA (20→10) then UMAP on surface protein alone.</p>
+      </div>
+      <div>
+        <p class="plot-title"><span>(c) WNN joint</span><span class="ari" id="ari-wnn">ARI —</span></p>
+        <div class="plot-wrap">
+          <svg id="wnn-svg" class="plot-svg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet" aria-label="WNN joint UMAP"></svg>
+        </div>
+        <p class="plot-caption">Per-cell weighted fusion of RNA and protein kNN graphs.</p>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw t0"></span> Type A</span>
+      <span class="legend-swatch"><span class="sw t1"></span> Type B</span>
+      <span class="legend-swatch"><span class="sw t2"></span> Type C</span>
+      <span class="legend-swatch"><span class="sw t3"></span> Type D</span>
+      <span class="legend-swatch"><span class="sw t4"></span> Type E</span>
+      <span class="legend-swatch"><span class="sw t5"></span> Discrepant (RNA≈A, Protein≈B)</span>
+    </div>
+  </section>
+
+  <div class="banner" id="banner">
+    <span class="row" id="banner-row-1">—</span>
+    <span class="row" id="banner-row-2">—</span>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── 5 true types + 6th "discrepant" colour ───────────────
+  const TYPE_COLORS = ['#1e3a8a', '#c4342c', '#b45309', '#15803d', '#ec4899', '#7c3aed'];
+  const N_TYPES = 5;
+
+  const N_RNA = 50;
+  const N_PROT = 20;
+  const PCS_RNA = 15;
+  const PCS_PROT = 10;
+  const KNN_K = 20;
+  const UMAP_ITERS = 120;
+  const NEG_SAMPLES = 5;
+  const KMEANS_ITERS = 25;
+
+  // ── Deterministic RNG ───────────────────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rnd) {
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // ── Simulate CITE-seq dataset ───────────────────────────
+  //
+  // 5 cell types × N_TYPES. Each has a centroid in RNA space (50D) and
+  // protein space (20D). Markers are disjoint bands per type: 6 RNA markers
+  // per type (30 total) and 3 protein markers per type (15 total). Rest are
+  // shared noise floor.
+  //
+  // Discrepant cells: RNA centroid = type 0 (A), protein centroid = type 1 (B).
+  //
+  // `labels[i]` is the *true* label used for colouring + ARI ground truth:
+  //   0..4 for types A..E, 5 for discrepant.
+  function simulate(seed, nCells, rNoise, pNoise, nDisc) {
+    const rnd = mulberry32(seed);
+
+    // Cap discrepants to not exceed nCells/3 (sanity)
+    const nDiscC = Math.min(nDisc, Math.max(0, nCells - N_TYPES));
+    const nReg = nCells - nDiscC;
+
+    // Balance regular labels across 5 types
+    const labels = new Int8Array(nCells);
+    for (let i = 0; i < nReg; i++) labels[i] = i % N_TYPES;
+    for (let i = nReg; i < nCells; i++) labels[i] = 5; // discrepant marker
+    // Shuffle
+    for (let i = nCells - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      const tmp = labels[i]; labels[i] = labels[j]; labels[j] = tmp;
+    }
+
+    // Build per-type RNA centroids.
+    const rnaCent = [];
+    const protCent = [];
+    // Baselines shared across types
+    const rnaBase = new Float64Array(N_RNA);
+    const protBase = new Float64Array(N_PROT);
+    for (let g = 0; g < N_RNA; g++) rnaBase[g] = 1.5 + 0.4 * rnd();
+    for (let g = 0; g < N_PROT; g++) protBase[g] = 1.5 + 0.4 * rnd();
+
+    for (let t = 0; t < N_TYPES; t++) {
+      const r = new Float64Array(N_RNA);
+      const p = new Float64Array(N_PROT);
+      for (let g = 0; g < N_RNA; g++) r[g] = rnaBase[g] + 0.1 * randn(rnd);
+      for (let g = 0; g < N_PROT; g++) p[g] = protBase[g] + 0.1 * randn(rnd);
+      rnaCent.push(r);
+      protCent.push(p);
+    }
+    // Marker bands — RNA: 6 genes per type, disjoint (30 total of 50).
+    const rnaPerType = 6;
+    for (let t = 0; t < N_TYPES; t++) {
+      const start = t * rnaPerType;
+      for (let k = 0; k < rnaPerType; k++) {
+        const g = start + k;
+        rnaCent[t][g] = rnaBase[g] + 3.0 + 0.3 * randn(rnd);
+        for (let u = 0; u < N_TYPES; u++) {
+          if (u !== t) rnaCent[u][g] = rnaBase[g] - 0.5 + 0.2 * randn(rnd);
+        }
+      }
+    }
+    // Marker bands — Protein: 3 markers per type, disjoint (15 of 20).
+    const protPerType = 3;
+    for (let t = 0; t < N_TYPES; t++) {
+      const start = t * protPerType;
+      for (let k = 0; k < protPerType; k++) {
+        const g = start + k;
+        protCent[t][g] = protBase[g] + 3.2 + 0.3 * randn(rnd);
+        for (let u = 0; u < N_TYPES; u++) {
+          if (u !== t) protCent[u][g] = protBase[g] - 0.5 + 0.2 * randn(rnd);
+        }
+      }
+    }
+
+    // Generate RNA × cells and Protein × cells.
+    const R = new Float64Array(nCells * N_RNA);
+    const P = new Float64Array(nCells * N_PROT);
+
+    // Global noise scale: rNoise / pNoise are in [0,1], multiply a base σ
+    const rSig = 0.3 + rNoise * 1.4;   // σ from 0.3 up to ~1.7
+    const pSig = 0.3 + pNoise * 1.4;
+
+    for (let i = 0; i < nCells; i++) {
+      const L = labels[i];
+      // Pick centroids.
+      // For discrepant cells: RNA = type 0 centroid, protein = type 1 centroid
+      const rIdx = (L === 5) ? 0 : L;
+      const pIdx = (L === 5) ? 1 : L;
+      const rC = rnaCent[rIdx];
+      const pC = protCent[pIdx];
+      const rDepth = 0.85 + 0.3 * rnd();
+      const pDepth = 0.85 + 0.3 * rnd();
+      for (let g = 0; g < N_RNA; g++) {
+        R[i * N_RNA + g] = rDepth * (rC[g] + rSig * randn(rnd));
+      }
+      for (let g = 0; g < N_PROT; g++) {
+        P[i * N_PROT + g] = pDepth * (pC[g] + pSig * randn(rnd));
+      }
+    }
+
+    return { R, P, labels, nCells };
+  }
+
+  // ── Column-center in place ───────────────────────────────
+  function centerColumns(X, n, p) {
+    const mu = new Float64Array(p);
+    for (let i = 0; i < n; i++) {
+      for (let g = 0; g < p; g++) mu[g] += X[i * p + g];
+    }
+    for (let g = 0; g < p; g++) mu[g] /= n;
+    for (let i = 0; i < n; i++) {
+      for (let g = 0; g < p; g++) X[i * p + g] -= mu[g];
+    }
+  }
+
+  // ── PCA via power iteration on covariance ────────────────
+  function pca(X, n, p, k) {
+    const C = new Float64Array(p * p);
+    for (let g1 = 0; g1 < p; g1++) {
+      for (let g2 = g1; g2 < p; g2++) {
+        let s = 0;
+        for (let i = 0; i < n; i++) s += X[i * p + g1] * X[i * p + g2];
+        const v = s / Math.max(1, n - 1);
+        C[g1 * p + g2] = v;
+        C[g2 * p + g1] = v;
+      }
+    }
+    const V = [];
+    const eigs = new Float64Array(k);
+    const rnd = mulberry32(42);
+
+    for (let m = 0; m < k; m++) {
+      let v = new Float64Array(p);
+      for (let g = 0; g < p; g++) v[g] = randn(rnd);
+      for (let j = 0; j < m; j++) {
+        const vp = V[j];
+        let dot = 0;
+        for (let g = 0; g < p; g++) dot += v[g] * vp[g];
+        for (let g = 0; g < p; g++) v[g] -= dot * vp[g];
+      }
+      let norm = 0;
+      for (let g = 0; g < p; g++) norm += v[g] * v[g];
+      norm = Math.sqrt(norm) || 1;
+      for (let g = 0; g < p; g++) v[g] /= norm;
+
+      let eig = 0;
+      for (let iter = 0; iter < 25; iter++) {
+        const w = new Float64Array(p);
+        for (let g1 = 0; g1 < p; g1++) {
+          let s = 0;
+          for (let g2 = 0; g2 < p; g2++) s += C[g1 * p + g2] * v[g2];
+          w[g1] = s;
+        }
+        for (let j = 0; j < m; j++) {
+          const vp = V[j];
+          let dot = 0;
+          for (let g = 0; g < p; g++) dot += w[g] * vp[g];
+          for (let g = 0; g < p; g++) w[g] -= dot * vp[g];
+        }
+        let nw = 0;
+        for (let g = 0; g < p; g++) nw += w[g] * w[g];
+        nw = Math.sqrt(nw);
+        if (nw < 1e-12) { eig = 0; break; }
+        eig = nw;
+        for (let g = 0; g < p; g++) w[g] /= nw;
+        v = w;
+      }
+      V.push(v);
+      eigs[m] = eig;
+    }
+
+    const scores = new Float64Array(n * k);
+    for (let i = 0; i < n; i++) {
+      for (let m = 0; m < k; m++) {
+        let s = 0;
+        const vm = V[m];
+        for (let g = 0; g < p; g++) s += X[i * p + g] * vm[g];
+        scores[i * k + m] = s;
+      }
+    }
+    return { scores, eigs };
+  }
+
+  // ── kNN (brute force on PC scores) ───────────────────────
+  function knn(scores, n, k, kNN) {
+    const nbrs = new Int32Array(n * kNN);
+    const dists = new Float64Array(n * kNN);
+    const dbuf = new Float64Array(n);
+    const idx = new Array(n);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (j === i) { dbuf[j] = Infinity; continue; }
+        let s = 0;
+        for (let m = 0; m < k; m++) {
+          const d = scores[i * k + m] - scores[j * k + m];
+          s += d * d;
+        }
+        dbuf[j] = s;
+      }
+      for (let j = 0; j < n; j++) idx[j] = j;
+      idx.sort((a, b) => dbuf[a] - dbuf[b]);
+      for (let q = 0; q < kNN; q++) {
+        nbrs[i * kNN + q] = idx[q];
+        dists[i * kNN + q] = Math.sqrt(dbuf[idx[q]]);
+      }
+    }
+    return { nbrs, dists };
+  }
+
+  // ── WNN per-cell weights ─────────────────────────────────
+  //
+  // Signal-to-noise heuristic inspired by Seurat v4 WNN:
+  //   - "Noise" of modality m at cell i = mean of kNN distances within modality m.
+  //   - "Signal" = variance of kNN distances (modality that discriminates has
+  //     higher variance — the k-th neighbour is far while the 1st is close).
+  //   - Weight ∝ signal / (noise + eps).
+  //
+  // Then softmax-normalise over modalities so the two weights sum to 1.
+  function wnnWeights(nbrsR, distsR, nbrsP, distsP, n, kNN) {
+    const wR = new Float64Array(n);
+    const wP = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      // RNA
+      let meanR = 0;
+      for (let q = 0; q < kNN; q++) meanR += distsR[i * kNN + q];
+      meanR /= kNN;
+      let varR = 0;
+      for (let q = 0; q < kNN; q++) {
+        const d = distsR[i * kNN + q] - meanR;
+        varR += d * d;
+      }
+      varR = Math.sqrt(varR / kNN);
+      // Protein
+      let meanP = 0;
+      for (let q = 0; q < kNN; q++) meanP += distsP[i * kNN + q];
+      meanP /= kNN;
+      let varP = 0;
+      for (let q = 0; q < kNN; q++) {
+        const d = distsP[i * kNN + q] - meanP;
+        varP += d * d;
+      }
+      varP = Math.sqrt(varP / kNN);
+
+      const sR = varR / (meanR + 1e-6);
+      const sP = varP / (meanP + 1e-6);
+      // Softmax with temperature
+      const T = 0.35;
+      const eR = Math.exp(sR / T);
+      const eP = Math.exp(sP / T);
+      wR[i] = eR / (eR + eP);
+      wP[i] = eP / (eR + eP);
+    }
+    return { wR, wP };
+  }
+
+  // ── Build fused kNN graph from two kNN structures ────────
+  //
+  // We construct a per-cell fused neighbour set by (i) unioning neighbour
+  // candidates from both modalities, (ii) scoring each candidate c of cell i
+  // as:
+  //   score(c) = wR[i] * aff_R(i, c) + wP[i] * aff_P(i, c)
+  //
+  // where aff_M is a neighbour affinity: 1 if c is in M's kNN of i, else 0.
+  // Rank candidates by combined affinity and take the top kNN.
+  //
+  // This is a clean simplification of WNN's fused graph construction.
+  function wnnFusedKNN(nbrsR, nbrsP, wR, wP, n, kNN) {
+    const fusedNbrs = new Int32Array(n * kNN);
+    const fusedDists = new Float64Array(n * kNN);
+    for (let i = 0; i < n; i++) {
+      // Collect candidates and their scores
+      const seen = new Map();
+      for (let q = 0; q < kNN; q++) {
+        const j = nbrsR[i * kNN + q];
+        // Rank-weighted affinity: close neighbours score higher
+        const affR = (kNN - q) / kNN;
+        seen.set(j, (seen.get(j) || 0) + wR[i] * affR);
+      }
+      for (let q = 0; q < kNN; q++) {
+        const j = nbrsP[i * kNN + q];
+        const affP = (kNN - q) / kNN;
+        seen.set(j, (seen.get(j) || 0) + wP[i] * affP);
+      }
+      // Sort candidates by score desc, take top kNN
+      const arr = [];
+      seen.forEach((s, j) => { if (j !== i) arr.push([j, s]); });
+      arr.sort((a, b) => b[1] - a[1]);
+      const take = Math.min(kNN, arr.length);
+      for (let q = 0; q < take; q++) {
+        fusedNbrs[i * kNN + q] = arr[q][0];
+        // Treat score as affinity; convert to pseudo-distance (1 - affinity)
+        fusedDists[i * kNN + q] = Math.max(0.05, 1 - arr[q][1]);
+      }
+      // Pad with self if somehow under
+      for (let q = take; q < kNN; q++) {
+        fusedNbrs[i * kNN + q] = i;
+        fusedDists[i * kNN + q] = 1.0;
+      }
+    }
+    return { nbrs: fusedNbrs, dists: fusedDists };
+  }
+
+  // ── UMAP-style force-directed 2D ─────────────────────────
+  //
+  // Same as lecture-07 05-pca-umap-embedder, plus per-init from two PC
+  // columns passed as `init` (n×2 Float64Array) or random init if null.
+  function umapLayout(nbrs, n, kNN, init, minDist, iters, rnd) {
+    const Y = new Float64Array(n * 2);
+    if (init) {
+      // Rescale init to a box
+      let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+      for (let i = 0; i < n; i++) {
+        const a = init[i * 2 + 0], b = init[i * 2 + 1];
+        if (a < a0) a0 = a; if (a > a1) a1 = a;
+        if (b < b0) b0 = b; if (b > b1) b1 = b;
+      }
+      const rA = (a1 - a0) || 1, rB = (b1 - b0) || 1;
+      for (let i = 0; i < n; i++) {
+        Y[i * 2 + 0] = ((init[i * 2 + 0] - a0) / rA - 0.5) * 8 + 0.05 * randn(rnd);
+        Y[i * 2 + 1] = ((init[i * 2 + 1] - b0) / rB - 0.5) * 8 + 0.05 * randn(rnd);
+      }
+    } else {
+      for (let i = 0; i < n; i++) {
+        Y[i * 2 + 0] = 4 * (rnd() - 0.5);
+        Y[i * 2 + 1] = 4 * (rnd() - 0.5);
+      }
+    }
+
+    const alpha0 = 1.0;
+    const a = 1.5;
+    const rep = 0.9;
+    const mdFactor = 1.0 - Math.min(0.95, minDist);
+
+    for (let it = 0; it < iters; it++) {
+      const alpha = alpha0 * (1 - it / iters);
+      for (let i = 0; i < n; i++) {
+        const yi0 = Y[i * 2 + 0], yi1 = Y[i * 2 + 1];
+        for (let q = 1; q < kNN; q++) {
+          const j = nbrs[i * kNN + q];
+          if (j === i) continue;
+          const yj0 = Y[j * 2 + 0], yj1 = Y[j * 2 + 1];
+          let dx = yi0 - yj0, dy = yi1 - yj1;
+          const f = a * mdFactor * alpha;
+          const step0 = f * dx;
+          const step1 = f * dy;
+          Y[i * 2 + 0] -= step0;
+          Y[i * 2 + 1] -= step1;
+          Y[j * 2 + 0] += step0;
+          Y[j * 2 + 1] += step1;
+
+          for (let s = 0; s < NEG_SAMPLES; s++) {
+            const kk = Math.floor(rnd() * n) % n;
+            if (kk === i || kk === j) continue;
+            const yk0 = Y[kk * 2 + 0], yk1 = Y[kk * 2 + 1];
+            let rx = yi0 - yk0, ry = yi1 - yk1;
+            let r2 = rx * rx + ry * ry + 0.01;
+            const gfac = rep * alpha / r2;
+            const rstep0 = gfac * rx;
+            const rstep1 = gfac * ry;
+            Y[i * 2 + 0] += rstep0;
+            Y[i * 2 + 1] += rstep1;
+            Y[kk * 2 + 0] -= rstep0;
+            Y[kk * 2 + 1] -= rstep1;
+          }
+        }
+      }
+      for (let i = 0; i < n; i++) {
+        let v0 = Y[i * 2 + 0], v1 = Y[i * 2 + 1];
+        if (v0 > 20) v0 = 20; else if (v0 < -20) v0 = -20;
+        if (v1 > 20) v1 = 20; else if (v1 < -20) v1 = -20;
+        Y[i * 2 + 0] = v0; Y[i * 2 + 1] = v1;
+      }
+    }
+    return Y;
+  }
+
+  // ── k-means (Lloyd's) on 2D coords ───────────────────────
+  function kmeans(coords, n, K, seed) {
+    const rnd = mulberry32(seed);
+    const labels = new Int32Array(n);
+    const centroids = new Float64Array(K * 2);
+    // k-means++ init
+    const first = Math.floor(rnd() * n);
+    centroids[0] = coords[first * 2 + 0];
+    centroids[1] = coords[first * 2 + 1];
+    const dMin = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const dx = coords[i * 2 + 0] - centroids[0];
+      const dy = coords[i * 2 + 1] - centroids[1];
+      dMin[i] = dx * dx + dy * dy;
+    }
+    for (let c = 1; c < K; c++) {
+      let total = 0;
+      for (let i = 0; i < n; i++) total += dMin[i];
+      let r = rnd() * total;
+      let pick = 0;
+      for (let i = 0; i < n; i++) {
+        r -= dMin[i];
+        if (r <= 0) { pick = i; break; }
+      }
+      centroids[c * 2 + 0] = coords[pick * 2 + 0];
+      centroids[c * 2 + 1] = coords[pick * 2 + 1];
+      for (let i = 0; i < n; i++) {
+        const dx = coords[i * 2 + 0] - centroids[c * 2 + 0];
+        const dy = coords[i * 2 + 1] - centroids[c * 2 + 1];
+        const d2 = dx * dx + dy * dy;
+        if (d2 < dMin[i]) dMin[i] = d2;
+      }
+    }
+    // Lloyd iterations
+    for (let iter = 0; iter < KMEANS_ITERS; iter++) {
+      for (let i = 0; i < n; i++) {
+        let best = 0, bestD = Infinity;
+        for (let c = 0; c < K; c++) {
+          const dx = coords[i * 2 + 0] - centroids[c * 2 + 0];
+          const dy = coords[i * 2 + 1] - centroids[c * 2 + 1];
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bestD) { bestD = d2; best = c; }
+        }
+        labels[i] = best;
+      }
+      const sumX = new Float64Array(K);
+      const sumY = new Float64Array(K);
+      const cnt = new Int32Array(K);
+      for (let i = 0; i < n; i++) {
+        const c = labels[i];
+        sumX[c] += coords[i * 2 + 0];
+        sumY[c] += coords[i * 2 + 1];
+        cnt[c]++;
+      }
+      for (let c = 0; c < K; c++) {
+        if (cnt[c] > 0) {
+          centroids[c * 2 + 0] = sumX[c] / cnt[c];
+          centroids[c * 2 + 1] = sumY[c] / cnt[c];
+        }
+      }
+    }
+    return labels;
+  }
+
+  // ── k-means with 5 restarts — pick min inertia ───────────
+  function kmeansBest(coords, n, K, baseSeed, restarts) {
+    let bestLabels = null;
+    let bestInertia = Infinity;
+    for (let r = 0; r < restarts; r++) {
+      const lab = kmeans(coords, n, K, (baseSeed ^ (r * 9973)) >>> 0);
+      const cX = new Float64Array(K);
+      const cY = new Float64Array(K);
+      const cN = new Int32Array(K);
+      for (let i = 0; i < n; i++) {
+        const c = lab[i];
+        cX[c] += coords[i * 2 + 0];
+        cY[c] += coords[i * 2 + 1];
+        cN[c]++;
+      }
+      for (let c = 0; c < K; c++) {
+        if (cN[c]) { cX[c] /= cN[c]; cY[c] /= cN[c]; }
+      }
+      let inertia = 0;
+      for (let i = 0; i < n; i++) {
+        const c = lab[i];
+        const dx = coords[i * 2 + 0] - cX[c];
+        const dy = coords[i * 2 + 1] - cY[c];
+        inertia += dx * dx + dy * dy;
+      }
+      if (inertia < bestInertia) {
+        bestInertia = inertia;
+        bestLabels = lab;
+      }
+    }
+    return bestLabels;
+  }
+
+  // ── Adjusted Rand Index ──────────────────────────────────
+  //
+  // Given two label arrays over n items, compute the ARI. Standard formula
+  // via contingency table and sums of C(n,2).
+  function adjustedRandIndex(a, b, n) {
+    const mapA = new Map(), mapB = new Map();
+    let A = 0, B = 0;
+    for (let i = 0; i < n; i++) {
+      if (!mapA.has(a[i])) mapA.set(a[i], A++);
+      if (!mapB.has(b[i])) mapB.set(b[i], B++);
+    }
+    const table = new Int32Array(A * B);
+    const sumA = new Int32Array(A);
+    const sumB = new Int32Array(B);
+    for (let i = 0; i < n; i++) {
+      const ai = mapA.get(a[i]);
+      const bi = mapB.get(b[i]);
+      table[ai * B + bi]++;
+      sumA[ai]++;
+      sumB[bi]++;
+    }
+    const c2 = (x) => x < 2 ? 0 : x * (x - 1) / 2;
+    let sumComb = 0;
+    for (let i = 0; i < A; i++) {
+      for (let j = 0; j < B; j++) sumComb += c2(table[i * B + j]);
+    }
+    let sumA2 = 0, sumB2 = 0;
+    for (let i = 0; i < A; i++) sumA2 += c2(sumA[i]);
+    for (let j = 0; j < B; j++) sumB2 += c2(sumB[j]);
+    const totComb = c2(n);
+    const expected = (sumA2 * sumB2) / Math.max(1, totComb);
+    const maxIdx = 0.5 * (sumA2 + sumB2);
+    const denom = maxIdx - expected;
+    if (Math.abs(denom) < 1e-12) return sumComb === expected ? 1.0 : 0.0;
+    return (sumComb - expected) / denom;
+  }
+
+  // ── SVG rendering ────────────────────────────────────────
+  function elSVG(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  function renderScatter(svgId, coords2d, labels, title) {
+    const svg = $(svgId);
+    clearNode(svg);
+    const W = 500, H = 500;
+    const PAD = 28;
+    const x0 = PAD, x1 = W - PAD, y0 = PAD, y1 = H - PAD;
+
+    svg.appendChild(elSVG('rect', {
+      x: x0, y: y0, width: x1 - x0, height: y1 - y0,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    let aMin = Infinity, aMax = -Infinity, bMin = Infinity, bMax = -Infinity;
+    const n = labels.length;
+    for (let i = 0; i < n; i++) {
+      const a = coords2d[i * 2 + 0], b = coords2d[i * 2 + 1];
+      if (a < aMin) aMin = a; if (a > aMax) aMax = a;
+      if (b < bMin) bMin = b; if (b > bMax) bMax = b;
+    }
+    const aRng = (aMax - aMin) || 1;
+    const bRng = (bMax - bMin) || 1;
+    const padFrac = 0.05;
+    const aLo = aMin - padFrac * aRng, aHi = aMax + padFrac * aRng;
+    const bLo = bMin - padFrac * bRng, bHi = bMax + padFrac * bRng;
+
+    const xOf = (v) => x0 + ((v - aLo) / (aHi - aLo)) * (x1 - x0);
+    const yOf = (v) => y1 - ((v - bLo) / (bHi - bLo)) * (y1 - y0);
+
+    for (let t = 1; t < 4; t++) {
+      const xv = x0 + (t * (x1 - x0)) / 4;
+      const yv = y0 + (t * (y1 - y0)) / 4;
+      svg.appendChild(elSVG('line', {
+        x1: xv, x2: xv, y1: y0, y2: y1,
+        stroke: 'var(--border)', 'stroke-width': 1, 'stroke-dasharray': '2 4',
+      }));
+      svg.appendChild(elSVG('line', {
+        x1: x0, x2: x1, y1: yv, y2: yv,
+        stroke: 'var(--border)', 'stroke-width': 1, 'stroke-dasharray': '2 4',
+      }));
+    }
+
+    // Draw non-discrepant first, then discrepant on top so students spot them.
+    for (let i = 0; i < n; i++) {
+      if (labels[i] === 5) continue;
+      const cx = xOf(coords2d[i * 2 + 0]);
+      const cy = yOf(coords2d[i * 2 + 1]);
+      svg.appendChild(elSVG('circle', {
+        cx: cx.toFixed(2), cy: cy.toFixed(2),
+        r: 2.7, fill: TYPE_COLORS[labels[i]], opacity: 0.82,
+      }));
+    }
+    for (let i = 0; i < n; i++) {
+      if (labels[i] !== 5) continue;
+      const cx = xOf(coords2d[i * 2 + 0]);
+      const cy = yOf(coords2d[i * 2 + 1]);
+      svg.appendChild(elSVG('circle', {
+        cx: cx.toFixed(2), cy: cy.toFixed(2),
+        r: 3.6, fill: TYPE_COLORS[5],
+        stroke: '#ffffff', 'stroke-width': 1.2, opacity: 0.95,
+      }));
+    }
+
+    svg.appendChild(elSVG('text', {
+      x: x1 - 8, y: y1 - 10,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-mono)', 'font-size': 10,
+      fill: 'var(--fg-subtle)',
+    }, title));
+  }
+
+  // ── State ────────────────────────────────────────────────
+  const state = {
+    seed: 20260422,
+    nCells: 400,
+    rNoise: 0.30,
+    pNoise: 0.50,
+    nDisc: 80,
+    running: false,
+    last: null,  // { rnaCoords, protCoords, wnnCoords, labels, ariR, ariP, ariW }
+  };
+
+  // ── Controls ────────────────────────────────────────────
+  const nEl = $('n-input');
+  const rnEl = $('rnoise-input');
+  const pnEl = $('pnoise-input');
+  const dEl = $('disc-input');
+  const nVal = $('n-value');
+  const rnVal = $('rnoise-value');
+  const pnVal = $('pnoise-value');
+  const dVal = $('disc-value');
+  const resimBtn = $('resim-btn');
+  const statusDot = $('status-dot');
+  const statusText = $('status-text');
+  const warnBox = $('warn-box');
+
+  function setStatus(text, working) {
+    statusText.textContent = text;
+    statusDot.classList.toggle('working', !!working);
+  }
+  function setBtnDisabled(d) { resimBtn.disabled = d; }
+
+  function readControls() {
+    state.nCells = +nEl.value;
+    state.rNoise = (+rnEl.value) / 100;
+    state.pNoise = (+pnEl.value) / 100;
+    state.nDisc = +dEl.value;
+    nVal.textContent = String(state.nCells);
+    rnVal.textContent = state.rNoise.toFixed(2);
+    pnVal.textContent = state.pNoise.toFixed(2);
+    dVal.textContent = String(state.nDisc);
+  }
+
+  function checkWarnings() {
+    warnBox.classList.remove('show');
+    warnBox.textContent = '';
+    if (KNN_K >= state.nCells) {
+      warnBox.textContent = `kNN (${KNN_K}) ≥ cell count (${state.nCells}). Increase cells.`;
+      warnBox.classList.add('show');
+      return false;
+    }
+    if (state.nDisc >= state.nCells - N_TYPES) {
+      warnBox.textContent = `Discrepant count too high for this cell total. Lower it.`;
+      warnBox.classList.add('show');
+      return false;
+    }
+    return true;
+  }
+
+  // ── Full pipeline ────────────────────────────────────────
+  function pipeline() {
+    if (state.running) return;
+    if (!checkWarnings()) return;
+    state.running = true;
+    setBtnDisabled(true);
+    setStatus('simulating…', true);
+
+    requestAnimationFrame(() => {
+      const { R, P, labels, nCells } = simulate(
+        state.seed, state.nCells, state.rNoise, state.pNoise, state.nDisc
+      );
+      setStatus('PCA on RNA…', true);
+
+      requestAnimationFrame(() => {
+        const Rc = new Float64Array(R);
+        centerColumns(Rc, nCells, N_RNA);
+        const { scores: rScores } = pca(Rc, nCells, N_RNA, PCS_RNA);
+
+        const Pc = new Float64Array(P);
+        centerColumns(Pc, nCells, N_PROT);
+        const { scores: pScores } = pca(Pc, nCells, N_PROT, PCS_PROT);
+
+        setStatus('kNN graphs…', true);
+        requestAnimationFrame(() => {
+          const rNN = knn(rScores, nCells, PCS_RNA, KNN_K);
+          const pNN = knn(pScores, nCells, PCS_PROT, KNN_K);
+          const { wR, wP } = wnnWeights(
+            rNN.nbrs, rNN.dists, pNN.nbrs, pNN.dists, nCells, KNN_K
+          );
+          const fused = wnnFusedKNN(rNN.nbrs, pNN.nbrs, wR, wP, nCells, KNN_K);
+
+          setStatus('UMAP × 3…', true);
+          requestAnimationFrame(() => {
+            // Init each UMAP from top 2 PCs of its own modality where natural.
+            const rInit = new Float64Array(nCells * 2);
+            for (let i = 0; i < nCells; i++) {
+              rInit[i * 2 + 0] = rScores[i * PCS_RNA + 0];
+              rInit[i * 2 + 1] = rScores[i * PCS_RNA + 1];
+            }
+            const pInit = new Float64Array(nCells * 2);
+            for (let i = 0; i < nCells; i++) {
+              pInit[i * 2 + 0] = pScores[i * PCS_PROT + 0];
+              pInit[i * 2 + 1] = pScores[i * PCS_PROT + 1];
+            }
+            // WNN init: mix of both PC1s
+            const wInit = new Float64Array(nCells * 2);
+            for (let i = 0; i < nCells; i++) {
+              wInit[i * 2 + 0] = wR[i] * rScores[i * PCS_RNA + 0] + wP[i] * pScores[i * PCS_PROT + 0];
+              wInit[i * 2 + 1] = wR[i] * rScores[i * PCS_RNA + 1] + wP[i] * pScores[i * PCS_PROT + 1];
+            }
+
+            const rndA = mulberry32((state.seed ^ 0xA1A1) >>> 0);
+            const rndB = mulberry32((state.seed ^ 0xB2B2) >>> 0);
+            const rndC = mulberry32((state.seed ^ 0xC3C3) >>> 0);
+
+            const rnaCoords  = umapLayout(rNN.nbrs,  nCells, KNN_K, rInit, 0.12, UMAP_ITERS, rndA);
+            const protCoords = umapLayout(pNN.nbrs,  nCells, KNN_K, pInit, 0.12, UMAP_ITERS, rndB);
+            const wnnCoords  = umapLayout(fused.nbrs, nCells, KNN_K, wInit, 0.12, UMAP_ITERS, rndC);
+
+            // k-means on each embedding. Use K = 6 (5 real + discrepant),
+            // against true labels 0..5, to measure whether the embedding
+            // even HAS a separate cluster for discrepant cells.
+            const K = 6;
+            const trueLab = labels;
+            const lR = kmeansBest(rnaCoords,  nCells, K, state.seed ^ 0x1111, 5);
+            const lP = kmeansBest(protCoords, nCells, K, state.seed ^ 0x2222, 5);
+            const lW = kmeansBest(wnnCoords,  nCells, K, state.seed ^ 0x3333, 5);
+
+            const ariR = adjustedRandIndex(trueLab, lR, nCells);
+            const ariP = adjustedRandIndex(trueLab, lP, nCells);
+            const ariW = adjustedRandIndex(trueLab, lW, nCells);
+
+            state.last = { rnaCoords, protCoords, wnnCoords, labels: trueLab, ariR, ariP, ariW };
+
+            renderScatter('rna-svg',  rnaCoords,  trueLab, 'UMAP1 →  UMAP2 ↑');
+            renderScatter('prot-svg', protCoords, trueLab, 'UMAP1 →  UMAP2 ↑');
+            renderScatter('wnn-svg',  wnnCoords,  trueLab, 'UMAP1 →  UMAP2 ↑');
+
+            $('ari-rna').textContent  = `ARI ${ariR.toFixed(3)}`;
+            $('ari-prot').textContent = `ARI ${ariP.toFixed(3)}`;
+            $('ari-wnn').textContent  = `ARI ${ariW.toFixed(3)}`;
+
+            updateBanner();
+            state.running = false;
+            setBtnDisabled(false);
+            setStatus('idle', false);
+          });
+        });
+      });
+    });
+  }
+
+  function updateBanner() {
+    const L = state.last;
+    if (!L) return;
+    const { ariR, ariP, ariW } = L;
+    const best = Math.max(ariR, ariP, ariW);
+    const bestName = best === ariW ? 'WNN' : best === ariR ? 'RNA-only' : 'Protein-only';
+
+    let msg1;
+    if (state.nDisc === 0) {
+      msg1 = `No discrepant cells — the three UMAPs should all score similarly.`;
+    } else if (ariW >= ariR && ariW >= ariP) {
+      msg1 = `Discrepant cells are lumped with type-A in RNA-only (ARI ${ariR.toFixed(3)}). WNN separates them (ARI ${ariW.toFixed(3)} > ${ariR.toFixed(3)}).`;
+    } else if (ariR >= ariW) {
+      msg1 = `RNA captures the types here (ARI ${ariR.toFixed(3)}); WNN trailing at ${ariW.toFixed(3)}. Try raising protein noise or discrepant count.`;
+    } else {
+      msg1 = `Protein dominates (ARI ${ariP.toFixed(3)}); WNN at ${ariW.toFixed(3)}.`;
+    }
+
+    const msg2 =
+      `RNA ARI ${ariR.toFixed(3)} · Protein ARI ${ariP.toFixed(3)} · WNN ARI ${ariW.toFixed(3)} — best: ${bestName} (${best.toFixed(3)}).`;
+
+    $('banner-row-1').innerHTML = `<b>Outcome:</b> ${msg1}`;
+    $('banner-row-2').innerHTML = `<b>Metrics:</b> ${msg2}`;
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  [nEl, rnEl, pnEl, dEl].forEach(el => {
+    el.addEventListener('input', () => {
+      readControls();
+      checkWarnings();
+    });
+  });
+  resimBtn.addEventListener('click', () => {
+    state.seed = (Math.random() * 0xffffffff) >>> 0;
+    pipeline();
+  });
+
+  // ── Boot ────────────────────────────────────────────────
+  readControls();
+  pipeline();
+})();
+</script>
+
+</body>
+</html>

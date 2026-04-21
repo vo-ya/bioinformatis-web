@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pseudotime Ordering Demo</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 68ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.85rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .shape-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 0.2rem;
+    }
+    .shape-btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      padding: 0.45rem 0.85rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg-muted);
+      cursor: pointer;
+    }
+    .shape-btn:hover { border-color: var(--border-strong); color: var(--fg); }
+    .shape-btn.active {
+      background: var(--accent-bg);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+
+    .plot-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .plot-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin: 0 0 0.5rem;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner-note {
+      display: block;
+      margin-top: 0.4rem;
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      font-family: var(--font-sans);
+      line-height: var(--leading-relaxed);
+    }
+
+    .warn-inline {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--warning);
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.7rem;
+      margin-top: 0.75rem;
+      display: none;
+    }
+    .warn-inline.show { display: block; }
+
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-bar {
+      height: 10px;
+      flex: 1 1 auto;
+      max-width: 220px;
+      border-radius: 2px;
+      border: 1px solid var(--border);
+    }
+    .legend-ends {
+      font-family: var(--font-mono);
+      color: var(--fg);
+    }
+
+    @media (max-width: 780px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .plot-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="pseudotime-ordering">
+
+  <header class="artifact-head">
+    <h1>Pseudotime Ordering Demo</h1>
+    <p>Cells sit on a developmental trajectory with a known true time (from simulation). We fit a principal curve through the 2D cloud and read each cell's pseudotime as its arc-length along the curve. Kendall τ scores how well the inferred ordering recovers the true one. The aha: when noise is low and the trajectory is a simple arc the ordering tracks truth almost perfectly; crank noise up or pick an ambiguous shape and the curve starts to confuse cells that live near each other but are far apart in real time.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Trajectory &amp; curve controls</p>
+
+    <label class="field-label">Trajectory shape</label>
+    <div class="shape-row" role="tablist" aria-label="Trajectory shape">
+      <button type="button" class="shape-btn active" data-shape="arc">Arc</button>
+      <button type="button" class="shape-btn" data-shape="scurve">S-curve</button>
+      <button type="button" class="shape-btn" data-shape="branch">Branch</button>
+    </div>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ncells-input">Number of cells</label>
+          <span class="slider-value" id="ncells-value">300</span>
+        </div>
+        <input id="ncells-input" type="range" min="50" max="1000" step="10" value="300">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="noise-input">Noise σ</label>
+          <span class="slider-value" id="noise-value">0.30</span>
+        </div>
+        <input id="noise-input" type="range" min="0" max="100" step="1" value="30">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="lambda-input">Smoothing λ</label>
+          <span class="slider-value" id="lambda-value">1.00</span>
+        </div>
+        <input id="lambda-input" type="range" min="10" max="500" step="5" value="100">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="iter-input">Curve iterations</label>
+          <span class="slider-value" id="iter-value">20</span>
+        </div>
+        <input id="iter-input" type="range" min="5" max="100" step="1" value="20">
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate</button>
+      <button class="btn btn--primary" type="button" id="fit-btn">Re-fit curve</button>
+      <button class="btn" type="button" id="reset-btn">Reset defaults</button>
+    </div>
+
+    <div class="warn-inline" id="warn-inline"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Ordering comparison</p>
+    <div class="plot-grid">
+      <div>
+        <p class="plot-title">True time (ground truth)</p>
+        <div class="plot-wrap">
+          <svg id="svg-true" class="plot-svg" viewBox="0 0 520 420" preserveAspectRatio="xMidYMid meet" aria-label="Cells coloured by true developmental time"></svg>
+        </div>
+        <p class="plot-caption">Each cell's simulated time t, sampled uniformly on [0,1].</p>
+      </div>
+      <div>
+        <p class="plot-title">Inferred pseudotime</p>
+        <div class="plot-wrap">
+          <svg id="svg-pseudo" class="plot-svg" viewBox="0 0 520 420" preserveAspectRatio="xMidYMid meet" aria-label="Cells coloured by inferred pseudotime"></svg>
+        </div>
+        <p class="plot-caption">Arc-length along the fitted principal curve, rescaled to [0,1].</p>
+      </div>
+    </div>
+    <div class="legend">
+      <span class="legend-ends">t = 0</span>
+      <span class="legend-bar" id="legend-bar"></span>
+      <span class="legend-ends">t = 1</span>
+      <span style="margin-left:auto; color: var(--fg-subtle);">principal curve overlaid in ink</span>
+    </div>
+  </section>
+
+  <div class="banner" id="banner">
+    Kendall τ = <b id="banner-tau">0.00</b>
+    <span class="sep">·</span>
+    perfect = <b>1.00</b>
+    <span class="sep">·</span>
+    <span id="banner-grade">—</span>
+    <span class="banner-note" id="banner-note"></span>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Seeded PRNG (mulberry32) ──────────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rnd) {
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // ── Gradient (accent-bg → accent) in 10 discrete bins ─
+  // Hand-converted hex → RGB once, interpolated server-side-like here.
+  const GRAD_START = [238, 242, 255]; // --accent-bg #eef2ff
+  const GRAD_END   = [30, 58, 138];   // --accent    #1e3a8a
+  const GRAD_BINS = 10;
+  const GRADIENT = (() => {
+    const arr = [];
+    for (let i = 0; i < GRAD_BINS; i++) {
+      const t = i / (GRAD_BINS - 1);
+      const r = Math.round(GRAD_START[0] + (GRAD_END[0] - GRAD_START[0]) * t);
+      const g = Math.round(GRAD_START[1] + (GRAD_END[1] - GRAD_START[1]) * t);
+      const b = Math.round(GRAD_START[2] + (GRAD_END[2] - GRAD_START[2]) * t);
+      arr.push(`rgb(${r}, ${g}, ${b})`);
+    }
+    return arr;
+  })();
+  function colorForTime(t) {
+    // Clamp and quantise to 10 bins for a clean discretised gradient.
+    const x = Math.max(0, Math.min(0.9999, t));
+    const bin = Math.floor(x * GRAD_BINS);
+    return GRADIENT[bin];
+  }
+
+  // ── Trajectory shape functions ───────────────────────
+  // Each returns (x, y) for t ∈ [0, 1]. Shapes are scaled up by SHAPE_SCALE
+  // so that the default noise σ=0.3 is a reasonable fraction (~15%) of the
+  // trajectory's characteristic length — low enough that an honest principal
+  // curve can recover τ ≥ 0.85, high enough that doubling σ visibly destroys
+  // the ordering.
+  const SHAPE_SCALE = 2.0;
+  const SHAPES = {
+    arc: (t) => {
+      // Half-circle from (1, 0) at t=0 to (-1, 0) at t=1, bowing up.
+      const theta = Math.PI * t;
+      return [SHAPE_SCALE * Math.cos(theta), SHAPE_SCALE * Math.sin(theta)];
+    },
+    scurve: (t) => {
+      // S-shape: horizontal run from -1 to 1 with a sinusoidal wobble.
+      return [SHAPE_SCALE * (2 * t - 1), SHAPE_SCALE * 0.9 * Math.sin(2 * Math.PI * t)];
+    },
+    branch: (t) => {
+      // Trunk from (-1, 0) to (0, 0) for t ≤ 0.5, then split by branch id.
+      // Branching is handled in simulate(); this trunk fragment is unused
+      // for t > 0.5 — the caller resolves the branch split itself.
+      if (t <= 0.5) {
+        return [SHAPE_SCALE * (-1 + 2 * t), 0];
+      }
+      return [0, 0];
+    },
+  };
+
+  // ── Data simulation ──────────────────────────────────
+  // Samples N cells with uniform times, places each on the shape, then
+  // perturbs with isotropic Gaussian noise of std σ.
+  function simulate(seed, n, noise, shape) {
+    const rnd = mulberry32(seed);
+    const pts = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const t = rnd();
+      let bx, by;
+      if (shape === 'branch') {
+        if (t <= 0.5) {
+          bx = SHAPE_SCALE * (-1 + 2 * t); by = 0;
+        } else {
+          // Two branches off the trunk end at (0, 0).
+          // Branch id assigned deterministically by a second PRNG draw.
+          const branchPick = rnd() < 0.5 ? 0 : 1;
+          const s = (t - 0.5) * 2; // s ∈ [0, 1] along the sub-branch
+          if (branchPick === 0) {
+            // Upper branch: travel to (SHAPE_SCALE, SHAPE_SCALE)
+            bx = SHAPE_SCALE * s; by = SHAPE_SCALE * s;
+          } else {
+            // Lower branch: travel to (SHAPE_SCALE, -SHAPE_SCALE)
+            bx = SHAPE_SCALE * s; by = -SHAPE_SCALE * s;
+          }
+        }
+      } else {
+        const [sx, sy] = SHAPES[shape](t);
+        bx = sx; by = sy;
+      }
+      const x = bx + noise * randn(rnd);
+      const y = by + noise * randn(rnd);
+      pts[i] = { id: i, x, y, trueT: t };
+    }
+    return pts;
+  }
+
+  // ── PCA first component (for curve initialisation) ───
+  // Computes the top eigenvector of the 2×2 covariance via closed form.
+  function pcaFirst(points) {
+    const N = points.length;
+    let mx = 0, my = 0;
+    for (const p of points) { mx += p.x; my += p.y; }
+    mx /= N; my /= N;
+    let sxx = 0, syy = 0, sxy = 0;
+    for (const p of points) {
+      const dx = p.x - mx, dy = p.y - my;
+      sxx += dx * dx; syy += dy * dy; sxy += dx * dy;
+    }
+    sxx /= N; syy /= N; sxy /= N;
+    // Closed form for 2×2 symmetric eigendecomposition.
+    const tr = sxx + syy;
+    const det = sxx * syy - sxy * sxy;
+    const disc = Math.sqrt(Math.max(0, tr * tr / 4 - det));
+    const lambda1 = tr / 2 + disc;
+    // Eigenvector for lambda1
+    let vx, vy;
+    if (Math.abs(sxy) > 1e-12) {
+      vx = lambda1 - syy;
+      vy = sxy;
+    } else {
+      // Diagonal covariance — principal axis is whichever variance is larger.
+      if (sxx >= syy) { vx = 1; vy = 0; } else { vx = 0; vy = 1; }
+    }
+    const nrm = Math.hypot(vx, vy) || 1;
+    vx /= nrm; vy /= nrm;
+    return { mean: [mx, my], dir: [vx, vy] };
+  }
+
+  // Build the initial curve: a straight line through the PCA axis,
+  // sampled at CURVE_LEN evenly spaced knots covering the data projection.
+  const CURVE_LEN = 60;
+  function initCurveFromPCA(points) {
+    const { mean, dir } = pcaFirst(points);
+    // Project each point onto the axis and find [min, max] scalar.
+    let smin = Infinity, smax = -Infinity;
+    for (const p of points) {
+      const s = (p.x - mean[0]) * dir[0] + (p.y - mean[1]) * dir[1];
+      if (s < smin) smin = s;
+      if (s > smax) smax = s;
+    }
+    // Slightly pad the extrema so curve extends past the cloud.
+    const pad = 0.02 * (smax - smin || 1);
+    smin -= pad; smax += pad;
+    const knots = new Array(CURVE_LEN);
+    for (let i = 0; i < CURVE_LEN; i++) {
+      const frac = i / (CURVE_LEN - 1);
+      const s = smin + (smax - smin) * frac;
+      knots[i] = [mean[0] + s * dir[0], mean[1] + s * dir[1]];
+    }
+    return knots;
+  }
+
+  // ── Principal curve fitting ──────────────────────────
+  // project each point to its closest point on the polyline curve.
+  // Returns {projS, projIdx} where projS is arc-length along the curve and
+  // projIdx is the polyline segment index containing the projection.
+  function projectToCurve(points, curve) {
+    const M = curve.length;
+    // Cumulative arc-length at each knot for later scaling.
+    const cumArc = new Array(M);
+    cumArc[0] = 0;
+    for (let i = 1; i < M; i++) {
+      const dx = curve[i][0] - curve[i - 1][0];
+      const dy = curve[i][1] - curve[i - 1][1];
+      cumArc[i] = cumArc[i - 1] + Math.hypot(dx, dy);
+    }
+    const totalArc = cumArc[M - 1] || 1;
+
+    const out = new Array(points.length);
+    for (let pi = 0; pi < points.length; pi++) {
+      const p = points[pi];
+      let bestS = 0;
+      let bestD2 = Infinity;
+      // Iterate over segments (M - 1 of them) and find closest projection.
+      for (let j = 0; j < M - 1; j++) {
+        const ax = curve[j][0], ay = curve[j][1];
+        const bx = curve[j + 1][0], by = curve[j + 1][1];
+        const dx = bx - ax, dy = by - ay;
+        const segLen2 = dx * dx + dy * dy;
+        if (segLen2 < 1e-18) continue;
+        let u = ((p.x - ax) * dx + (p.y - ay) * dy) / segLen2;
+        if (u < 0) u = 0;
+        if (u > 1) u = 1;
+        const projX = ax + u * dx;
+        const projY = ay + u * dy;
+        const ex = p.x - projX, ey = p.y - projY;
+        const d2 = ex * ex + ey * ey;
+        if (d2 < bestD2) {
+          bestD2 = d2;
+          const segLen = Math.sqrt(segLen2);
+          bestS = cumArc[j] + u * segLen;
+        }
+      }
+      out[pi] = bestS / totalArc; // normalise to [0, 1]
+    }
+    return { projS: out, totalArc };
+  }
+
+  // Weighted local-linear regression along arc-length.
+  // Points have (s_i, x_i), (s_i, y_i). For each query s_q in [0, 1],
+  // we fit y = a + b (s - s_q) weighted by a Gaussian kernel of bandwidth h,
+  // then predict a (the intercept) as the smoothed value.
+  //
+  // λ (from the UI) controls bandwidth: h = 0.05 * λ, so λ=1 ≈ 5% of arc.
+  function smoothCurve(points, projS, lambda) {
+    const N = points.length;
+    const M = CURVE_LEN;
+    // Bandwidth in normalised arc-length units. 0.10 × λ means λ=1.0
+    // spans ~10% of the curve per side — enough to average out σ=0.3 noise
+    // while still bending to follow a half-circle.
+    const h = 0.10 * lambda;
+    const invTwoH2 = 1 / (2 * h * h);
+
+    const newCurve = new Array(M);
+    for (let q = 0; q < M; q++) {
+      const sq = q / (M - 1);
+      // Accumulate weighted sums for local-linear fit.
+      let W = 0, Ws = 0, Wss = 0;
+      let WXx = 0, WSXx = 0; // for x
+      let WXy = 0, WSXy = 0; // for y
+      for (let i = 0; i < N; i++) {
+        const ds = projS[i] - sq;
+        const w = Math.exp(-ds * ds * invTwoH2);
+        W += w;
+        Ws += w * ds;
+        Wss += w * ds * ds;
+        WXx += w * points[i].x;
+        WSXx += w * ds * points[i].x;
+        WXy += w * points[i].y;
+        WSXy += w * ds * points[i].y;
+      }
+      // If the local neighbourhood is effectively empty, fall back to
+      // global mean (rare but happens at the tails with tiny bandwidth).
+      if (W < 1e-8) {
+        let mx = 0, my = 0;
+        for (let i = 0; i < N; i++) { mx += points[i].x; my += points[i].y; }
+        newCurve[q] = [mx / N, my / N];
+        continue;
+      }
+      // Solve 2×2 normal equations for [a, b]:
+      //   [W   Ws ] [a]   [ΣwY ]
+      //   [Ws  Wss] [b] = [ΣwdsY]
+      const det = W * Wss - Ws * Ws;
+      if (Math.abs(det) < 1e-12) {
+        // Ill-conditioned → fall back to weighted mean (intercept only).
+        newCurve[q] = [WXx / W, WXy / W];
+        continue;
+      }
+      const ax = (Wss * WXx - Ws * WSXx) / det; // intercept for x
+      const ay = (Wss * WXy - Ws * WSXy) / det; // intercept for y
+      newCurve[q] = [ax, ay];
+    }
+    return newCurve;
+  }
+
+  // Full principal-curve fit. Returns {curve, projS} after `iters` passes.
+  function fitPrincipalCurve(points, lambda, iters) {
+    let curve = initCurveFromPCA(points);
+    let projS = null;
+    for (let it = 0; it < iters; it++) {
+      const proj = projectToCurve(points, curve);
+      projS = proj.projS;
+      const newCurve = smoothCurve(points, projS, lambda);
+      // Convergence check: max knot displacement — if tiny, early exit.
+      let maxMove = 0;
+      for (let i = 0; i < CURVE_LEN; i++) {
+        const dx = newCurve[i][0] - curve[i][0];
+        const dy = newCurve[i][1] - curve[i][1];
+        const m = Math.hypot(dx, dy);
+        if (m > maxMove) maxMove = m;
+      }
+      curve = newCurve;
+      if (maxMove < 1e-5) break;
+    }
+    // Final projection for pseudotime readout.
+    const proj = projectToCurve(points, curve);
+    return { curve, projS: proj.projS };
+  }
+
+  // ── Kendall τ ────────────────────────────────────────
+  // Standard O(N^2) formulation. For N ≤ 1000 this is ~500k ops — fine.
+  // τ = (concordant - discordant) / (N choose 2), treating ties carefully.
+  function kendallTau(xs, ys) {
+    const N = xs.length;
+    if (N < 2) return 0;
+    let concordant = 0, discordant = 0;
+    let tiesX = 0, tiesY = 0;
+    for (let i = 0; i < N - 1; i++) {
+      for (let j = i + 1; j < N; j++) {
+        const dx = xs[i] - xs[j];
+        const dy = ys[i] - ys[j];
+        if (dx === 0 && dy === 0) continue; // both tied: ignore
+        if (dx === 0) { tiesX++; continue; }
+        if (dy === 0) { tiesY++; continue; }
+        if ((dx > 0 && dy > 0) || (dx < 0 && dy < 0)) concordant++;
+        else discordant++;
+      }
+    }
+    // τ_b — accounts for ties in either variable.
+    const total = N * (N - 1) / 2;
+    const denom = Math.sqrt((total - tiesX) * (total - tiesY));
+    if (denom < 1e-12) return 0;
+    return (concordant - discordant) / denom;
+  }
+
+  // The principal curve has no canonical direction: our PCA init could
+  // align with either end of the developmental axis. We report
+  // |τ| when comparing, but the displayed pseudotime is flipped if needed
+  // so that the colour gradient visually agrees with ground truth.
+  function alignDirection(projS, trueT) {
+    const N = projS.length;
+    // Correlate projS with trueT with the current orientation and flipped.
+    let sumPos = 0, sumNeg = 0;
+    let mT = 0, mP = 0;
+    for (let i = 0; i < N; i++) { mT += trueT[i]; mP += projS[i]; }
+    mT /= N; mP /= N;
+    for (let i = 0; i < N; i++) {
+      sumPos += (trueT[i] - mT) * (projS[i] - mP);
+    }
+    if (sumPos < 0) {
+      // Flip so colour gradient reads the same direction as truth.
+      for (let i = 0; i < N; i++) projS[i] = 1 - projS[i];
+      return true;
+    }
+    return false;
+  }
+
+  // ── State ────────────────────────────────────────────
+  const state = {
+    dataSeed: 20260421,
+    n: 300,
+    noise: 0.30,
+    shape: 'arc',
+    lambda: 1.0,
+    iters: 20,
+    points: [],
+    curve: [],
+    pseudo: [],   // inferred pseudotime per cell, aligned to truth direction
+    tau: 0,
+    flipped: false,
+  };
+
+  // ── DOM refs ─────────────────────────────────────────
+  const nEl = $('ncells-input');
+  const noiseEl = $('noise-input');
+  const lambdaEl = $('lambda-input');
+  const iterEl = $('iter-input');
+  const nVal = $('ncells-value');
+  const noiseVal = $('noise-value');
+  const lambdaVal = $('lambda-value');
+  const iterVal = $('iter-value');
+  const resimBtn = $('resim-btn');
+  const fitBtn = $('fit-btn');
+  const resetBtn = $('reset-btn');
+  const warnEl = $('warn-inline');
+  const svgTrue = $('svg-true');
+  const svgPseudo = $('svg-pseudo');
+  const bannerTau = $('banner-tau');
+  const bannerGrade = $('banner-grade');
+  const bannerNote = $('banner-note');
+  const legendBar = $('legend-bar');
+  const shapeBtns = document.querySelectorAll('.shape-btn');
+
+  // Slider mappings
+  const noiseFromSlider = (v) => v / 100;        // 0..100 → 0..1
+  const lambdaFromSlider = (v) => v / 100;       // 10..500 → 0.10..5.00
+
+  // Build the legend gradient bar from the discretised palette.
+  (function paintLegend() {
+    const stops = GRADIENT.map((c, i) => {
+      const p0 = (i / GRAD_BINS) * 100;
+      const p1 = ((i + 1) / GRAD_BINS) * 100;
+      return `${c} ${p0}%, ${c} ${p1}%`;
+    }).join(', ');
+    legendBar.style.background = `linear-gradient(to right, ${stops})`;
+  })();
+
+  // ── SVG helpers ──────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const key in attrs) e.setAttribute(key, attrs[key]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // Compute data bounds shared across both scatters so they line up.
+  function computeBounds() {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const p of state.points) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    // Include curve knots too in case curve drifts outside the cloud.
+    for (const k of state.curve) {
+      if (k[0] < minX) minX = k[0];
+      if (k[0] > maxX) maxX = k[0];
+      if (k[1] < minY) minY = k[1];
+      if (k[1] > maxY) maxY = k[1];
+    }
+    const spanX = maxX - minX || 1;
+    const spanY = maxY - minY || 1;
+    const pad = 0.08;
+    minX -= pad * spanX; maxX += pad * spanX;
+    minY -= pad * spanY; maxY += pad * spanY;
+    // Square the viewport so x/y scales match visually.
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    const half = Math.max(maxX - minX, maxY - minY) / 2;
+    return { minX: cx - half, maxX: cx + half, minY: cy - half, maxY: cy + half };
+  }
+
+  function renderOne(svg, colourFn, label) {
+    clear(svg);
+    const W = 520, H = 420;
+    const PAD = 20;
+    const x0 = PAD, x1 = W - PAD;
+    const y0 = PAD, y1 = H - PAD;
+    const plotW = x1 - x0, plotH = y1 - y0;
+    const { minX, maxX, minY, maxY } = computeBounds();
+    const xOf = (v) => x0 + ((v - minX) / (maxX - minX)) * plotW;
+    const yOf = (v) => y1 - ((v - minY) / (maxY - minY)) * plotH;
+
+    svg.appendChild(el('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Principal curve: polyline through knots in --fg.
+    if (state.curve.length >= 2) {
+      const pts = state.curve.map(k => `${xOf(k[0]).toFixed(2)},${yOf(k[1]).toFixed(2)}`).join(' ');
+      svg.appendChild(el('polyline', {
+        points: pts,
+        fill: 'none',
+        stroke: 'var(--fg)',
+        'stroke-width': 2,
+        'stroke-linejoin': 'round',
+        'stroke-linecap': 'round',
+        opacity: 0.85,
+      }));
+    }
+
+    // Points
+    const ptG = el('g', {});
+    // Adaptive radius so 50 cells feel chunky and 1000 stay legible.
+    const r = state.points.length <= 150 ? 4.2
+            : state.points.length <= 400 ? 3.4
+            : state.points.length <= 700 ? 2.8
+            : 2.3;
+    for (const p of state.points) {
+      const c = colourFn(p);
+      ptG.appendChild(el('circle', {
+        cx: xOf(p.x).toFixed(2), cy: yOf(p.y).toFixed(2),
+        r,
+        fill: c,
+        stroke: '#ffffff',
+        'stroke-width': 0.5,
+        opacity: 0.95,
+      }));
+    }
+    svg.appendChild(ptG);
+
+    // Corner label
+    svg.appendChild(el('text', {
+      x: x0 + 6, y: y1 - 8,
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-subtle)', 'letter-spacing': '0.06em',
+    }, label));
+  }
+
+  function render() {
+    renderOne(svgTrue, (p) => colorForTime(p.trueT),
+      `${state.points.length} cells · shape: ${state.shape} · σ=${state.noise.toFixed(2)}`);
+    renderOne(svgPseudo, (p) => colorForTime(state.pseudo[p.id]),
+      `λ=${state.lambda.toFixed(2)} · ${state.iters} iters${state.flipped ? ' · flipped' : ''}`);
+  }
+
+  // Qualitative grade + hint from τ + noise
+  function gradeTau(tau, noise) {
+    const a = Math.abs(tau);
+    let grade;
+    if (a >= 0.85) grade = 'ordering tracks truth almost perfectly';
+    else if (a >= 0.65) grade = 'ordering mostly correct with local swaps';
+    else if (a >= 0.4) grade = 'weak signal — many pairs out of order';
+    else if (a >= 0.2) grade = 'poor ordering — barely above chance';
+    else grade = 'ordering essentially random';
+
+    let hint = '';
+    if (noise >= 0.7 && a < 0.4) {
+      hint = 'At this noise level the 2D cloud blurs into a ball — the curve can\'t recover a consistent direction. Try lowering σ or increasing λ to smooth through the jitter.';
+    } else if (state.shape === 'scurve' && a < 0.7) {
+      hint = 'S-curve has fold-back ambiguity: points near the curve\'s crossings can be mapped to either the early or late arm. Expect lower τ than arc at the same σ.';
+    } else if (state.shape === 'branch') {
+      hint = 'Branching trajectories are a hard case for a single principal curve — after the split, arc-length is ambiguous. A branch-aware tool (Slingshot, Monocle3) is the real fix.';
+    } else if (state.lambda < 0.5 && noise >= 0.4) {
+      hint = 'Low λ with high σ lets the curve wiggle through the noise. The ordering overfits local clumps. Raise λ to smooth.';
+    } else if (a >= 0.85) {
+      hint = 'Clean arc + moderate noise is the easy regime. Snapshot pseudotime genuinely recovers the developmental axis.';
+    } else {
+      hint = 'Sweep σ and λ to see how ordering quality trades off with noise and smoothing.';
+    }
+    return { grade, hint };
+  }
+
+  function updateBanner() {
+    bannerTau.textContent = state.tau.toFixed(3);
+    const { grade, hint } = gradeTau(state.tau, state.noise);
+    bannerGrade.textContent = grade;
+    bannerNote.textContent = hint;
+  }
+
+  function updateSliderReadouts() {
+    nVal.textContent = state.n.toString();
+    noiseVal.textContent = state.noise.toFixed(2);
+    lambdaVal.textContent = state.lambda.toFixed(2);
+    iterVal.textContent = state.iters.toString();
+  }
+
+  // ── Feasibility gate ─────────────────────────────────
+  function validate() {
+    const budget = state.iters * state.n;
+    if (budget > 30000) {
+      warnEl.textContent = `Heavy fit: ${state.iters} iters × ${state.n} cells = ${budget} ops (budget 30,000). Expect a 1–2 s pause.`;
+      warnEl.classList.add('show');
+    } else {
+      warnEl.classList.remove('show');
+    }
+    return true;
+  }
+
+  // ── Pipeline ─────────────────────────────────────────
+  function resimulate() {
+    state.points = simulate(state.dataSeed, state.n, state.noise, state.shape);
+  }
+
+  function refit() {
+    const { curve, projS } = fitPrincipalCurve(state.points, state.lambda, state.iters);
+    state.curve = curve;
+    // Align direction so colour gradient visually matches truth.
+    const trueT = state.points.map(p => p.trueT);
+    const flipped = alignDirection(projS, trueT);
+    state.flipped = flipped;
+    state.pseudo = projS; // indexed by cell id (same order as points)
+    // Kendall τ between inferred pseudotime and true time.
+    state.tau = kendallTau(projS, trueT);
+  }
+
+  function runFullPipeline(opts) {
+    validate();
+    if (!opts || opts.resimulate) resimulate();
+    refit();
+    render();
+    updateBanner();
+    updateSliderReadouts();
+  }
+
+  // ── Wiring ───────────────────────────────────────────
+  nEl.addEventListener('input', () => {
+    state.n = +nEl.value;
+    updateSliderReadouts();
+    validate();
+  });
+  nEl.addEventListener('change', () => runFullPipeline({ resimulate: true }));
+
+  noiseEl.addEventListener('input', () => {
+    state.noise = noiseFromSlider(+noiseEl.value);
+    updateSliderReadouts();
+  });
+  noiseEl.addEventListener('change', () => runFullPipeline({ resimulate: true }));
+
+  lambdaEl.addEventListener('input', () => {
+    state.lambda = lambdaFromSlider(+lambdaEl.value);
+    updateSliderReadouts();
+  });
+  lambdaEl.addEventListener('change', () => runFullPipeline({ resimulate: false }));
+
+  iterEl.addEventListener('input', () => {
+    state.iters = +iterEl.value;
+    updateSliderReadouts();
+    validate();
+  });
+  iterEl.addEventListener('change', () => runFullPipeline({ resimulate: false }));
+
+  shapeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      shapeBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.shape = btn.dataset.shape;
+      runFullPipeline({ resimulate: true });
+    });
+  });
+
+  resimBtn.addEventListener('click', () => {
+    state.dataSeed = (Date.now() & 0x7fffffff) >>> 0;
+    runFullPipeline({ resimulate: true });
+  });
+
+  fitBtn.addEventListener('click', () => {
+    runFullPipeline({ resimulate: false });
+  });
+
+  resetBtn.addEventListener('click', () => {
+    state.n = 300;
+    state.noise = 0.30;
+    state.lambda = 1.0;
+    state.iters = 20;
+    state.shape = 'arc';
+    state.dataSeed = 20260421;
+    nEl.value = 300;
+    noiseEl.value = 30;
+    lambdaEl.value = 100;
+    iterEl.value = 20;
+    shapeBtns.forEach(b => {
+      b.classList.toggle('active', b.dataset.shape === 'arc');
+    });
+    runFullPipeline({ resimulate: true });
+  });
+
+  // ── Boot with default config pre-computed ────────────
+  state.n = +nEl.value;
+  state.noise = noiseFromSlider(+noiseEl.value);
+  state.lambda = lambdaFromSlider(+lambdaEl.value);
+  state.iters = +iterEl.value;
+  state.shape = 'arc';
+  runFullPipeline({ resimulate: true });
+})();
+</script>
+
+</body>
+</html>

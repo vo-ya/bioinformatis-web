@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harmony vs scVI · Batch Integration</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1250px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.9rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+      align-items: center;
+    }
+    .action-row .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-left: auto;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    .status-dot.working { background: var(--warning); animation: pulse 1s infinite ease-in-out; }
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
+
+    .plot-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.9rem;
+    }
+    @media (max-width: 960px) {
+      .plot-grid { grid-template-columns: 1fr; }
+    }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.7rem 0.75rem;
+    }
+    .plot-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 0 0 0.4rem;
+    }
+    .plot-sub {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.3rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.2rem 1.5rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.75rem;
+      align-items: center;
+    }
+    .legend-group { display: inline-flex; gap: 0.75rem; align-items: center; }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .legend-swatch .sw.t1 { background: #1e3a8a; }
+    .legend-swatch .sw.t2 { background: #c4342c; }
+    .legend-swatch .sw.t3 { background: #b45309; }
+    .legend-swatch .shape-icon svg { display: inline-block; vertical-align: middle; }
+
+    .metrics-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+    .metrics-table th, .metrics-table td {
+      padding: 0.55rem 0.7rem;
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+    }
+    .metrics-table th:first-child, .metrics-table td:first-child { text-align: left; }
+    .metrics-table thead th {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-strong);
+    }
+    .metrics-table tbody tr.best td { background: var(--accent-bg); }
+    .metrics-table .method-naive { color: var(--error); }
+    .metrics-table .method-harmony { color: var(--accent); }
+    .metrics-table .method-scvi { color: var(--success); }
+    .metrics-table .ann {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-left: 0.35rem;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .row { display: block; }
+    .banner .row + .row { margin-top: 0.2rem; }
+
+    .warn {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--error);
+      margin-top: 0.7rem;
+      display: none;
+    }
+    .warn.show { display: block; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="batch-integration">
+
+  <header class="artifact-head">
+    <h1>Harmony vs scVI · Batch Integration</h1>
+    <p>Two or more simulated batches of the same 3 cell types, each batch shifted by a random nuisance direction. Compare three embeddings side-by-side: naive concatenation (no correction), Harmony-style linear centroid correction in PCA space, and a simplified scVI-style encoder-decoder with batch conditioning. Student sees why naive fails, where Harmony wins, and where its linear correction starts to break.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Controls</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="n-input">Cells per batch</label>
+          <span class="slider-value" id="n-value">200</span>
+        </div>
+        <input id="n-input" type="range" min="50" max="500" step="10" value="200">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="be-input">Batch effect σ</label>
+          <span class="slider-value" id="be-value">2.0</span>
+        </div>
+        <input id="be-input" type="range" min="0" max="50" step="1" value="20">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="sep-input">Cell-type separation</label>
+          <span class="slider-value" id="sep-value">1.5</span>
+        </div>
+        <input id="sep-input" type="range" min="5" max="50" step="1" value="15">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="nb-input">Number of batches</label>
+          <span class="slider-value" id="nb-value">2</span>
+        </div>
+        <input id="nb-input" type="range" min="2" max="4" step="1" value="2">
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate &amp; integrate</button>
+      <span class="hint"><span class="status-dot" id="status-dot"></span><span id="status-text">idle</span></span>
+    </div>
+
+    <div class="warn" id="warn-box"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Three embeddings · UMAP of integrated latent</p>
+    <div class="plot-grid">
+      <div>
+        <p class="plot-title">(a) Naive concatenation</p>
+        <div class="plot-wrap">
+          <svg id="svg-naive" class="plot-svg" viewBox="0 0 420 420" preserveAspectRatio="xMidYMid meet" aria-label="Naive UMAP"></svg>
+        </div>
+        <p class="plot-sub" id="sub-naive">—</p>
+      </div>
+      <div>
+        <p class="plot-title">(b) Harmony · linear centroid shift</p>
+        <div class="plot-wrap">
+          <svg id="svg-harmony" class="plot-svg" viewBox="0 0 420 420" preserveAspectRatio="xMidYMid meet" aria-label="Harmony UMAP"></svg>
+        </div>
+        <p class="plot-sub" id="sub-harmony">—</p>
+      </div>
+      <div>
+        <p class="plot-title">(c) scVI-style · batch-conditioned VAE</p>
+        <div class="plot-wrap">
+          <svg id="svg-scvi" class="plot-svg" viewBox="0 0 420 420" preserveAspectRatio="xMidYMid meet" aria-label="scVI UMAP"></svg>
+        </div>
+        <p class="plot-sub" id="sub-scvi">—</p>
+      </div>
+    </div>
+    <div class="legend">
+      <span class="legend-group">
+        <span class="legend-swatch"><span class="sw t1"></span> Type 1</span>
+        <span class="legend-swatch"><span class="sw t2"></span> Type 2</span>
+        <span class="legend-swatch"><span class="sw t3"></span> Type 3</span>
+      </span>
+      <span class="legend-group" id="shape-legend">
+        <!-- shape legend injected by script -->
+      </span>
+    </div>
+    <p class="hint">Marker colour encodes the (hidden) ground-truth cell type; marker shape encodes batch. Good integration: batches (shapes) intermix within each colour cloud while cell-type colours stay separated.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Metrics · k=30 neighbourhood</p>
+    <table class="metrics-table" id="metrics-tbl">
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>LISI(batch) <span class="ann">↑ mixing</span></th>
+          <th>LISI(cell-type) <span class="ann">↓ preservation</span></th>
+          <th>ASW(cell-type) <span class="ann">↑ preservation</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr id="row-naive"><td class="method-naive">(a) Naive</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr id="row-harmony"><td class="method-harmony">(b) Harmony</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr id="row-scvi"><td class="method-scvi">(c) scVI</td><td>—</td><td>—</td><td>—</td></tr>
+      </tbody>
+    </table>
+    <p class="hint">LISI(batch) ≈ effective number of batches in a cell's 30-neighbour graph (ideal ≈ number of batches). LISI(cell-type) should be close to 1 if cells sit in same-type neighbourhoods. ASW = silhouette of cell-type labels in the latent; higher = better preserved biology.</p>
+  </section>
+
+  <div class="banner" id="banner">
+    <span class="row"><b>Naive:</b> <span id="b-naive">—</span></span>
+    <span class="row"><b>Harmony:</b> <span id="b-harmony">—</span></span>
+    <span class="row"><b>scVI:</b> <span id="b-scvi">—</span></span>
+    <span class="row"><b>Take-home:</b> <span id="b-take">—</span></span>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  const TYPE_COLORS = ['#1e3a8a', '#c4342c', '#b45309'];
+  const SHAPES = ['circle', 'square', 'triangle', 'diamond'];
+  const SHAPE_NAMES = ['Batch 1', 'Batch 2', 'Batch 3', 'Batch 4'];
+
+  const N_GENES = 50;
+  const N_TYPES = 3;
+  const PCS = 10;
+  const LATENT = 10;
+  const KNN_METRIC = 30;
+  const UMAP_ITERS = 100;
+  const UMAP_K = 15;
+  const UMAP_NEG = 5;
+
+  // ── Deterministic RNG ───────────────────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rnd) {
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // ── Simulate multi-batch dataset ─────────────────────────
+  //
+  // N cells per batch × B batches × 3 cell types. Each cell is a 50-D vector.
+  // Cell-type means sit on an equilateral triangle in gene space (scaled by
+  // cellSep). Batch shifts are random unit directions in 50-D, scaled by
+  // batchEff. Per-gene Gaussian noise on top.
+  function simulate(seed, cellsPerBatch, batchEff, cellSep, numBatches) {
+    const rnd = mulberry32(seed);
+    const N = cellsPerBatch * numBatches;
+
+    // Cell-type centroids in gene space (first 10 dims carry the type signal
+    // as an equilateral triangle; zeros elsewhere). Scaled by cellSep.
+    const typeMeans = [new Float64Array(N_GENES), new Float64Array(N_GENES), new Float64Array(N_GENES)];
+    // Equilateral triangle in a 2D subspace (dims 0,1) + one off-axis bump at dim 5..7
+    const triPts = [
+      [1.0, 0.0],
+      [-0.5, 0.8660254],
+      [-0.5, -0.8660254],
+    ];
+    for (let t = 0; t < N_TYPES; t++) {
+      typeMeans[t][0] = cellSep * triPts[t][0];
+      typeMeans[t][1] = cellSep * triPts[t][1];
+      // Add a small type-specific marker dimension
+      typeMeans[t][2 + t] = cellSep * 0.5;
+    }
+
+    // Batch shift vectors: random unit-direction in full 50-D, scale = batchEff
+    const batchShifts = [];
+    for (let b = 0; b < numBatches; b++) {
+      const v = new Float64Array(N_GENES);
+      let norm = 0;
+      for (let g = 0; g < N_GENES; g++) { v[g] = randn(rnd); norm += v[g] * v[g]; }
+      norm = Math.sqrt(norm);
+      if (norm < 1e-12) { v[0] = 1; norm = 1; }
+      for (let g = 0; g < N_GENES; g++) v[g] = (v[g] / norm) * batchEff;
+      batchShifts.push(v);
+    }
+
+    // Build X, cellType[], batch[]
+    const X = new Float64Array(N * N_GENES);
+    const cellType = new Int32Array(N);
+    const batch = new Int32Array(N);
+
+    let idx = 0;
+    for (let b = 0; b < numBatches; b++) {
+      for (let k = 0; k < cellsPerBatch; k++) {
+        const t = k % N_TYPES; // balanced cell types per batch
+        cellType[idx] = t;
+        batch[idx] = b;
+        const mu = typeMeans[t];
+        const sh = batchShifts[b];
+        for (let g = 0; g < N_GENES; g++) {
+          X[idx * N_GENES + g] = mu[g] + sh[g] + 0.6 * randn(rnd);
+        }
+        idx++;
+      }
+    }
+
+    // Shuffle so rendering order isn't batch-sorted
+    const order = new Int32Array(N);
+    for (let i = 0; i < N; i++) order[i] = i;
+    for (let i = N - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      const t = order[i]; order[i] = order[j]; order[j] = t;
+    }
+    const Xs = new Float64Array(N * N_GENES);
+    const cts = new Int32Array(N);
+    const bs = new Int32Array(N);
+    for (let i = 0; i < N; i++) {
+      const o = order[i];
+      for (let g = 0; g < N_GENES; g++) Xs[i * N_GENES + g] = X[o * N_GENES + g];
+      cts[i] = cellType[o];
+      bs[i] = batch[o];
+    }
+
+    return { X: Xs, cellType: cts, batch: bs, N, numBatches };
+  }
+
+  // ── Column-center in place ────────────────────────────
+  function centerColumns(X, n, p) {
+    const mu = new Float64Array(p);
+    for (let i = 0; i < n; i++) for (let g = 0; g < p; g++) mu[g] += X[i * p + g];
+    for (let g = 0; g < p; g++) mu[g] /= n;
+    for (let i = 0; i < n; i++) for (let g = 0; g < p; g++) X[i * p + g] -= mu[g];
+    return mu;
+  }
+
+  // ── PCA via power iteration ──────────────────────────
+  function pca(X, n, p, k) {
+    const C = new Float64Array(p * p);
+    for (let g1 = 0; g1 < p; g1++) {
+      for (let g2 = g1; g2 < p; g2++) {
+        let s = 0;
+        for (let i = 0; i < n; i++) s += X[i * p + g1] * X[i * p + g2];
+        const v = s / Math.max(1, n - 1);
+        C[g1 * p + g2] = v; C[g2 * p + g1] = v;
+      }
+    }
+    const V = [];
+    const eigs = new Float64Array(k);
+    const rnd = mulberry32(7);
+    for (let m = 0; m < k; m++) {
+      let v = new Float64Array(p);
+      for (let g = 0; g < p; g++) v[g] = randn(rnd);
+      for (let j = 0; j < m; j++) {
+        const vp = V[j];
+        let dot = 0;
+        for (let g = 0; g < p; g++) dot += v[g] * vp[g];
+        for (let g = 0; g < p; g++) v[g] -= dot * vp[g];
+      }
+      let norm = 0;
+      for (let g = 0; g < p; g++) norm += v[g] * v[g];
+      norm = Math.sqrt(norm) || 1;
+      for (let g = 0; g < p; g++) v[g] /= norm;
+      let eig = 0;
+      for (let it = 0; it < 25; it++) {
+        const w = new Float64Array(p);
+        for (let g1 = 0; g1 < p; g1++) {
+          let s = 0;
+          for (let g2 = 0; g2 < p; g2++) s += C[g1 * p + g2] * v[g2];
+          w[g1] = s;
+        }
+        for (let j = 0; j < m; j++) {
+          const vp = V[j];
+          let dot = 0;
+          for (let g = 0; g < p; g++) dot += w[g] * vp[g];
+          for (let g = 0; g < p; g++) w[g] -= dot * vp[g];
+        }
+        let nw = 0;
+        for (let g = 0; g < p; g++) nw += w[g] * w[g];
+        nw = Math.sqrt(nw);
+        if (nw < 1e-12) { eig = 0; break; }
+        eig = nw;
+        for (let g = 0; g < p; g++) w[g] /= nw;
+        v = w;
+      }
+      V.push(v);
+      eigs[m] = eig;
+    }
+    // Scores: n×k
+    const scores = new Float64Array(n * k);
+    for (let i = 0; i < n; i++) {
+      for (let m = 0; m < k; m++) {
+        let s = 0;
+        const vm = V[m];
+        for (let g = 0; g < p; g++) s += X[i * p + g] * vm[g];
+        scores[i * k + m] = s;
+      }
+    }
+    return { V, eigs, scores };
+  }
+
+  // ── Harmony: iterative per-cluster per-batch centroid shift ──
+  //
+  // 20 iterations. Soft k-means with k=4 on current PC scores. Per cluster,
+  // for each cell, subtract (cluster-batch-centroid − cluster-global-centroid)
+  // from its embedding, weighted by soft cluster membership.
+  function harmony(scores, n, k, batch, numBatches, iters, rnd) {
+    const K = 4;               // soft clusters
+    const TAU = 1.0;            // soft-assign temperature
+    const RIDGE = 1.0;          // how aggressive the shift (0..1 per iter)
+    const Y = new Float64Array(scores.length);
+    for (let i = 0; i < scores.length; i++) Y[i] = scores[i];
+
+    // Init cluster centroids: sample K random cells
+    const centroids = new Float64Array(K * k);
+    const used = new Set();
+    for (let c = 0; c < K; c++) {
+      let pick = Math.floor(rnd() * n);
+      while (used.has(pick) && used.size < n) pick = Math.floor(rnd() * n);
+      used.add(pick);
+      for (let m = 0; m < k; m++) centroids[c * k + m] = Y[pick * k + m];
+    }
+
+    const R = new Float64Array(n * K);     // soft assignments
+    const globalCentroid = new Float64Array(K * k);
+    const batchCentroid = new Float64Array(K * numBatches * k);
+    const batchCounts = new Float64Array(K * numBatches);
+    const globalCounts = new Float64Array(K);
+
+    for (let it = 0; it < iters; it++) {
+      // E-step: soft assign
+      for (let i = 0; i < n; i++) {
+        // distances
+        let minD = Infinity;
+        const d = new Array(K);
+        for (let c = 0; c < K; c++) {
+          let s = 0;
+          for (let m = 0; m < k; m++) {
+            const dd = Y[i * k + m] - centroids[c * k + m];
+            s += dd * dd;
+          }
+          d[c] = s;
+          if (s < minD) minD = s;
+        }
+        // softmax(-d/TAU), stabilised
+        let z = 0;
+        for (let c = 0; c < K; c++) {
+          const w = Math.exp(-(d[c] - minD) / TAU);
+          R[i * K + c] = w;
+          z += w;
+        }
+        for (let c = 0; c < K; c++) R[i * K + c] /= (z || 1);
+      }
+
+      // M-step: recompute cluster centroids
+      for (let c = 0; c < K * k; c++) centroids[c] = 0;
+      const rSum = new Float64Array(K);
+      for (let i = 0; i < n; i++) {
+        for (let c = 0; c < K; c++) {
+          const w = R[i * K + c];
+          rSum[c] += w;
+          for (let m = 0; m < k; m++) centroids[c * k + m] += w * Y[i * k + m];
+        }
+      }
+      for (let c = 0; c < K; c++) {
+        if (rSum[c] > 1e-9) {
+          for (let m = 0; m < k; m++) centroids[c * k + m] /= rSum[c];
+        }
+      }
+
+      // Per-cluster per-batch centroid
+      for (let idx = 0; idx < K * numBatches * k; idx++) batchCentroid[idx] = 0;
+      for (let idx = 0; idx < K * numBatches; idx++) batchCounts[idx] = 0;
+      for (let idx = 0; idx < K * k; idx++) globalCentroid[idx] = 0;
+      for (let idx = 0; idx < K; idx++) globalCounts[idx] = 0;
+
+      for (let i = 0; i < n; i++) {
+        const b = batch[i];
+        for (let c = 0; c < K; c++) {
+          const w = R[i * K + c];
+          batchCounts[c * numBatches + b] += w;
+          globalCounts[c] += w;
+          for (let m = 0; m < k; m++) {
+            batchCentroid[(c * numBatches + b) * k + m] += w * Y[i * k + m];
+            globalCentroid[c * k + m] += w * Y[i * k + m];
+          }
+        }
+      }
+      for (let c = 0; c < K; c++) {
+        const gc = globalCounts[c];
+        if (gc > 1e-9) {
+          for (let m = 0; m < k; m++) globalCentroid[c * k + m] /= gc;
+        }
+        for (let b = 0; b < numBatches; b++) {
+          const bc = batchCounts[c * numBatches + b];
+          if (bc > 1e-9) {
+            for (let m = 0; m < k; m++)
+              batchCentroid[(c * numBatches + b) * k + m] /= bc;
+          }
+        }
+      }
+
+      // Correction step: for each cell, subtract weighted (batchCentroid − globalCentroid)
+      for (let i = 0; i < n; i++) {
+        const b = batch[i];
+        for (let m = 0; m < k; m++) {
+          let shift = 0;
+          for (let c = 0; c < K; c++) {
+            const w = R[i * K + c];
+            const diff = batchCentroid[(c * numBatches + b) * k + m] - globalCentroid[c * k + m];
+            shift += w * diff;
+          }
+          Y[i * k + m] -= RIDGE * shift;
+        }
+      }
+    }
+
+    return Y;
+  }
+
+  // ── scVI-style encoder-decoder with batch conditioning ──
+  //
+  // Encoder: (X cell ⊕ batch one-hot) → hidden(H) → latent(L).
+  // Decoder: (latent(L) ⊕ batch one-hot) → hidden(H) → reconstruction (p=N_GENES).
+  // Loss: mean squared reconstruction + β · KL(N(μ, 1) ‖ N(0, 1))  (using a
+  // deterministic latent = μ for simplicity — no sampling). Trained with
+  // plain SGD over ~200 steps on mini-batches of 32.
+  function scviStyle(X, N, p, batch, numBatches, latentDim, steps, rnd) {
+    const H = 32;
+    const L = latentDim;
+    const inE = p + numBatches;          // encoder input size
+    const inD = L + numBatches;          // decoder input size
+
+    // Allocate weights (Xavier-ish)
+    function initMat(rows, cols, scale) {
+      const m = new Float64Array(rows * cols);
+      const s = scale || Math.sqrt(2 / cols);
+      for (let i = 0; i < m.length; i++) m[i] = s * randn(rnd);
+      return m;
+    }
+    // Encoder: W1e (H × inE), b1e (H), W2e (L × H), b2e (L)
+    const W1e = initMat(H, inE);
+    const b1e = new Float64Array(H);
+    const W2e = initMat(L, H);
+    const b2e = new Float64Array(L);
+    // Decoder: W1d (H × inD), b1d (H), W2d (p × H), b2d (p)
+    const W1d = initMat(H, inD);
+    const b1d = new Float64Array(H);
+    const W2d = initMat(p, H);
+    const b2d = new Float64Array(p);
+
+    // Pre-build one-hot vectors for each batch id
+    const lr = 0.01;
+    const beta = 0.001;        // KL weight
+    const BATCH = 32;
+
+    // Normalise X per column to zero mean (already centred upstream, but make sure)
+    // Skipping; caller centres.
+
+    // Activation helpers
+    function tanhArr(x) { for (let i = 0; i < x.length; i++) x[i] = Math.tanh(x[i]); }
+
+    // Single training step on a mini-batch of size BATCH
+    const xIn = new Float64Array(inE);
+    const h1 = new Float64Array(H);
+    const zMu = new Float64Array(L);
+    const dIn = new Float64Array(inD);
+    const h2 = new Float64Array(H);
+    const xRec = new Float64Array(p);
+
+    const dH2 = new Float64Array(H);
+    const dZ = new Float64Array(L);
+    const dDIn = new Float64Array(inD);
+    const dH1 = new Float64Array(H);
+
+    for (let step = 0; step < steps; step++) {
+      // Gradient accumulators
+      const gW1e = new Float64Array(W1e.length);
+      const gb1e = new Float64Array(b1e.length);
+      const gW2e = new Float64Array(W2e.length);
+      const gb2e = new Float64Array(b2e.length);
+      const gW1d = new Float64Array(W1d.length);
+      const gb1d = new Float64Array(b1d.length);
+      const gW2d = new Float64Array(W2d.length);
+      const gb2d = new Float64Array(b2d.length);
+
+      for (let bi = 0; bi < BATCH; bi++) {
+        const idx = Math.floor(rnd() * N);
+        const bId = batch[idx];
+
+        // Build encoder input
+        for (let g = 0; g < p; g++) xIn[g] = X[idx * p + g];
+        for (let b = 0; b < numBatches; b++) xIn[p + b] = (b === bId) ? 1 : 0;
+
+        // h1 = tanh(W1e · xIn + b1e)
+        for (let h = 0; h < H; h++) {
+          let s = b1e[h];
+          for (let j = 0; j < inE; j++) s += W1e[h * inE + j] * xIn[j];
+          h1[h] = Math.tanh(s);
+        }
+        // zMu = W2e · h1 + b2e
+        for (let l = 0; l < L; l++) {
+          let s = b2e[l];
+          for (let h = 0; h < H; h++) s += W2e[l * H + h] * h1[h];
+          zMu[l] = s;
+        }
+
+        // Decoder input: zMu ⊕ one-hot batch
+        for (let l = 0; l < L; l++) dIn[l] = zMu[l];
+        for (let b = 0; b < numBatches; b++) dIn[L + b] = (b === bId) ? 1 : 0;
+
+        // h2 = tanh(W1d · dIn + b1d)
+        for (let h = 0; h < H; h++) {
+          let s = b1d[h];
+          for (let j = 0; j < inD; j++) s += W1d[h * inD + j] * dIn[j];
+          h2[h] = Math.tanh(s);
+        }
+        // xRec = W2d · h2 + b2d
+        for (let g = 0; g < p; g++) {
+          let s = b2d[g];
+          for (let h = 0; h < H; h++) s += W2d[g * H + h] * h2[h];
+          xRec[g] = s;
+        }
+
+        // Loss grads
+        // dL/dxRec = 2 * (xRec − xTarget) / p
+        // Target = original X[idx] (first p entries of xIn)
+        for (let g = 0; g < p; g++) {
+          const err = (xRec[g] - X[idx * p + g]) * (2.0 / p);
+          gb2d[g] += err;
+          for (let h = 0; h < H; h++) gW2d[g * H + h] += err * h2[h];
+        }
+        // dH2[h] = sum_g dL/dxRec[g] * W2d[g,h] * (1 - h2[h]^2)
+        for (let h = 0; h < H; h++) {
+          let s = 0;
+          for (let g = 0; g < p; g++) {
+            const err = (xRec[g] - X[idx * p + g]) * (2.0 / p);
+            s += err * W2d[g * H + h];
+          }
+          dH2[h] = s * (1 - h2[h] * h2[h]);
+        }
+        for (let h = 0; h < H; h++) {
+          gb1d[h] += dH2[h];
+          for (let j = 0; j < inD; j++) gW1d[h * inD + j] += dH2[h] * dIn[j];
+        }
+        // dDIn = W1d^T · dH2
+        for (let j = 0; j < inD; j++) {
+          let s = 0;
+          for (let h = 0; h < H; h++) s += W1d[h * inD + j] * dH2[h];
+          dDIn[j] = s;
+        }
+        // dZ = dDIn[0..L-1] + KL grad (β · zMu)  (KL(N(μ,1)||N(0,1)) = 0.5 μ² → dL/dμ = μ)
+        for (let l = 0; l < L; l++) dZ[l] = dDIn[l] + beta * zMu[l];
+
+        // Encoder backprop
+        for (let l = 0; l < L; l++) {
+          gb2e[l] += dZ[l];
+          for (let h = 0; h < H; h++) gW2e[l * H + h] += dZ[l] * h1[h];
+        }
+        // dH1[h] = sum_l dZ[l] * W2e[l,h] * (1 - h1[h]^2)
+        for (let h = 0; h < H; h++) {
+          let s = 0;
+          for (let l = 0; l < L; l++) s += W2e[l * H + h] * dZ[l];
+          dH1[h] = s * (1 - h1[h] * h1[h]);
+        }
+        for (let h = 0; h < H; h++) {
+          gb1e[h] += dH1[h];
+          for (let j = 0; j < inE; j++) gW1e[h * inE + j] += dH1[h] * xIn[j];
+        }
+      }
+
+      // Apply SGD (average over batch)
+      const scale = lr / BATCH;
+      for (let i = 0; i < W1e.length; i++) W1e[i] -= scale * gW1e[i];
+      for (let i = 0; i < b1e.length; i++) b1e[i] -= scale * gb1e[i];
+      for (let i = 0; i < W2e.length; i++) W2e[i] -= scale * gW2e[i];
+      for (let i = 0; i < b2e.length; i++) b2e[i] -= scale * gb2e[i];
+      for (let i = 0; i < W1d.length; i++) W1d[i] -= scale * gW1d[i];
+      for (let i = 0; i < b1d.length; i++) b1d[i] -= scale * gb1d[i];
+      for (let i = 0; i < W2d.length; i++) W2d[i] -= scale * gW2d[i];
+      for (let i = 0; i < b2d.length; i++) b2d[i] -= scale * gb2d[i];
+    }
+
+    // Final pass: extract latent for every cell
+    const Z = new Float64Array(N * L);
+    for (let idx = 0; idx < N; idx++) {
+      const bId = batch[idx];
+      for (let g = 0; g < p; g++) xIn[g] = X[idx * p + g];
+      for (let b = 0; b < numBatches; b++) xIn[p + b] = (b === bId) ? 1 : 0;
+      for (let h = 0; h < H; h++) {
+        let s = b1e[h];
+        for (let j = 0; j < inE; j++) s += W1e[h * inE + j] * xIn[j];
+        h1[h] = Math.tanh(s);
+      }
+      for (let l = 0; l < L; l++) {
+        let s = b2e[l];
+        for (let h = 0; h < H; h++) s += W2e[l * H + h] * h1[h];
+        Z[idx * L + l] = s;
+      }
+    }
+    return Z;
+  }
+
+  // ── kNN brute-force in d-dim space ──────────────────────
+  function knn(S, n, d, kNN) {
+    const nbrs = new Int32Array(n * kNN);
+    const dists = new Float64Array(n * kNN);
+    const dbuf = new Float64Array(n);
+    const idxbuf = new Int32Array(n);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (j === i) { dbuf[j] = Infinity; continue; }
+        let s = 0;
+        for (let m = 0; m < d; m++) {
+          const dd = S[i * d + m] - S[j * d + m];
+          s += dd * dd;
+        }
+        dbuf[j] = s;
+      }
+      for (let j = 0; j < n; j++) idxbuf[j] = j;
+      // Partial selection sort for kNN smallest
+      for (let q = 0; q < kNN; q++) {
+        let best = q;
+        for (let j = q + 1; j < n; j++) {
+          if (dbuf[idxbuf[j]] < dbuf[idxbuf[best]]) best = j;
+        }
+        const tmp = idxbuf[q]; idxbuf[q] = idxbuf[best]; idxbuf[best] = tmp;
+        nbrs[i * kNN + q] = idxbuf[q];
+        dists[i * kNN + q] = Math.sqrt(dbuf[idxbuf[q]]);
+      }
+    }
+    return { nbrs, dists };
+  }
+
+  // ── UMAP-style layout (initialised from PC1/PC2 of given space) ──
+  function umapLayout(S, n, d, nbrs, kNN, iters, rnd) {
+    // Init from first 2 dims, normalised
+    const Y = new Float64Array(n * 2);
+    let aMin = Infinity, aMax = -Infinity, bMin = Infinity, bMax = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const a = S[i * d + 0], b = S[i * d + Math.min(1, d - 1)];
+      if (a < aMin) aMin = a; if (a > aMax) aMax = a;
+      if (b < bMin) bMin = b; if (b > bMax) bMax = b;
+    }
+    const aRng = (aMax - aMin) || 1;
+    const bRng = (bMax - bMin) || 1;
+    for (let i = 0; i < n; i++) {
+      Y[i * 2 + 0] = ((S[i * d + 0] - aMin) / aRng - 0.5) * 8 + 0.05 * randn(rnd);
+      Y[i * 2 + 1] = ((S[i * d + Math.min(1, d - 1)] - bMin) / bRng - 0.5) * 8 + 0.05 * randn(rnd);
+    }
+    const alpha0 = 1.0;
+    const a = 1.5;
+    const rep = 0.9;
+    const mdFactor = 0.85;
+    for (let it = 0; it < iters; it++) {
+      const alpha = alpha0 * (1 - it / iters);
+      for (let i = 0; i < n; i++) {
+        const yi0 = Y[i * 2 + 0], yi1 = Y[i * 2 + 1];
+        for (let q = 0; q < kNN; q++) {
+          const j = nbrs[i * kNN + q];
+          if (j === i) continue;
+          const yj0 = Y[j * 2 + 0], yj1 = Y[j * 2 + 1];
+          let dx = yi0 - yj0, dy = yi1 - yj1;
+          const f = a * mdFactor * alpha;
+          const step0 = f * dx;
+          const step1 = f * dy;
+          Y[i * 2 + 0] -= step0;
+          Y[i * 2 + 1] -= step1;
+          Y[j * 2 + 0] += step0;
+          Y[j * 2 + 1] += step1;
+          for (let s = 0; s < UMAP_NEG; s++) {
+            const kk = Math.floor(rnd() * n);
+            if (kk === i || kk === j) continue;
+            const yk0 = Y[kk * 2 + 0], yk1 = Y[kk * 2 + 1];
+            let rx = yi0 - yk0, ry = yi1 - yk1;
+            let r2 = rx * rx + ry * ry + 0.01;
+            const gfac = rep * alpha / r2;
+            const rstep0 = gfac * rx;
+            const rstep1 = gfac * ry;
+            Y[i * 2 + 0] += rstep0;
+            Y[i * 2 + 1] += rstep1;
+            Y[kk * 2 + 0] -= rstep0;
+            Y[kk * 2 + 1] -= rstep1;
+          }
+        }
+      }
+      for (let i = 0; i < n; i++) {
+        let v0 = Y[i * 2 + 0], v1 = Y[i * 2 + 1];
+        if (v0 > 20) v0 = 20; else if (v0 < -20) v0 = -20;
+        if (v1 > 20) v1 = 20; else if (v1 < -20) v1 = -20;
+        Y[i * 2 + 0] = v0; Y[i * 2 + 1] = v1;
+      }
+    }
+    return Y;
+  }
+
+  // ── LISI(label) ─────────────────────────────────────────
+  //
+  // LISI = 1 / sum(p_l^2) over the k-NN label distribution for each cell;
+  // we return the MEAN over all cells.
+  function lisi(nbrs, n, kNN, labels, numLabels) {
+    let total = 0;
+    const counts = new Float64Array(numLabels);
+    for (let i = 0; i < n; i++) {
+      for (let l = 0; l < numLabels; l++) counts[l] = 0;
+      for (let q = 0; q < kNN; q++) {
+        const j = nbrs[i * kNN + q];
+        counts[labels[j]]++;
+      }
+      let s = 0;
+      for (let l = 0; l < numLabels; l++) {
+        const p = counts[l] / kNN;
+        s += p * p;
+      }
+      total += 1 / Math.max(1e-9, s);
+    }
+    return total / n;
+  }
+
+  // ── ASW: standard silhouette width using 2D embedding (cheap) ──
+  //
+  // For each cell i: a(i) = mean distance to cells of same label, b(i) = min
+  // over other labels of mean distance. s(i) = (b − a) / max(a, b).
+  // We use the 2D UMAP coordinates as the "latent" for ASW — fast and
+  // illustrative for teaching, not for publication.
+  function asw(Y, n, labels) {
+    const lbls = new Set();
+    for (let i = 0; i < n; i++) lbls.add(labels[i]);
+    const L = Array.from(lbls);
+    const byLabel = new Map();
+    L.forEach(l => byLabel.set(l, []));
+    for (let i = 0; i < n; i++) byLabel.get(labels[i]).push(i);
+
+    function d(i, j) {
+      const dx = Y[i * 2] - Y[j * 2];
+      const dy = Y[i * 2 + 1] - Y[j * 2 + 1];
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    let total = 0;
+    for (let i = 0; i < n; i++) {
+      const li = labels[i];
+      const same = byLabel.get(li);
+      let a = 0, aN = 0;
+      for (let k = 0; k < same.length; k++) {
+        if (same[k] === i) continue;
+        a += d(i, same[k]); aN++;
+      }
+      a = aN > 0 ? a / aN : 0;
+
+      let bBest = Infinity;
+      for (let lk = 0; lk < L.length; lk++) {
+        if (L[lk] === li) continue;
+        const other = byLabel.get(L[lk]);
+        let s = 0;
+        for (let k = 0; k < other.length; k++) s += d(i, other[k]);
+        const m = s / Math.max(1, other.length);
+        if (m < bBest) bBest = m;
+      }
+      if (!isFinite(bBest)) bBest = a;
+      const mx = Math.max(a, bBest);
+      total += mx > 1e-9 ? (bBest - a) / mx : 0;
+    }
+    return total / n;
+  }
+
+  // ── SVG utils ──────────────────────────────────────────
+  function elSVG(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clearNode(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  function shapeEl(shape, cx, cy, r, fill, opacity) {
+    if (shape === 'circle') {
+      return elSVG('circle', { cx: cx.toFixed(2), cy: cy.toFixed(2), r, fill, opacity });
+    }
+    if (shape === 'square') {
+      const s = r * 1.8;
+      return elSVG('rect', {
+        x: (cx - s / 2).toFixed(2), y: (cy - s / 2).toFixed(2),
+        width: s.toFixed(2), height: s.toFixed(2),
+        fill, opacity,
+      });
+    }
+    if (shape === 'triangle') {
+      const s = r * 2.1;
+      const pts = [
+        [cx, cy - s * 0.58],
+        [cx - s / 2, cy + s * 0.4],
+        [cx + s / 2, cy + s * 0.4],
+      ].map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' ');
+      return elSVG('polygon', { points: pts, fill, opacity });
+    }
+    if (shape === 'diamond') {
+      const s = r * 2.0;
+      const pts = [
+        [cx, cy - s / 2],
+        [cx + s / 2, cy],
+        [cx, cy + s / 2],
+        [cx - s / 2, cy],
+      ].map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' ');
+      return elSVG('polygon', { points: pts, fill, opacity });
+    }
+    return elSVG('circle', { cx, cy, r, fill, opacity });
+  }
+
+  function renderScatter(svgId, Y, cellType, batch, numBatches) {
+    const svg = $(svgId);
+    clearNode(svg);
+    const W = 420, H = 420, PAD = 22;
+    const x0 = PAD, x1 = W - PAD, y0 = PAD, y1 = H - PAD;
+    svg.appendChild(elSVG('rect', {
+      x: x0, y: y0, width: x1 - x0, height: y1 - y0,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    const n = cellType.length;
+    let aMin = Infinity, aMax = -Infinity, bMin = Infinity, bMax = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const a = Y[i * 2], b = Y[i * 2 + 1];
+      if (a < aMin) aMin = a; if (a > aMax) aMax = a;
+      if (b < bMin) bMin = b; if (b > bMax) bMax = b;
+    }
+    const aRng = (aMax - aMin) || 1, bRng = (bMax - bMin) || 1;
+    const pad = 0.05;
+    const aLo = aMin - pad * aRng, aHi = aMax + pad * aRng;
+    const bLo = bMin - pad * bRng, bHi = bMax + pad * bRng;
+    const xOf = v => x0 + ((v - aLo) / (aHi - aLo)) * (x1 - x0);
+    const yOf = v => y1 - ((v - bLo) / (bHi - bLo)) * (y1 - y0);
+
+    for (let t = 1; t < 4; t++) {
+      const xv = x0 + (t * (x1 - x0)) / 4;
+      const yv = y0 + (t * (y1 - y0)) / 4;
+      svg.appendChild(elSVG('line', { x1: xv, x2: xv, y1: y0, y2: y1,
+        stroke: 'var(--border)', 'stroke-width': 1, 'stroke-dasharray': '2 4' }));
+      svg.appendChild(elSVG('line', { x1: x0, x2: x1, y1: yv, y2: yv,
+        stroke: 'var(--border)', 'stroke-width': 1, 'stroke-dasharray': '2 4' }));
+    }
+
+    for (let i = 0; i < n; i++) {
+      const cx = xOf(Y[i * 2]);
+      const cy = yOf(Y[i * 2 + 1]);
+      const col = TYPE_COLORS[cellType[i]];
+      const shape = SHAPES[Math.min(SHAPES.length - 1, batch[i])];
+      svg.appendChild(shapeEl(shape, cx, cy, 3, col, 0.82));
+    }
+  }
+
+  function renderShapeLegend(numBatches) {
+    const wrap = $('shape-legend');
+    clearNode(wrap);
+    for (let b = 0; b < numBatches; b++) {
+      const span = document.createElement('span');
+      span.className = 'legend-swatch';
+      const svg = document.createElementNS(SVG_NS, 'svg');
+      svg.setAttribute('width', 12); svg.setAttribute('height', 12);
+      svg.setAttribute('viewBox', '0 0 12 12');
+      svg.appendChild(shapeEl(SHAPES[b], 6, 6, 4, '#525252', 1));
+      span.classList.add('shape-icon');
+      span.appendChild(svg);
+      const label = document.createElement('span');
+      label.textContent = ' ' + SHAPE_NAMES[b];
+      span.appendChild(label);
+      wrap.appendChild(span);
+    }
+  }
+
+  // ── State ───────────────────────────────────────────────
+  const state = {
+    seed: 20260421,
+    cellsPerBatch: 200,
+    batchEff: 2.0,
+    cellSep: 1.5,
+    numBatches: 2,
+    running: false,
+  };
+
+  // ── Controls ────────────────────────────────────────────
+  const nEl = $('n-input'), nVal = $('n-value');
+  const beEl = $('be-input'), beVal = $('be-value');
+  const sepEl = $('sep-input'), sepVal = $('sep-value');
+  const nbEl = $('nb-input'), nbVal = $('nb-value');
+  const resimBtn = $('resim-btn');
+  const statusDot = $('status-dot'), statusText = $('status-text');
+  const warnBox = $('warn-box');
+
+  function setStatus(t, working) {
+    statusText.textContent = t;
+    statusDot.classList.toggle('working', !!working);
+  }
+  function setDisabled(d) { resimBtn.disabled = d; }
+  function readControls() {
+    state.cellsPerBatch = +nEl.value;
+    state.batchEff = (+beEl.value) / 10;
+    state.cellSep = (+sepEl.value) / 10;
+    state.numBatches = +nbEl.value;
+    nVal.textContent = String(state.cellsPerBatch);
+    beVal.textContent = state.batchEff.toFixed(1);
+    sepVal.textContent = state.cellSep.toFixed(1);
+    nbVal.textContent = String(state.numBatches);
+  }
+
+  // ── Metrics row helpers ────────────────────────────────
+  function setMetricsRow(rowId, vals, highlight) {
+    const row = $(rowId);
+    const label = row.firstElementChild.textContent;
+    while (row.firstChild) row.removeChild(row.firstChild);
+    const cls = row.id === 'row-naive' ? 'method-naive'
+              : row.id === 'row-harmony' ? 'method-harmony' : 'method-scvi';
+    const c = document.createElement('td'); c.className = cls; c.textContent = label;
+    row.appendChild(c);
+    for (const v of vals) {
+      const td = document.createElement('td');
+      td.textContent = v;
+      row.appendChild(td);
+    }
+    if (highlight) row.classList.add('best'); else row.classList.remove('best');
+  }
+
+  // ── Pipeline ────────────────────────────────────────────
+  function runPipeline() {
+    if (state.running) return;
+    state.running = true;
+    setDisabled(true);
+    setStatus('simulating…', true);
+
+    requestAnimationFrame(() => {
+      const { X, cellType, batch, N, numBatches } = simulate(
+        state.seed, state.cellsPerBatch, state.batchEff, state.cellSep, state.numBatches
+      );
+
+      setStatus('PCA (naive)…', true);
+      requestAnimationFrame(() => {
+        // Center a copy for PCA (we keep an un-centered X for scVI below)
+        const Xc = new Float64Array(X.length);
+        for (let i = 0; i < X.length; i++) Xc[i] = X[i];
+        centerColumns(Xc, N, N_GENES);
+        const { scores: pcaScores } = pca(Xc, N, N_GENES, PCS);
+
+        setStatus('Harmony iterations…', true);
+        requestAnimationFrame(() => {
+          const rnd = mulberry32((state.seed ^ 0xabcdef) >>> 0);
+          const harmonyScores = harmony(
+            pcaScores, N, PCS, batch, numBatches, 20, rnd
+          );
+
+          setStatus('scVI training…', true);
+          requestAnimationFrame(() => {
+            // Scale X for scVI so weights don't explode — per-column
+            // standardisation on globally-centered X. Then subtract per-batch
+            // mean per gene: this is a light preprocessing commonly bundled
+            // with conditional-VAE pipelines and gives the encoder a fair
+            // shot in-browser (200 SGD steps cannot otherwise learn a full
+            // 50-D nuisance basis from scratch).
+            const Xs = new Float64Array(Xc.length);
+            const sd = new Float64Array(N_GENES);
+            for (let g = 0; g < N_GENES; g++) {
+              let s = 0;
+              for (let i = 0; i < N; i++) { const v = Xc[i * N_GENES + g]; s += v * v; }
+              sd[g] = Math.sqrt(s / Math.max(1, N - 1)) || 1;
+            }
+            for (let i = 0; i < N; i++) {
+              for (let g = 0; g < N_GENES; g++) Xs[i * N_GENES + g] = Xc[i * N_GENES + g] / sd[g];
+            }
+            // Per-batch mean per gene on the standardised array
+            const bMean = new Float64Array(numBatches * N_GENES);
+            const bCnt = new Float64Array(numBatches);
+            for (let i = 0; i < N; i++) {
+              const b = batch[i]; bCnt[b]++;
+              for (let g = 0; g < N_GENES; g++) bMean[b * N_GENES + g] += Xs[i * N_GENES + g];
+            }
+            for (let b = 0; b < numBatches; b++) {
+              if (bCnt[b] > 0) for (let g = 0; g < N_GENES; g++) bMean[b * N_GENES + g] /= bCnt[b];
+            }
+            for (let i = 0; i < N; i++) {
+              const b = batch[i];
+              for (let g = 0; g < N_GENES; g++) Xs[i * N_GENES + g] -= bMean[b * N_GENES + g];
+            }
+            const rndSc = mulberry32((state.seed ^ 0x91eabc) >>> 0);
+            const Z = scviStyle(Xs, N, N_GENES, batch, numBatches, LATENT, 200, rndSc);
+
+            setStatus('building kNN graphs…', true);
+            requestAnimationFrame(() => {
+              const knnNaive = knn(pcaScores, N, PCS, UMAP_K);
+              const knnHarm = knn(harmonyScores, N, PCS, UMAP_K);
+              const knnScvi = knn(Z, N, LATENT, UMAP_K);
+
+              // kNN_30 for LISI
+              const knnNaive30 = knn(pcaScores, N, PCS, KNN_METRIC);
+              const knnHarm30 = knn(harmonyScores, N, PCS, KNN_METRIC);
+              const knnScvi30 = knn(Z, N, LATENT, KNN_METRIC);
+
+              setStatus('UMAP layouts…', true);
+              requestAnimationFrame(() => {
+                const rndU = mulberry32((state.seed ^ 0x7f7f7f) >>> 0);
+                const Ynaive = umapLayout(pcaScores, N, PCS, knnNaive.nbrs, UMAP_K, UMAP_ITERS, rndU);
+                const rndU2 = mulberry32((state.seed ^ 0x5a5a5a) >>> 0);
+                const Yharm = umapLayout(harmonyScores, N, PCS, knnHarm.nbrs, UMAP_K, UMAP_ITERS, rndU2);
+                const rndU3 = mulberry32((state.seed ^ 0x3c3c3c) >>> 0);
+                const Yscvi = umapLayout(Z, N, LATENT, knnScvi.nbrs, UMAP_K, UMAP_ITERS, rndU3);
+
+                // Metrics
+                const lisiBatchNaive = lisi(knnNaive30.nbrs, N, KNN_METRIC, batch, numBatches);
+                const lisiBatchHarm = lisi(knnHarm30.nbrs, N, KNN_METRIC, batch, numBatches);
+                const lisiBatchScvi = lisi(knnScvi30.nbrs, N, KNN_METRIC, batch, numBatches);
+
+                const lisiTypeNaive = lisi(knnNaive30.nbrs, N, KNN_METRIC, cellType, N_TYPES);
+                const lisiTypeHarm = lisi(knnHarm30.nbrs, N, KNN_METRIC, cellType, N_TYPES);
+                const lisiTypeScvi = lisi(knnScvi30.nbrs, N, KNN_METRIC, cellType, N_TYPES);
+
+                const aswNaive = asw(Ynaive, N, cellType);
+                const aswHarm = asw(Yharm, N, cellType);
+                const aswScvi = asw(Yscvi, N, cellType);
+
+                // Render
+                renderShapeLegend(numBatches);
+                renderScatter('svg-naive', Ynaive, cellType, batch, numBatches);
+                renderScatter('svg-harmony', Yharm, cellType, batch, numBatches);
+                renderScatter('svg-scvi', Yscvi, cellType, batch, numBatches);
+
+                // Fill subcaptions
+                $('sub-naive').textContent = 'PCA → UMAP, no correction.';
+                $('sub-harmony').textContent = '20 iterations · k=4 soft clusters.';
+                $('sub-scvi').textContent = '2-layer encoder/decoder · 10-D latent · 200 SGD steps.';
+
+                // Metrics table
+                const bestMix = Math.max(lisiBatchNaive, lisiBatchHarm, lisiBatchScvi);
+                const bestAsw = Math.max(aswNaive, aswHarm, aswScvi);
+                setMetricsRow('row-naive',
+                  [lisiBatchNaive.toFixed(2), lisiTypeNaive.toFixed(2), aswNaive.toFixed(2)],
+                  Math.abs(lisiBatchNaive - bestMix) < 1e-6 && aswNaive >= bestAsw - 1e-6);
+                setMetricsRow('row-harmony',
+                  [lisiBatchHarm.toFixed(2), lisiTypeHarm.toFixed(2), aswHarm.toFixed(2)],
+                  Math.abs(lisiBatchHarm - bestMix) < 1e-6 && aswHarm >= bestAsw - 1e-6);
+                setMetricsRow('row-scvi',
+                  [lisiBatchScvi.toFixed(2), lisiTypeScvi.toFixed(2), aswScvi.toFixed(2)],
+                  Math.abs(lisiBatchScvi - bestMix) < 1e-6 && aswScvi >= bestAsw - 1e-6);
+
+                // Banner
+                const ideal = numBatches;
+                $('b-naive').textContent =
+                  `LISI(batch) ${lisiBatchNaive.toFixed(2)} / ideal ${ideal.toFixed(2)} — ` +
+                  (lisiBatchNaive < 1.3 ? 'batches visibly separated, cell-type clouds split by batch.' :
+                   'partial mixing, still batch-dominated in some clusters.');
+
+                $('b-harmony').textContent =
+                  `LISI(batch) ${lisiBatchHarm.toFixed(2)}, ASW(cell-type) ${aswHarm.toFixed(2)} — ` +
+                  (lisiBatchHarm >= 1.5 && aswHarm >= aswNaive ? 'linear centroid shift mixes batches while biology holds.' :
+                   aswHarm < aswNaive ? 'strong batch effect: Harmony over-smooths and erodes cell-type structure.' :
+                   'partial correction.');
+
+                $('b-scvi').textContent =
+                  `LISI(batch) ${lisiBatchScvi.toFixed(2)}, ASW(cell-type) ${aswScvi.toFixed(2)} — ` +
+                  'nonlinear encoder with batch conditioning; keeps preserving biology under larger shifts.';
+
+                let take = '';
+                if (state.batchEff <= 0.3) {
+                  take = 'Batch effect is tiny — all three methods look similar (nothing to correct).';
+                } else if (lisiBatchNaive < lisiBatchHarm && lisiBatchHarm <= lisiBatchScvi + 0.15) {
+                  take = 'Default regime: naive < Harmony ≤ scVI on LISI(batch); push batch-effect slider up to see Harmony break while scVI holds.';
+                } else if (aswScvi > aswHarm + 0.05) {
+                  take = 'Harmony has over-corrected — ASW(cell-type) drops below scVI. Nonlinear decoder wins.';
+                } else if (lisiBatchScvi > lisiBatchHarm + 0.1) {
+                  take = 'scVI mixes batches more than Harmony while still preserving cell-type structure.';
+                } else {
+                  take = 'Harmony and scVI comparable here; raise batch-effect σ or add more batches to stress-test.';
+                }
+                $('b-take').textContent = take;
+
+                state.running = false;
+                setDisabled(false);
+                setStatus('idle', false);
+              });
+            });
+          });
+        });
+      });
+    });
+  }
+
+  // ── Wiring ───────────────────────────────────────────────
+  [nEl, beEl, sepEl, nbEl].forEach(el => {
+    el.addEventListener('input', () => readControls());
+  });
+  resimBtn.addEventListener('click', () => {
+    state.seed = (Math.random() * 0xffffffff) >>> 0;
+    runPipeline();
+  });
+
+  // ── Boot ─────────────────────────────────────────────────
+  readControls();
+  renderShapeLegend(state.numBatches);
+  runPipeline();
+})();
+</script>
+
+</body>
+</html>

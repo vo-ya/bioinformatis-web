@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visium Spot Deconvolution</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1200px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .sim-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-top: 0.95rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+      flex-wrap: wrap;
+    }
+    .sim-row .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0 0 0 auto;
+    }
+
+    .feasibility {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--warning, #b45309);
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.75rem;
+      margin-top: 0.75rem;
+      display: none;
+    }
+    .feasibility.show { display: block; }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 1.25rem;
+    }
+    @media (max-width: 880px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.15);
+    }
+
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner .note {
+      display: block;
+      margin-top: 0.4rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+
+    .selected-info {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin: 0 0 0.5rem;
+    }
+    .selected-info b { color: var(--fg); font-weight: 600; }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="spot-deconvolution">
+
+  <header class="artifact-head">
+    <h1>Visium Spot Deconvolution</h1>
+    <p>Each Visium spot captures a mixture of cells. Given a reference scRNA-seq profile per cell type, we fit per-spot proportions via constrained non-negative least squares: minimise &#x2016;x&#x2212;Mw&#x2016;&sup2; subject to w &#x2265; 0, &Sigma;w = 1. Drag the sliders to see when deconvolution succeeds and when it collapses — reference quality is the hard ceiling, and tiny cells-per-spot amplify every noise source.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Simulation controls</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="nspots-input">Number of spots</label>
+          <span class="slider-value" id="nspots-value">50</span>
+        </div>
+        <input id="nspots-input" type="range" min="10" max="100" step="1" value="50">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="refnoise-input">Reference signature noise</label>
+          <span class="slider-value" id="refnoise-value">0.20</span>
+        </div>
+        <input id="refnoise-input" type="range" min="0" max="50" step="1" value="20">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="spotnoise-input">Spot noise</label>
+          <span class="slider-value" id="spotnoise-value">0.30</span>
+        </div>
+        <input id="spotnoise-input" type="range" min="0" max="50" step="1" value="30">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="cells-input">Cells per spot</label>
+          <span class="slider-value" id="cells-value">10</span>
+        </div>
+        <input id="cells-input" type="range" min="2" max="20" step="1" value="10">
+      </div>
+    </div>
+
+    <div class="sim-row">
+      <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate</button>
+      <span class="hint">New random seed &middot; same slider values</span>
+    </div>
+
+    <div class="feasibility" id="feasibility"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Deconvolution</p>
+
+    <div class="two-col">
+      <div>
+        <div class="plot-wrap">
+          <svg id="grid-svg" class="plot-svg" viewBox="0 0 520 520" preserveAspectRatio="xMidYMid meet" aria-label="Spatial grid of Visium spots"></svg>
+        </div>
+        <p class="plot-caption">Spatial grid &middot; each spot coloured by inferred dominant cell type &middot; click to inspect.</p>
+        <div class="legend" id="legend">
+          <span class="legend-swatch"><span class="sw" style="background:#1e3a8a"></span> T cell</span>
+          <span class="legend-swatch"><span class="sw" style="background:#c4342c"></span> B cell</span>
+          <span class="legend-swatch"><span class="sw" style="background:#b45309"></span> Monocyte</span>
+          <span class="legend-swatch"><span class="sw" style="background:#15803d"></span> Fibroblast</span>
+        </div>
+      </div>
+
+      <div>
+        <p class="selected-info" id="selected-info">spot <b>#1</b> &middot; cells: <b>—</b> &middot; dominant truth: <b>—</b> &middot; dominant inferred: <b>—</b></p>
+        <div class="plot-wrap">
+          <svg id="bars-svg" class="plot-svg" viewBox="0 0 520 360" preserveAspectRatio="xMidYMid meet" aria-label="Per-spot proportion bars"></svg>
+        </div>
+        <p class="plot-caption">Bar height = inferred proportion &middot; tick above bar = ground truth &middot; both sum to 1.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="banner" id="banner">
+    mean |error|: <b id="banner-mae">0.000</b>
+    <span class="sep">&middot;</span>
+    dominant-type accuracy: <b id="banner-acc">0%</b>
+    <span class="sep">&middot;</span>
+    worst spot error: <b id="banner-worst">0.000</b>
+    <span class="note" id="banner-note"></span>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Cell-type palette (fixed order in all arrays) ───────
+  const TYPES = ['T cell', 'B cell', 'Monocyte', 'Fibroblast'];
+  const COLORS = ['#1e3a8a', '#c4342c', '#b45309', '#15803d'];
+  const K = TYPES.length;
+  const N_GENES = 50;
+
+  // ── Deterministic RNG ───────────────────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rnd) {
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  // Dirichlet(alpha) sample via Gamma(alpha,1) ratios; for alpha=1 this is
+  // equivalent to the stick-breaking uniform simplex sample. We use
+  // alpha = 1.2 so most spots have a clear dominant type but mixtures happen.
+  function sampleDirichlet(rnd, alpha) {
+    const out = new Array(K);
+    let s = 0;
+    for (let k = 0; k < K; k++) {
+      // Gamma(alpha,1) via Marsaglia & Tsang; alpha>=1 path suffices here.
+      const a = alpha;
+      const d = a - 1 / 3;
+      const c = 1 / Math.sqrt(9 * d);
+      let g;
+      while (true) {
+        const x = randn(rnd);
+        const v0 = 1 + c * x;
+        if (v0 <= 0) continue;
+        const v = v0 * v0 * v0;
+        const u = rnd();
+        if (u < 1 - 0.0331 * x * x * x * x) { g = d * v; break; }
+        if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) { g = d * v; break; }
+      }
+      out[k] = g;
+      s += g;
+    }
+    for (let k = 0; k < K; k++) out[k] /= s;
+    return out;
+  }
+
+  // ── Cell-type reference profiles ─────────────────────────
+  // Each cell type has a length-50 mean-expression vector. Baseline ~ N(1, 0.2);
+  // ~12 "marker" genes per type are boosted. Marker sets partially overlap so
+  // deconvolution is non-trivial — in particular some genes are shared with
+  // the neighbouring cell type to make the design matrix more realistic.
+  function buildTrueCentroids(seed) {
+    const rnd = mulberry32(seed);
+    const mu = new Array(K);
+    for (let k = 0; k < K; k++) {
+      const v = new Float64Array(N_GENES);
+      for (let g = 0; g < N_GENES; g++) {
+        v[g] = 1 + 0.2 * randn(rnd);
+        if (v[g] < 0.1) v[g] = 0.1;
+      }
+      // 12 markers for this cell type. Bands overlap heavily so neighbouring
+      // cell types share markers — this is what makes the NNLS ill-conditioned
+      // and lets reference noise genuinely degrade the solution. Boosts are
+      // modest (~0.6) so noise at slider 0.5 can actually drown the signal.
+      const start = k * 8; // 8-step stride with 12 markers means types overlap in 4 genes each
+      for (let j = 0; j < 12; j++) {
+        const g = (start + j) % N_GENES;
+        const boost = 0.55 + 0.25 * Math.abs(randn(rnd));
+        v[g] += boost;
+      }
+      mu[k] = v;
+    }
+    return mu;
+  }
+
+  // ── Simplex projection (Duchi et al. 2008) ──────────────
+  // Euclidean projection of a vector onto the probability simplex { w: w>=0, sum=1 }.
+  // Sort descending, find rho, then threshold. O(K log K), trivial at K=4.
+  function projectSimplex(v) {
+    const n = v.length;
+    const u = v.slice().sort((a, b) => b - a);
+    let css = 0;
+    let rho = -1;
+    let theta = 0;
+    for (let i = 0; i < n; i++) {
+      css += u[i];
+      const t = (css - 1) / (i + 1);
+      if (u[i] - t > 0) { rho = i; theta = t; }
+    }
+    const w = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      w[i] = Math.max(0, v[i] - theta);
+    }
+    return w;
+  }
+
+  // ── NNLS on the simplex via projected gradient ──────────
+  // Minimise f(w) = 0.5 * ||Mw - x||^2  s.t. w in simplex.
+  // Grad = M^T (M w - x). We pre-compute MtM (K x K) and Mtx (K) for speed.
+  // Step size = 1 / L where L is an upper bound on the largest eigenvalue
+  // of MtM (we use trace(MtM) as a conservative bound). 200 iterations with
+  // early-stop on ||dw|| < 1e-6 is more than enough at K=4, N_GENES=50.
+  function nnlsSimplex(M, x) {
+    const G = N_GENES;
+    // MtM
+    const MtM = new Float64Array(K * K);
+    for (let a = 0; a < K; a++) {
+      for (let b = 0; b < K; b++) {
+        let s = 0;
+        for (let g = 0; g < G; g++) s += M[g * K + a] * M[g * K + b];
+        MtM[a * K + b] = s;
+      }
+    }
+    // Mtx
+    const Mtx = new Float64Array(K);
+    for (let a = 0; a < K; a++) {
+      let s = 0;
+      for (let g = 0; g < G; g++) s += M[g * K + a] * x[g];
+      Mtx[a] = s;
+    }
+    // Lipschitz constant upper bound: trace(MtM) >= lambda_max(MtM).
+    let trace = 0;
+    for (let a = 0; a < K; a++) trace += MtM[a * K + a];
+    const L = Math.max(trace, 1e-6);
+    const step = 1 / L;
+
+    // Init: uniform
+    let w = new Float64Array(K);
+    for (let a = 0; a < K; a++) w[a] = 1 / K;
+
+    const MAX_ITER = 200;
+    const TOL = 1e-6;
+    for (let it = 0; it < MAX_ITER; it++) {
+      // grad = MtM w - Mtx
+      const grad = new Float64Array(K);
+      for (let a = 0; a < K; a++) {
+        let s = -Mtx[a];
+        for (let b = 0; b < K; b++) s += MtM[a * K + b] * w[b];
+        grad[a] = s;
+      }
+      // step
+      const wNext = new Float64Array(K);
+      for (let a = 0; a < K; a++) wNext[a] = w[a] - step * grad[a];
+      const wProj = projectSimplex(wNext);
+      let d = 0;
+      for (let a = 0; a < K; a++) { const dd = wProj[a] - w[a]; d += dd * dd; }
+      w = wProj;
+      if (Math.sqrt(d) < TOL) break;
+    }
+    return w;
+  }
+
+  // ── Full simulation ─────────────────────────────────────
+  //
+  // `trueCentroids` are the per-cell-type mean vectors. Each spot samples
+  // `cells` cells (by the Dirichlet-sampled proportions, rounded to integer
+  // counts that sum to `cells`), averages their expressions, and adds noise.
+  // The reference matrix passed to NNLS is the true centroids plus extra
+  // noise — i.e. we pretend our scRNA-seq atlas is imperfect.
+  function simulate(params) {
+    const { nSpots, refNoise, spotNoise, cells, seed } = params;
+    const rnd = mulberry32(seed);
+
+    // True centroids are fixed per "biology" seed; we simulate a different
+    // seed each re-simulate to get fresh per-spot data but stable types.
+    const trueCentroids = buildTrueCentroids(0x1357AB);
+
+    // Reference matrix M (flattened G x K, row-major by gene): true centroids
+    // + Gaussian noise. We scale the slider value (0..0.5) by a factor that
+    // grows faster than linear so slider=0.2 (default) still gives a workable
+    // atlas but slider=0.5 genuinely drowns the signal.
+    //   effective sigma = 2.2 * refNoise + 5 * refNoise^2
+    // → refN=0.0 → 0.0;  refN=0.2 → 0.64;  refN=0.5 → 2.35 (SNR << 1).
+    const refSigma = 2.2 * refNoise + 5.0 * refNoise * refNoise;
+    const M = new Float64Array(N_GENES * K);
+    for (let g = 0; g < N_GENES; g++) {
+      for (let k = 0; k < K; k++) {
+        const v = trueCentroids[k][g] + refSigma * randn(rnd);
+        M[g * K + k] = Math.max(0, v);
+      }
+    }
+
+    const spots = new Array(nSpots);
+    for (let i = 0; i < nSpots; i++) {
+      // Ground-truth proportions
+      const wTrue = sampleDirichlet(rnd, 1.2);
+
+      // Convert to integer cell counts summing to `cells`. Use largest-
+      // remainder rounding so the sum is exact.
+      const raw = wTrue.map(w => w * cells);
+      const floor = raw.map(x => Math.floor(x));
+      let remain = cells - floor.reduce((a, b) => a + b, 0);
+      const frac = raw.map((x, idx) => ({ idx, r: x - Math.floor(x) }))
+                      .sort((a, b) => b.r - a.r);
+      const counts = floor.slice();
+      for (let j = 0; j < remain; j++) counts[frac[j].idx] += 1;
+
+      // Build spot signal: sum of cell contributions + noise. Each "cell" is
+      // drawn from N(mu_k, 0.15) so cells of the same type aren't identical.
+      const x = new Float64Array(N_GENES);
+      for (let k = 0; k < K; k++) {
+        for (let c = 0; c < counts[k]; c++) {
+          for (let g = 0; g < N_GENES; g++) {
+            const cellVal = trueCentroids[k][g] + 0.15 * randn(rnd);
+            x[g] += cellVal;
+          }
+        }
+      }
+      // Normalise by cell count so the total "library size" is comparable
+      // across spots regardless of cells-per-spot.
+      for (let g = 0; g < N_GENES; g++) x[g] /= cells;
+
+      // Add spot-level technical noise. Scaled by 0.5× so spot-noise at
+      // slider=0.3 (the default) contributes roughly the same magnitude as
+      // sampling variance from integer-rounded cell counts at cells=10.
+      for (let g = 0; g < N_GENES; g++) {
+        x[g] += spotNoise * 0.5 * randn(rnd);
+        if (x[g] < 0) x[g] = 0;
+      }
+
+      // Recompute effective ground truth from the integer counts actually drawn —
+      // this is the correct target the solver could hope to recover.
+      const wRealised = counts.map(c => c / cells);
+
+      const wInf = nnlsSimplex(M, x);
+
+      spots[i] = {
+        idx: i,
+        wTrue: wRealised,
+        wInf,
+        counts,
+        cells,
+      };
+    }
+
+    // Metrics
+    let maeSum = 0;
+    let correct = 0;
+    let worst = 0;
+    for (let i = 0; i < nSpots; i++) {
+      const s = spots[i];
+      let err = 0;
+      for (let k = 0; k < K; k++) err += Math.abs(s.wTrue[k] - s.wInf[k]);
+      const mae = err / K;
+      maeSum += mae;
+      if (mae > worst) worst = mae;
+      // argmax comparison
+      let ti = 0, ii = 0;
+      for (let k = 1; k < K; k++) {
+        if (s.wTrue[k] > s.wTrue[ti]) ti = k;
+        if (s.wInf[k]  > s.wInf[ii])  ii = k;
+      }
+      if (ti === ii) correct++;
+    }
+    return {
+      spots,
+      mae: maeSum / nSpots,
+      accuracy: correct / nSpots,
+      worst,
+    };
+  }
+
+  // ── State ────────────────────────────────────────────────
+  const state = {
+    nSpots: 50,
+    refNoise: 0.20,
+    spotNoise: 0.30,
+    cells: 10,
+    seed: 42,
+    sim: null,
+    selected: 0,
+    rafId: 0,
+  };
+
+  // ── DOM refs ─────────────────────────────────────────────
+  const nSpotsEl    = $('nspots-input');
+  const nSpotsVal   = $('nspots-value');
+  const refNoiseEl  = $('refnoise-input');
+  const refNoiseVal = $('refnoise-value');
+  const spotNoiseEl = $('spotnoise-input');
+  const spotNoiseVal= $('spotnoise-value');
+  const cellsEl     = $('cells-input');
+  const cellsVal    = $('cells-value');
+  const resimBtn    = $('resim-btn');
+  const feasEl      = $('feasibility');
+
+  const gridSvg  = $('grid-svg');
+  const barsSvg  = $('bars-svg');
+  const selInfo  = $('selected-info');
+
+  // ── SVG helpers ─────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // ── Render: spatial grid ────────────────────────────────
+  function renderGrid() {
+    clear(gridSvg);
+    const W = 520, H = 520;
+    const PAD = 20;
+    const spots = state.sim.spots;
+    const N = spots.length;
+    const cols = Math.ceil(Math.sqrt(N));
+    const rows = Math.ceil(N / cols);
+    const plotW = W - 2 * PAD;
+    const plotH = H - 2 * PAD;
+    const stepX = plotW / cols;
+    const stepY = plotH / rows;
+    const r = Math.min(stepX, stepY) * 0.42;
+
+    // Frame
+    gridSvg.appendChild(el('rect', {
+      x: PAD - 6, y: PAD - 6, width: plotW + 12, height: plotH + 12,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+      rx: 4, ry: 4,
+    }));
+
+    for (let i = 0; i < N; i++) {
+      const s = spots[i];
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const cx = PAD + (col + 0.5) * stepX;
+      const cy = PAD + (row + 0.5) * stepY;
+
+      // Dominant inferred type
+      let dom = 0;
+      for (let k = 1; k < K; k++) if (s.wInf[k] > s.wInf[dom]) dom = k;
+
+      // Opacity of fill encodes purity of dominant (higher prop = more saturated)
+      const purity = s.wInf[dom];
+      const fillOp = 0.35 + 0.6 * purity; // ~0.35..0.95
+
+      // Inferred vs truth match marker (thicker stroke if argmax wrong)
+      let trueDom = 0;
+      for (let k = 1; k < K; k++) if (s.wTrue[k] > s.wTrue[trueDom]) trueDom = k;
+      const mismatched = (trueDom !== dom);
+
+      const isSel = (i === state.selected);
+      const stroke = isSel
+        ? 'var(--fg)'
+        : mismatched ? 'var(--error)' : 'var(--border-strong)';
+      const strokeW = isSel ? 2.2 : mismatched ? 1.4 : 0.8;
+
+      const circle = el('circle', {
+        cx, cy, r,
+        fill: COLORS[dom],
+        'fill-opacity': fillOp.toFixed(2),
+        stroke,
+        'stroke-width': strokeW,
+        'data-idx': i,
+        style: 'cursor: pointer;',
+      });
+      gridSvg.appendChild(circle);
+    }
+
+    // Click handler (delegated)
+    gridSvg.onclick = (ev) => {
+      const t = ev.target;
+      if (!t || t.tagName !== 'circle') return;
+      const idx = +t.getAttribute('data-idx');
+      if (!isNaN(idx)) {
+        state.selected = idx;
+        renderGrid();
+        renderBars();
+      }
+    };
+  }
+
+  // ── Render: selected spot bars ──────────────────────────
+  function renderBars() {
+    clear(barsSvg);
+    const W = 520, H = 360;
+    const PAD_L = 52, PAD_R = 20, PAD_T = 40, PAD_B = 56;
+    const x0 = PAD_L, x1 = W - PAD_R;
+    const y0 = PAD_T,  y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    // Frame
+    barsSvg.appendChild(el('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Y axis: 0..1, gridlines every 0.25
+    const yMax = 1;
+    const yOf = (v) => y1 - (v / yMax) * plotH;
+    for (let v = 0; v <= 1.0001; v += 0.25) {
+      const y = yOf(v);
+      barsSvg.appendChild(el('line', {
+        x1: x0, x2: x1, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': v === 0 ? '' : '2 4',
+      }));
+      barsSvg.appendChild(el('text', {
+        x: x0 - 8, y: y + 3.5,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      }, v.toFixed(2)));
+    }
+
+    // Y axis title
+    barsSvg.appendChild(el('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+      transform: `translate(16, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, 'proportion'));
+
+    const spot = state.sim.spots[state.selected];
+    const barGap = 16;
+    const barW = (plotW - barGap * (K + 1)) / K;
+
+    for (let k = 0; k < K; k++) {
+      const bx = x0 + barGap + k * (barW + barGap);
+      const hInf = (spot.wInf[k] / yMax) * plotH;
+      const hTrue = spot.wTrue[k];
+
+      // Inferred bar
+      barsSvg.appendChild(el('rect', {
+        x: bx, y: y1 - hInf,
+        width: barW, height: hInf,
+        fill: COLORS[k],
+        'fill-opacity': 0.82,
+        stroke: COLORS[k], 'stroke-width': 1,
+      }));
+
+      // Numeric label above bar
+      barsSvg.appendChild(el('text', {
+        x: bx + barW / 2, y: y1 - hInf - 6,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-muted)',
+      }, spot.wInf[k].toFixed(2)));
+
+      // Ground-truth tick (thick horizontal line) above bar
+      const yTruth = yOf(hTrue);
+      barsSvg.appendChild(el('line', {
+        x1: bx - 4, x2: bx + barW + 4, y1: yTruth, y2: yTruth,
+        stroke: 'var(--fg)', 'stroke-width': 2.5,
+      }));
+      // Small tick label
+      barsSvg.appendChild(el('text', {
+        x: bx + barW + 6, y: yTruth + 3.5,
+        'text-anchor': 'start',
+        'font-family': 'var(--font-mono)', 'font-size': 9,
+        fill: 'var(--fg-subtle)',
+      }, hTrue.toFixed(2)));
+
+      // Category label under axis
+      barsSvg.appendChild(el('text', {
+        x: bx + barW / 2, y: y1 + 18,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-sans)', 'font-size': 11,
+        fill: 'var(--fg)',
+        'font-weight': 500,
+      }, TYPES[k]));
+
+      // Small swatch under category
+      barsSvg.appendChild(el('circle', {
+        cx: bx + barW / 2, cy: y1 + 32, r: 4,
+        fill: COLORS[k],
+      }));
+    }
+
+    // Mini title / legend for bars
+    barsSvg.appendChild(el('text', {
+      x: x0, y: y0 - 18,
+      'text-anchor': 'start',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+    }, 'inferred proportions (bars) vs ground truth (ticks)'));
+
+    // Update selected-info line
+    let trueDom = 0, infDom = 0;
+    for (let k = 1; k < K; k++) {
+      if (spot.wTrue[k] > spot.wTrue[trueDom]) trueDom = k;
+      if (spot.wInf[k]  > spot.wInf[infDom])   infDom = k;
+    }
+    selInfo.innerHTML =
+      `spot <b>#${spot.idx + 1}</b> &middot; cells: <b>${spot.cells}</b> (` +
+      spot.counts.map((c, k) => `${TYPES[k].split(' ')[0]}:${c}`).join(', ') +
+      `) &middot; dominant truth: <b style="color:${COLORS[trueDom]}">${TYPES[trueDom]}</b>` +
+      ` &middot; dominant inferred: <b style="color:${COLORS[infDom]}">${TYPES[infDom]}</b>`;
+  }
+
+  // ── Banner ──────────────────────────────────────────────
+  function renderBanner() {
+    $('banner-mae').textContent   = state.sim.mae.toFixed(3);
+    $('banner-acc').textContent   = (state.sim.accuracy * 100).toFixed(0) + '%';
+    $('banner-worst').textContent = state.sim.worst.toFixed(3);
+
+    const notes = [];
+    if (state.cells <= 3) {
+      notes.push('Cells-per-spot is low — expect high per-spot variance, especially in rare types.');
+    }
+    if (state.refNoise >= 0.4) {
+      notes.push('Reference noise is very high — deconvolution is bounded by atlas quality.');
+    } else if (state.refNoise <= 0.05) {
+      notes.push('Reference is near-perfect — NNLS recovers proportions accurately.');
+    }
+    if (state.spotNoise >= 0.4) {
+      notes.push('Spot noise is high — even a perfect reference cannot fix this.');
+    }
+    if (notes.length === 0) {
+      notes.push('Baseline settings: reference noise dominates error. Try 0.00 vs 0.50 to see the floor and ceiling.');
+    }
+    $('banner-note').textContent = notes.join(' ');
+  }
+
+  // ── Readouts / feasibility ──────────────────────────────
+  function updateReadouts() {
+    nSpotsVal.textContent    = state.nSpots.toString();
+    refNoiseVal.textContent  = state.refNoise.toFixed(2);
+    spotNoiseVal.textContent = state.spotNoise.toFixed(2);
+    cellsVal.textContent     = state.cells.toString();
+
+    if (state.cells < 2) {
+      feasEl.textContent = 'Warning: cells per spot < 2 — not enough cells to meaningfully mix types.';
+      feasEl.classList.add('show');
+    } else if (state.cells <= 3) {
+      feasEl.textContent = 'Note: cells per spot ≤ 3 — integer-rounding error in the ground truth becomes large; inference variance will be high.';
+      feasEl.classList.add('show');
+    } else {
+      feasEl.classList.remove('show');
+    }
+  }
+
+  // ── Pipeline ────────────────────────────────────────────
+  function runSim() {
+    state.sim = simulate({
+      nSpots: state.nSpots,
+      refNoise: state.refNoise,
+      spotNoise: state.spotNoise,
+      cells: state.cells,
+      seed: state.seed,
+    });
+    if (state.selected >= state.sim.spots.length) state.selected = 0;
+  }
+
+  function scheduleFull() {
+    if (state.rafId) return;
+    state.rafId = requestAnimationFrame(() => {
+      state.rafId = 0;
+      updateReadouts();
+      runSim();
+      renderGrid();
+      renderBars();
+      renderBanner();
+    });
+  }
+
+  function readControls() {
+    state.nSpots    = +nSpotsEl.value;
+    state.refNoise  = (+refNoiseEl.value) / 100;
+    state.spotNoise = (+spotNoiseEl.value) / 100;
+    state.cells     = +cellsEl.value;
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  nSpotsEl.addEventListener('input', () => { readControls(); scheduleFull(); });
+  refNoiseEl.addEventListener('input', () => { readControls(); scheduleFull(); });
+  spotNoiseEl.addEventListener('input', () => { readControls(); scheduleFull(); });
+  cellsEl.addEventListener('input', () => { readControls(); scheduleFull(); });
+  resimBtn.addEventListener('click', () => {
+    state.seed = (Math.floor(Math.random() * 0x7fffffff)) || 1;
+    scheduleFull();
+  });
+
+  // ── Boot ────────────────────────────────────────────────
+  readControls();
+  updateReadouts();
+  runSim();
+  renderGrid();
+  renderBars();
+  renderBanner();
+})();
+</script>
+
+</body>
+</html>

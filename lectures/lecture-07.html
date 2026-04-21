@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 7 — Single-Cell RNA-seq Fundamentals</title>
+  <meta name="description" content="Single-cell RNA-seq end-to-end: 10x Genomics droplet chemistry, cell barcodes and UMIs, QC (empty droplets, doublets, mitochondrial fraction, ambient RNA), sparse-data normalisation, PCA → UMAP → Leiden clustering, and cell-type annotation.">
+
+  <meta property="og:title" content="Lecture 7 — Single-Cell RNA-seq">
+  <meta property="og:description" content="From droplets to cell-type annotations: UMIs, QC, normalisation, PCA/UMAP, Leiden, annotation.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — Why Single-Cell</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 What bulk hides</a></li>
+          <li><a href="#sec-1-2">1.2 Heterogeneity</a></li>
+          <li><a href="#sec-1-3">1.3 10x droplet chemistry</a></li>
+          <li><a href="#sec-1-4">1.4 Barcodes &amp; UMIs</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Pipeline &amp; QC</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 BCL to count matrix</a></li>
+          <li><a href="#sec-2-2">2.2 Quantification tools</a></li>
+          <li><a href="#sec-2-3">2.3 Empty droplets</a></li>
+          <li><a href="#sec-2-4">2.4 Doublets</a></li>
+          <li><a href="#sec-2-5">2.5 MT &amp; ambient RNA</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Normalisation</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Bulk norm fails</a></li>
+          <li><a href="#sec-3-2">3.2 Log-norm &amp; SCT</a></li>
+          <li><a href="#sec-3-3">3.3 HVG selection</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Dim Reduction</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Why reduce dims</a></li>
+          <li><a href="#sec-4-2">4.2 PCA</a></li>
+          <li><a href="#sec-4-3">4.3 UMAP / t-SNE</a></li>
+          <li><a href="#sec-4-4">4.4 Leiden clustering</a></li>
+          <li><a href="#sec-4-5">4.5 Marker genes</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Annotation</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 Reference vs marker</a></li>
+          <li><a href="#sec-5-2">5.2 Ontologies &amp; atlases</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 07</div>
+      <h1 class="lecture-title">Single-Cell RNA-seq Fundamentals</h1>
+      <p class="lecture-subtitle">From droplets to cell-type annotations — UMIs as error-correcting tags, sparse-data QC, PCA → UMAP → Leiden, and the marker- or reference-based cell-type call.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — Why Single-Cell + Droplet Chemistry</a></li>
+        <li><a href="#part-2">Part 2 — Pipeline &amp; QC</a></li>
+        <li><a href="#part-3">Part 3 — Normalisation</a></li>
+        <li><a href="#part-4">Part 4 — Dim Reduction &amp; Clustering</a></li>
+        <li><a href="#part-5">Part 5 — Annotation</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Four moves:</em>
+        <span class="lecture-tagline-beat">stack the droplets</span>,
+        <span class="lecture-tagline-beat">dedup on UMIs</span>,
+        <span class="lecture-tagline-beat">cluster what's left</span>,
+        <span class="lecture-tagline-beat">name the cell types</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Explain what bulk RNA-seq (Lecture 5) averages away, and name two biological questions that can only be answered at single-cell resolution.</li>
+          <li>Sketch a 10x Genomics droplet-based single-cell RNA-seq workflow end-to-end, and explain what cell barcodes and UMIs are doing.</li>
+          <li>Describe why UMIs solve the PCR-duplicate problem that bulk RNA-seq tolerates, and relate UMIs to error-correcting tags.</li>
+          <li>Read a knee plot and set an EmptyDrops-style threshold separating real cells from ambient barcodes.</li>
+          <li>Name three QC filters that every single-cell analysis applies (doublets, mitochondrial fraction, ambient RNA) and explain what each removes.</li>
+          <li>Explain why bulk normalisation methods fail on sparse single-cell data, and describe the alternative.</li>
+          <li>Describe the dimensionality-reduction pipeline: PCA → UMAP/t-SNE → graph-based clustering → marker gene identification.</li>
+          <li>Annotate a cluster of cells as a cell type using either marker-based or reference-based methods, and state the tradeoff between them.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 45 min</span>
+          Why Single-Cell and the Droplet Chemistry
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 What bulk RNA-seq hides</h3>
+
+          <p>Lecture 5 covered bulk RNA-seq: take millions of cells, extract RNA, sequence. The output is an expression profile averaged across the whole tube. For a tissue like liver or blood, that average is a weighted mean over many distinct cell types — hepatocytes and macrophages and endothelial cells all contributing to the same number.</p>
+
+          <p>Three biological questions the bulk average can't answer:</p>
+
+          <ul>
+            <li><strong>Which cell type expresses the gene I care about?</strong> A single bulk value for "TNF in whole blood" doesn't say whether TNF is being made by monocytes, T cells, or neutrophils — and that matters for therapy.</li>
+            <li><strong>Do rare cells exist that express something nobody else does?</strong> A tumor-infiltrating regulatory T cell at 0.5% of the cells contributes 0.5% to any bulk average. Its distinct expression program is invisible.</li>
+            <li><strong>Are cells continuously transitioning, or discrete?</strong> Development, immune activation, differentiation — these look like smooth gradients when you sample one cell at a time, but averaging turns the gradient into a single static value.</li>
+          </ul>
+
+          <p>Single-cell RNA-seq (scRNA-seq) answers these by measuring transcript abundance in each cell separately. The output is a <strong>cell × gene count matrix</strong>: thousands of cells as rows, ~20,000 genes as columns, entries are molecule counts.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>Bulk is a mean pool over thousands of cells. Single-cell is every individual sample. The cost: the per-cell signal is orders of magnitude noisier, because each cell yields ~10⁴ mRNAs at best and you sample only a fraction. The payoff: cellular heterogeneity becomes visible.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 Cell-type heterogeneity and the "average cell" fallacy</h3>
+
+          <p>The empirical claim that drove the field: <strong>almost no tissue is homogeneous.</strong> Even a supposedly pure cell population — say, CD4+ T cells sorted to 99% purity from peripheral blood — turns out to contain five or ten functionally distinct states when you look cell-by-cell. Naïve T cells, effectors, central memory, regulatory, exhausted, and a few transitional states whose existence wasn't even hypothesised before scRNA-seq.</p>
+
+          <p>This heterogeneity means the bulk average is not a good representative of any single cell. It is, in fact, a value that no single cell has. Treating the average as "what the cell is doing" is the <strong>ergodic fallacy</strong> — assuming the ensemble mean tells you the per-sample behaviour.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-07/01-bulk-vs-single-cell.svg"
+                 alt="A tissue schematic with four visibly distinct cell types rendered as coloured circles in varying proportions. Bulk RNA-seq is shown producing a single averaged expression bar chart; single-cell RNA-seq produces a cells-by-genes heatmap revealing distinct per-cell-type expression patterns that are invisible in the bulk average.">
+            <figcaption>Figure 1. Single-cell vs bulk on the same tissue. Bulk collapses everything to one weighted mean; single-cell keeps every cell as a distinct sample and recovers composition.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>Bulk RNA-seq is a low-resolution integrator — it sums over all cells and reports the mean. Single-cell is a high-resolution sampler that resolves individual signal sources. The same measurement trade-off exists in radio astronomy (beamforming averages sky-emissions vs interferometry that resolves sources), microscopy (bulk fluorescence vs single-molecule imaging), and signal processing (power-spectrum estimation vs time-domain sample inspection). Going single-cell trades per-sample SNR for resolution — and most biological questions turn out to need the resolution.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 The 10x Genomics droplet chemistry</h3>
+
+          <p>10x Genomics' Chromium platform dominates single-cell RNA-seq in 2024. It's a droplet-based method: cells are encapsulated in oil-water emulsion droplets alongside a barcoded gel bead, each cell's mRNA is reverse-transcribed into labelled cDNA inside its own droplet, then everything is pooled back together and sequenced in bulk.</p>
+
+          <p>The chemistry in four steps:</p>
+
+          <ol>
+            <li><strong>Load.</strong> A suspension of ~1000–50,000 cells is loaded alongside a large excess of gel beads, each bead carrying millions of copies of a 16–18 bp cell barcode (the same barcode across all copies on one bead; different barcodes across beads). A microfluidic chip co-encapsulates one cell + one bead + oil into each droplet (called a GEM, for gel-bead-in-emulsion).</li>
+            <li><strong>Lyse + prime.</strong> Inside each droplet, the cell is lysed. mRNAs bind to oligo-dT primers on the bead. Each primer carries: the bead's cell barcode + a 10–12 bp unique molecular identifier (UMI) + a poly-T tail.</li>
+            <li><strong>Reverse transcribe.</strong> Reverse transcriptase extends each primer into a cDNA copy of the mRNA, with the cell barcode and UMI locked to the front.</li>
+            <li><strong>Pool + sequence.</strong> Droplets are broken, all cDNA pooled, PCR-amplified, and sequenced on Illumina. Every read carries its cell barcode (which cell it came from), its UMI (which mRNA molecule it came from), and its transcript sequence.</li>
+          </ol>
+
+          <p>Typical Chromium v3 run: 10,000 cells, 50,000 reads per cell, ~3000 genes detected per cell. Total cost in 2024: ~$3,500 per sample plus sequencing.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-07/02-droplet-chemistry.svg"
+                 alt="Schematic of the Chromium microfluidic chip showing three input channels (cells, gel beads, oil) converging to form droplets; a droplet cross-section with a cell, a bead, and oil boundary; the reverse transcription step producing barcode-and-UMI-labelled cDNA inside each droplet; a four-step summary at the bottom.">
+            <figcaption>Figure 2. 10x Chromium droplet chemistry. One chip, three input channels, and emulsion produces one (cell, bead, oil-droplet) encapsulation per GEM; reverse transcription inside each droplet labels cDNA with cell-specific and molecule-specific tags.</figcaption>
+          </figure>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Not all single-cell protocols are 10x. Smart-seq2 and Smart-seq3 are plate-based methods that sequence each cell individually in a well — higher gene coverage per cell, lower throughput, no UMIs. Drop-seq is the open-source droplet ancestor of 10x. CEL-seq / MARS-seq use barcoded primers with a different chemistry. Each platform has distinct sensitivity, throughput, and cost profiles, and analysis pipelines are not interchangeable. When reading a paper, check the platform before comparing numbers.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 Cell barcodes and UMIs</h3>
+
+          <p>The cell barcode says <strong>which cell</strong> the read came from. The UMI says <strong>which mRNA molecule</strong> within that cell.</p>
+
+          <p>A cell barcode is 16 bp (10x Chromium v3), drawn from a fixed list of ~6 million valid barcodes. After sequencing, reads are grouped by barcode — all reads sharing the same barcode came from the same cell. Some of those barcodes will be error-corrected to the nearest valid barcode in the list (Hamming-1 distance).</p>
+
+          <p>A UMI is 10–12 bp. It's a random sequence attached to each primer on the bead before the cell is even captured. When reverse transcription runs, each individual mRNA in the cell gets tagged with a different UMI. After PCR amplification, you end up with many copies of the same cDNA — each copy carrying the original UMI from the one mRNA molecule it came from.</p>
+
+          <p><strong>The critical move</strong>: during quantification, collapse reads that share both cell barcode <em>and</em> UMI. They came from the same original mRNA molecule; counting them separately would inflate the count. The final count per gene per cell is the number of <em>distinct UMIs</em>, not the number of reads.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-07/03-barcode-umi.svg"
+                 alt="Top: a bead with primers, each primer drawn as bars showing cell barcode, UMI, and poly-T regions. Middle: three mRNA molecules inside a droplet bind three primers with the same cell barcode but different UMIs; reverse transcription produces three distinct cDNA molecules. PCR amplifies each to many copies. Bottom: after sequencing, reads collapse on (cell barcode, UMI) back to three distinct molecule counts.">
+            <figcaption>Figure 3. Cell barcode and UMI structure, and deduplication. The UMI is stamped on each mRNA before amplification; collapsing (cell barcode, UMI) at the end recovers the true molecule count regardless of PCR factor.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">UMI Deduplication Demo</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-07/01-umi-dedup.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-07/01-umi-dedup.html"
+                    class="artifact-frame" loading="lazy"
+                    title="UMI Deduplication Demo"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>A UMI is an error-correcting tag placed on each molecule before the amplification channel. The PCR step is a noisy amplifier (positive feedback with multiplicative noise — callback to Lecture 1's PCR framing). Without a pre-amplification tag, you cannot distinguish "I sequenced one molecule 50 times" from "I sequenced 50 distinct molecules once." The UMI is the serial number stamped on each input before it enters the amplifier; counting distinct serial numbers at the output recovers the original molecule count regardless of amplification bias. This is the same idea as a MAC address or a TCP sequence number — unique identifiers that survive a noisy channel.</p>
+          </aside>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The first UMI design was Kivioja et al. 2012, applied to bulk RNA-seq. The killer application turned out to be single-cell, where PCR amplification is enormous (hundreds of copies per molecule) and without UMIs the counts would be fiction. 10x Genomics' founding insight in 2015 was combining droplet microfluidics (from Drop-seq, Macosko et al. 2015) with commercial-grade manufacturing of UMI-bearing gel beads. The resulting instrument shipped in 2016 and within three years had overtaken every competing platform.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 60 min</span>
+          Data Pipeline and QC
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 From BCL to a count matrix</h3>
+
+          <p>The sequencing instrument (Illumina NovaSeq, typically) emits <strong>BCL</strong> (Binary Base-Call) files directly from the flow cell. A complete pipeline from BCL to a scRNA-seq count matrix:</p>
+
+          <pre class="sequence-block">BCL files (Illumina flow cell)
+    ↓ bcl2fastq
+FASTQ files (reads split by sample, barcodes on Read 1, transcript on Read 2)
+    ↓ cellranger count  (or STARsolo / alevin-fry / kb-python)
+BAM (aligned reads)  +  filtered_feature_bc_matrix.h5 (the count matrix)
+    ↓ QC + normalisation (§2.3-§3)
+AnnData / Seurat object (cells × genes, with metadata)
+    ↓ clustering + annotation (§4-§5)
+Cell-type-labeled expression atlas</pre>
+
+          <p>Each stage has well-defined outputs. A clean pipeline records intermediate artefacts (BCL → FASTQ, FASTQ → BAM, BAM → matrix) so you can re-run any downstream step without re-sequencing or re-aligning.</p>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 Quantification tools: Cell Ranger, STARsolo, alevin-fry</h3>
+
+          <p>The core job of the quantifier: align reads to the transcriptome (or pseudoalign, callback Lecture 5 §3), group them by (cell barcode, UMI), count distinct UMIs per gene per cell, and emit a sparse count matrix.</p>
+
+          <p>Three dominant tools in 2024:</p>
+
+          <ul>
+            <li><strong>Cell Ranger</strong> (10x Genomics' own). Historically the "reference" pipeline. Under the hood, uses STAR (Lecture 5 §2.2) with 10x-specific barcode handling. Slower than modern alternatives, outputs are the de facto standard others are compared against.</li>
+            <li><strong>STARsolo</strong> (part of STAR). Adds 10x / Drop-seq / Smart-seq barcode handling to vanilla STAR. Much faster than Cell Ranger at similar accuracy. The go-to for anyone who isn't locked into Cell Ranger output format.</li>
+            <li><strong>alevin-fry</strong> (from the Salmon team). Pseudoalignment-based (Lecture 5 §3); fastest of the three. Recent enough that not everyone trusts it yet, but benchmarks match STARsolo within ~2% on standard datasets.</li>
+          </ul>
+
+          <p>Output formats:</p>
+
+          <ul>
+            <li>The count matrix is saved as an <strong>HDF5</strong> file (<code>.h5</code>) or in 10x's Matrix Market triplet format (<code>.mtx</code> + <code>barcodes.tsv</code> + <code>features.tsv</code>). Both are <em>sparse</em> formats — a 10,000-cell × 20,000-gene dataset has ~5% non-zero entries; storing the full dense matrix wastes an order of magnitude of disk.</li>
+            <li>The object that downstream analysis tools (Seurat, Scanpy) consume is the <strong>AnnData</strong> (Python) or <strong>SeuratObject</strong> (R) container — essentially "the sparse count matrix plus per-cell and per-gene metadata."</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-07/04-quant-pipeline.svg"
+                 alt="A horizontal pipeline diagram showing BCL files from the Illumina flow cell converted to FASTQ by bcl2fastq, then fed into a three-branch quantification step (Cell Ranger, STARsolo, alevin-fry), producing a BAM and an HDF5 count matrix, which feed into an AnnData or Seurat object for downstream analysis.">
+            <figcaption>Figure 4. The scRNA-seq quantification pipeline. One of three tools converts FASTQ to a sparse cell-by-gene count matrix; that matrix is the input to every subsequent step.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Empty droplets and the knee plot</h3>
+
+          <p>Every 10x run generates more barcodes than it has cells. Two reasons: (1) some droplets contain only ambient RNA (lysed debris floating in the buffer) with no real cell — they still produce reads, tagged with their bead's barcode; (2) some droplets contain just a bead with no cell at all.</p>
+
+          <p>The empty-droplet barcode counts are not zero — they contain small amounts of ambient RNA, typically 10–1000 UMIs per barcode. Real cells usually have 1000–100,000 UMIs. A <strong>knee plot</strong> — barcodes sorted by total UMI count, plotted on log-log — shows a characteristic sharp transition (the "knee") separating the two regimes.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-07/05-knee-plot.svg"
+                 alt="Log-log plot: x-axis barcode rank (sorted by UMI count descending), y-axis UMI count per barcode. The canonical knee shape with a plateau of high-count real cell barcodes on the left, a steep drop in the middle (the knee), and a long tail of low-count empty barcodes on the right. A dashed threshold marks the cell-vs-background boundary.">
+            <figcaption>Figure 5. The knee plot. Real cells sit on the left plateau; empty droplets form the long tail; the knee is where the two populations separate by total UMI count.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Knee Plot Explorer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-07/02-knee-plot.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-07/02-knee-plot.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Knee Plot Explorer"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>The knee is a discriminability boundary between two populations — cells and empty droplets — drawn naturally by log-count distribution. On real data the boundary is rarely as clean as a textbook example; 10–30% of "cells" on the right side of the knee are partially-lysed or low-quality. EmptyDrops (Lun et al. 2019) refines the simple knee cut by modelling the ambient profile as a multinomial and testing each barcode against it — cells whose gene distribution looks significantly different from ambient are kept, even if their total UMI count is moderate.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Doublet detection</h3>
+
+          <p>When two cells accidentally end up in the same droplet (two cells captured together), their mRNA gets the same cell barcode. The resulting "cell" appears to express the gene programs of both underlying cells — a <strong>doublet</strong>.</p>
+
+          <p>Doublet rate scales with cell-loading concentration. 10x's recommended loading produces about 4–8% doublets at 10,000 targeted cells. Load more cells, you get a higher doublet rate (this is a per-chip hardware limitation, not a choice you can skip).</p>
+
+          <p>Doublet-detection algorithms work by recognising the "mixture" signature:</p>
+
+          <ul>
+            <li><strong>Scrublet</strong> (Wolock et al. 2019) simulates synthetic doublets by averaging random pairs of real cells; then trains a classifier to distinguish real cells from the synthetic ones; applies the classifier to your data.</li>
+            <li><strong>DoubletFinder</strong> works similarly — simulate, classify.</li>
+            <li><strong>scDblFinder</strong> uses a slightly different simulation + iterative refinement.</li>
+          </ul>
+
+          <p>All three produce a per-cell doublet score. Thresholds (typically 0.3–0.4) mark high-scoring cells as likely doublets and filter them out.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-07/06-doublet-detection.svg"
+                 alt="Three panels. Panel 1: two real cells of distinct types are averaged to produce a simulated doublet. Panel 2: the simulated doublet is projected onto a UMAP of real cells; it lands in the gap between clusters. Panel 3: a classifier trained on real-vs-simulated-doublet learns this midpoint geometry; histogram of per-cell doublet scores with a threshold marked.">
+            <figcaption>Figure 6. Doublet detection. Simulated doublets land in between-cluster regions that real cells of any type rarely occupy; a classifier trained to recognise this geometry flags high-scoring cells.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>Doublet detection is outlier detection in a sparse high-dimensional feature space. Real cells lie on well-separated manifolds (the cell-type clusters); doublets project to the <em>midpoints between manifolds</em>, a region that real cells of any type rarely occupy. A classifier trained on the simulated midpoint samples learns to recognise this geometry. The same structural move appears in anomaly-detection pipelines (normal vs. mixed-class intruder detection in network traffic, outlier images in vision datasets).</p>
+          </aside>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Doublet rate scales linearly with the number of cells loaded per chip. "Load more cells to save money per cell" is a false economy past the 6–8% doublet rate — you save on per-cell cost but lose power from cells you have to discard.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-5">
+          <h3>2.5 Mitochondrial fraction and ambient RNA</h3>
+
+          <p>Two more QC filters that every pipeline runs:</p>
+
+          <p><strong>Mitochondrial fraction.</strong> The percentage of reads mapping to mitochondrial genes (MT-*). Healthy cells have ~5–15% mitochondrial expression. A cell whose mitochondrial fraction is &gt;25% is usually stressed, apoptotic, or had its plasma membrane compromised during dissociation — the cytoplasmic mRNAs leaked out, leaving mostly mitochondrial RNA (protected inside the mitochondrial membrane). Filtering at a per-dataset threshold (commonly 10–20%) removes these low-quality cells.</p>
+
+          <p><strong>Ambient RNA.</strong> In a droplet, some of the mRNA you measure didn't come from your cell — it came from the solution around the cell, released by other lysed cells during dissociation. This ambient contamination is present in every cell to some degree, and shows up as "everyone expresses everything at low levels." Tools that correct for it:</p>
+
+          <ul>
+            <li><strong>SoupX</strong> (Young &amp; Behjati 2020) estimates the ambient-RNA profile from empty droplets and subtracts a fraction of it from each cell's count.</li>
+            <li><strong>CellBender</strong> (Fleming et al. 2023) uses a deep learning model (VAE-flavored) that jointly decomposes the observed counts into (cell signal + ambient background + technical noise).</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-07/07-qc-metrics.svg"
+                 alt="Four-panel quality-control dashboard: (a) histogram of total UMIs per cell with a knee-style distribution, (b) histogram of genes per cell with a threshold line, (c) histogram of mitochondrial fraction with cells above a 15% threshold highlighted as bad quality, (d) histogram of post-SoupX ambient-RNA contamination fraction per cell.">
+            <figcaption>Figure 7. Per-cell QC metrics dashboard. Every scRNA-seq pipeline checks all four of these before proceeding to normalisation.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">QC Filter Playground</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-07/03-qc-filter.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-07/03-qc-filter.html"
+                    class="artifact-frame" loading="lazy"
+                    title="QC Filter Playground"></iframe>
+          </figure>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Over-filtering is as damaging as under-filtering. If you set MT% threshold at 5%, you'll exclude cells from tissues with naturally high mitochondrial content (cardiac myocytes, fast-twitch muscle, certain neurons). Always inspect the MT distribution before setting a threshold — the "right" value is dataset-specific.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 25 min</span>
+          Normalisation and Feature Selection
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 Why bulk normalisation fails on sparse data</h3>
+
+          <p>Lecture 5 §4.3 introduced DESeq2's median-of-ratios size factor. It works well for bulk data because (a) each sample has thousands of well-measured genes to compute a robust median over, and (b) library depths are high enough that per-gene counts are typically positive.</p>
+
+          <p>Single-cell data breaks both assumptions. A typical scRNA-seq cell has ~3,000 non-zero genes out of ~20,000 total — most genes are zero. The median-of-ratios estimator on mostly-zero vectors becomes unstable: the "median" is dominated by whichever genes happen to be non-zero in both samples, which is a biased subset.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-07/08-sparse-matrix.svg"
+                 alt="A 50-cell-by-200-gene slice of a real scRNA-seq count matrix rendered as a heatmap. About 95% of cells are blank (zero); the visible structure is sparse block-diagonal patches where groups of cells express distinct gene sets.">
+            <figcaption>Figure 8. Single-cell count matrices are sparse. ~95% of entries are zero; the real signal is block-diagonal patches where cell groups express their type-defining genes.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>A scRNA-seq count matrix is a heavily undersampled signal per cell. Each cell measures on the order of 10⁴ molecules out of ~10⁶ in the actual cell; the per-gene signal is shot-noise-limited. The zeros in the matrix are a mixture of "truly not expressed" and "expressed but not captured" — a mixture the normalisation step has to handle without pretending it can distinguish the two.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Log-normalisation and SCTransform</h3>
+
+          <p>Two dominant approaches for single-cell normalisation:</p>
+
+          <p><strong>Log-normalisation</strong> (Seurat's <code>NormalizeData</code>). Two steps:</p>
+
+          <ol>
+            <li>Divide each cell's counts by its total UMIs (per-cell size factor).</li>
+            <li>Multiply by a scaling factor (typically 10,000), add 1, take natural log.</li>
+          </ol>
+
+          <p>Result: log-CPM-equivalent values, with the pseudo-count of 1 preventing log(0). Fast, simple, works well for most downstream operations. The price: it ignores the mean-variance relationship of count data (variance scales with mean even after log).</p>
+
+          <p><strong>SCTransform</strong> (Hafemeister &amp; Satija 2019, Choudhary &amp; Satija 2022). A more principled alternative. For each gene, fit a regularised negative-binomial generalised linear model predicting counts from total UMIs per cell. The <strong>Pearson residuals</strong> from this model are used as the normalised expression values.</p>
+
+          <p>This is statistically more rigorous than log-norm (handles the mean-variance relationship explicitly, stabilises variance across expression levels). The cost: slower, and the residuals are on a different scale than the raw counts — some downstream steps need adjustment.</p>
+
+          <p>In 2024, log-norm is still the default in Seurat and Scanpy workflows because it's fast and "good enough" for most analyses. SCTransform is used when variance-stabilisation matters (e.g., integrating datasets from different batches, §Lecture 8).</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Normalisation Comparison</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-07/04-normalisation.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-07/04-normalisation.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Normalisation Comparison"></iframe>
+          </figure>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>A zero count in scRNA-seq does not mean "not expressed." A cell with low total UMIs might express a gene that a deeper cell of the same type would show — it just wasn't sampled. This is why scRNA-seq clustering is on <em>relative</em> expression patterns, not absolute counts, and why inter-cell expression comparisons are always noisy for low-count genes.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Highly variable gene selection</h3>
+
+          <p>A typical scRNA-seq dataset has ~20,000 gene features per cell. Most of them are boring — expressed uniformly across all cell types, contributing no discrimination signal. Keeping all 20,000 wastes compute and, counterintuitively, hurts clustering (high-dimensional random walks drown out the real signal).</p>
+
+          <p>The fix: <strong>feature selection</strong> — keep only the top 2,000–5,000 <strong>highly variable genes (HVGs)</strong> for downstream analysis. Two common methods:</p>
+
+          <ul>
+            <li><strong>Variance / mean-based</strong> (Seurat's <code>FindVariableFeatures</code> vst method): fit a mean-variance trend across all genes (similar to Lecture 6's dispersion trend); pick the genes with the highest <em>residual</em> variance (variance above what the trend predicts).</li>
+            <li><strong>Pearson-residual-based</strong> (SCTransform): the genes with the largest variance in Pearson residuals across cells — essentially the same operation as above, but on the residual scale.</li>
+          </ul>
+
+          <p>The top 2,000 HVGs capture most of the discriminating signal between cell types. The remaining 18,000 genes contribute noise to clustering and UMAP. Feature selection isn't optional — it's what makes the downstream steps work.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 50 min</span>
+          Dimensionality Reduction and Clustering
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 Why reduce dimensions</h3>
+
+          <p>After HVG selection, each cell is a 2,000-dimensional point. Distance between cells in this space is meaningful (cells with similar expression are close) but we can't visualise 2,000D, and most clustering algorithms that work in 2D or 10D collapse in 2,000D — the <strong>curse of dimensionality</strong>.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>In high dimensions, every pair of random points is approximately the same distance apart. "Nearest neighbour" stops being meaningful past ~20–50 dimensions. Any distance-based clustering at 2,000D will be dominated by noise in the many-dimensional marginals. Reducing dimension first is not optional — it's a precondition for any geometric algorithm to work.</p>
+          </aside>
+
+          <p>Single-cell analysis tackles this with two successive reductions:</p>
+
+          <ol>
+            <li><strong>PCA</strong> (principal component analysis) — linear, produces ~30–50 components capturing 50–80% of total variance.</li>
+            <li><strong>UMAP or t-SNE</strong> — nonlinear, produces a 2D visualisation from the PCA components.</li>
+          </ol>
+
+          <p>Clustering happens on the PCA components, not on the 2D UMAP. UMAP is purely for visualisation.</p>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 PCA on the normalised matrix</h3>
+
+          <p>PCA on a cells × genes matrix X (after normalisation, HVG selection, scaling to zero mean and unit variance per gene):</p>
+
+          <ol>
+            <li>Compute the covariance matrix C = X<sup>T</sup>X / (n−1) (or equivalently, compute SVD of X directly).</li>
+            <li>Find the eigenvectors (principal components) of C — these are directions in gene space along which cells vary maximally.</li>
+            <li>Project cells onto the top k components (k = 30–50 typically): cell i in the new representation is just X[i, :] · V<sub>:, 1:k</sub>.</li>
+          </ol>
+
+          <p>The result is a cells × k matrix where k is 30–50 instead of 2,000. Each new dimension is a linear combination of the original genes, ordered by how much variance it captures.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-07/09-pca-projection.svg"
+                 alt="Left panel: a scree plot showing eigenvalues of the first 50 principal components — steep drop over the first few PCs, plateau after about 30. Right panel: cells projected into PC1 and PC2 space with three distinct cell-type clouds visible.">
+            <figcaption>Figure 9. PCA output on a scRNA-seq dataset. Scree plot shows how much variance each PC captures; the projection into PC1-PC2 already separates cell types.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>PCA is SVD of the normalised expression matrix. It produces a low-rank approximation of X where the first k left-singular vectors are the principal components. Same operation as any eigendecomposition-based compression (JPEG basis, MP3 frames, face recognition eigenfaces). The first N PCs are the optimal linear rank-N approximation by Frobenius norm — the same sense in which the first N DFT coefficients are the optimal Fourier-basis approximation.</p>
+          </aside>
+
+          <p>Practical choice: how many PCs to keep? The scree plot shows diminishing returns past some point. A common heuristic is "keep enough PCs to capture 50–80% of variance" — usually 30–50. More formally, <strong>parallel analysis</strong> compares your scree to one from permuted data and keeps only PCs above the permutation baseline.</p>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 UMAP and t-SNE for visualisation</h3>
+
+          <p>Once you have cells in 30–50D PC space, you need a 2D visualisation so a biologist can see the clusters. Two tools dominate:</p>
+
+          <p><strong>t-SNE</strong> (van der Maaten &amp; Hinton 2008). Older. Optimises a 2D embedding such that pairwise distances in the low-dimensional space match pairwise distances in the high-dimensional space, where "distance" is measured via Gaussian kernels in high-D and t-distributions in low-D. Preserves local structure (near neighbours stay near) at the cost of distorting global structure (distances between distant clusters are meaningless in t-SNE).</p>
+
+          <p><strong>UMAP</strong> (McInnes et al. 2018). Newer. Based on algebraic topology — treats the data as a fuzzy topological structure and finds a low-dimensional embedding that preserves that structure. In practice: faster than t-SNE, slightly better at preserving global structure (clusters sit at roughly-meaningful distances from each other), similar local-neighbourhood preservation. UMAP is the 2024 default.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-07/10-umap-embedding.svg"
+                 alt="A 2D UMAP projection of about 8000 cells organised into 10 visible clusters of different sizes, colour-coded by Leiden cluster assignment, each labeled with its dominant cell-type marker.">
+            <figcaption>Figure 10. UMAP embedding of a multi-cell-type PBMC-like dataset. Clusters, sizes, and cell-type assignments are all visible at a glance — this is why UMAP is the de facto scRNA-seq visualisation.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">PCA + UMAP Embedder</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-07/05-pca-umap-embedder.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-07/05-pca-umap-embedder.html"
+                    class="artifact-frame" loading="lazy"
+                    title="PCA + UMAP Embedder"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing</span>
+            <p>UMAP is a nonlinear manifold-learning algorithm that preserves local topology. Conceptually: treat each cell as a vertex, build a k-nearest-neighbours graph in PC space, then lay out that graph in 2D such that local connectivity is preserved. The analog in signal processing is manifold-based dimensionality reduction (LLE, Isomap) used for speech / gesture / image analysis. UMAP's formal foundation in algebraic topology gives it better global structure preservation than t-SNE's purely-geometric objective.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Graph-based clustering: Leiden and Louvain</h3>
+
+          <p>Clustering 10,000 cells in 30D PC space is done graph-theoretically, not with k-means or hierarchical clustering (which would not respect manifold structure):</p>
+
+          <ol>
+            <li>Build a <strong>k-nearest-neighbours graph</strong> (kNN, k=10–30). Each cell is a node; edges connect each cell to its k nearest neighbours in PC space.</li>
+            <li>Optional: build a <strong>shared-nearest-neighbours graph</strong> (SNN) — edge weight is the Jaccard overlap of k-NN neighbour sets. Denoises the raw kNN graph.</li>
+            <li>Run <strong>Leiden</strong> or <strong>Louvain</strong> community detection — both maximise graph modularity (informally: find partitions where edges within clusters are dense and edges between clusters are sparse).</li>
+          </ol>
+
+          <p>Leiden (Traag, Waltman, van Eck 2019) is strictly better than Louvain — it guarantees well-connected clusters, whereas Louvain can produce disconnected communities. Leiden is the 2024 default.</p>
+
+          <p>A critical hyperparameter: the <strong>resolution</strong>. Higher resolution → more clusters (finer subclustering). Lower resolution → fewer, larger clusters. This choice is not automatic; it depends on what biological question you're asking. Common practice: scan resolutions 0.1 to 2.0, pick the one where clusters align with known cell-type markers.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Leiden Clustering Visualizer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-07/06-leiden-clustering.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-07/06-leiden-clustering.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Leiden Clustering Visualizer"></iframe>
+          </figure>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>You run Leiden at resolution 1.0 and get 8 clusters. You raise to 2.0 and get 15 clusters (several of the original 8 split into two or three). Which is "right"? (Neither is automatically right. Raise resolution only if the splits reveal distinct marker genes and map to biologically meaningful cell states. If the sub-clusters have no distinguishing markers, the split is noise. Resolution should follow the biology, not the other way around.)</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 Marker gene identification</h3>
+
+          <p>Once cells are clustered, the final analysis step is <strong>finding markers</strong> — genes that are differentially expressed in a given cluster compared to all other clusters. Markers are what let you assign cell-type identities (§5).</p>
+
+          <p>For each cluster <em>c</em> and each gene <em>g</em>, run a DE test comparing cells in <em>c</em> vs cells not in <em>c</em>. The output is a log-fold change + adjusted p-value per (cluster, gene). Sort by log-FC; the top genes are the cluster's markers.</p>
+
+          <p>Two DE test choices for this:</p>
+
+          <ul>
+            <li><strong>Wilcoxon rank-sum test</strong> (Seurat default, Scanpy default). Nonparametric. Fast. Doesn't assume any count distribution. Robust to scRNA-seq's weird mean-variance relationship.</li>
+            <li><strong>MAST</strong> (Finak et al. 2015). A hurdle model — jointly models the fraction of cells expressing the gene and the expression level in expressing cells. Slower, sometimes more sensitive for low-count markers.</li>
+          </ul>
+
+          <p>Wilcoxon is the default for speed. MAST is used when the markers really matter.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-07/11-marker-heatmap.svg"
+                 alt="A marker gene heatmap with rows grouped by cluster (cluster colour bar on the left), columns showing the top five marker genes per cluster. Each cluster's cells show strong expression in their own marker columns and near-zero expression elsewhere, producing a visible block-diagonal structure.">
+            <figcaption>Figure 11. Marker gene heatmap. Each cluster's top markers reveal its identity; the block-diagonal pattern means the clusters are well-separated on gene content.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>A cluster's markers are the genes that say "I'm different from everyone else." If cluster A has as its top marker MS4A1 (= CD20, a B-cell marker), cluster A is probably B cells. If no gene reliably distinguishes cluster A from cluster B, those two clusters are probably over-split at the current resolution.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 20 min</span>
+          Cell-Type Annotation
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 Reference-based vs marker-based annotation</h3>
+
+          <p>Once markers are identified, the final step is <strong>cell-type annotation</strong> — assigning a biological label to each cluster (T cell, hepatocyte, endothelial cell, etc.). Two paradigms:</p>
+
+          <p><strong>Marker-based annotation</strong> (manual). For each cluster, look at its top markers and consult a reference of known cell-type markers:</p>
+
+          <ul>
+            <li>B cell markers: MS4A1 (CD20), CD79A, CD19.</li>
+            <li>Cytotoxic T cell: CD8A, CD8B, GZMB, PRF1.</li>
+            <li>Hepatocyte: ALB, AFP, APOA1, TF.</li>
+            <li>Macrophage: CD68, CSF1R, MARCO.</li>
+          </ul>
+
+          <p>Assign the cluster the label whose markers best match the cluster's top genes. Works well when cell types are well-characterised (immune cells, major organ cell types). Fails when analysing rare or novel populations without documented markers.</p>
+
+          <p><strong>Reference-based annotation</strong> (automated). Given a pre-annotated reference atlas (e.g., Tabula Sapiens — human tissues, 500k cells, cell types annotated by experts), compute the most-similar reference cell for each query cell, transfer the reference's cell-type label:</p>
+
+          <ul>
+            <li><strong>SingleR</strong> (Aran et al. 2019). Per-cell correlation to reference-cell-type average profiles. Fast, stable. The R ecosystem default.</li>
+            <li><strong>Azimuth</strong> (Stuart et al. 2022). Web application running a pre-trained reference for common tissues (PBMC, bone marrow, heart). Upload your data, get annotations in 20 minutes.</li>
+            <li><strong>scArches / scPoli</strong> (Lotfollahi et al. 2022). Deep-learning transfer of cell-type labels via latent-space mapping.</li>
+          </ul>
+
+          <p>Reference-based methods are faster and less labour-intensive; they work well for well-studied tissues. They fail silently on novel cell types (no reference match means the query is labeled as the closest wrong type). Always validate reference-based annotations against markers.</p>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>You annotate a dataset with Azimuth against a PBMC reference. One cluster of 300 cells gets labeled "activated NK cell" with high confidence. But the cluster's top marker is CEACAM8 (granulocyte marker), which should not appear in any lymphocyte. What's going on? (The Azimuth reference doesn't contain granulocytes. The 300 cells are in fact granulocytes — a common mistake when running PBMC-reference annotators on samples that were supposed to be PBMC-only but weren't. This is why reference-based annotation should always be paired with marker checking.)</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Cell-type ontologies and atlases</h3>
+
+          <p>For consistent reporting, cell-type annotations should reference a shared vocabulary:</p>
+
+          <ul>
+            <li><strong>Cell Ontology (CL)</strong> (Bard et al. 2005, ongoing). The formal ontology of animal cell types. Every cell type has a unique CL identifier (e.g., CL:0000814 for "mature NK T cell"). Hierarchical — parent-child relationships between cell types and lineages.</li>
+            <li><strong>The Human Cell Atlas (HCA)</strong>. An effort to map every cell type in the human body (HCA Consortium, 2017–). As of 2024, ~30 tissue-scale datasets published. HCA data is the reference for most modern annotation pipelines.</li>
+            <li><strong>Tabula Sapiens / Tabula Muris</strong> (Tabula Sapiens Consortium 2022). Single-institution pan-tissue atlases with consistent annotation. Smaller than HCA but more consistently annotated.</li>
+          </ul>
+
+          <p>Use CL identifiers in your metadata wherever possible. Vocabulary consistency is what makes cross-study comparison work.</p>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The Human Cell Atlas launched in 2017 with the goal of defining "every cell type in every human tissue." By 2024 the field has ~50M single-cell profiles across hundreds of tissue datasets, plus emerging spatial and multi-omic modalities. The biological reference for what a cell <em>is</em> has shifted from textbook morphology-based taxonomy to single-cell-molecular-signature-based taxonomy. For working bioinformatics engineers in 2024+, the reference to build against is HCA, not histology.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup" class="lecture-wrapup">
+        <h2>
+          <span class="part-kicker">Wrap-up · 10 min</span>
+          Takeaways, homework, and next lecture
+        </h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Single-cell RNA-seq measures per-cell transcript abundance.</strong> Bulk averages hide cell-type composition; single-cell resolves it. The cost is per-cell signal-to-noise; the payoff is heterogeneity becomes visible.</li>
+          <li><strong>UMIs solve PCR duplicate counting via error-correcting tags.</strong> Each mRNA gets a unique serial number before the amplification channel; final counts are distinct UMIs, not reads. Essential at the amplification levels scRNA-seq uses.</li>
+          <li><strong>QC is non-optional: empty droplets, doublets, MT%, ambient RNA.</strong> Every pipeline applies all four. Filtering cuts 20–40% of observed "cells" before downstream analysis.</li>
+          <li><strong>Normalisation must respect sparsity.</strong> Bulk methods (median-of-ratios) fail on mostly-zero matrices. Log-normalisation or Pearson residuals, followed by HVG selection, is the 2024 default.</li>
+          <li><strong>Dimensionality reduction is two-stage: PCA → UMAP.</strong> PCA gives a linear 30–50D representation; UMAP embeds to 2D for visualisation. Clustering runs on PCs, not on UMAP coordinates.</li>
+          <li><strong>Leiden graph clustering is the 2024 default for cell grouping.</strong> Resolution is a free parameter; tune it to biology, not to a number.</li>
+          <li><strong>Annotation: marker-based or reference-based.</strong> Reference-based is fast and automated; marker-based is manual but catches reference gaps. Do both.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Advanced single-cell: pseudotime and trajectory inference, RNA velocity (a state-space estimator on spliced/unspliced ratios), batch integration (Harmony, scVI as variational EM), multi-modal single-cell (CITE-seq, multi-ome), spatial transcriptomics.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Download the 10x PBMC 3k dataset (<code>pbmc_10k_v3</code> from 10x public datasets). Run a standard Scanpy or Seurat pipeline end-to-end: QC, normalise, HVG, PCA, UMAP, Leiden. Report: cells after QC, number of clusters at resolution 1.0, approximate cell-type assignment for each cluster.</li>
+          <li>Make a knee plot of the PBMC dataset's raw <code>raw_feature_bc_matrix.h5</code>. Mark the EmptyDrops threshold. How many barcodes are above the knee? How does that compare to the number of cells 10x reports as valid?</li>
+          <li>Run Scrublet on the same dataset. What's the estimated doublet rate? How does it compare to the 6-8% expected for the loading concentration?</li>
+          <li>Compute the dispersion trend (as in Lecture 6 §3.3) but now on the per-gene variance across single cells. How does it compare to the bulk mean-dispersion trend? Is the empirical-Bayes shrinkage idea still useful here?</li>
+          <li>Annotate the PBMC clusters two ways: (a) SingleR against a reference, (b) manually, using canonical markers. How many clusters do the two methods agree on? Where do they disagree, and which is right?</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Macosko, E. Z., Basu, A., Satija, R., et al. (2015). Highly parallel genome-wide expression profiling of individual cells using nanoliter droplets. <em>Cell</em> 161, 1202–1214. (The Drop-seq paper.)</li>
+          <li>Zheng, G. X. Y., Terry, J. M., Belgrader, P., et al. (2017). Massively parallel digital transcriptional profiling of single cells. <em>Nature Communications</em> 8, 14049. (The Chromium 10x paper.)</li>
+          <li>Lun, A. T. L., Riesenfeld, S., Andrews, T., et al. (2019). EmptyDrops: distinguishing cells from empty droplets in droplet-based single-cell RNA sequencing data. <em>Genome Biology</em> 20, 63.</li>
+          <li>Hafemeister, C., &amp; Satija, R. (2019). Normalization and variance stabilization of single-cell RNA-seq data using regularized negative binomial regression. <em>Genome Biology</em> 20, 296.</li>
+          <li>Traag, V. A., Waltman, L., &amp; van Eck, N. J. (2019). From Louvain to Leiden: guaranteeing well-connected communities. <em>Scientific Reports</em> 9, 5233.</li>
+          <li>McInnes, L., Healy, J., &amp; Melville, J. (2018). UMAP: Uniform Manifold Approximation and Projection for dimension reduction. <em>arXiv:1802.03426</em>.</li>
+          <li>Aran, D., Looney, A. P., Liu, L., et al. (2019). Reference-based analysis of lung single-cell sequencing reveals a transitional profibrotic macrophage. <em>Nature Immunology</em> 20, 163–172.</li>
+          <li>The Tabula Sapiens Consortium (2022). The Tabula Sapiens: a multiple-organ, single-cell transcriptomic atlas of humans. <em>Science</em> 376, eabl4896.</li>
+          <li>Scanpy tutorial: <a href="https://scanpy.readthedocs.io/en/stable/tutorials.html" target="_blank" rel="noopener">scanpy.readthedocs.io</a></li>
+          <li>Seurat tutorial: <a href="https://satijalab.org/seurat/articles/pbmc3k_tutorial.html" target="_blank" rel="noopener">satijalab.org/seurat</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — Why Single-Cell + Droplet Chemistry</td>          <td>45&nbsp;min</td><td>0:45</td></tr>
+            <tr><td>Part 2 — Data Pipeline and QC</td>                         <td>60&nbsp;min</td><td>1:45</td></tr>
+            <tr><td>Part 3 — Normalisation and Feature Selection</td>          <td>25&nbsp;min</td><td>2:10</td></tr>
+            <tr><td>Part 4 — Dimensionality Reduction and Clustering</td>      <td>50&nbsp;min</td><td>3:00</td></tr>
+            <tr><td>Part 5 — Cell-Type Annotation</td>                         <td>20&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                                <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys())
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) {
+          f.style.height = d.height + 'px';
+        }
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

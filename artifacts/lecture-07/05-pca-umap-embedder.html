@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PCA + UMAP Embedder</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.9rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+      align-items: center;
+    }
+    .action-row .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-left: auto;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    .status-dot.working { background: var(--warning); animation: pulse 1s infinite ease-in-out; }
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
+
+    .plot-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 820px) {
+      .plot-grid { grid-template-columns: 1fr; }
+    }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 0 0 0.4rem;
+    }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .legend-swatch .sw.t1 { background: #1e3a8a; }
+    .legend-swatch .sw.t2 { background: #c4342c; }
+    .legend-swatch .sw.t3 { background: #b45309; }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner .row { display: block; }
+    .banner .row + .row { margin-top: 0.2rem; }
+
+    .warn {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--error);
+      margin-top: 0.7rem;
+      display: none;
+    }
+    .warn.show { display: block; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="pca-umap-embedder">
+
+  <header class="artifact-head">
+    <h1>PCA + UMAP Embedder</h1>
+    <p>A simulated 3-cell-type dataset in 100-gene space, 500 cells. PCA rotates into variance-maximising axes (linear). UMAP-style force-directed layout preserves local neighbourhoods (nonlinear). Watch the 3 clouds in PCA-2D bleed into each other while the same data in UMAP-2D snaps into 3 tight, well-separated islands.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Controls</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="k-input">UMAP k-neighbours</label>
+          <span class="slider-value" id="k-value">15</span>
+        </div>
+        <input id="k-input" type="range" min="5" max="50" step="1" value="15">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="md-input">UMAP min-dist</label>
+          <span class="slider-value" id="md-value">0.10</span>
+        </div>
+        <input id="md-input" type="range" min="1" max="100" step="1" value="10">
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate dataset</button>
+      <button class="btn" type="button" id="umap-btn">Recompute UMAP</button>
+      <span class="hint"><span class="status-dot" id="status-dot"></span><span id="status-text">idle</span></span>
+    </div>
+
+    <div class="warn" id="warn-box"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Scree plot · top 20 PCs</p>
+    <div class="plot-wrap">
+      <svg id="scree-svg" class="plot-svg" viewBox="0 0 1000 260" preserveAspectRatio="xMidYMid meet" aria-label="Scree plot"></svg>
+    </div>
+    <p class="plot-caption">Each bar is the variance explained by that principal component. A steep drop then plateau is the classic signal: the first few PCs hold the biology.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Embeddings · 500 cells, coloured by true type</p>
+    <div class="plot-grid">
+      <div>
+        <p class="plot-title">PCA · PC1 vs PC2</p>
+        <div class="plot-wrap">
+          <svg id="pca-svg" class="plot-svg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet" aria-label="PCA scatter"></svg>
+        </div>
+      </div>
+      <div>
+        <p class="plot-title">UMAP-style · 2D layout</p>
+        <div class="plot-wrap">
+          <svg id="umap-svg" class="plot-svg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet" aria-label="UMAP scatter"></svg>
+        </div>
+      </div>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw t1"></span> Type 1</span>
+      <span class="legend-swatch"><span class="sw t2"></span> Type 2</span>
+      <span class="legend-swatch"><span class="sw t3"></span> Type 3</span>
+    </div>
+    <p class="plot-caption">PCA is a linear rotation into the top variance axes. The UMAP-style panel is a force-directed layout (not the exact UMAP algorithm) that pulls each cell toward its k-nearest neighbours in the 10-PC space and repels random non-neighbours.</p>
+  </section>
+
+  <div class="banner" id="banner">
+    <span class="row"><b id="banner-pca">PCA:</b> <span id="banner-pca-text">—</span></span>
+    <span class="row"><b id="banner-umap">UMAP:</b> <span id="banner-umap-text">—</span></span>
+    <span class="row"><b id="banner-var">Variance:</b> <span id="banner-var-text">—</span></span>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  const TYPE_COLORS = ['#1e3a8a', '#c4342c', '#b45309'];
+  const N_CELLS = 500;
+  const N_GENES = 100;
+  const N_TYPES = 3;
+  const N_MARKER_PER_TYPE = 7;   // ~20 marker genes total, divided across types
+  const PCS = 10;                // number of top PCs to keep
+  const UMAP_ITERS = 140;        // force-directed passes
+  const NEG_SAMPLES = 5;
+
+  // ── Deterministic RNG ───────────────────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rnd) {
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // ── Simulate dataset ────────────────────────────────────
+  //
+  // 500 cells × 100 genes. Three cell types, ~170 cells each (one type gets
+  // the remainder). Each type has its own mean vector: for ~20 "marker"
+  // genes the mean is type-specific (very different across types); for the
+  // other ~80 genes, means are shared / lightly type-biased. Per-cell depth
+  // noise scales the whole cell's expression, simulating library-size effects.
+  function simulate(seed) {
+    const rnd = mulberry32(seed);
+
+    // Assign cell types (balanced-ish)
+    const labels = new Int8Array(N_CELLS);
+    const perType = Math.floor(N_CELLS / N_TYPES);
+    for (let i = 0; i < N_CELLS; i++) {
+      labels[i] = Math.min(N_TYPES - 1, Math.floor(i / perType));
+    }
+    // Shuffle order so rendering isn't biased — track labels with cells
+    for (let i = N_CELLS - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      const tmp = labels[i]; labels[i] = labels[j]; labels[j] = tmp;
+    }
+
+    // Build per-type mean vectors (length N_GENES).
+    // For each type, pick a disjoint band of `N_MARKER_PER_TYPE` marker genes
+    // with a large positive bump; small biases elsewhere.
+    const means = [
+      new Float64Array(N_GENES),
+      new Float64Array(N_GENES),
+      new Float64Array(N_GENES),
+    ];
+    // Background baseline level per gene (shared)
+    const baseline = new Float64Array(N_GENES);
+    for (let g = 0; g < N_GENES; g++) {
+      baseline[g] = 2 + 1.2 * rnd();       // moderate expression floor
+    }
+    for (let t = 0; t < N_TYPES; t++) {
+      for (let g = 0; g < N_GENES; g++) {
+        means[t][g] = baseline[g] + 0.15 * randn(rnd);  // mild shared noise
+      }
+    }
+    // Marker genes: bands of N_MARKER_PER_TYPE per type, non-overlapping.
+    // Total ~21 markers out of 100 genes; rest are shared/noisy.
+    for (let t = 0; t < N_TYPES; t++) {
+      const start = t * N_MARKER_PER_TYPE;
+      for (let k = 0; k < N_MARKER_PER_TYPE; k++) {
+        const g = start + k;
+        // Large positive bump in "own" type; suppressed in other types
+        means[t][g] = baseline[g] + 3.5 + 0.4 * randn(rnd);
+        for (let u = 0; u < N_TYPES; u++) {
+          if (u !== t) means[u][g] = baseline[g] - 0.6 + 0.25 * randn(rnd);
+        }
+      }
+    }
+    // A handful of "shared bias" genes with mild type differences (adds
+    // interesting secondary PCs without overwhelming markers).
+    const biasStart = N_TYPES * N_MARKER_PER_TYPE;
+    for (let k = 0; k < 12; k++) {
+      const g = biasStart + k;
+      const t = k % N_TYPES;
+      means[t][g] += 0.9;
+    }
+
+    // Generate cell × gene matrix
+    const X = new Float64Array(N_CELLS * N_GENES);
+    for (let i = 0; i < N_CELLS; i++) {
+      const t = labels[i];
+      const depth = 0.85 + 0.3 * rnd();  // per-cell scale factor
+      for (let g = 0; g < N_GENES; g++) {
+        // Noise scales slightly with mean (heteroscedasticity-lite)
+        const sigma = 0.55 + 0.12 * Math.abs(means[t][g]) * 0.1;
+        X[i * N_GENES + g] = depth * (means[t][g] + sigma * randn(rnd));
+      }
+    }
+
+    return { X, labels };
+  }
+
+  // ── Column-center the data in place ─────────────────────
+  function centerColumns(X, n, p) {
+    const mu = new Float64Array(p);
+    for (let i = 0; i < n; i++) {
+      for (let g = 0; g < p; g++) mu[g] += X[i * p + g];
+    }
+    for (let g = 0; g < p; g++) mu[g] /= n;
+    for (let i = 0; i < n; i++) {
+      for (let g = 0; g < p; g++) X[i * p + g] -= mu[g];
+    }
+    return mu;
+  }
+
+  // ── PCA via power iteration on the covariance matrix ────
+  //
+  // Covariance is (X^T X) / (n-1), a p×p = 100×100 matrix. We extract the
+  // top `k` eigenpairs one at a time using power iteration with deflation
+  // against previously found PCs. 30 iterations per PC is plenty for these
+  // eigenvalue ratios. Returns { V: p×k (column-major as array of vectors),
+  // eigs: length-k array, scores: n×k }.
+  function pca(X, n, p, k) {
+    // Build covariance matrix C = (X^T X) / (n-1).
+    const C = new Float64Array(p * p);
+    for (let g1 = 0; g1 < p; g1++) {
+      for (let g2 = g1; g2 < p; g2++) {
+        let s = 0;
+        for (let i = 0; i < n; i++) {
+          s += X[i * p + g1] * X[i * p + g2];
+        }
+        const v = s / (n - 1);
+        C[g1 * p + g2] = v;
+        C[g2 * p + g1] = v;
+      }
+    }
+    // Total variance = trace(C)
+    let totalVar = 0;
+    for (let g = 0; g < p; g++) totalVar += C[g * p + g];
+
+    const V = [];           // list of eigenvectors, each length p
+    const eigs = new Float64Array(k);
+    const rnd = mulberry32(42);
+
+    for (let m = 0; m < k; m++) {
+      // Random init
+      let v = new Float64Array(p);
+      for (let g = 0; g < p; g++) v[g] = randn(rnd);
+      // Orthogonalise against previous
+      for (let j = 0; j < m; j++) {
+        const vp = V[j];
+        let dot = 0;
+        for (let g = 0; g < p; g++) dot += v[g] * vp[g];
+        for (let g = 0; g < p; g++) v[g] -= dot * vp[g];
+      }
+      // Normalise
+      let norm = 0;
+      for (let g = 0; g < p; g++) norm += v[g] * v[g];
+      norm = Math.sqrt(norm);
+      for (let g = 0; g < p; g++) v[g] /= norm;
+
+      // Power iteration: w = C v
+      let eig = 0;
+      for (let iter = 0; iter < 30; iter++) {
+        const w = new Float64Array(p);
+        for (let g1 = 0; g1 < p; g1++) {
+          let s = 0;
+          for (let g2 = 0; g2 < p; g2++) s += C[g1 * p + g2] * v[g2];
+          w[g1] = s;
+        }
+        // Re-orthogonalise against previous PCs to prevent drift
+        for (let j = 0; j < m; j++) {
+          const vp = V[j];
+          let dot = 0;
+          for (let g = 0; g < p; g++) dot += w[g] * vp[g];
+          for (let g = 0; g < p; g++) w[g] -= dot * vp[g];
+        }
+        // Eigenvalue estimate ||w|| (since v is unit)
+        let nw = 0;
+        for (let g = 0; g < p; g++) nw += w[g] * w[g];
+        nw = Math.sqrt(nw);
+        if (nw < 1e-12) { eig = 0; break; }
+        eig = nw;
+        for (let g = 0; g < p; g++) w[g] /= nw;
+        v = w;
+      }
+      V.push(v);
+      eigs[m] = eig;
+    }
+
+    // Compute scores: n×k, scores[i, m] = sum_g X[i,g] * V[m][g]
+    const scores = new Float64Array(n * k);
+    for (let i = 0; i < n; i++) {
+      for (let m = 0; m < k; m++) {
+        let s = 0;
+        const vm = V[m];
+        for (let g = 0; g < p; g++) s += X[i * p + g] * vm[g];
+        scores[i * k + m] = s;
+      }
+    }
+
+    return { V, eigs, scores, totalVar };
+  }
+
+  // Extra pass to get scree — same power iteration method but up to 20 PCs
+  function pcaMany(X, n, p, k) {
+    return pca(X, n, p, k);
+  }
+
+  // ── k-nearest-neighbours in the 10-PC space (brute force) ──
+  function knn(scores, n, k, kNN) {
+    const nbrs = new Int32Array(n * kNN);
+    const dists = new Float64Array(n * kNN);
+    const dbuf = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (j === i) { dbuf[j] = Infinity; continue; }
+        let s = 0;
+        for (let m = 0; m < k; m++) {
+          const d = scores[i * k + m] - scores[j * k + m];
+          s += d * d;
+        }
+        dbuf[j] = s;
+      }
+      // Partial sort: find kNN smallest via simple quickselect-ish loop.
+      // With n=500 and kNN<=50 this is O(n^2) total for the knn stage, fast enough.
+      // Use an array of indices and sort.
+      const idx = new Array(n);
+      for (let j = 0; j < n; j++) idx[j] = j;
+      idx.sort((a, b) => dbuf[a] - dbuf[b]);
+      for (let q = 0; q < kNN; q++) {
+        nbrs[i * kNN + q] = idx[q];
+        dists[i * kNN + q] = Math.sqrt(dbuf[idx[q]]);
+      }
+    }
+    return { nbrs, dists };
+  }
+
+  // ── UMAP-style force-directed 2D layout ─────────────────
+  //
+  // Initialised from top 2 PCs (scaled to a square box). Each iteration:
+  //   - For each edge (i, j) in the kNN graph: attractive force pulls them
+  //     together, scaled by min-dist (larger min-dist = less shrinking).
+  //   - Per edge, ~NEG_SAMPLES random non-neighbours are repelled.
+  // This is a simplified spring model; we label it "UMAP-style" in the UI.
+  function umapLayout(scores, n, k, kNN, nbrs, minDist, iters, rnd) {
+    // Init from PC1, PC2 with a gentle jitter
+    const Y = new Float64Array(n * 2);
+    let pc1Min = Infinity, pc1Max = -Infinity, pc2Min = Infinity, pc2Max = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const a = scores[i * k + 0], b = scores[i * k + 1];
+      if (a < pc1Min) pc1Min = a; if (a > pc1Max) pc1Max = a;
+      if (b < pc2Min) pc2Min = b; if (b > pc2Max) pc2Max = b;
+    }
+    const pc1Rng = pc1Max - pc1Min || 1;
+    const pc2Rng = pc2Max - pc2Min || 1;
+    for (let i = 0; i < n; i++) {
+      Y[i * 2 + 0] = ((scores[i * k + 0] - pc1Min) / pc1Rng - 0.5) * 8 + 0.05 * randn(rnd);
+      Y[i * 2 + 1] = ((scores[i * k + 1] - pc2Min) / pc2Rng - 0.5) * 8 + 0.05 * randn(rnd);
+    }
+
+    // Initial learning rate (alpha) decays linearly to 0 over iters
+    const alpha0 = 1.0;
+    const a = 1.5;  // attraction coefficient
+    const rep = 0.9;  // repulsion coefficient
+    const mdFactor = 1.0 - Math.min(0.95, minDist); // smaller min-dist → stronger pull
+
+    for (let it = 0; it < iters; it++) {
+      const alpha = alpha0 * (1 - it / iters);
+      // Attraction
+      for (let i = 0; i < n; i++) {
+        const yi0 = Y[i * 2 + 0], yi1 = Y[i * 2 + 1];
+        for (let q = 1; q < kNN; q++) {  // skip q=0 (self is not in nbrs, but skip anyway)
+          const j = nbrs[i * kNN + q];
+          const yj0 = Y[j * 2 + 0], yj1 = Y[j * 2 + 1];
+          let dx = yi0 - yj0, dy = yi1 - yj1;
+          let d2 = dx * dx + dy * dy + 1e-6;
+          // Attractive force: magnitude ~ a * d (spring-like), scaled by mdFactor
+          const f = a * mdFactor * alpha;
+          const step0 = f * dx;
+          const step1 = f * dy;
+          Y[i * 2 + 0] -= step0;
+          Y[i * 2 + 1] -= step1;
+          Y[j * 2 + 0] += step0;
+          Y[j * 2 + 1] += step1;
+
+          // Negative sampling: repel ~NEG_SAMPLES random non-neighbours per edge
+          for (let s = 0; s < NEG_SAMPLES; s++) {
+            const kk = (Math.floor(rnd() * n)) % n;
+            if (kk === i || kk === j) continue;
+            const yk0 = Y[kk * 2 + 0], yk1 = Y[kk * 2 + 1];
+            let rx = yi0 - yk0, ry = yi1 - yk1;
+            let r2 = rx * rx + ry * ry + 0.01;
+            const gfac = rep * alpha / r2;
+            const rstep0 = gfac * rx;
+            const rstep1 = gfac * ry;
+            Y[i * 2 + 0] += rstep0;
+            Y[i * 2 + 1] += rstep1;
+            Y[kk * 2 + 0] -= rstep0;
+            Y[kk * 2 + 1] -= rstep1;
+          }
+        }
+      }
+      // Bound coordinates softly to [-20, 20]
+      for (let i = 0; i < n; i++) {
+        let v0 = Y[i * 2 + 0], v1 = Y[i * 2 + 1];
+        if (v0 > 20) v0 = 20; else if (v0 < -20) v0 = -20;
+        if (v1 > 20) v1 = 20; else if (v1 < -20) v1 = -20;
+        Y[i * 2 + 0] = v0; Y[i * 2 + 1] = v1;
+      }
+    }
+
+    return Y;
+  }
+
+  // ── SVG utilities ───────────────────────────────────────
+  function elSVG(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // ── Rendering ───────────────────────────────────────────
+  function renderScree(eigsTop20, totalVar) {
+    const svg = $('scree-svg');
+    clearNode(svg);
+    const W = 1000, H = 260;
+    const PAD_L = 60, PAD_R = 24, PAD_T = 18, PAD_B = 44;
+    const x0 = PAD_L, x1 = W - PAD_R, y0 = PAD_T, y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    // Frame
+    svg.appendChild(elSVG('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    const N = eigsTop20.length;
+    const yMax = Math.max(1e-6, eigsTop20[0]) * 1.08;
+    const yOf = (v) => y1 - (v / yMax) * plotH;
+    const barW = plotW / N * 0.75;
+    const slotW = plotW / N;
+
+    // y-axis ticks (4 of them)
+    for (let t = 0; t <= 4; t++) {
+      const v = (yMax * t) / 4;
+      const y = yOf(v);
+      svg.appendChild(elSVG('line', {
+        x1: x0, x2: x1, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': t === 0 ? '' : '2 4',
+      }));
+      svg.appendChild(elSVG('text', {
+        x: x0 - 8, y: y + 3.5,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, v.toFixed(1)));
+    }
+
+    // Bars
+    for (let i = 0; i < N; i++) {
+      const v = eigsTop20[i];
+      const bx = x0 + i * slotW + (slotW - barW) / 2;
+      const by = yOf(v);
+      const bh = y1 - by;
+      svg.appendChild(elSVG('rect', {
+        x: bx.toFixed(2), y: by.toFixed(2),
+        width: barW.toFixed(2), height: Math.max(1, bh).toFixed(2),
+        fill: i < PCS ? 'var(--accent)' : 'var(--fg-subtle)',
+        opacity: i < PCS ? 0.9 : 0.45,
+      }));
+      svg.appendChild(elSVG('text', {
+        x: (bx + barW / 2).toFixed(2), y: y1 + 14,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, String(i + 1)));
+    }
+
+    // Axis titles
+    svg.appendChild(elSVG('text', {
+      x: (x0 + x1) / 2, y: H - 10,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.08em',
+    }, 'Principal component index'));
+
+    svg.appendChild(elSVG('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.08em',
+      transform: `translate(18, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, 'variance explained'));
+  }
+
+  function renderScatter(svgId, coords2d, labels, title) {
+    const svg = $(svgId);
+    clearNode(svg);
+    const W = 500, H = 500;
+    const PAD = 28;
+    const x0 = PAD, x1 = W - PAD, y0 = PAD, y1 = H - PAD;
+
+    // Frame
+    svg.appendChild(elSVG('rect', {
+      x: x0, y: y0, width: x1 - x0, height: y1 - y0,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Find bounds
+    let aMin = Infinity, aMax = -Infinity, bMin = Infinity, bMax = -Infinity;
+    const n = labels.length;
+    for (let i = 0; i < n; i++) {
+      const a = coords2d[i * 2 + 0], b = coords2d[i * 2 + 1];
+      if (a < aMin) aMin = a; if (a > aMax) aMax = a;
+      if (b < bMin) bMin = b; if (b > bMax) bMax = b;
+    }
+    const aRng = (aMax - aMin) || 1;
+    const bRng = (bMax - bMin) || 1;
+    const padFrac = 0.05;
+    const aLo = aMin - padFrac * aRng, aHi = aMax + padFrac * aRng;
+    const bLo = bMin - padFrac * bRng, bHi = bMax + padFrac * bRng;
+
+    const xOf = (v) => x0 + ((v - aLo) / (aHi - aLo)) * (x1 - x0);
+    const yOf = (v) => y1 - ((v - bLo) / (bHi - bLo)) * (y1 - y0);
+
+    // Gridlines (4 each)
+    for (let t = 1; t < 4; t++) {
+      const xv = x0 + (t * (x1 - x0)) / 4;
+      const yv = y0 + (t * (y1 - y0)) / 4;
+      svg.appendChild(elSVG('line', {
+        x1: xv, x2: xv, y1: y0, y2: y1,
+        stroke: 'var(--border)', 'stroke-width': 1, 'stroke-dasharray': '2 4',
+      }));
+      svg.appendChild(elSVG('line', {
+        x1: x0, x2: x1, y1: yv, y2: yv,
+        stroke: 'var(--border)', 'stroke-width': 1, 'stroke-dasharray': '2 4',
+      }));
+    }
+
+    // Draw points
+    for (let i = 0; i < n; i++) {
+      const cx = xOf(coords2d[i * 2 + 0]);
+      const cy = yOf(coords2d[i * 2 + 1]);
+      svg.appendChild(elSVG('circle', {
+        cx: cx.toFixed(2), cy: cy.toFixed(2),
+        r: 3, fill: TYPE_COLORS[labels[i]], opacity: 0.82,
+      }));
+    }
+
+    // Axis labels in corner
+    svg.appendChild(elSVG('text', {
+      x: x1 - 8, y: y1 - 10,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-mono)', 'font-size': 10,
+      fill: 'var(--fg-subtle)',
+    }, title));
+  }
+
+  // ── Clustering quality: silhouette-ish summary ───────────
+  //
+  // To label the banner, compute for each class-mean the mean pairwise
+  // distance between class centroids divided by average within-class spread.
+  // Higher value = tighter clusters. Used only for banner text — no display.
+  function clusterSeparation(coords2d, labels, n) {
+    const centroids = [[0,0],[0,0],[0,0]];
+    const counts = [0,0,0];
+    for (let i = 0; i < n; i++) {
+      const t = labels[i];
+      centroids[t][0] += coords2d[i * 2 + 0];
+      centroids[t][1] += coords2d[i * 2 + 1];
+      counts[t]++;
+    }
+    for (let t = 0; t < N_TYPES; t++) {
+      if (counts[t]) {
+        centroids[t][0] /= counts[t];
+        centroids[t][1] /= counts[t];
+      }
+    }
+    // Within-class mean distance to centroid
+    let within = 0;
+    for (let i = 0; i < n; i++) {
+      const t = labels[i];
+      const dx = coords2d[i * 2 + 0] - centroids[t][0];
+      const dy = coords2d[i * 2 + 1] - centroids[t][1];
+      within += Math.sqrt(dx * dx + dy * dy);
+    }
+    within /= n;
+    // Between-class centroid distance
+    let between = 0, pairs = 0;
+    for (let a = 0; a < N_TYPES; a++) {
+      for (let b = a + 1; b < N_TYPES; b++) {
+        const dx = centroids[a][0] - centroids[b][0];
+        const dy = centroids[a][1] - centroids[b][1];
+        between += Math.sqrt(dx * dx + dy * dy);
+        pairs++;
+      }
+    }
+    between /= Math.max(1, pairs);
+    return between / Math.max(1e-9, within);
+  }
+
+  // ── State ────────────────────────────────────────────────
+  const state = {
+    seed: 20260421,
+    dataset: null,        // { X, labels, scoresTop10, scoresTop20, eigsTop20, totalVar }
+    pcaCoords: null,      // Float64Array length 2n
+    umapCoords: null,     // Float64Array length 2n
+    k: 15,
+    minDist: 0.1,
+    running: false,
+  };
+
+  // ── Controls ────────────────────────────────────────────
+  const kEl = $('k-input');
+  const mdEl = $('md-input');
+  const kVal = $('k-value');
+  const mdVal = $('md-value');
+  const resimBtn = $('resim-btn');
+  const umapBtn = $('umap-btn');
+  const statusDot = $('status-dot');
+  const statusText = $('status-text');
+  const warnBox = $('warn-box');
+
+  function setStatus(text, working) {
+    statusText.textContent = text;
+    statusDot.classList.toggle('working', !!working);
+  }
+  function setButtonsDisabled(d) {
+    resimBtn.disabled = d;
+    umapBtn.disabled = d;
+  }
+  function checkWarnings() {
+    warnBox.classList.remove('show');
+    warnBox.textContent = '';
+    if (state.k >= N_CELLS) {
+      warnBox.textContent = `k (${state.k}) ≥ cell count (${N_CELLS}). Reduce k.`;
+      warnBox.classList.add('show');
+      return false;
+    }
+    return true;
+  }
+
+  function readControls() {
+    state.k = +kEl.value;
+    state.minDist = (+mdEl.value) / 100;
+    kVal.textContent = String(state.k);
+    mdVal.textContent = state.minDist.toFixed(2);
+  }
+
+  // ── Pipeline ─────────────────────────────────────────────
+  function resimulateAndCompute() {
+    if (state.running) return;
+    state.running = true;
+    setButtonsDisabled(true);
+    setStatus('simulating…', true);
+
+    // Defer compute one frame so UI updates
+    requestAnimationFrame(() => {
+      const { X, labels } = simulate(state.seed);
+      setStatus('running PCA…', true);
+
+      requestAnimationFrame(() => {
+        // Center a copy (don't pollute X for later) — actually we can center
+        // in place; X is only used for PCA here.
+        centerColumns(X, N_CELLS, N_GENES);
+        const { eigs: eigsTop20, scores: scoresTop20, totalVar } = pcaMany(X, N_CELLS, N_GENES, 20);
+
+        // Extract the first 10 PCs worth of scores into its own array for UMAP.
+        const scoresTop10 = new Float64Array(N_CELLS * PCS);
+        for (let i = 0; i < N_CELLS; i++) {
+          for (let m = 0; m < PCS; m++) {
+            scoresTop10[i * PCS + m] = scoresTop20[i * 20 + m];
+          }
+        }
+        // Build PCA 2D coords (PC1, PC2) for the scatter panel
+        const pcaCoords = new Float64Array(N_CELLS * 2);
+        for (let i = 0; i < N_CELLS; i++) {
+          pcaCoords[i * 2 + 0] = scoresTop20[i * 20 + 0];
+          pcaCoords[i * 2 + 1] = scoresTop20[i * 20 + 1];
+        }
+
+        state.dataset = { X, labels, scoresTop10, eigsTop20, totalVar };
+        state.pcaCoords = pcaCoords;
+
+        renderScree(Array.from(eigsTop20), totalVar);
+        renderScatter('pca-svg', pcaCoords, labels, 'PC1 →  PC2 ↑');
+
+        setStatus('running UMAP…', true);
+        requestAnimationFrame(() => {
+          runUMAPOnly(/*chainedFromResim*/ true);
+        });
+      });
+    });
+  }
+
+  function runUMAPOnly(chainedFromResim) {
+    if (!state.dataset) {
+      if (!chainedFromResim) resimulateAndCompute();
+      return;
+    }
+    if (!chainedFromResim) {
+      if (state.running) return;
+      state.running = true;
+      setButtonsDisabled(true);
+    }
+    if (!checkWarnings()) {
+      state.running = false;
+      setButtonsDisabled(false);
+      setStatus('warning — adjust k', false);
+      return;
+    }
+    setStatus('building kNN graph…', true);
+
+    requestAnimationFrame(() => {
+      const ds = state.dataset;
+      const { nbrs } = knn(ds.scoresTop10, N_CELLS, PCS, state.k);
+      setStatus('UMAP force iterations…', true);
+
+      requestAnimationFrame(() => {
+        const rnd = mulberry32((state.seed ^ (state.k * 1013) ^ Math.floor(state.minDist * 9973)) >>> 0);
+        const Y = umapLayout(ds.scoresTop10, N_CELLS, PCS, state.k, nbrs, state.minDist, UMAP_ITERS, rnd);
+        state.umapCoords = Y;
+        renderScatter('umap-svg', Y, ds.labels, 'UMAP1 →  UMAP2 ↑');
+        updateBanner();
+        state.running = false;
+        setButtonsDisabled(false);
+        setStatus('idle', false);
+      });
+    });
+  }
+
+  function updateBanner() {
+    const ds = state.dataset;
+    if (!ds || !state.pcaCoords || !state.umapCoords) return;
+
+    const pcaSep = clusterSeparation(state.pcaCoords, ds.labels, N_CELLS);
+    const umapSep = clusterSeparation(state.umapCoords, ds.labels, N_CELLS);
+
+    // Top 10 variance fraction
+    let top10 = 0;
+    for (let i = 0; i < PCS; i++) top10 += ds.eigsTop20[i];
+    const frac = top10 / Math.max(1e-9, ds.totalVar);
+
+    const pcaTxt = pcaSep > 2.5
+      ? `3 types visible in PC1/PC2 — linear separation (sep ${pcaSep.toFixed(1)}×)`
+      : `3 clouds partly overlap in PC1/PC2 (sep ${pcaSep.toFixed(1)}×)`;
+    const umapTxt = umapSep > pcaSep * 1.15
+      ? `3 tight clusters — topology-preserving (sep ${umapSep.toFixed(1)}×)`
+      : `clusters at sep ${umapSep.toFixed(1)}× — try smaller min-dist`;
+
+    $('banner-pca-text').textContent = pcaTxt;
+    $('banner-umap-text').textContent = umapTxt;
+    $('banner-var-text').textContent =
+      `top 10 PCs capture ${(frac * 100).toFixed(1)}% of variance`;
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  kEl.addEventListener('input', () => {
+    readControls();
+    checkWarnings();
+  });
+  mdEl.addEventListener('input', () => {
+    readControls();
+  });
+
+  resimBtn.addEventListener('click', () => {
+    state.seed = (Math.random() * 0xffffffff) >>> 0;
+    resimulateAndCompute();
+  });
+  umapBtn.addEventListener('click', () => {
+    runUMAPOnly(false);
+  });
+
+  // ── Boot ────────────────────────────────────────────────
+  readControls();
+  // Default: fixed seed so first open is reproducible + meaningful
+  resimulateAndCompute();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knee Plot Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg); cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+    .slider-row input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .range-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem 0.75rem;
+    }
+    .range-pair .mini {
+      display: flex; flex-direction: column; gap: 0.2rem;
+    }
+    .range-pair .mini-label {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      letter-spacing: 0.04em;
+    }
+    .range-pair .mini-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg);
+    }
+
+    .mode-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.6rem;
+    }
+    .mode-btn {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      letter-spacing: 0.04em; font-weight: 500;
+      padding: 0.4rem 0.8rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg-muted); cursor: pointer;
+    }
+    .mode-btn:hover { background: var(--bg-inset); border-color: var(--border-strong); color: var(--fg); }
+    .mode-btn.active {
+      background: var(--accent-bg); border-color: var(--accent);
+      color: var(--accent); font-weight: 600;
+    }
+
+    .controls-row {
+      display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+      margin-top: 1rem; padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .warn-inline {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--warning);
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.75rem;
+      margin-top: 0.75rem;
+      display: none;
+    }
+    .warn-inline.show { display: block; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+    .plot-caption {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-subtle); margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 0.9rem;
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-muted); margin-top: 0.5rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+    .legend-swatch .sw.cell { background: #1e3a8a; }
+    .legend-swatch .sw.ambient { background: #d97706; opacity: 0.75; }
+    .legend-swatch .ln {
+      display: inline-block; width: 22px; height: 0;
+      border: 0; border-top: 1.5px dashed var(--fg-subtle);
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+
+    .status-line {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem; padding: 0.85rem 1rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); margin-top: 1rem;
+    }
+    .status-line .label {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--fg-subtle); font-weight: 600; margin: 0;
+    }
+    .status-line .value {
+      font-family: var(--font-mono); font-size: var(--text-lg);
+      color: var(--fg); margin: 0.15rem 0 0;
+    }
+    .status-line .value.good { color: var(--accent); }
+    .status-line .value.warn { color: var(--warning); }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="knee-plot">
+
+  <header class="artifact-head">
+    <h1>Knee Plot Explorer</h1>
+    <p>Every droplet gets a barcode. Most barcodes are ambient — empty droplets that caught a whiff of background mRNA. Sort all barcodes by UMI count and you see a cliff: real cells plateau high, ambient plateaus low, with an unstable knee in between. Move the threshold to decide what counts as a cell. Stretch the ambient population and notice the knee stays put — it is about UMI separability, not absolute droplet counts.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Simulation</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ncells-input">True cell count</label>
+          <span class="slider-value" id="ncells-value">10,000</span>
+        </div>
+        <input id="ncells-input" type="range" min="1000" max="30000" step="500" value="10000">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="namb-input">Ambient barcode count</label>
+          <span class="slider-value" id="namb-value">500,000</span>
+        </div>
+        <input id="namb-input" type="range" min="10000" max="2000000" step="10000" value="500000">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label">Cell UMI range</label>
+          <span class="slider-value" id="cellrange-value">1,000 – 30,000</span>
+        </div>
+        <div class="range-pair">
+          <div class="mini">
+            <input id="cellmin-input" type="range" min="200" max="15000" step="100" value="1000">
+            <span class="mini-label">min · <span class="mini-value" id="cellmin-value">1,000</span></span>
+          </div>
+          <div class="mini">
+            <input id="cellmax-input" type="range" min="5000" max="80000" step="500" value="30000">
+            <span class="mini-label">max · <span class="mini-value" id="cellmax-value">30,000</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label">Ambient UMI range</label>
+          <span class="slider-value" id="ambrange-value">10 – 500</span>
+        </div>
+        <div class="range-pair">
+          <div class="mini">
+            <input id="ambmin-input" type="range" min="1" max="100" step="1" value="10">
+            <span class="mini-label">min · <span class="mini-value" id="ambmin-value">10</span></span>
+          </div>
+          <div class="mini">
+            <input id="ambmax-input" type="range" min="50" max="3000" step="10" value="500">
+            <span class="mini-label">max · <span class="mini-value" id="ambmax-value">500</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="warn-inline" id="warn-inline"></div>
+
+    <div class="controls-row">
+      <button id="resim-btn" class="btn btn--primary" type="button">Re-simulate</button>
+      <button id="reset-btn" class="btn" type="button">Reset defaults</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Threshold</p>
+
+    <div class="mode-row">
+      <button class="mode-btn active" id="mode-auto" type="button">auto (knee finder)</button>
+      <button class="mode-btn" id="mode-manual" type="button">manual</button>
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-head">
+        <label class="field-label" for="thr-input">Threshold UMI count</label>
+        <span class="slider-value" id="thr-value">—</span>
+      </div>
+      <input id="thr-input" type="range" min="10" max="10000" step="1" value="100" disabled>
+    </div>
+
+    <p class="hint" id="mode-hint">Auto uses point-of-max-curvature on the smoothed log-log rank curve — the classic EmptyDrops-style knee. Switch to manual to drag the threshold yourself and compare.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Knee plot</p>
+    <div class="plot-wrap">
+      <svg id="knee-svg" class="plot-svg" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet" aria-label="Barcode knee plot"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw cell"></span> true cell barcode</span>
+      <span class="legend-swatch"><span class="sw ambient"></span> ambient barcode</span>
+      <span class="legend-swatch"><span class="ln"></span> current threshold</span>
+    </div>
+    <p class="plot-caption">x-axis: barcode rank (log scale) · y-axis: UMI count (log scale). Points are a ~1,000-barcode rank-binned sample of the full population.</p>
+
+    <div class="banner" id="banner">
+      <b id="banner-kept">0</b> cells kept
+      <span class="sep">·</span>
+      <b id="banner-discarded">0</b> discarded
+      <span class="sep">·</span>
+      true cells recovered: <b id="banner-recall">0.0%</b>
+      <span class="sep">·</span>
+      ambient included as "cells": <b id="banner-contam">0.0%</b>
+    </div>
+
+    <div class="status-line">
+      <div>
+        <p class="label">Threshold UMI</p>
+        <p class="value" id="stat-threshold">—</p>
+      </div>
+      <div>
+        <p class="label">Auto-detected knee</p>
+        <p class="value good" id="stat-knee">—</p>
+      </div>
+      <div>
+        <p class="label">True cells above</p>
+        <p class="value" id="stat-truepos">—</p>
+      </div>
+      <div>
+        <p class="label">Ambient above</p>
+        <p class="value warn" id="stat-falsepos">—</p>
+      </div>
+    </div>
+
+    <p class="hint">The aha: start at defaults, then push ambient barcode count up to 2,000,000. The tail stretches dramatically to the right, but the knee UMI stays at roughly the same y-value — the decision is about UMI-count separability, not about how many droplets you loaded.</p>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── DOM refs ────────────────────────────────────────────
+  const ncellsEl   = $('ncells-input');
+  const nambEl     = $('namb-input');
+  const cellMinEl  = $('cellmin-input');
+  const cellMaxEl  = $('cellmax-input');
+  const ambMinEl   = $('ambmin-input');
+  const ambMaxEl   = $('ambmax-input');
+  const thrEl      = $('thr-input');
+  const modeAutoEl = $('mode-auto');
+  const modeManEl  = $('mode-manual');
+  const resimBtn   = $('resim-btn');
+  const resetBtn   = $('reset-btn');
+  const warnEl     = $('warn-inline');
+  const hintEl     = $('mode-hint');
+  const svg        = $('knee-svg');
+
+  const ncellsVal   = $('ncells-value');
+  const nambVal     = $('namb-value');
+  const cellRangeVal= $('cellrange-value');
+  const cellMinVal  = $('cellmin-value');
+  const cellMaxVal  = $('cellmax-value');
+  const ambRangeVal = $('ambrange-value');
+  const ambMinVal   = $('ambmin-value');
+  const ambMaxVal   = $('ambmax-value');
+  const thrVal      = $('thr-value');
+
+  const bannerKept      = $('banner-kept');
+  const bannerDiscarded = $('banner-discarded');
+  const bannerRecall    = $('banner-recall');
+  const bannerContam    = $('banner-contam');
+  const statThreshold   = $('stat-threshold');
+  const statKnee        = $('stat-knee');
+  const statTruePos     = $('stat-truepos');
+  const statFalsePos    = $('stat-falsepos');
+
+  // ── Defaults ────────────────────────────────────────────
+  const DEFAULTS = {
+    nCells: 10000,
+    nAmbient: 500000,
+    cellMin: 1000,
+    cellMax: 30000,
+    ambMin: 10,
+    ambMax: 500,
+    mode: 'auto',
+    threshold: 100,
+  };
+
+  // ── State ───────────────────────────────────────────────
+  const state = {
+    nCells: DEFAULTS.nCells,
+    nAmbient: DEFAULTS.nAmbient,
+    cellMin: DEFAULTS.cellMin,
+    cellMax: DEFAULTS.cellMax,
+    ambMin: DEFAULTS.ambMin,
+    ambMax: DEFAULTS.ambMax,
+    mode: 'auto',
+    manualThreshold: DEFAULTS.threshold,
+    // Simulation cache
+    seed: 20260420,
+    // Sorted combined array: { umi, isCell }
+    sorted: [],
+    // Sampled subset for plotting
+    sampled: [],
+    // Detected auto threshold UMI
+    autoThreshold: 100,
+    rafPending: false,
+  };
+
+  // ── PRNG — mulberry32 ───────────────────────────────────
+  function mulberry32(seedVal) {
+    let t = seedVal >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Standard normal via Box-Muller, injected RNG.
+  function makeRandn(rnd) {
+    return function () {
+      let u = 0, v = 0;
+      while (u === 0) u = rnd();
+      while (v === 0) v = rnd();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    };
+  }
+
+  // ── Simulation ──────────────────────────────────────────
+  //
+  // Cells: log-normal within [cellMin, cellMax]. We pick mu = log(geomean)
+  // and a small sigma so ~95% of draws land inside the requested range.
+  // Samples outside are clipped to the bounds.
+  //
+  // Ambient: log-normal within [ambMin, ambMax], with a steeper shape so
+  // the tail is long and most barcodes sit near the lower bound — exactly
+  // like a real empty-droplet distribution.
+
+  function simulate() {
+    const rnd = mulberry32(state.seed);
+    const randn = makeRandn(rnd);
+
+    const nC = state.nCells;
+    const nA = state.nAmbient;
+
+    // Cell parameters
+    const cellLo = Math.max(1, state.cellMin);
+    const cellHi = Math.max(cellLo + 1, state.cellMax);
+    const muC    = 0.5 * (Math.log(cellLo) + Math.log(cellHi));
+    const sigmaC = 0.22 * (Math.log(cellHi) - Math.log(cellLo));
+
+    // Ambient parameters: steeper, biased low.
+    const ambLo = Math.max(1, state.ambMin);
+    const ambHi = Math.max(ambLo + 1, state.ambMax);
+    // Push the log-normal center closer to the low bound for empty-droplet realism.
+    const muA    = Math.log(ambLo) + 0.28 * (Math.log(ambHi) - Math.log(ambLo));
+    const sigmaA = 0.30 * (Math.log(ambHi) - Math.log(ambLo));
+
+    const combined = new Array(nC + nA);
+    let k = 0;
+
+    for (let i = 0; i < nC; i++) {
+      let u = Math.exp(muC + sigmaC * randn());
+      if (u < cellLo) u = cellLo;
+      if (u > cellHi) u = cellHi;
+      combined[k++] = { umi: u, isCell: true };
+    }
+    for (let i = 0; i < nA; i++) {
+      let u = Math.exp(muA + sigmaA * randn());
+      if (u < ambLo) u = ambLo;
+      if (u > ambHi) u = ambHi;
+      combined[k++] = { umi: u, isCell: false };
+    }
+
+    // Sort by UMI descending.
+    combined.sort((a, b) => b.umi - a.umi);
+
+    state.sorted = combined;
+
+    // Sample ~1000 points, rank-binned on log(rank).
+    state.sampled = rankSample(combined, 1000);
+
+    // Compute auto-threshold.
+    state.autoThreshold = detectKnee(combined);
+  }
+
+  // Rank-binned sampling: place bin edges evenly on log10(rank+1) so dense
+  // regions at low rank don't dominate. For each bin, pick the median UMI
+  // (after sorting-by-UMI) and attach `isCell` by the dominant class.
+  function rankSample(sorted, target) {
+    const n = sorted.length;
+    if (n <= target) return sorted.map((p, i) => ({ rank: i + 1, umi: p.umi, isCell: p.isCell }));
+    const out = [];
+    const logMax = Math.log10(n + 1);
+    const nBins = target;
+    let prevEnd = 0;
+    for (let b = 0; b < nBins; b++) {
+      const t0 = b / nBins;
+      const t1 = (b + 1) / nBins;
+      const r0 = Math.max(1, Math.floor(Math.pow(10, t0 * logMax) - 1));
+      const r1 = Math.max(r0 + 1, Math.floor(Math.pow(10, t1 * logMax) - 1));
+      const start = Math.max(prevEnd, r0 - 1);
+      const end = Math.min(n, r1);
+      if (end <= start) continue;
+      // take the middle sample from this bin (sorted-by-UMI desc)
+      const mid = (start + end - 1) >> 1;
+      const p = sorted[mid];
+      out.push({ rank: mid + 1, umi: p.umi, isCell: p.isCell });
+      prevEnd = end;
+    }
+    // Always include the very first and last sample for axis stability.
+    if (out.length && out[0].rank !== 1) out.unshift({ rank: 1, umi: sorted[0].umi, isCell: sorted[0].isCell });
+    const lastIdx = n - 1;
+    if (out.length && out[out.length - 1].rank !== lastIdx + 1) {
+      out.push({ rank: lastIdx + 1, umi: sorted[lastIdx].umi, isCell: sorted[lastIdx].isCell });
+    }
+    return out;
+  }
+
+  // ── Knee finder ─────────────────────────────────────────
+  //
+  // Build the log-log curve on a fine evenly-spaced log(rank) grid, smooth
+  // UMI values with a small moving-average window, then compute discrete
+  // curvature via second difference of the smoothed y vs. log(rank) x.
+  // The knee is the x where curvature is most negative (concave — curve
+  // bending downward the hardest).
+
+  function detectKnee(sorted) {
+    const n = sorted.length;
+    if (n < 10) return 100;
+
+    // Sample a uniform grid of ~400 points in log(rank) space.
+    const M = 400;
+    const logMax = Math.log10(n);
+    const xs = new Array(M);
+    const ys = new Array(M);
+    for (let i = 0; i < M; i++) {
+      const lr = (i / (M - 1)) * logMax;
+      const rank = Math.max(1, Math.min(n, Math.round(Math.pow(10, lr))));
+      xs[i] = Math.log10(rank);
+      ys[i] = Math.log10(Math.max(1, sorted[rank - 1].umi));
+    }
+
+    // Smooth y with a small window (size 11) via moving average.
+    const W = 11;
+    const half = (W - 1) >> 1;
+    const ysm = new Array(M);
+    for (let i = 0; i < M; i++) {
+      let s = 0, c = 0;
+      for (let j = i - half; j <= i + half; j++) {
+        if (j < 0 || j >= M) continue;
+        s += ys[j]; c++;
+      }
+      ysm[i] = c ? s / c : ys[i];
+    }
+
+    // Second difference = discrete curvature proxy on a uniform grid.
+    // Because the middle of the curve is the knee region, we restrict search
+    // to the central portion (skip the first & last 8% of points) so edge
+    // artefacts don't win.
+    const skip = Math.floor(M * 0.08);
+    let bestI = Math.floor(M / 2);
+    let bestCurv = Infinity; // most negative == sharpest drop
+    for (let i = Math.max(1, skip); i < M - Math.max(1, skip) - 1; i++) {
+      const d2 = ysm[i + 1] - 2 * ysm[i] + ysm[i - 1];
+      if (d2 < bestCurv) {
+        bestCurv = d2;
+        bestI = i;
+      }
+    }
+    const kneeUmi = Math.pow(10, ysm[bestI]);
+    // Clamp into the manual-slider range so auto & manual stay comparable.
+    return Math.max(10, Math.min(10000, kneeUmi));
+  }
+
+  // ── Threshold counting ──────────────────────────────────
+  //
+  // Counts are computed on the full sorted population (not the sampled
+  // plot points) so the banner numbers are accurate.
+
+  function countAboveThreshold(thr) {
+    // Because sorted is UMI-descending, we can short-circuit with a
+    // linear scan — ends as soon as we fall below the threshold.
+    let kept = 0, cellsAbove = 0, ambAbove = 0;
+    const sorted = state.sorted;
+    const n = sorted.length;
+    for (let i = 0; i < n; i++) {
+      if (sorted[i].umi < thr) break;
+      kept++;
+      if (sorted[i].isCell) cellsAbove++;
+      else ambAbove++;
+    }
+    const discarded = n - kept;
+    const recall = state.nCells > 0 ? (cellsAbove / state.nCells) : 0;
+    const contam = kept > 0 ? (ambAbove / kept) : 0;
+    return { kept, discarded, cellsAbove, ambAbove, recall, contam };
+  }
+
+  // ── Rendering ───────────────────────────────────────────
+
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  function superscript(n) {
+    const map = { '-': '\u207B', '0': '\u2070', '1': '\u00B9', '2': '\u00B2', '3': '\u00B3', '4': '\u2074', '5': '\u2075', '6': '\u2076', '7': '\u2077', '8': '\u2078', '9': '\u2079' };
+    return String(n).split('').map(c => map[c] || c).join('');
+  }
+
+  // Plot geometry
+  const W = 1000, H = 560;
+  const PAD_L = 78, PAD_R = 28, PAD_T = 22, PAD_B = 58;
+
+  function render() {
+    clear(svg);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const x0 = PAD_L, x1 = W - PAD_R;
+    const y0 = PAD_T,  y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    // Dynamic axis extents from the current simulation.
+    const n = state.sorted.length;
+    if (n === 0) return;
+    const maxUmi = state.sorted[0].umi;
+    const minUmi = state.sorted[n - 1].umi;
+
+    // log10 axis bounds, rounded to whole decades for clean ticks.
+    const logRankMax = Math.ceil(Math.log10(Math.max(10, n)));
+    const logRankMin = 0; // rank starts at 1 => log10 = 0
+    const logUmiMax = Math.ceil(Math.log10(Math.max(10, maxUmi)));
+    const logUmiMin = Math.floor(Math.log10(Math.max(1, minUmi)));
+
+    const xOf = (rank) => {
+      const lr = Math.log10(Math.max(1, rank));
+      return x0 + ((lr - logRankMin) / (logRankMax - logRankMin)) * plotW;
+    };
+    const yOf = (umi) => {
+      const lu = Math.log10(Math.max(1, umi));
+      return y1 - ((lu - logUmiMin) / (logUmiMax - logUmiMin)) * plotH;
+    };
+
+    // Frame
+    svg.appendChild(el('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Gridlines + tick labels — x (decades)
+    for (let lr = logRankMin; lr <= logRankMax; lr++) {
+      const xp = xOf(Math.pow(10, lr));
+      svg.appendChild(el('line', {
+        x1: xp, x2: xp, y1: y0, y2: y1,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': lr === logRankMin ? '' : '2 4',
+      }));
+      svg.appendChild(el('text', {
+        x: xp, y: y1 + 18,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      }, '10' + superscript(lr)));
+    }
+    // Gridlines + tick labels — y (decades)
+    for (let lu = logUmiMin; lu <= logUmiMax; lu++) {
+      const yp = yOf(Math.pow(10, lu));
+      svg.appendChild(el('line', {
+        x1: x0, x2: x1, y1: yp, y2: yp,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': lu === logUmiMin ? '' : '2 4',
+      }));
+      svg.appendChild(el('text', {
+        x: x0 - 10, y: yp + 4,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      }, '10' + superscript(lu)));
+    }
+
+    // Axis labels
+    svg.appendChild(el('text', {
+      x: (x0 + x1) / 2, y: H - 16,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+    }, 'barcode rank (log scale)'));
+
+    svg.appendChild(el('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+      transform: `translate(20, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, 'UMI count (log scale)'));
+
+    // Points — ambient first (drawn under), cells on top.
+    const sampled = state.sampled;
+    const ambColor  = '#d97706';
+    const cellColor = '#1e3a8a';
+
+    // Split by class for z-ordering.
+    for (let i = 0; i < sampled.length; i++) {
+      const p = sampled[i];
+      if (p.isCell) continue;
+      svg.appendChild(el('circle', {
+        cx: xOf(p.rank).toFixed(2),
+        cy: yOf(p.umi).toFixed(2),
+        r: 2.2,
+        fill: ambColor,
+        opacity: 0.6,
+      }));
+    }
+    for (let i = 0; i < sampled.length; i++) {
+      const p = sampled[i];
+      if (!p.isCell) continue;
+      svg.appendChild(el('circle', {
+        cx: xOf(p.rank).toFixed(2),
+        cy: yOf(p.umi).toFixed(2),
+        r: 2.6,
+        fill: cellColor,
+        opacity: 0.85,
+      }));
+    }
+
+    // Threshold line (dashed horizontal)
+    const thr = currentThreshold();
+    if (thr > 0) {
+      const lt = Math.log10(thr);
+      if (lt >= logUmiMin && lt <= logUmiMax) {
+        const yt = yOf(thr);
+        svg.appendChild(el('line', {
+          x1: x0, x2: x1, y1: yt, y2: yt,
+          stroke: 'var(--fg-subtle)', 'stroke-width': 1.4,
+          'stroke-dasharray': '6 4',
+        }));
+        svg.appendChild(el('text', {
+          x: x1 - 6, y: yt - 5,
+          'text-anchor': 'end',
+          'font-family': 'var(--font-mono)', 'font-size': 10,
+          fill: 'var(--fg-muted)',
+        }, `threshold = ${Math.round(thr).toLocaleString()} UMI`));
+      }
+    }
+  }
+
+  // ── Helpers ─────────────────────────────────────────────
+  function currentThreshold() {
+    return state.mode === 'auto' ? state.autoThreshold : state.manualThreshold;
+  }
+
+  function fmtInt(n) {
+    return Math.round(n).toLocaleString();
+  }
+  function fmtPct(p) {
+    return (p * 100).toFixed(1) + '%';
+  }
+
+  // ── Update pipeline ─────────────────────────────────────
+  function updateReadouts() {
+    ncellsVal.textContent = state.nCells.toLocaleString();
+    nambVal.textContent   = state.nAmbient.toLocaleString();
+    cellMinVal.textContent = state.cellMin.toLocaleString();
+    cellMaxVal.textContent = state.cellMax.toLocaleString();
+    cellRangeVal.textContent = `${state.cellMin.toLocaleString()} \u2013 ${state.cellMax.toLocaleString()}`;
+    ambMinVal.textContent = state.ambMin.toLocaleString();
+    ambMaxVal.textContent = state.ambMax.toLocaleString();
+    ambRangeVal.textContent = `${state.ambMin.toLocaleString()} \u2013 ${state.ambMax.toLocaleString()}`;
+
+    const thr = currentThreshold();
+    thrVal.textContent = fmtInt(thr) + ' UMI';
+    statThreshold.textContent = fmtInt(thr);
+    statKnee.textContent = fmtInt(state.autoThreshold);
+
+    const c = countAboveThreshold(thr);
+    bannerKept.textContent      = fmtInt(c.kept);
+    bannerDiscarded.textContent = fmtInt(c.discarded);
+    bannerRecall.textContent    = fmtPct(c.recall);
+    bannerContam.textContent    = fmtPct(c.contam);
+    statTruePos.textContent     = fmtInt(c.cellsAbove);
+    statFalsePos.textContent    = fmtInt(c.ambAbove);
+  }
+
+  function updateFeasibility() {
+    if (state.nCells > state.nAmbient) {
+      warnEl.textContent = `\u26A0 Not physical: true cell count (${state.nCells.toLocaleString()}) exceeds ambient count (${state.nAmbient.toLocaleString()}). In a real droplet run, the vast majority of barcodes are empty.`;
+      warnEl.classList.add('show');
+    } else {
+      warnEl.classList.remove('show');
+    }
+  }
+
+  function run(resim) {
+    if (resim) simulate();
+    updateFeasibility();
+    updateReadouts();
+    render();
+  }
+
+  function requestRun(resim) {
+    if (state.rafPending) return;
+    state.rafPending = true;
+    const doResim = !!resim;
+    requestAnimationFrame(() => {
+      state.rafPending = false;
+      run(doResim);
+    });
+  }
+
+  function readControls() {
+    state.nCells   = +ncellsEl.value;
+    state.nAmbient = +nambEl.value;
+
+    // Enforce min < max with a small gap for the two range pairs.
+    let cMin = +cellMinEl.value;
+    let cMax = +cellMaxEl.value;
+    if (cMin >= cMax) {
+      // Pull the offending handle back in.
+      if (document.activeElement === cellMinEl) {
+        cMax = Math.min(+cellMaxEl.max, cMin + 500);
+        cellMaxEl.value = cMax;
+      } else {
+        cMin = Math.max(+cellMinEl.min, cMax - 500);
+        cellMinEl.value = cMin;
+      }
+    }
+    state.cellMin = cMin;
+    state.cellMax = cMax;
+
+    let aMin = +ambMinEl.value;
+    let aMax = +ambMaxEl.value;
+    if (aMin >= aMax) {
+      if (document.activeElement === ambMinEl) {
+        aMax = Math.min(+ambMaxEl.max, aMin + 20);
+        ambMaxEl.value = aMax;
+      } else {
+        aMin = Math.max(+ambMinEl.min, aMax - 20);
+        ambMinEl.value = aMin;
+      }
+    }
+    state.ambMin = aMin;
+    state.ambMax = aMax;
+
+    state.manualThreshold = +thrEl.value;
+  }
+
+  // ── Mode switching ──────────────────────────────────────
+  function setMode(m) {
+    state.mode = m;
+    modeAutoEl.classList.toggle('active', m === 'auto');
+    modeManEl.classList.toggle('active', m === 'manual');
+    thrEl.disabled = (m === 'auto');
+    if (m === 'auto') {
+      hintEl.textContent = 'Auto uses point-of-max-curvature on the smoothed log-log rank curve \u2014 the classic EmptyDrops-style knee. Switch to manual to drag the threshold yourself and compare.';
+    } else {
+      hintEl.textContent = 'Manual: drag the slider to move the threshold. Watch the banner recompute: fewer UMI \u2192 more cells kept but more ambient included, higher UMI \u2192 fewer contaminants but you start losing real cells.';
+    }
+    // When switching to manual for the first time, snap slider to current auto value
+    // so the threshold doesn't jump discontinuously.
+    if (m === 'manual') {
+      const snap = Math.max(+thrEl.min, Math.min(+thrEl.max, Math.round(state.autoThreshold)));
+      thrEl.value = snap;
+      state.manualThreshold = snap;
+    }
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  ncellsEl.addEventListener('input', () => { readControls(); requestRun(true); });
+  nambEl.addEventListener('input',   () => { readControls(); requestRun(true); });
+  cellMinEl.addEventListener('input',() => { readControls(); requestRun(true); });
+  cellMaxEl.addEventListener('input',() => { readControls(); requestRun(true); });
+  ambMinEl.addEventListener('input', () => { readControls(); requestRun(true); });
+  ambMaxEl.addEventListener('input', () => { readControls(); requestRun(true); });
+
+  thrEl.addEventListener('input', () => {
+    if (state.mode !== 'manual') return;
+    state.manualThreshold = +thrEl.value;
+    requestRun(false);
+  });
+
+  modeAutoEl.addEventListener('click', () => { setMode('auto');   requestRun(false); });
+  modeManEl.addEventListener('click',  () => { setMode('manual'); requestRun(false); });
+
+  resimBtn.addEventListener('click', () => {
+    // Fresh seed per click — same params produce identical results via seeded PRNG.
+    state.seed = (Math.floor(Math.random() * 0x7fffffff) || 1) >>> 0;
+    readControls();
+    run(true);
+  });
+
+  resetBtn.addEventListener('click', () => {
+    state.seed = 20260420;
+    ncellsEl.value = DEFAULTS.nCells;
+    nambEl.value   = DEFAULTS.nAmbient;
+    cellMinEl.value = DEFAULTS.cellMin;
+    cellMaxEl.value = DEFAULTS.cellMax;
+    ambMinEl.value  = DEFAULTS.ambMin;
+    ambMaxEl.value  = DEFAULTS.ambMax;
+    thrEl.value = DEFAULTS.threshold;
+    setMode('auto');
+    readControls();
+    run(true);
+  });
+
+  // ── Boot ────────────────────────────────────────────────
+  setMode('auto');
+  readControls();
+  run(true);
+})();
+</script>
+
+</body>
+</html>

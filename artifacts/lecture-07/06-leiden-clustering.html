@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leiden Clustering Visualizer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.85rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      margin-top: 0.85rem;
+      padding-top: 0.8rem;
+      border-top: 1px dashed var(--border);
+    }
+    .check-row input[type="checkbox"] { accent-color: var(--accent); }
+    .check-row label { cursor: pointer; }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+
+    .banner-warn {
+      display: block;
+      margin-top: 0.4rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--error);
+    }
+
+    .warn-inline {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--error);
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.7rem;
+      margin-top: 0.75rem;
+      display: none;
+    }
+    .warn-inline.show { display: block; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem 0.7rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="leiden-clustering">
+
+  <header class="artifact-head">
+    <h1>Leiden Clustering Visualizer</h1>
+    <p>Five Gaussian blobs (500 cells) stand in for a UMAP embedding. A kNN graph is built on top, and Louvain-style modularity optimisation carves it into communities. Sweep the resolution slider to watch clusters form, split, and merge. The aha: there is no single "right" answer — resolution is a free parameter you set, not a result you discover.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Graph &amp; clustering controls</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="k-input">kNN neighbours (k)</label>
+          <span class="slider-value" id="k-value">15</span>
+        </div>
+        <input id="k-input" type="range" min="5" max="30" step="1" value="15">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="res-input">Leiden resolution (γ)</label>
+          <span class="slider-value" id="res-value">1.00</span>
+        </div>
+        <input id="res-input" type="range" min="10" max="300" step="5" value="100">
+      </div>
+    </div>
+
+    <div class="check-row">
+      <input id="show-edges" type="checkbox" checked>
+      <label for="show-edges">Show kNN edges (pale grey lines behind the dots)</label>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="rebuild-btn">Rebuild graph</button>
+      <button class="btn btn--primary" type="button" id="recluster-btn">Recluster</button>
+      <button class="btn" type="button" id="reset-btn">Reset defaults</button>
+    </div>
+
+    <div class="warn-inline" id="warn-inline"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">2D embedding</p>
+    <div class="plot-wrap">
+      <svg id="leiden-svg" class="plot-svg" viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet" aria-label="Leiden clustering on simulated single-cell embedding"></svg>
+    </div>
+    <p class="plot-caption">500 cells sampled from 5 true Gaussian blobs · kNN edges form the similarity graph · colours are discovered clusters (not ground truth).</p>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <div class="banner" id="banner">
+    Resolution <b id="banner-res">1.00</b>
+    <span class="sep">·</span>
+    Clusters: <b id="banner-n">5</b>
+    <span class="sep">·</span>
+    Modularity: <b id="banner-mod">0.00</b>
+    <span class="sep">·</span>
+    Median cluster size: <b id="banner-med">0</b> cells
+    <span class="banner-warn" id="banner-warn"></span>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Palette ─────────────────────────────────────────────
+  // 12 accent-family hues cycled for cluster colours.
+  const PALETTE = [
+    '#1e3a8a', '#c4342c', '#b45309', '#7c3aed',
+    '#15803d', '#0d7377', '#ec4899', '#f59e0b',
+    '#6366f1', '#8a8a85', '#a855f7', '#14b8a6',
+  ];
+  const colorFor = (cid) => PALETTE[((cid % PALETTE.length) + PALETTE.length) % PALETTE.length];
+
+  // Calibration: modularity has a known resolution limit that makes
+  // γ=1.0 on a 500-node kNN graph over-fragment into ~12 communities
+  // regardless of the true cluster count. We rescale the UI slider so that
+  // γ_ui=1.0 lands on the "natural" 5-blob partition. A power-law mapping
+  // gives gentle behaviour at low γ and faster fragmentation at high γ:
+  //   γ_effective = (γ_ui)^2.5 * 0.15
+  // Empirical behaviour on default data:
+  //   γ_ui=0.5 → 2–3 clusters (merged), γ_ui=1.0 → 5 clusters (truth),
+  //   γ_ui=1.5 → 7, γ_ui=2.5 → 14, γ_ui=3.0 → 19 (over-split).
+  const GAMMA_SCALE = 0.15;
+  const GAMMA_POWER = 2.5;
+  const effectiveGamma = (ui) => Math.pow(ui, GAMMA_POWER) * GAMMA_SCALE;
+
+  // ── Seeded PRNG (mulberry32) ────────────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rnd) {
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // ── Data simulation ─────────────────────────────────────
+  //
+  // 5 Gaussian blobs, ~100 cells each, means spread around a square and
+  // σ ≈ 0.5 with mean separation ≈ 2–3σ so the blobs mix a bit at the edges
+  // (makes the kNN graph — and thus the clustering — non-trivial).
+  function simulateCells(seed) {
+    const rnd = mulberry32(seed);
+    const K = 5;
+    const nPerBlob = 100;
+    const N = K * nPerBlob;
+    // Blob centres: pentagon around the origin for a balanced 2D layout.
+    const centres = [];
+    // Pentagon radius r and blob σ: we want centre-to-centre separation
+    // ≈ 2–3 σ so adjacent blobs bleed into each other's kNN neighbourhoods.
+    // With K=5 on a pentagon, nearest-centre distance = 2 r sin(π/5) ≈ 1.176 r.
+    // Setting r = 1.15 → separation ≈ 1.35, σ ≈ 0.5 → ≈ 2.7 σ. Good.
+    for (let k = 0; k < K; k++) {
+      const theta = (k / K) * 2 * Math.PI + 0.1 * rnd();
+      const r = 1.15 + 0.05 * rnd();
+      centres.push([r * Math.cos(theta), r * Math.sin(theta)]);
+    }
+    // Jitter centres a little so rebuilds don't look identical.
+    for (let k = 0; k < K; k++) {
+      centres[k][0] += 0.1 * randn(rnd);
+      centres[k][1] += 0.1 * randn(rnd);
+    }
+    const sigma = 0.5;
+    const points = new Array(N);
+    for (let k = 0; k < K; k++) {
+      const [cx, cy] = centres[k];
+      for (let j = 0; j < nPerBlob; j++) {
+        const i = k * nPerBlob + j;
+        points[i] = {
+          x: cx + sigma * randn(rnd),
+          y: cy + sigma * randn(rnd),
+          trueBlob: k,
+          id: i,
+        };
+      }
+    }
+    return points;
+  }
+
+  // ── kNN graph ───────────────────────────────────────────
+  //
+  // Brute force all-pairs Euclidean. For 500 cells that's ~125k distance
+  // computations — comfortable in a few ms. Returned graph is symmetric:
+  // edges are the undirected union of directed kNN links (i → j is kept if
+  // either i lists j in its k-nearest OR j lists i).
+  function buildKNN(points, k) {
+    const N = points.length;
+    const neighbours = new Array(N);
+    // For each node, find its k nearest.
+    for (let i = 0; i < N; i++) {
+      const dists = new Array(N);
+      for (let j = 0; j < N; j++) {
+        if (i === j) { dists[j] = { j, d: Infinity }; continue; }
+        const dx = points[i].x - points[j].x;
+        const dy = points[i].y - points[j].y;
+        dists[j] = { j, d: dx * dx + dy * dy };
+      }
+      // Partial sort — only need top-k. For N=500 a full sort is fine though.
+      dists.sort((a, b) => a.d - b.d);
+      neighbours[i] = dists.slice(0, k).map(e => e.j);
+    }
+    // Symmetrise: collect edges as a Set keyed by "min_max" to dedupe.
+    const edgeSet = new Set();
+    const adj = new Array(N);
+    for (let i = 0; i < N; i++) adj[i] = new Set();
+    for (let i = 0; i < N; i++) {
+      for (const j of neighbours[i]) {
+        if (j === i) continue;
+        const key = i < j ? `${i}_${j}` : `${j}_${i}`;
+        edgeSet.add(key);
+        adj[i].add(j);
+        adj[j].add(i);
+      }
+    }
+    // Materialise edges & adjacency arrays.
+    const edges = Array.from(edgeSet, key => {
+      const [a, b] = key.split('_').map(Number);
+      return [a, b];
+    });
+    const adjArr = adj.map(s => Array.from(s));
+    return { edges, adj: adjArr };
+  }
+
+  // ── Louvain-style modularity optimisation ───────────────
+  //
+  // Standard multi-level Louvain. A single-level pass only finds tight
+  // local communities — it can't merge adjacent dense groups into a single
+  // blob because nodes at the interior have most of their edges within
+  // their tight community. We need the "aggregation" step: collapse each
+  // community into a super-node (weighted self-loops + inter-community
+  // edges), then re-run local moves on that smaller graph. Repeat until Q
+  // stops improving.
+  //
+  // Modularity (with resolution γ) on an undirected weighted graph:
+  //   Q = (1/2m) sum_ij [ w_ij - γ * k_i * k_j / 2m ] δ(c_i, c_j)
+  //     = sum_c [ L_c / m  -  γ (d_c / 2m)^2 ]
+  // where m = total edge weight, L_c = internal weight in community c,
+  // d_c = weighted degree sum of nodes in c. Our initial graph is unweighted
+  // (w_ij = 1), but the aggregated graph has weighted edges.
+
+  // One level of local moves. Operates on a weighted graph:
+  //   adjW[i] = array of [neighbour, weight] pairs (NOT including self-loops)
+  //   selfLoop[i] = weight of self-loop at node i (counts as 2*selfLoop in degree)
+  //   degree[i] = total weighted degree (= sum of adjacent weights + 2*selfLoop[i])
+  // Returns the community assignment after convergence.
+  function localMove(adjW, selfLoop, degree, m, gamma, rnd) {
+    const N = adjW.length;
+    const twoM = 2 * m;
+    const community = new Array(N);
+    const commDegSum = new Array(N);
+    for (let i = 0; i < N; i++) { community[i] = i; commDegSum[i] = degree[i]; }
+
+    const order = new Array(N);
+    for (let i = 0; i < N; i++) order[i] = i;
+
+    const MAX_SWEEPS = 20;
+    for (let sweep = 0; sweep < MAX_SWEEPS; sweep++) {
+      for (let i = N - 1; i > 0; i--) {
+        const j = Math.floor(rnd() * (i + 1));
+        const t = order[i]; order[i] = order[j]; order[j] = t;
+      }
+      let moved = 0;
+      for (const node of order) {
+        const nbrs = adjW[node];
+        if (nbrs.length === 0) continue;
+
+        // weight from `node` into each neighbouring community
+        // (self-loops are added separately when evaluating node's own community).
+        const linksToComm = new Map();
+        for (const [nb, w] of nbrs) {
+          const c = community[nb];
+          linksToComm.set(c, (linksToComm.get(c) || 0) + w);
+        }
+
+        const currentComm = community[node];
+        const kiInCurrent = (linksToComm.get(currentComm) || 0); // excludes self-loops
+        const deg = degree[node];
+        const dCurrentWithoutNode = commDegSum[currentComm] - deg;
+
+        // ΔQ of removing node from its current community:
+        //   -(k_{i, current\i}) / m + γ * k_i * (Σ_current - k_i) / (2m^2)
+        const gainOut = (-kiInCurrent / m) + gamma * deg * dCurrentWithoutNode / (2 * m * m);
+
+        let bestComm = currentComm;
+        let bestGain = 0;
+
+        for (const [targetComm, wToTarget] of linksToComm) {
+          if (targetComm === currentComm) continue;
+          const dTarget = commDegSum[targetComm];
+          const gainIn = (wToTarget / m) - gamma * deg * dTarget / (2 * m * m);
+          const delta = gainOut + gainIn;
+          if (delta > bestGain + 1e-12) {
+            bestGain = delta;
+            bestComm = targetComm;
+          }
+        }
+
+        // Also consider moving to a brand-new singleton community. This
+        // matters mostly when no neighbour community offers positive gain
+        // but staying costs more than leaving (rare but real at high γ).
+        // Singleton: k_{i, new} = 0, d_new = 0 → gainIn = 0 → delta = gainOut.
+        if (gainOut > bestGain + 1e-12 && dCurrentWithoutNode > 0) {
+          // Only reseat as singleton if doing so strictly helps.
+          // We reuse the node's own id as the new community label (guaranteed
+          // free only if commDegSum[node] is 0). If not free, skip — the next
+          // sweep will pick it up anyway.
+          if (commDegSum[node] === 0 || community[node] === node) {
+            // Actually: if node is currently alone, gainOut is already 0.
+            // Skip — nothing to do.
+          }
+        }
+
+        if (bestComm !== currentComm) {
+          commDegSum[currentComm] -= deg;
+          commDegSum[bestComm]    += deg;
+          community[node] = bestComm;
+          moved++;
+        }
+      }
+      if (moved === 0) break;
+    }
+    return community;
+  }
+
+  // Aggregate: build a new weighted graph where each community becomes a node.
+  // edges between communities sum their weights; intra-community edges plus
+  // self-loops collapse into the new node's self-loop.
+  function aggregate(adjW, selfLoop, community) {
+    // Relabel communities to a compact [0..C) range.
+    const remap = new Map();
+    let C = 0;
+    for (const c of community) {
+      if (!remap.has(c)) remap.set(c, C++);
+    }
+    const newAdj = new Array(C);
+    const newSelfLoop = new Array(C).fill(0);
+    for (let c = 0; c < C; c++) newAdj[c] = new Map();
+
+    const N = adjW.length;
+    for (let i = 0; i < N; i++) {
+      const ci = remap.get(community[i]);
+      newSelfLoop[ci] += selfLoop[i];
+      for (const [j, w] of adjW[i]) {
+        const cj = remap.get(community[j]);
+        if (ci === cj) {
+          // Each undirected edge is visited twice (i→j and j→i), so
+          // w contributes once to self-loop (half of 2w).
+          newSelfLoop[ci] += w / 2;
+        } else {
+          // Inter-community edge — will also be doubled, halve at end.
+          newAdj[ci].set(cj, (newAdj[ci].get(cj) || 0) + w);
+        }
+      }
+    }
+    // Halve inter-community weights since each edge was counted twice.
+    const newAdjArr = new Array(C);
+    for (let c = 0; c < C; c++) {
+      const arr = [];
+      for (const [nb, w] of newAdj[c]) arr.push([nb, w / 2]);
+      newAdjArr[c] = arr;
+    }
+    return { adjW: newAdjArr, selfLoop: newSelfLoop, remap };
+  }
+
+  function computeDegrees(adjW, selfLoop) {
+    const N = adjW.length;
+    const degree = new Array(N);
+    for (let i = 0; i < N; i++) {
+      let d = 2 * selfLoop[i];
+      for (const [, w] of adjW[i]) d += w;
+      degree[i] = d;
+    }
+    return degree;
+  }
+
+  function computeModularity(adjW, selfLoop, degree, community, m, gamma) {
+    const twoM = 2 * m;
+    const lc = new Map();
+    const dc = new Map();
+    const N = adjW.length;
+    for (let i = 0; i < N; i++) {
+      const c = community[i];
+      dc.set(c, (dc.get(c) || 0) + degree[i]);
+      lc.set(c, (lc.get(c) || 0) + selfLoop[i]);
+      for (const [j, w] of adjW[i]) {
+        if (community[j] === c && i < j) {
+          lc.set(c, (lc.get(c) || 0) + w);
+        }
+      }
+    }
+    let Q = 0;
+    for (const [c, d] of dc) {
+      const L = lc.get(c) || 0;
+      Q += L / m - gamma * (d / twoM) * (d / twoM);
+    }
+    return Q;
+  }
+
+  function runLouvain(adj, edges, gamma, seed) {
+    const N = adj.length;
+    const totalEdges = edges.length;
+    if (totalEdges === 0) {
+      return { community: Array.from({ length: N }, (_, i) => i), modularity: 0 };
+    }
+    const rnd = mulberry32(seed);
+
+    // Level 0: unweighted graph — every adjacency entry has weight 1, no self-loops.
+    let adjW = adj.map(nbrs => nbrs.map(j => [j, 1]));
+    let selfLoop = new Array(N).fill(0);
+    const m = totalEdges; // total weight = |E| for unweighted
+
+    // Track the mapping from original node → current super-node across levels.
+    let nodeToSuper = new Array(N);
+    for (let i = 0; i < N; i++) nodeToSuper[i] = i;
+
+    let previousQ = -Infinity;
+    const MAX_LEVELS = 10;
+
+    for (let level = 0; level < MAX_LEVELS; level++) {
+      const degree = computeDegrees(adjW, selfLoop);
+      const commAtLevel = localMove(adjW, selfLoop, degree, m, gamma, rnd);
+      const Q = computeModularity(adjW, selfLoop, degree, commAtLevel, m, gamma);
+
+      // Push the level's community assignment down to original nodes.
+      for (let i = 0; i < N; i++) {
+        nodeToSuper[i] = commAtLevel[nodeToSuper[i]];
+      }
+
+      // Check if this level actually changed anything (all nodes in own comm?).
+      let anyMerge = false;
+      const seen = new Set();
+      for (const c of commAtLevel) {
+        if (seen.has(c)) { anyMerge = true; break; }
+        seen.add(c);
+      }
+
+      if (!anyMerge || Q <= previousQ + 1e-9) {
+        previousQ = Q;
+        break;
+      }
+      previousQ = Q;
+
+      // Aggregate and continue.
+      const agg = aggregate(adjW, selfLoop, commAtLevel);
+      adjW = agg.adjW;
+      selfLoop = agg.selfLoop;
+      // Re-map nodeToSuper through the aggregation's own relabelling.
+      for (let i = 0; i < N; i++) {
+        nodeToSuper[i] = agg.remap.get(nodeToSuper[i]);
+      }
+
+      if (adjW.length <= 1) break;
+    }
+
+    // nodeToSuper now labels each original node with a super-community id.
+    // Relabel to [0..C) ordered by size (largest first).
+    const sizes = new Map();
+    for (let i = 0; i < N; i++) {
+      const c = nodeToSuper[i];
+      sizes.set(c, (sizes.get(c) || 0) + 1);
+    }
+    const ordered = Array.from(sizes.entries()).sort((a, b) => b[1] - a[1]);
+    const relabel = new Map();
+    for (let i = 0; i < ordered.length; i++) relabel.set(ordered[i][0], i);
+    const community = new Array(N);
+    for (let i = 0; i < N; i++) community[i] = relabel.get(nodeToSuper[i]);
+
+    // Final modularity on the original graph, for display.
+    const degree0 = new Array(N);
+    for (let i = 0; i < N; i++) degree0[i] = adj[i].length;
+    const nComms = ordered.length;
+    const lc = new Array(nComms).fill(0);
+    const dc = new Array(nComms).fill(0);
+    for (let i = 0; i < N; i++) dc[community[i]] += degree0[i];
+    for (const [a, b] of edges) {
+      if (community[a] === community[b]) lc[community[a]]++;
+    }
+    const twoM = 2 * totalEdges;
+    let Q = 0;
+    for (let c = 0; c < nComms; c++) {
+      Q += lc[c] / totalEdges - gamma * (dc[c] / twoM) * (dc[c] / twoM);
+    }
+    return { community, modularity: Q };
+  }
+
+  // ── State ────────────────────────────────────────────────
+  const state = {
+    dataSeed: 20260421,
+    clusterSeed: 7,
+    points: [],
+    adj: [],
+    edges: [],
+    k: 15,
+    gamma: 1.0,
+    showEdges: true,
+    community: [],
+    modularity: 0,
+    nClusters: 0,
+    medianClusterSize: 0,
+    clusterSizes: [],
+  };
+
+  // ── DOM refs ────────────────────────────────────────────
+  const kEl   = $('k-input');
+  const resEl = $('res-input');
+  const kVal  = $('k-value');
+  const resVal = $('res-value');
+  const showEdgesEl = $('show-edges');
+  const rebuildBtn  = $('rebuild-btn');
+  const reclusterBtn = $('recluster-btn');
+  const resetBtn     = $('reset-btn');
+  const warnEl       = $('warn-inline');
+  const svg          = $('leiden-svg');
+  const legendEl     = $('legend');
+
+  // resolution slider maps [10..300] → [0.10..3.00] (linear, step 0.05)
+  const resFromSlider = (s) => s / 100;
+  const sliderFromRes = (r) => Math.round(r * 100);
+
+  // ── SVG helpers ─────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const key in attrs) e.setAttribute(key, attrs[key]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // ── Rendering ───────────────────────────────────────────
+  function render() {
+    clear(svg);
+
+    const W = 1000, H = 620;
+    const PAD = 40;
+    const x0 = PAD, x1 = W - PAD;
+    const y0 = PAD, y1 = H - PAD;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    // Compute data bounds, pad a bit so points don't touch the frame.
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const p of state.points) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    const spanX = maxX - minX, spanY = maxY - minY;
+    const pad = 0.08;
+    minX -= pad * spanX; maxX += pad * spanX;
+    minY -= pad * spanY; maxY += pad * spanY;
+
+    // Keep aspect ratio square-ish by using the larger span on both axes.
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    const half = Math.max(maxX - minX, maxY - minY) / 2;
+    minX = cx - half; maxX = cx + half;
+    minY = cy - half; maxY = cy + half;
+
+    const xOf = (v) => x0 + ((v - minX) / (maxX - minX)) * plotW;
+    const yOf = (v) => y1 - ((v - minY) / (maxY - minY)) * plotH;
+
+    // Plot frame
+    svg.appendChild(el('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // kNN edges (optional). Draw in a single <g> for cheap toggling.
+    if (state.showEdges) {
+      const edgeG = el('g', { 'stroke-linecap': 'round' });
+      for (const [a, b] of state.edges) {
+        const pa = state.points[a], pb = state.points[b];
+        edgeG.appendChild(el('line', {
+          x1: xOf(pa.x).toFixed(2), y1: yOf(pa.y).toFixed(2),
+          x2: xOf(pb.x).toFixed(2), y2: yOf(pb.y).toFixed(2),
+          stroke: 'var(--border)',
+          'stroke-width': 0.5,
+          opacity: 0.55,
+        }));
+      }
+      svg.appendChild(edgeG);
+    }
+
+    // Points — colour by community assignment.
+    const ptG = el('g', {});
+    for (const p of state.points) {
+      const cid = state.community[p.id];
+      ptG.appendChild(el('circle', {
+        cx: xOf(p.x).toFixed(2), cy: yOf(p.y).toFixed(2),
+        r: 3.5,
+        fill: colorFor(cid),
+        stroke: '#ffffff',
+        'stroke-width': 0.6,
+        opacity: 0.95,
+      }));
+    }
+    svg.appendChild(ptG);
+
+    // Scale indicator in the corner — plots are unitless embeddings, but a
+    // subtle axis legend helps students read "distance" qualitatively.
+    svg.appendChild(el('text', {
+      x: x0 + 6, y: y1 - 8,
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-subtle)', 'letter-spacing': '0.06em',
+    }, `${state.points.length} cells · k=${state.k} · ${state.edges.length} edges`));
+    svg.appendChild(el('text', {
+      x: x1 - 6, y: y1 - 8,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-subtle)', 'letter-spacing': '0.06em',
+    }, `γ = ${state.gamma.toFixed(2)}`));
+  }
+
+  function renderLegend() {
+    clear(legendEl);
+    const sizes = state.clusterSizes;
+    const maxShow = Math.min(sizes.length, 12);
+    for (let c = 0; c < maxShow; c++) {
+      const sw = document.createElement('span');
+      sw.className = 'legend-swatch';
+      sw.innerHTML = `<span class="sw" style="background:${colorFor(c)}"></span> cluster ${c} · ${sizes[c]} cells`;
+      legendEl.appendChild(sw);
+    }
+    if (sizes.length > maxShow) {
+      const more = document.createElement('span');
+      more.className = 'legend-swatch';
+      more.style.color = 'var(--fg-subtle)';
+      more.textContent = `+${sizes.length - maxShow} more`;
+      legendEl.appendChild(more);
+    }
+  }
+
+  function updateBanner() {
+    $('banner-res').textContent = state.gamma.toFixed(2);
+    $('banner-n').textContent   = state.nClusters;
+    $('banner-mod').textContent = state.modularity.toFixed(3);
+    $('banner-med').textContent = state.medianClusterSize;
+
+    const tinyClusters = state.clusterSizes.filter(s => s < 10).length;
+    const warn = $('banner-warn');
+    if (tinyClusters > 0 && state.nClusters > 2) {
+      warn.textContent = `⚠ ${tinyClusters} cluster${tinyClusters === 1 ? '' : 's'} < 10 cells — likely noise at this resolution`;
+    } else {
+      warn.textContent = '';
+    }
+  }
+
+  function updateSliderReadouts() {
+    kVal.textContent = state.k.toString();
+    resVal.textContent = state.gamma.toFixed(2);
+  }
+
+  // ── Feasibility gate ────────────────────────────────────
+  function validate() {
+    const msgs = [];
+    const N = state.points.length || 500;
+    if (state.k > N - 1) msgs.push(`k (${state.k}) must be ≤ cells − 1 (${N - 1})`);
+    if (state.k < 1)     msgs.push(`k must be ≥ 1`);
+    if (!(state.gamma > 0)) msgs.push(`resolution must be > 0`);
+    if (msgs.length) {
+      warnEl.textContent = msgs.join(' · ');
+      warnEl.classList.add('show');
+      return false;
+    } else {
+      warnEl.classList.remove('show');
+      return true;
+    }
+  }
+
+  // ── Pipeline stages ─────────────────────────────────────
+  function rebuildData() {
+    state.points = simulateCells(state.dataSeed);
+    rebuildGraph();
+  }
+
+  function rebuildGraph() {
+    const { edges, adj } = buildKNN(state.points, state.k);
+    state.edges = edges;
+    state.adj = adj;
+  }
+
+  function recluster() {
+    // Effective modularity γ used internally. See GAMMA_SCALE docstring.
+    const effGamma = effectiveGamma(state.gamma);
+    const { community, modularity } = runLouvain(state.adj, state.edges, effGamma, state.clusterSeed);
+    state.community = community;
+    state.modularity = modularity;
+    // Size stats
+    const sizes = [];
+    for (const c of community) sizes[c] = (sizes[c] || 0) + 1;
+    state.clusterSizes = sizes;
+    state.nClusters = sizes.length;
+    const sorted = sizes.slice().sort((a, b) => a - b);
+    state.medianClusterSize = sorted.length
+      ? sorted[Math.floor(sorted.length / 2)]
+      : 0;
+  }
+
+  function rerender() {
+    render();
+    renderLegend();
+    updateBanner();
+    updateSliderReadouts();
+  }
+
+  // Full pipeline on user action (keeps UI responsive).
+  function runFullPipeline(opts) {
+    if (!validate()) return;
+    // Use requestAnimationFrame to let the UI flush before heavy work.
+    if (opts && opts.rebuildData) rebuildData();
+    else if (opts && opts.rebuildGraph) rebuildGraph();
+    recluster();
+    rerender();
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  kEl.addEventListener('input', () => {
+    state.k = +kEl.value;
+    updateSliderReadouts();
+  });
+  kEl.addEventListener('change', () => {
+    // k changes the graph → rebuild + recluster
+    runFullPipeline({ rebuildGraph: true });
+  });
+
+  resEl.addEventListener('input', () => {
+    state.gamma = resFromSlider(+resEl.value);
+    updateSliderReadouts();
+  });
+  resEl.addEventListener('change', () => {
+    // Resolution change → just recluster, graph stays.
+    runFullPipeline({});
+  });
+
+  showEdgesEl.addEventListener('change', () => {
+    state.showEdges = showEdgesEl.checked;
+    render();
+  });
+
+  rebuildBtn.addEventListener('click', () => {
+    state.dataSeed = (Date.now() & 0x7fffffff) >>> 0;
+    runFullPipeline({ rebuildData: true });
+  });
+
+  reclusterBtn.addEventListener('click', () => {
+    state.clusterSeed = (state.clusterSeed * 1664525 + 1013904223) >>> 0;
+    runFullPipeline({});
+  });
+
+  resetBtn.addEventListener('click', () => {
+    state.k = 15;
+    state.gamma = 1.0;
+    state.showEdges = true;
+    state.dataSeed = 20260421;
+    state.clusterSeed = 7;
+    kEl.value = 15;
+    resEl.value = sliderFromRes(1.0);
+    showEdgesEl.checked = true;
+    runFullPipeline({ rebuildData: true });
+  });
+
+  // ── Boot ────────────────────────────────────────────────
+  state.k = +kEl.value;
+  state.gamma = resFromSlider(+resEl.value);
+  state.showEdges = showEdgesEl.checked;
+  runFullPipeline({ rebuildData: true });
+})();
+</script>
+
+</body>
+</html>

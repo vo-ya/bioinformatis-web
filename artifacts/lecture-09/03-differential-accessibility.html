@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Differential Accessibility Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+      margin-top: 1rem;
+      padding-top: 0.9rem;
+      border-top: 1px dashed var(--border);
+      flex-wrap: wrap;
+    }
+    .action-row .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0 0 0 auto;
+    }
+
+    .plots {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 880px) {
+      .plots { grid-template-columns: 1fr; }
+    }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.5rem;
+      font-weight: 600;
+    }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .legend-swatch .sw.up   { background: var(--accent); }
+    .legend-swatch .sw.down { background: var(--error); }
+    .legend-swatch .sw.ns   { background: var(--fg-muted); opacity: 0.45; }
+    .legend-swatch .sw.tru  { background: transparent; border: 1.5px solid var(--fg); }
+    .legend-swatch .ln {
+      display: inline-block;
+      width: 18px; height: 0;
+      border: 0;
+      border-top: 2px dashed var(--fg-subtle);
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner .whatif {
+      display: block;
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+      letter-spacing: 0.01em;
+    }
+    .banner .whatif b { color: var(--fg); }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .note {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-top: 0.4rem;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="differential-accessibility">
+
+  <header class="artifact-head">
+    <h1>Differential Accessibility Explorer</h1>
+    <p>Simulate a peaks x samples count matrix for ATAC-seq, fit a negative-binomial model per peak, BH-correct, and read off power and observed FDR. This is the Lecture 6 volcano/MA workflow re-applied to chromatin peaks: the same tests, the same plots, but now the count distribution is negative binomial and the dispersion phi controls how badly replicates can go wrong.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Simulation parameters</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="npeaks-input"># peaks</label>
+          <span class="slider-value" id="npeaks-value">500</span>
+        </div>
+        <input id="npeaks-input" type="range" min="100" max="2000" step="50" value="500">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="nrep-input"># replicates / condition</label>
+          <span class="slider-value" id="nrep-value">3</span>
+        </div>
+        <input id="nrep-input" type="range" min="2" max="8" step="1" value="3">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="frac-input">fraction truly DE</label>
+          <span class="slider-value" id="frac-value">0.10</span>
+        </div>
+        <input id="frac-input" type="range" min="0" max="50" step="1" value="10">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="eff-input">effect size (log2 FC)</label>
+          <span class="slider-value" id="eff-value">1.5</span>
+        </div>
+        <input id="eff-input" type="range" min="0" max="40" step="1" value="15">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="phi-input">dispersion phi</label>
+          <span class="slider-value" id="phi-value">0.15</span>
+        </div>
+        <input id="phi-input" type="range" min="1" max="100" step="1" value="15">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="lib-input">library-size sigma</label>
+          <span class="slider-value" id="lib-value">0.30</span>
+        </div>
+        <input id="lib-input" type="range" min="0" max="100" step="1" value="30">
+      </div>
+    </div>
+
+    <p class="note">Counts ~ NegBinom(mu, phi) via Gamma-Poisson compound. Per sample a lognormal library-size factor is applied. DE peaks get log2FC drawn ~ N(+/- eff, 0.3^2) with +/- sign 50/50.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Calling thresholds</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="fdr-input">FDR cutoff (log scale)</label>
+          <span class="slider-value" id="fdr-value">0.050</span>
+        </div>
+        <input id="fdr-input" type="range" min="0" max="1000" step="1" value="750">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="lfc-input">|log2FC| cutoff</label>
+          <span class="slider-value" id="lfc-value">1.0</span>
+        </div>
+        <input id="lfc-input" type="range" min="0" max="300" step="1" value="100">
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate</button>
+      <span class="hint" id="seed-hint">seed = 129</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Results</p>
+
+    <div class="plots">
+      <div>
+        <p class="plot-title">MA plot</p>
+        <div class="plot-wrap">
+          <svg id="ma-svg" class="plot-svg" viewBox="0 0 600 440" preserveAspectRatio="xMidYMid meet" aria-label="MA plot"></svg>
+        </div>
+        <p class="plot-caption">x-axis: mean log2 count (A). y-axis: observed log2 fold change (M). Significant peaks coloured; open circles mark true DE peaks.</p>
+      </div>
+      <div>
+        <p class="plot-title">Volcano</p>
+        <div class="plot-wrap">
+          <svg id="vol-svg" class="plot-svg" viewBox="0 0 600 440" preserveAspectRatio="xMidYMid meet" aria-label="Volcano plot"></svg>
+        </div>
+        <p class="plot-caption">x-axis: log2 fold change. y-axis: -log10(BH-adjusted p). Threshold lines dashed.</p>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw up"></span> called up (adj p &lt; FDR, log2FC &gt; +thr)</span>
+      <span class="legend-swatch"><span class="sw down"></span> called down (adj p &lt; FDR, log2FC &lt; -thr)</span>
+      <span class="legend-swatch"><span class="sw ns"></span> not called</span>
+      <span class="legend-swatch"><span class="sw tru"></span> true DE peak</span>
+      <span class="legend-swatch"><span class="ln"></span> threshold lines</span>
+    </div>
+
+    <div class="banner" id="banner">
+      <b id="b-called">0</b> called
+      <span class="sep">|</span>
+      <b id="b-true">0</b> true DE
+      <span class="sep">|</span>
+      power <b id="b-power">0%</b>
+      <span class="sep">|</span>
+      observed FDR <b id="b-fdr">0%</b>
+      <span class="sep">|</span>
+      <b id="b-tp">0</b> TP / <b id="b-fp">0</b> FP
+      <span class="whatif" id="b-whatif"></span>
+    </div>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // --- Slider mappings -----------------------------------------
+  // FDR slider 0..1000 -> log-uniform [0.001, 0.2]. Default 750 ~ 0.050.
+  function fdrFromSlider(s) {
+    const lo = Math.log(0.001), hi = Math.log(0.2);
+    return Math.exp(lo + (s / 1000) * (hi - lo));
+  }
+  function lfcFromSlider(s) { return s / 100; }
+  function effFromSlider(s) { return s / 10; }
+  function phiFromSlider(s) { return s / 100; }
+  function libFromSlider(s) { return s / 100; }
+  function fracFromSlider(s) { return s / 100; }
+
+  // --- RNG -----------------------------------------------------
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rnd) {
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // Gamma(shape, scale) via Marsaglia-Tsang for shape >= 1,
+  // and shape < 1 handled by boost: Gamma(s) = Gamma(s+1) * U^(1/s).
+  function gammaSample(shape, scale, rnd) {
+    if (shape < 1) {
+      const g = gammaSample(shape + 1, 1, rnd);
+      return scale * g * Math.pow(rnd(), 1 / shape);
+    }
+    const d = shape - 1 / 3;
+    const c = 1 / Math.sqrt(9 * d);
+    while (true) {
+      let x, v;
+      do {
+        x = randn(rnd);
+        v = 1 + c * x;
+      } while (v <= 0);
+      v = v * v * v;
+      const u = rnd();
+      if (u < 1 - 0.0331 * x * x * x * x) return d * v * scale;
+      if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v * scale;
+    }
+  }
+
+  // Poisson sampler. Knuth for small lambda, normal approx for large.
+  function poissonSample(lambda, rnd) {
+    if (lambda <= 0) return 0;
+    if (lambda < 30) {
+      const L = Math.exp(-lambda);
+      let k = 0, p = 1;
+      do {
+        k++;
+        p *= rnd();
+      } while (p > L);
+      return k - 1;
+    }
+    // Normal approximation, rounded, non-negative.
+    const x = lambda + Math.sqrt(lambda) * randn(rnd);
+    return Math.max(0, Math.round(x));
+  }
+
+  // NegBinom with mean mu, dispersion phi (variance = mu + phi*mu^2)
+  // via gamma-Poisson compound: rate ~ Gamma(1/phi, mu*phi), count ~ Pois(rate).
+  function nbSample(mu, phi, rnd) {
+    if (phi <= 0 || mu <= 0) return poissonSample(mu, rnd);
+    const shape = 1 / phi;
+    const scale = mu * phi;
+    const rate = gammaSample(shape, scale, rnd);
+    return poissonSample(rate, rnd);
+  }
+
+  // --- Stats helpers ------------------------------------------
+  // Error function (Abramowitz & Stegun 7.1.26)
+  function erf(x) {
+    const sign = x < 0 ? -1 : 1;
+    const ax = Math.abs(x);
+    const a1 =  0.254829592, a2 = -0.284496736, a3 =  1.421413741;
+    const a4 = -1.453152027, a5 =  1.061405429, p  =  0.3275911;
+    const t = 1 / (1 + p * ax);
+    const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-ax * ax);
+    return sign * y;
+  }
+  // Two-sided p-value from standard normal z.
+  function twoSidedP(z) {
+    const p = 1 - erf(Math.abs(z) / Math.SQRT2);
+    // Clamp away from 0 to preserve ordering for BH.
+    return Math.max(1e-300, Math.min(1, p));
+  }
+
+
+  // BH correction; returns adjusted p-values aligned to input order.
+  function bhAdjust(pvals) {
+    const n = pvals.length;
+    const idx = new Array(n);
+    for (let i = 0; i < n; i++) idx[i] = i;
+    idx.sort((a, b) => pvals[a] - pvals[b]);
+
+    const adj = new Array(n);
+    let running = 1;
+    for (let k = n - 1; k >= 0; k--) {
+      const i = idx[k];
+      const p = pvals[i];
+      const q = Math.min(1, p * n / (k + 1));
+      if (q < running) running = q;
+      adj[i] = running;
+    }
+    return adj;
+  }
+
+  // --- Per-peak NB Wald test ----------------------------------
+  //
+  // Chosen approach (documented for students): a Wald test on the log
+  // fold-change beta1 under a 2-group log-link NB GLM. This is the same
+  // test DESeq2 and edgeR use under the hood, but we hard-code the
+  // dispersion from the slider rather than estimating it per-peak.
+  //
+  // Model:   log(mu_ij) = beta0 + beta1 * x_i,  y_ij ~ NB(mu_ij, phi)
+  //          x_i = 0 for control, 1 for treatment.
+  //
+  // MLE (equal replicates, closed form):
+  //   beta1_hat = log(meanT / meanC)
+  //
+  // SE from NB score information evaluated at per-group fitted means:
+  //   var(beta1) = 1/I_C + 1/I_T, with I_g = n_g * mu_g / (1 + phi*mu_g)
+  //
+  // This is the 2x2 Fisher-information inverse for a log-link NB GLM
+  // with equal replicates; the off-diagonal cancels and we recover the
+  // familiar "1/info(C) + 1/info(T)" two-group SE. Wald z = beta1/SE,
+  // p-value = 2 * (1 - Phi(|z|)).
+  //
+  // Zero-count regularization: add eps = 0.5 to each group mean before
+  // the log so peaks with a zero in one group still yield a finite
+  // beta1 and a usable (not extreme) p-value.
+  //
+  // Library-size variability is handled upstream by total-count
+  // normalization in simulate(); the test itself assumes normalized
+  // counts. This mirrors the real-world pattern: normalize first, then
+  // test.
+  function nbGlmTest(yCtrl, yTrt, phi) {
+    const nC = yCtrl.length, nT = yTrt.length;
+    let sumC = 0, sumT = 0;
+    for (let i = 0; i < nC; i++) sumC += yCtrl[i];
+    for (let i = 0; i < nT; i++) sumT += yTrt[i];
+    const meanC = sumC / nC;
+    const meanT = sumT / nT;
+
+    if (meanC < 1e-6 && meanT < 1e-6) {
+      return { log2FC: 0, pval: 1, meanAll: 0 };
+    }
+
+    const eps = 0.5;
+    const mC = meanC + eps / nC;
+    const mT = meanT + eps / nT;
+    const beta1 = Math.log(mT) - Math.log(mC);
+
+    const infC = nC * mC / (1 + phi * mC);
+    const infT = nT * mT / (1 + phi * mT);
+    const varB1 = 1 / infC + 1 / infT;
+    const se = Math.sqrt(varB1);
+
+    const z = beta1 / se;
+    const pval = twoSidedP(z);
+
+    const LOG2 = Math.log(2);
+    const log2FC = beta1 / LOG2;
+    const meanAll = (sumC + sumT) / (nC + nT);
+
+    return { log2FC, pval, meanAll };
+  }
+
+  // --- Simulation ---------------------------------------------
+  function simulate(params, seed) {
+    const { nPeaks, nRep, frac, eff, phi, libSigma } = params;
+    const rnd = mulberry32(seed);
+
+    // True library-size factors for 2 * nRep samples (used by the generator).
+    const nSamp = 2 * nRep;
+    const libFactors = new Array(nSamp);
+    for (let j = 0; j < nSamp; j++) {
+      const z = randn(rnd);
+      libFactors[j] = Math.exp(libSigma * z);
+    }
+
+    // Pass 1: generate raw counts and truth labels.
+    const rawMatrix = new Array(nPeaks);
+    const truth = new Array(nPeaks);
+
+    let nTrueDE = 0;
+    for (let p = 0; p < nPeaks; p++) {
+      // Base mean: log-uniform on [2^8.5, 2^11.5] so log2 mean in [8.5, 11.5].
+      // Corresponds to peaks spanning ~360 to 2900 reads -- a realistic
+      // "decent signal-to-noise" ATAC-seq regime. Below this, NB noise
+      // floors out all peaks into indistinguishable mush and the
+      // teaching target of ~80% power at defaults becomes unreachable
+      // without cranking up replicates artificially.
+      const mu0 = Math.pow(2, 8.5 + rnd() * 3);
+
+      const isDE = rnd() < frac;
+      if (isDE) nTrueDE++;
+      let trueLog2FC = 0;
+      if (isDE) {
+        const sign = rnd() < 0.5 ? -1 : 1;
+        // Effect sd = 0.15 log2 so most DE peaks are within +/-30% of the
+        // slider value; avoids a long tail of nominally-DE peaks with
+        // effects below the |log2FC| cutoff.
+        trueLog2FC = sign * Math.max(0.1, eff + 0.15 * randn(rnd));
+      }
+      const fcMul = Math.pow(2, trueLog2FC);
+
+      const y = new Array(nSamp);
+      for (let j = 0; j < nSamp; j++) {
+        const isTrt = j >= nRep;
+        const mu = mu0 * (isTrt ? fcMul : 1) * libFactors[j];
+        y[j] = nbSample(mu, phi, rnd);
+      }
+      rawMatrix[p] = y;
+      truth[p] = { isDE, trueLog2FC, mu0 };
+    }
+
+    // Pass 2: estimate per-sample size factors via a simple total-count
+    // normalization relative to the mean library. This mimics what real
+    // pipelines do before any DE test -- without it, the lognormal
+    // library-size variance would show up as anti-conservative null
+    // p-values. (A more refined median-of-ratios estimator would be
+    // used in DESeq2; total-count is the simpler ATAC-seq default.)
+    const sizeFactors = new Array(nSamp).fill(0);
+    for (let p = 0; p < nPeaks; p++) {
+      const y = rawMatrix[p];
+      for (let j = 0; j < nSamp; j++) sizeFactors[j] += y[j];
+    }
+    let mean = 0;
+    for (let j = 0; j < nSamp; j++) mean += sizeFactors[j];
+    mean /= nSamp;
+    for (let j = 0; j < nSamp; j++) {
+      sizeFactors[j] = sizeFactors[j] > 0 ? sizeFactors[j] / mean : 1;
+    }
+
+    // Pass 3: per-peak test on size-factor-normalized counts.
+    const peaks = new Array(nPeaks);
+    for (let p = 0; p < nPeaks; p++) {
+      const y = rawMatrix[p];
+      const yNorm = new Array(nSamp);
+      for (let j = 0; j < nSamp; j++) {
+        yNorm[j] = y[j] / sizeFactors[j];
+      }
+      const yC = yNorm.slice(0, nRep);
+      const yT = yNorm.slice(nRep);
+
+      const res = nbGlmTest(yC, yT, phi);
+      peaks[p] = {
+        peakId: p,
+        isDE: truth[p].isDE,
+        trueLog2FC: truth[p].trueLog2FC,
+        log2FC: res.log2FC,
+        pval: res.pval,
+        meanCount: res.meanAll,
+        logMean: Math.log2(Math.max(1, res.meanAll)),
+      };
+    }
+
+    // BH correction
+    const pvals = peaks.map(pk => pk.pval);
+    const adj = bhAdjust(pvals);
+    for (let i = 0; i < peaks.length; i++) {
+      peaks[i].padj = adj[i];
+      peaks[i].negLog10P = -Math.log10(Math.max(1e-300, adj[i]));
+    }
+
+    return { peaks, nTrueDE, libFactors, sizeFactors };
+  }
+
+  // --- State --------------------------------------------------
+  const state = {
+    nPeaks: 500,
+    nRep: 3,
+    frac: 0.10,
+    eff: 1.5,
+    phi: 0.15,
+    libSigma: 0.30,
+    fdrThr: 0.05,
+    lfcThr: 1.0,
+    seed: 129,
+    sim: null,
+    rafId: 0,
+  };
+
+  // --- DOM ----------------------------------------------------
+  const maSvg  = $('ma-svg');
+  const volSvg = $('vol-svg');
+  const seedHint = $('seed-hint');
+
+  const inputs = {
+    npeaks: $('npeaks-input'),
+    nrep:   $('nrep-input'),
+    frac:   $('frac-input'),
+    eff:    $('eff-input'),
+    phi:    $('phi-input'),
+    lib:    $('lib-input'),
+    fdr:    $('fdr-input'),
+    lfc:    $('lfc-input'),
+  };
+  const values = {
+    npeaks: $('npeaks-value'),
+    nrep:   $('nrep-value'),
+    frac:   $('frac-value'),
+    eff:    $('eff-value'),
+    phi:    $('phi-value'),
+    lib:    $('lib-value'),
+    fdr:    $('fdr-value'),
+    lfc:    $('lfc-value'),
+  };
+
+  // --- Render helpers -----------------------------------------
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // --- Plot: MA -----------------------------------------------
+  function renderMA() {
+    clear(maSvg);
+    const W = 600, H = 440;
+    const PAD_L = 62, PAD_R = 18, PAD_T = 18, PAD_B = 50;
+    const x0 = PAD_L, x1 = W - PAD_R;
+    const y0 = PAD_T, y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    const peaks = state.sim.peaks;
+    // x range: log2 mean count. Data-driven but clamped.
+    let xMin = Infinity, xMax = -Infinity;
+    let yAbsMax = 0;
+    for (const p of peaks) {
+      if (p.logMean < xMin) xMin = p.logMean;
+      if (p.logMean > xMax) xMax = p.logMean;
+      const a = Math.abs(p.log2FC);
+      if (isFinite(a) && a > yAbsMax) yAbsMax = a;
+    }
+    if (!isFinite(xMin)) { xMin = 0; xMax = 10; }
+    xMin = Math.floor(Math.max(0, xMin - 0.5));
+    xMax = Math.ceil(xMax + 0.5);
+    if (xMax - xMin < 2) xMax = xMin + 2;
+    const yMax = Math.max(2, Math.min(8, Math.ceil(yAbsMax + 0.5)));
+    const yMin = -yMax;
+
+    const xOf = (v) => x0 + ((v - xMin) / (xMax - xMin)) * plotW;
+    const yOf = (v) => y1 - ((v - yMin) / (yMax - yMin)) * plotH;
+
+    // Frame
+    maSvg.appendChild(el('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Y grid at integer values
+    for (let v = Math.ceil(yMin); v <= Math.floor(yMax); v++) {
+      if (v === 0) continue;
+      const y = yOf(v);
+      maSvg.appendChild(el('line', {
+        x1: x0, x2: x1, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': '2 4',
+      }));
+    }
+    // Zero line (solid)
+    maSvg.appendChild(el('line', {
+      x1: x0, x2: x1, y1: yOf(0), y2: yOf(0),
+      stroke: 'var(--fg-subtle)', 'stroke-width': 1,
+    }));
+
+    // LFC threshold dashed lines
+    const lfcT = state.lfcThr;
+    if (lfcT > 0 && lfcT < yMax) {
+      for (const v of [-lfcT, lfcT]) {
+        const y = yOf(v);
+        maSvg.appendChild(el('line', {
+          x1: x0, x2: x1, y1: y, y2: y,
+          stroke: 'var(--fg-subtle)', 'stroke-width': 1.2,
+          'stroke-dasharray': '5 4',
+        }));
+      }
+    }
+
+    // X ticks
+    const xStep = Math.max(1, Math.round((xMax - xMin) / 6));
+    for (let v = xMin; v <= xMax; v += xStep) {
+      const x = xOf(v);
+      maSvg.appendChild(el('line', {
+        x1: x, x2: x, y1: y1, y2: y1 + 4,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      maSvg.appendChild(el('text', {
+        x, y: y1 + 16,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, String(v)));
+    }
+
+    // Y ticks
+    const yStep = Math.max(1, Math.round(yMax / 3));
+    for (let v = Math.ceil(yMin / yStep) * yStep; v <= yMax; v += yStep) {
+      const y = yOf(v);
+      maSvg.appendChild(el('line', {
+        x1: x0 - 4, x2: x0, y1: y, y2: y,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      maSvg.appendChild(el('text', {
+        x: x0 - 8, y: y + 3.5,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, String(v)));
+    }
+
+    // Axis titles
+    maSvg.appendChild(el('text', {
+      x: (x0 + x1) / 2, y: H - 14,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+    }, 'A (mean log2 count)'));
+
+    maSvg.appendChild(el('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+      transform: `translate(16, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, 'M (log2 FC)'));
+
+    // Points
+    const fdrT = state.fdrThr;
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+    // ns first
+    const nsList = [], upList = [], dnList = [];
+    for (const p of peaks) {
+      const isPass = (p.padj < fdrT) && (Math.abs(p.log2FC) > lfcT);
+      if (!isPass) nsList.push(p);
+      else if (p.log2FC > 0) upList.push(p);
+      else dnList.push(p);
+    }
+
+    const drawDot = (p, fill, op) => {
+      const cx = xOf(clamp(p.logMean, xMin, xMax));
+      const cy = yOf(clamp(p.log2FC, yMin, yMax));
+      maSvg.appendChild(el('circle', {
+        cx: cx.toFixed(2), cy: cy.toFixed(2),
+        r: 2.3, fill, opacity: op,
+      }));
+    };
+    for (const p of nsList) drawDot(p, 'var(--fg-muted)', 0.3);
+    for (const p of dnList) drawDot(p, 'var(--error)', 0.85);
+    for (const p of upList) drawDot(p, 'var(--accent)', 0.85);
+
+    // Truth overlay: small open ring around true DE peaks
+    for (const p of peaks) {
+      if (!p.isDE) continue;
+      const cx = xOf(clamp(p.logMean, xMin, xMax));
+      const cy = yOf(clamp(p.log2FC, yMin, yMax));
+      maSvg.appendChild(el('circle', {
+        cx: cx.toFixed(2), cy: cy.toFixed(2),
+        r: 4.2, fill: 'none',
+        stroke: 'var(--fg)', 'stroke-width': 0.9,
+        opacity: 0.55,
+      }));
+    }
+  }
+
+  // --- Plot: Volcano ------------------------------------------
+  function renderVolcano() {
+    clear(volSvg);
+    const W = 600, H = 440;
+    const PAD_L = 58, PAD_R = 18, PAD_T = 18, PAD_B = 50;
+    const x0 = PAD_L, x1 = W - PAD_R;
+    const y0 = PAD_T, y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    const peaks = state.sim.peaks;
+    let xAbsMax = 0, yMax = 0;
+    for (const p of peaks) {
+      if (isFinite(p.log2FC) && Math.abs(p.log2FC) > xAbsMax) xAbsMax = Math.abs(p.log2FC);
+      if (isFinite(p.negLog10P) && p.negLog10P > yMax) yMax = p.negLog10P;
+    }
+    const xMax = Math.max(2, Math.min(8, Math.ceil(xAbsMax + 0.5)));
+    const xMin = -xMax;
+    const yMaxR = Math.max(2, Math.ceil(yMax + 0.5));
+
+    const xOf = (v) => x0 + ((v - xMin) / (xMax - xMin)) * plotW;
+    const yOf = (v) => y1 - ((v - 0) / (yMaxR - 0)) * plotH;
+
+    volSvg.appendChild(el('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Gridlines
+    for (let v = Math.ceil(xMin); v <= Math.floor(xMax); v++) {
+      if (v === 0) continue;
+      const x = xOf(v);
+      volSvg.appendChild(el('line', {
+        x1: x, x2: x, y1: y0, y2: y1,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': '2 4',
+      }));
+    }
+    // Zero line
+    volSvg.appendChild(el('line', {
+      x1: xOf(0), x2: xOf(0), y1: y0, y2: y1,
+      stroke: 'var(--fg-subtle)', 'stroke-width': 1,
+    }));
+
+    // Threshold lines
+    const fdrT = state.fdrThr;
+    const lfcT = state.lfcThr;
+    const yThr = -Math.log10(fdrT);
+    if (lfcT > 0 && lfcT < xMax) {
+      for (const v of [-lfcT, lfcT]) {
+        const x = xOf(v);
+        volSvg.appendChild(el('line', {
+          x1: x, x2: x, y1: y0, y2: y1,
+          stroke: 'var(--fg-subtle)', 'stroke-width': 1.2,
+          'stroke-dasharray': '5 4',
+        }));
+      }
+    }
+    if (yThr > 0 && yThr < yMaxR) {
+      const y = yOf(yThr);
+      volSvg.appendChild(el('line', {
+        x1: x0, x2: x1, y1: y, y2: y,
+        stroke: 'var(--fg-subtle)', 'stroke-width': 1.2,
+        'stroke-dasharray': '5 4',
+      }));
+    }
+
+    // Ticks
+    for (let v = Math.ceil(xMin); v <= Math.floor(xMax); v++) {
+      const x = xOf(v);
+      volSvg.appendChild(el('line', {
+        x1: x, x2: x, y1: y1, y2: y1 + 4,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      volSvg.appendChild(el('text', {
+        x, y: y1 + 16,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, String(v)));
+    }
+    const yStep = Math.max(1, Math.round(yMaxR / 4));
+    for (let v = 0; v <= yMaxR; v += yStep) {
+      const y = yOf(v);
+      volSvg.appendChild(el('line', {
+        x1: x0 - 4, x2: x0, y1: y, y2: y,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      volSvg.appendChild(el('text', {
+        x: x0 - 8, y: y + 3.5,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, String(v)));
+    }
+
+    // Axis titles
+    volSvg.appendChild(el('text', {
+      x: (x0 + x1) / 2, y: H - 14,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+    }, 'log2 fold change'));
+    volSvg.appendChild(el('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+      transform: `translate(14, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, '-log10(adj p)'));
+
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+    const nsList = [], upList = [], dnList = [];
+    for (const p of peaks) {
+      const isPass = (p.padj < fdrT) && (Math.abs(p.log2FC) > lfcT);
+      if (!isPass) nsList.push(p);
+      else if (p.log2FC > 0) upList.push(p);
+      else dnList.push(p);
+    }
+
+    const drawDot = (p, fill, op) => {
+      const cx = xOf(clamp(p.log2FC, xMin, xMax));
+      const cy = yOf(clamp(p.negLog10P, 0, yMaxR));
+      volSvg.appendChild(el('circle', {
+        cx: cx.toFixed(2), cy: cy.toFixed(2),
+        r: 2.3, fill, opacity: op,
+      }));
+    };
+    for (const p of nsList) drawDot(p, 'var(--fg-muted)', 0.3);
+    for (const p of dnList) drawDot(p, 'var(--error)', 0.85);
+    for (const p of upList) drawDot(p, 'var(--accent)', 0.85);
+
+    // Truth overlay
+    for (const p of peaks) {
+      if (!p.isDE) continue;
+      const cx = xOf(clamp(p.log2FC, xMin, xMax));
+      const cy = yOf(clamp(p.negLog10P, 0, yMaxR));
+      volSvg.appendChild(el('circle', {
+        cx: cx.toFixed(2), cy: cy.toFixed(2),
+        r: 4.2, fill: 'none',
+        stroke: 'var(--fg)', 'stroke-width': 0.9,
+        opacity: 0.55,
+      }));
+    }
+
+    // Threshold labels
+    if (yThr > 0 && yThr < yMaxR) {
+      volSvg.appendChild(el('text', {
+        x: x1 - 6, y: yOf(yThr) - 4,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-muted)',
+      }, `FDR = ${fdrT < 0.001 ? fdrT.toExponential(1) : fdrT.toFixed(3)}`));
+    }
+    if (lfcT > 0 && lfcT < xMax) {
+      volSvg.appendChild(el('text', {
+        x: xOf(lfcT) + 4, y: y0 + 12,
+        'text-anchor': 'start',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-muted)',
+      }, `|log2FC| = ${lfcT.toFixed(1)}`));
+    }
+  }
+
+  // --- Banner + power/FDR -------------------------------------
+  function computeMetrics() {
+    const peaks = state.sim.peaks;
+    const fdrT = state.fdrThr;
+    const lfcT = state.lfcThr;
+    let called = 0, tp = 0, fp = 0, trueDE = 0;
+    for (const p of peaks) {
+      if (p.isDE) trueDE++;
+      const isPass = (p.padj < fdrT) && (Math.abs(p.log2FC) > lfcT);
+      if (isPass) {
+        called++;
+        if (p.isDE) tp++; else fp++;
+      }
+    }
+    const power = trueDE > 0 ? tp / trueDE : 0;
+    const obsFdr = called > 0 ? fp / called : 0;
+    return { called, tp, fp, trueDE, power, obsFdr };
+  }
+
+  function updateBanner() {
+    const m = computeMetrics();
+    $('b-called').textContent = m.called.toLocaleString();
+    $('b-true').textContent   = m.trueDE.toLocaleString();
+    $('b-power').textContent  = (m.power * 100).toFixed(0) + '%';
+    $('b-fdr').textContent    = (m.obsFdr * 100).toFixed(1) + '%';
+    $('b-tp').textContent     = m.tp.toLocaleString();
+    $('b-fp').textContent     = m.fp.toLocaleString();
+
+    // "What-if" line. Build a small contextual nudge.
+    let hint = '';
+    if (state.eff < 0.05) {
+      hint = 'effect size = 0: p-values should be ~uniform, power tracks the FDR cutoff.';
+    } else if (state.nRep >= 3 && m.power >= 0.75) {
+      hint = `nominal FDR = ${(state.fdrThr * 100).toFixed(1)}%, observed = ${(m.obsFdr * 100).toFixed(1)}%. Drop replicates to 2 or push phi up to see power collapse.`;
+    } else if (state.nRep <= 2) {
+      hint = 'only 2 replicates: the NB variance is poorly anchored, power bleeds away even at strong effect sizes.';
+    } else if (state.phi >= 0.4) {
+      hint = `dispersion phi = ${state.phi.toFixed(2)} is high (noisy biology): raise replicates to claw power back.`;
+    } else if (state.frac < 0.02) {
+      hint = 'very few true DE peaks: BH adjustment is lenient but TP count will be tiny by construction.';
+    } else {
+      hint = `${m.tp} true positives out of ${m.trueDE} true DE peaks.`;
+    }
+    $('b-whatif').textContent = hint;
+  }
+
+  // --- Readouts + control wiring ------------------------------
+  function readControls() {
+    state.nPeaks  = +inputs.npeaks.value;
+    state.nRep    = +inputs.nrep.value;
+    state.frac    = fracFromSlider(+inputs.frac.value);
+    state.eff     = effFromSlider(+inputs.eff.value);
+    state.phi     = phiFromSlider(+inputs.phi.value);
+    state.libSigma= libFromSlider(+inputs.lib.value);
+    state.fdrThr  = fdrFromSlider(+inputs.fdr.value);
+    state.lfcThr  = lfcFromSlider(+inputs.lfc.value);
+  }
+
+  function updateReadouts() {
+    values.npeaks.textContent = state.nPeaks.toString();
+    values.nrep.textContent   = state.nRep.toString();
+    values.frac.textContent   = state.frac.toFixed(2);
+    values.eff.textContent    = state.eff.toFixed(1);
+    values.phi.textContent    = state.phi.toFixed(2);
+    values.lib.textContent    = state.libSigma.toFixed(2);
+    values.fdr.textContent    = state.fdrThr < 0.001
+      ? state.fdrThr.toExponential(1)
+      : state.fdrThr.toFixed(3);
+    values.lfc.textContent    = state.lfcThr.toFixed(1);
+    seedHint.textContent = `seed = ${state.seed}`;
+  }
+
+  function runSim() {
+    state.sim = simulate({
+      nPeaks: state.nPeaks,
+      nRep: state.nRep,
+      frac: state.frac,
+      eff: state.eff,
+      phi: state.phi,
+      libSigma: state.libSigma,
+    }, state.seed);
+  }
+
+  function scheduleDraw() {
+    if (state.rafId) return;
+    state.rafId = requestAnimationFrame(() => {
+      state.rafId = 0;
+      updateReadouts();
+      renderMA();
+      renderVolcano();
+      updateBanner();
+    });
+  }
+
+  // Which inputs require re-simulation vs. just re-thresholding.
+  const SIM_KEYS = ['npeaks', 'nrep', 'frac', 'eff', 'phi', 'lib'];
+  const THR_KEYS = ['fdr', 'lfc'];
+
+  for (const k of SIM_KEYS) {
+    inputs[k].addEventListener('input', () => {
+      readControls();
+      runSim();
+      scheduleDraw();
+    });
+  }
+  for (const k of THR_KEYS) {
+    inputs[k].addEventListener('input', () => {
+      readControls();
+      scheduleDraw();
+    });
+  }
+
+  $('resim-btn').addEventListener('click', () => {
+    // Advance seed deterministically so re-simulate produces a fresh draw.
+    state.seed = (state.seed * 1664525 + 1013904223) >>> 0;
+    readControls();
+    runSim();
+    scheduleDraw();
+  });
+
+  // --- Boot ---------------------------------------------------
+  readControls();
+  updateReadouts();
+  runSim();
+  renderMA();
+  renderVolcano();
+  updateBanner();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATAC Footprint Analyser</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.9rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+      align-items: center;
+    }
+    .action-row .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-left: auto;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    .status-dot.working { background: var(--warning); animation: pulse 1s infinite ease-in-out; }
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
+
+    .plot-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 820px) {
+      .plot-grid { grid-template-columns: 1fr; }
+    }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 0 0 0.4rem;
+    }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner .row { display: block; }
+    .banner .row + .row { margin-top: 0.2rem; }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="atac-footprint-analyser">
+
+  <header class="artifact-head">
+    <h1>ATAC Footprint Analyser</h1>
+    <p>Tn5 cuts open chromatin. Where a transcription factor sits on DNA, it blocks Tn5, leaving a small dip flanked by accessibility peaks — a "footprint". Each motif instance is individually far too noisy to see it. Aggregate over <i>N</i> sites and the dip emerges as 1/√N noise beats a constant signal. Crank N down and watch the footprint dissolve into Poisson noise.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Controls</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="depth-input">True footprint depth</label>
+          <span class="slider-value" id="depth-value">0.40</span>
+        </div>
+        <input id="depth-input" type="range" min="0" max="100" step="1" value="40">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="flank-input">Flank elevation (×baseline)</label>
+          <span class="slider-value" id="flank-value">1.80</span>
+        </div>
+        <input id="flank-input" type="range" min="100" max="300" step="5" value="180">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="cov-input">Per-site coverage (cuts/bp)</label>
+          <span class="slider-value" id="cov-value">0.30</span>
+        </div>
+        <input id="cov-input" type="range" min="10" max="200" step="5" value="30">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="n-input">Number of motif instances N</label>
+          <span class="slider-value" id="n-value">1000</span>
+        </div>
+        <input id="n-input" type="range" min="50" max="5000" step="10" value="1000">
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate</button>
+      <span class="hint"><span class="status-dot" id="status-dot"></span><span id="status-text">idle</span></span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Aggregated footprint &amp; individual traces</p>
+    <div class="plot-grid">
+      <div>
+        <p class="plot-title">Mean cuts / bp across N sites · x = offset from motif centre</p>
+        <div class="plot-wrap">
+          <svg id="agg-svg" class="plot-svg" viewBox="0 0 700 380" preserveAspectRatio="xMidYMid meet" aria-label="Aggregated footprint"></svg>
+        </div>
+        <p class="plot-caption">The clean dip at x=0 and the flanking shoulders are the footprint. The grey band shows ±1 SE across sites per bin. At N=1000 the signal towers over the band; shrink N and the band swallows the dip.</p>
+      </div>
+      <div>
+        <p class="plot-title">6 individual site traces (raw cuts)</p>
+        <div class="mini-grid">
+          <div class="plot-wrap"><svg id="mini-0" class="plot-svg" viewBox="0 0 240 110" preserveAspectRatio="xMidYMid meet"></svg></div>
+          <div class="plot-wrap"><svg id="mini-1" class="plot-svg" viewBox="0 0 240 110" preserveAspectRatio="xMidYMid meet"></svg></div>
+          <div class="plot-wrap"><svg id="mini-2" class="plot-svg" viewBox="0 0 240 110" preserveAspectRatio="xMidYMid meet"></svg></div>
+          <div class="plot-wrap"><svg id="mini-3" class="plot-svg" viewBox="0 0 240 110" preserveAspectRatio="xMidYMid meet"></svg></div>
+          <div class="plot-wrap"><svg id="mini-4" class="plot-svg" viewBox="0 0 240 110" preserveAspectRatio="xMidYMid meet"></svg></div>
+          <div class="plot-wrap"><svg id="mini-5" class="plot-svg" viewBox="0 0 240 110" preserveAspectRatio="xMidYMid meet"></svg></div>
+        </div>
+        <p class="plot-caption">Each panel is one random motif instance: raw Poisson cut counts per bp. No visible dip. The footprint only exists as a statement about the mean.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="banner" id="banner">
+    <span class="row"><b>Measured depth:</b> <span id="banner-depth">—</span></span>
+    <span class="row"><b>SNR:</b> <span id="banner-snr">—</span></span>
+    <span class="row"><b>Regime:</b> <span id="banner-regime">—</span></span>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // Window is -200..+200 bp around motif centre → 401 positions.
+  const X_MIN = -200;
+  const X_MAX = 200;
+  const N_BP = X_MAX - X_MIN + 1;         // 401
+  const CENTRE_HALF = 10;                  // ±10 bp at motif centre: depressed
+  const FLANK_TAPER = 100;                 // flank elevation tapers back to 1.0 by ±100
+  const CENTRE_BINS = [-5, 5];             // SNR "centre"
+  const FLANK_BINS = [[-150, -50], [50, 150]]; // SNR "flank"
+
+  // ── Deterministic RNG ───────────────────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Poisson sampler. For small λ use Knuth; for λ >= 30 use a normal
+  // approximation (rounded, clamped at 0) — plenty accurate for simulation.
+  function poisson(rnd, lambda) {
+    if (lambda <= 0) return 0;
+    if (lambda < 30) {
+      const L = Math.exp(-lambda);
+      let k = 0, p = 1;
+      do {
+        k++;
+        p *= rnd();
+      } while (p > L);
+      return k - 1;
+    }
+    // Normal approx: mean = λ, var = λ
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    const x = Math.round(lambda + Math.sqrt(lambda) * z);
+    return x < 0 ? 0 : x;
+  }
+
+  // ── Expected-cut profile λ(x) ───────────────────────────
+  //
+  // At offset x from motif centre:
+  //   inside ±CENTRE_HALF:   λ = cov * (1 − depth)              (TF blocks Tn5)
+  //   outside, with taper:   λ = cov * (1 + (flank−1) * g * taper(|x|))
+  //   where taper(d) = 1 at d=CENTRE_HALF and 0 at d≥FLANK_TAPER (cosine ramp),
+  //   and g is a "binding gate" tied to depth: g = min(1, depth / 0.1). When
+  //   the TF is not bound (depth=0) neither the dip nor the flanking shoulders
+  //   appear and the curve is flat at λ = cov — this is the null comparison.
+  function buildLambda(cov, depth, flank) {
+    const lam = new Float64Array(N_BP);
+    // Binding gate: 0 at depth=0, 1 once depth exceeds ~0.1 (smooth ramp).
+    // Below the ramp the flank excess is proportionally damped so the
+    // null-depth case really does collapse to a flat profile.
+    const gate = depth <= 0 ? 0 : Math.min(1, depth / 0.1);
+    for (let i = 0; i < N_BP; i++) {
+      const x = X_MIN + i;
+      const ax = Math.abs(x);
+      let v;
+      if (ax <= CENTRE_HALF) {
+        v = cov * (1 - depth);
+      } else if (ax >= FLANK_TAPER) {
+        v = cov;  // back to baseline past the shoulders
+      } else {
+        const t = (ax - CENTRE_HALF) / (FLANK_TAPER - CENTRE_HALF);
+        const w = 0.5 * (1 + Math.cos(Math.PI * t));  // 1 → 0
+        v = cov * (1 + gate * (flank - 1) * w);
+      }
+      lam[i] = Math.max(0, v);
+    }
+    return lam;
+  }
+
+  // ── Aggregate simulation ────────────────────────────────
+  //
+  // For N sites, produce:
+  //   meanTrace[i]   = (1/N) Σ_s x_{s,i}
+  //   varTrace[i]    = unbiased var across s at bin i (for SE band)
+  //   counts_si for a handful of sampled individual sites (for mini-plots)
+  function simulateFootprint(N, cov, depth, flank, seed) {
+    const lam = buildLambda(cov, depth, flank);
+    const rnd = mulberry32(seed);
+
+    const mean = new Float64Array(N_BP);
+    const m2 = new Float64Array(N_BP);  // for Welford's online variance
+
+    // Pick 6 random site indices to store raw traces for mini-plots
+    const miniK = 6;
+    const miniIdx = new Int32Array(miniK);
+    {
+      // Pick distinct indices in [0, N). With N >= 50 collisions are unlikely
+      // but we check anyway.
+      const picked = new Set();
+      let k = 0;
+      while (k < miniK && picked.size < miniK) {
+        const j = Math.floor(rnd() * N);
+        if (!picked.has(j)) { picked.add(j); miniIdx[k++] = j; }
+      }
+      // Sort so iteration is in-order (doesn't really matter but tidy)
+      const arr = Array.from(picked).sort((a, b) => a - b);
+      for (let i = 0; i < miniK; i++) miniIdx[i] = arr[i];
+    }
+    const miniTraces = [];
+    for (let i = 0; i < miniK; i++) miniTraces.push(new Float64Array(N_BP));
+
+    // For the SNR-centre std we want the per-site mean cut count across
+    // CENTRE_BINS of that site, then std across sites of that per-site mean.
+    const perSiteCentreMean = new Float64Array(N);
+    const cLo = CENTRE_BINS[0], cHi = CENTRE_BINS[1];
+    const cLoI = cLo - X_MIN, cHiI = cHi - X_MIN;  // indices into lam[]
+    const centreSpan = cHiI - cLoI + 1;
+
+    // Per-site flank mean: averaged over both flank ranges.
+    const perSiteFlankMean = new Float64Array(N);
+    const fRanges = FLANK_BINS.map(([a, b]) => [a - X_MIN, b - X_MIN]);
+    let flankTotalBins = 0;
+    for (const [a, b] of fRanges) flankTotalBins += (b - a + 1);
+
+    // Map siteIdx → slot in miniTraces (0..5), or -1
+    const miniSlot = new Map();
+    for (let i = 0; i < miniIdx.length; i++) miniSlot.set(miniIdx[i], i);
+
+    // Welford's online variance across sites per bin
+    for (let s = 0; s < N; s++) {
+      // Generate this site's trace in a temporary
+      const miniIndex = miniSlot.has(s) ? miniSlot.get(s) : -1;
+      let centreSum = 0;
+      let flankSum = 0;
+
+      // We don't need to keep the whole trace unless it's a mini-plot sample.
+      // But we need to update Welford across bins as we go; easier to walk bins.
+      for (let i = 0; i < N_BP; i++) {
+        const x = poisson(rnd, lam[i]);
+        // Welford update for bin i
+        const old = mean[i];
+        const n1 = s + 1;
+        const delta = x - old;
+        const newMean = old + delta / n1;
+        mean[i] = newMean;
+        m2[i] += delta * (x - newMean);
+
+        if (i >= cLoI && i <= cHiI) centreSum += x;
+        if (miniIndex >= 0) miniTraces[miniIndex][i] = x;
+      }
+      perSiteCentreMean[s] = centreSum / centreSpan;
+
+      // Flank per-site mean: re-walk the flank ranges. To avoid re-sampling
+      // (which would give independent counts!) we need the flank values from
+      // the same trace we just generated. We didn't store the full trace, so
+      // we re-derive flank from the per-site mean calculation with a second
+      // sampling pass — but that would be a different Poisson draw!
+      //
+      // Fix: accumulate flankSum inside the bin loop above. Do that instead.
+      perSiteFlankMean[s] = 0;  // will fill in next version
+    }
+
+    // Second pass to compute per-site flank mean (and re-validate centre), by
+    // re-sampling with a SEPARATE seed so these are statistically equivalent
+    // draws for the purpose of cross-site variability estimation. This keeps
+    // the centre vs flank independent across passes but their within-site
+    // correlations don't matter for SNR across sites at the centre (we only
+    // use centre std across sites for the denominator).
+    //
+    // Actually: to keep things honest and simple we'll do a single-pass
+    // implementation where we accumulate both sums inline. Redo below.
+    //
+    // (The above block is left as a comment-worthy design note; the actual
+    // work uses the clean single pass below.)
+
+    // Reset and redo with a single honest pass.
+    for (let i = 0; i < N_BP; i++) { mean[i] = 0; m2[i] = 0; }
+    for (let i = 0; i < miniK; i++) miniTraces[i] = new Float64Array(N_BP);
+
+    const rnd2 = mulberry32(seed);
+    // Re-pick mini indices deterministically with the same rnd2 usage pattern
+    // so everything reproduces. We'll consume the first few draws now.
+    {
+      const picked = new Set();
+      let k = 0;
+      while (k < miniK && picked.size < miniK) {
+        const j = Math.floor(rnd2() * N);
+        if (!picked.has(j)) { picked.add(j); miniIdx[k++] = j; }
+      }
+      const arr = Array.from(picked).sort((a, b) => a - b);
+      for (let i = 0; i < miniK; i++) miniIdx[i] = arr[i];
+    }
+    miniSlot.clear();
+    for (let i = 0; i < miniIdx.length; i++) miniSlot.set(miniIdx[i], i);
+
+    for (let s = 0; s < N; s++) {
+      const miniIndex = miniSlot.has(s) ? miniSlot.get(s) : -1;
+      let centreSum = 0;
+      let flankSum = 0;
+
+      for (let i = 0; i < N_BP; i++) {
+        const x = poisson(rnd2, lam[i]);
+
+        // Welford update across sites
+        const old = mean[i];
+        const n1 = s + 1;
+        const delta = x - old;
+        const newMean = old + delta / n1;
+        mean[i] = newMean;
+        m2[i] += delta * (x - newMean);
+
+        if (i >= cLoI && i <= cHiI) centreSum += x;
+        for (let fr = 0; fr < fRanges.length; fr++) {
+          const a = fRanges[fr][0], b = fRanges[fr][1];
+          if (i >= a && i <= b) { flankSum += x; break; }
+        }
+        if (miniIndex >= 0) miniTraces[miniIndex][i] = x;
+      }
+      perSiteCentreMean[s] = centreSum / centreSpan;
+      perSiteFlankMean[s] = flankSum / flankTotalBins;
+    }
+
+    // Convert m2 → variance (unbiased)
+    const variance = new Float64Array(N_BP);
+    for (let i = 0; i < N_BP; i++) {
+      variance[i] = N > 1 ? m2[i] / (N - 1) : 0;
+    }
+
+    return {
+      mean, variance,
+      miniIdx: Array.from(miniIdx),
+      miniTraces,
+      perSiteCentreMean,
+      perSiteFlankMean,
+      lam,
+    };
+  }
+
+  // ── Stats ───────────────────────────────────────────────
+  //
+  // measuredDepth = 1 − centreMean / flankMean
+  // SNR = (flankMean − centreMean) / std(per-site centre means)
+  function summarise(result, N) {
+    const { mean, perSiteCentreMean, perSiteFlankMean } = result;
+
+    // Aggregate centre and flank means over bins
+    const cLo = CENTRE_BINS[0], cHi = CENTRE_BINS[1];
+    let cSum = 0, cBins = 0;
+    for (let x = cLo; x <= cHi; x++) { cSum += mean[x - X_MIN]; cBins++; }
+    const aggCentre = cSum / cBins;
+
+    let fSum = 0, fBins = 0;
+    for (const [a, b] of FLANK_BINS) {
+      for (let x = a; x <= b; x++) { fSum += mean[x - X_MIN]; fBins++; }
+    }
+    const aggFlank = fSum / fBins;
+
+    // Std across sites of per-site centre means
+    let mu = 0;
+    for (let s = 0; s < N; s++) mu += perSiteCentreMean[s];
+    mu /= N;
+    let sq = 0;
+    for (let s = 0; s < N; s++) {
+      const d = perSiteCentreMean[s] - mu;
+      sq += d * d;
+    }
+    const stdCentre = Math.sqrt(sq / Math.max(1, N - 1));
+
+    const measuredDepth = aggFlank > 1e-9 ? 1 - aggCentre / aggFlank : 0;
+
+    // SNR: we scale the across-site centre std by 1/√N because we care about
+    // the noise on the MEAN of N sites (standard error of the mean), which is
+    // what actually shows up as the wiggle in the aggregated curve.
+    const seCentre = stdCentre / Math.sqrt(N);
+    const snr = seCentre > 1e-9 ? (aggFlank - aggCentre) / seCentre : 0;
+
+    return { aggCentre, aggFlank, measuredDepth, stdCentre, seCentre, snr };
+  }
+
+  // ── SVG utilities ───────────────────────────────────────
+  function elSVG(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // ── Rendering: main aggregate panel ─────────────────────
+  function renderAgg(result, N) {
+    const svg = $('agg-svg');
+    clearNode(svg);
+    const W = 700, H = 380;
+    const PAD_L = 66, PAD_R = 22, PAD_T = 22, PAD_B = 50;
+    const x0 = PAD_L, x1 = W - PAD_R, y0 = PAD_T, y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    // Frame
+    svg.appendChild(elSVG('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    const { mean, variance } = result;
+
+    // Determine y range from mean ± SE plus a pad
+    const se = new Float64Array(N_BP);
+    for (let i = 0; i < N_BP; i++) se[i] = Math.sqrt(variance[i] / Math.max(1, N));
+    let yMin = Infinity, yMax = -Infinity;
+    for (let i = 0; i < N_BP; i++) {
+      const lo = mean[i] - se[i];
+      const hi = mean[i] + se[i];
+      if (lo < yMin) yMin = lo;
+      if (hi > yMax) yMax = hi;
+    }
+    const yPad = Math.max(0.02, (yMax - yMin) * 0.08);
+    yMin = Math.max(0, yMin - yPad);
+    yMax = yMax + yPad;
+
+    const xOf = (bp) => x0 + ((bp - X_MIN) / (X_MAX - X_MIN)) * plotW;
+    const yOf = (v) => y1 - ((v - yMin) / (yMax - yMin)) * plotH;
+
+    // y gridlines + labels
+    const yTicks = 5;
+    for (let t = 0; t <= yTicks; t++) {
+      const v = yMin + (t * (yMax - yMin)) / yTicks;
+      const y = yOf(v);
+      svg.appendChild(elSVG('line', {
+        x1: x0, x2: x1, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': t === 0 ? '' : '2 4',
+      }));
+      svg.appendChild(elSVG('text', {
+        x: x0 - 8, y: y + 3.5,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, v.toFixed(2)));
+    }
+
+    // x gridlines + labels at -200, -100, 0, 100, 200
+    for (const bp of [-200, -100, 0, 100, 200]) {
+      const x = xOf(bp);
+      svg.appendChild(elSVG('line', {
+        x1: x, x2: x, y1: y0, y2: y1,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': bp === 0 ? '4 3' : '2 4',
+      }));
+      svg.appendChild(elSVG('text', {
+        x: x, y: y1 + 14,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, (bp > 0 ? '+' : '') + bp));
+    }
+
+    // Zero-offset emphasis line
+    svg.appendChild(elSVG('line', {
+      x1: xOf(0), x2: xOf(0), y1: y0, y2: y1,
+      stroke: 'var(--accent)', 'stroke-width': 1, opacity: 0.4,
+    }));
+
+    // Shaded flank regions (for reference)
+    for (const [a, b] of FLANK_BINS) {
+      svg.appendChild(elSVG('rect', {
+        x: xOf(a), y: y0,
+        width: xOf(b) - xOf(a), height: plotH,
+        fill: 'var(--accent)', opacity: 0.04,
+      }));
+    }
+    // Shaded centre region
+    svg.appendChild(elSVG('rect', {
+      x: xOf(CENTRE_BINS[0]), y: y0,
+      width: xOf(CENTRE_BINS[1]) - xOf(CENTRE_BINS[0]), height: plotH,
+      fill: '#c4342c', opacity: 0.08,
+    }));
+
+    // ±1 SE band (path: upper then lower reverse)
+    let bandPath = '';
+    for (let i = 0; i < N_BP; i++) {
+      const bp = X_MIN + i;
+      const x = xOf(bp);
+      const y = yOf(mean[i] + se[i]);
+      bandPath += (i === 0 ? 'M' : 'L') + x.toFixed(2) + ',' + y.toFixed(2) + ' ';
+    }
+    for (let i = N_BP - 1; i >= 0; i--) {
+      const bp = X_MIN + i;
+      const x = xOf(bp);
+      const y = yOf(mean[i] - se[i]);
+      bandPath += 'L' + x.toFixed(2) + ',' + y.toFixed(2) + ' ';
+    }
+    bandPath += 'Z';
+    svg.appendChild(elSVG('path', {
+      d: bandPath,
+      fill: 'var(--fg-subtle)', opacity: 0.18,
+      stroke: 'none',
+    }));
+
+    // Mean line
+    let meanPath = '';
+    for (let i = 0; i < N_BP; i++) {
+      const bp = X_MIN + i;
+      const x = xOf(bp);
+      const y = yOf(mean[i]);
+      meanPath += (i === 0 ? 'M' : 'L') + x.toFixed(2) + ',' + y.toFixed(2) + ' ';
+    }
+    svg.appendChild(elSVG('path', {
+      d: meanPath,
+      fill: 'none',
+      stroke: 'var(--accent)', 'stroke-width': 1.8,
+      'stroke-linejoin': 'round', 'stroke-linecap': 'round',
+    }));
+
+    // Axis titles
+    svg.appendChild(elSVG('text', {
+      x: (x0 + x1) / 2, y: H - 14,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.08em',
+    }, 'Offset from motif centre (bp)'));
+    svg.appendChild(elSVG('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.08em',
+      transform: `translate(18, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, 'Mean cuts per bp'));
+
+    // Small legend: centre (red tint), flank (accent tint), mean line, SE band
+    const lg = elSVG('g', { transform: `translate(${x1 - 250}, ${y0 + 10})` });
+    const items = [
+      { color: 'var(--accent)', label: 'Mean across N sites' },
+      { color: 'var(--fg-subtle)', label: '±1 SE band' },
+      { color: '#c4342c', label: 'Centre (SNR num.)', opacity: 0.35 },
+      { color: 'var(--accent)', label: 'Flank (SNR num.)', opacity: 0.15 },
+    ];
+    items.forEach((it, idx) => {
+      const yy = idx * 14;
+      lg.appendChild(elSVG('rect', {
+        x: 0, y: yy - 6, width: 14, height: 10,
+        fill: it.color, opacity: it.opacity != null ? it.opacity : 0.75,
+      }));
+      lg.appendChild(elSVG('text', {
+        x: 20, y: yy + 2,
+        'font-family': 'var(--font-sans)', 'font-size': 10,
+        fill: 'var(--fg-muted)',
+      }, it.label));
+    });
+    svg.appendChild(lg);
+  }
+
+  // ── Rendering: mini individual traces ───────────────────
+  function renderMinis(result) {
+    const { miniTraces, miniIdx } = result;
+    for (let k = 0; k < miniTraces.length; k++) {
+      const svg = $('mini-' + k);
+      clearNode(svg);
+      const W = 240, H = 110;
+      const PAD_L = 26, PAD_R = 8, PAD_T = 14, PAD_B = 18;
+      const x0 = PAD_L, x1 = W - PAD_R, y0 = PAD_T, y1 = H - PAD_B;
+
+      svg.appendChild(elSVG('rect', {
+        x: x0, y: y0, width: x1 - x0, height: y1 - y0,
+        fill: 'var(--bg-elevated)', stroke: 'var(--border)', 'stroke-width': 1,
+      }));
+
+      const trace = miniTraces[k];
+      let maxC = 1;
+      for (let i = 0; i < trace.length; i++) if (trace[i] > maxC) maxC = trace[i];
+      const yOf = (v) => y1 - (v / maxC) * (y1 - y0);
+      const xOf = (bp) => x0 + ((bp - X_MIN) / (X_MAX - X_MIN)) * (x1 - x0);
+
+      // x=0 marker
+      svg.appendChild(elSVG('line', {
+        x1: xOf(0), x2: xOf(0), y1: y0, y2: y1,
+        stroke: '#c4342c', 'stroke-width': 1, opacity: 0.4,
+        'stroke-dasharray': '2 2',
+      }));
+
+      // Draw as vertical lollipop lines (impulse plot) — more honest for
+      // integer Poisson counts than a smoothed line
+      for (let i = 0; i < trace.length; i++) {
+        const v = trace[i];
+        if (v <= 0) continue;
+        const bp = X_MIN + i;
+        const xv = xOf(bp);
+        svg.appendChild(elSVG('line', {
+          x1: xv.toFixed(2), x2: xv.toFixed(2),
+          y1: y1, y2: yOf(v).toFixed(2),
+          stroke: 'var(--fg)', 'stroke-width': 0.6, opacity: 0.55,
+        }));
+      }
+
+      // Tick labels: only -200, 0, +200
+      svg.appendChild(elSVG('text', {
+        x: x0, y: y1 + 12,
+        'text-anchor': 'start',
+        'font-family': 'var(--font-mono)', 'font-size': 8,
+        fill: 'var(--fg-subtle)',
+      }, '-200'));
+      svg.appendChild(elSVG('text', {
+        x: (x0 + x1) / 2, y: y1 + 12,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 8,
+        fill: 'var(--fg-subtle)',
+      }, '0'));
+      svg.appendChild(elSVG('text', {
+        x: x1, y: y1 + 12,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 8,
+        fill: 'var(--fg-subtle)',
+      }, '+200'));
+      // y max label
+      svg.appendChild(elSVG('text', {
+        x: x0 - 4, y: y0 + 4,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 8,
+        fill: 'var(--fg-subtle)',
+      }, String(maxC)));
+      svg.appendChild(elSVG('text', {
+        x: x0 - 4, y: y1,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 8,
+        fill: 'var(--fg-subtle)',
+      }, '0'));
+
+      // Site id label (top-right inside)
+      svg.appendChild(elSVG('text', {
+        x: x1 - 4, y: y0 + 10,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 9,
+        fill: 'var(--fg-muted)',
+      }, 'site #' + (miniIdx[k] + 1)));
+    }
+  }
+
+  // ── State ───────────────────────────────────────────────
+  const state = {
+    seed: 20260421,
+    depth: 0.4,
+    flank: 1.8,
+    cov: 0.3,
+    N: 1000,
+    running: false,
+  };
+
+  // ── Controls ────────────────────────────────────────────
+  const depthEl = $('depth-input');
+  const flankEl = $('flank-input');
+  const covEl = $('cov-input');
+  const nEl = $('n-input');
+  const depthVal = $('depth-value');
+  const flankVal = $('flank-value');
+  const covVal = $('cov-value');
+  const nVal = $('n-value');
+  const resimBtn = $('resim-btn');
+  const statusDot = $('status-dot');
+  const statusText = $('status-text');
+
+  function setStatus(text, working) {
+    statusText.textContent = text;
+    statusDot.classList.toggle('working', !!working);
+  }
+  function setButtonsDisabled(d) {
+    resimBtn.disabled = d;
+  }
+  function readControls() {
+    state.depth = (+depthEl.value) / 100;
+    state.flank = (+flankEl.value) / 100;
+    state.cov = (+covEl.value) / 100;
+    state.N = +nEl.value;
+    depthVal.textContent = state.depth.toFixed(2);
+    flankVal.textContent = state.flank.toFixed(2);
+    covVal.textContent = state.cov.toFixed(2);
+    nVal.textContent = String(state.N);
+  }
+
+  function updateBanner(stats) {
+    $('banner-depth').textContent =
+      `${stats.measuredDepth >= 0 ? '' : ''}${(stats.measuredDepth * 100).toFixed(1)}% (true ${(state.depth * 100).toFixed(0)}%)`;
+    $('banner-snr').textContent =
+      `${stats.snr.toFixed(1)}   (flank−centre = ${(stats.aggFlank - stats.aggCentre).toFixed(3)}, SE = ${stats.seCentre.toFixed(3)})`;
+    let regime;
+    if (state.depth === 0) {
+      regime = 'no true footprint — aggregate is flat within noise';
+    } else if (stats.snr >= 10) {
+      regime = `clean footprint — signal visible at N ≥ ${approxNvisible(state)} (you are at N=${state.N})`;
+    } else if (stats.snr >= 3) {
+      regime = `marginal — visible but noisy at N=${state.N}, try N≥${approxNvisible(state)}`;
+    } else {
+      regime = `noisy at N=${state.N} — footprint lost in fluctuations, increase N`;
+    }
+    $('banner-regime').textContent = regime;
+  }
+
+  // Rough estimate of the N at which SNR crosses 10, derived from the
+  // current simulation. Because SNR ∝ √N for the same depth/coverage, we
+  // scale the measured SNR.
+  function approxNvisible(st) {
+    // SNR scales as sqrt(N); invert: N_target = N_current * (10/SNR)^2
+    // We read the most recent stats via a closure; cheaper to recompute from
+    // parameters analytically. We fall back to "~" rough bands.
+    // Use the constants: expected flank ≈ cov*(1+(flank-1)*someAvg); centre
+    // ≈ cov*(1-depth); and std at centre per site ≈ sqrt(λ_centre).
+    const depth = st.depth, flank = st.flank, cov = st.cov;
+    if (depth <= 0 || cov <= 0) return Infinity;
+    const lamCentre = cov * (1 - depth);
+    const gate = Math.min(1, depth / 0.1);
+    // Avg flank elevation across ±150..±50 with cosine taper
+    let sumW = 0, count = 0;
+    for (let x = 50; x <= 150; x++) {
+      const t = (x - CENTRE_HALF) / (FLANK_TAPER - CENTRE_HALF);
+      const w = t >= 1 ? 0 : 0.5 * (1 + Math.cos(Math.PI * t));
+      sumW += (1 + gate * (flank - 1) * w); count++;
+    }
+    const avgElev = sumW / count;
+    const lamFlank = cov * avgElev;
+    const signal = lamFlank - lamCentre;
+    // Std of per-site mean across 11 centre bins for independent Poisson:
+    // var(mean_of_k_bins) = lamCentre / k. So stdCentre per site ≈ sqrt(lamCentre/11).
+    const stdSite = Math.sqrt(Math.max(1e-9, lamCentre / 11));
+    // Need SNR_target: target = 10 = signal / (stdSite / sqrt(N))  →  N = (10*stdSite/signal)^2
+    const Nneeded = Math.pow(10 * stdSite / Math.max(1e-9, signal), 2);
+    return Math.max(50, Math.round(Nneeded / 10) * 10);
+  }
+
+  // ── Run ─────────────────────────────────────────────────
+  function run() {
+    if (state.running) return;
+    state.running = true;
+    setButtonsDisabled(true);
+    setStatus('simulating…', true);
+
+    requestAnimationFrame(() => {
+      const t0 = performance.now();
+      const result = simulateFootprint(state.N, state.cov, state.depth, state.flank, state.seed);
+      const stats = summarise(result, state.N);
+      renderAgg(result, state.N);
+      renderMinis(result);
+      updateBanner(stats);
+      const dt = performance.now() - t0;
+      setStatus(`idle · ${dt | 0} ms`, false);
+      setButtonsDisabled(false);
+      state.running = false;
+    });
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  [depthEl, flankEl, covEl, nEl].forEach((el) => {
+    el.addEventListener('input', () => { readControls(); });
+  });
+  resimBtn.addEventListener('click', () => {
+    state.seed = (Math.random() * 0xffffffff) >>> 0;
+    run();
+  });
+
+  // ── Boot ────────────────────────────────────────────────
+  readControls();
+  run();
+})();
+</script>
+
+</body>
+</html>

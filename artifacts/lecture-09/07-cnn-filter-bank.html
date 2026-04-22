@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CNN Filter Bank Visualiser</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .controls-row {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) minmax(220px, 1fr);
+      gap: 1rem 1.25rem;
+      align-items: end;
+    }
+
+    select {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.5rem 0.7rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      width: 100%;
+      cursor: pointer;
+    }
+    select:focus {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: 1px;
+      background: var(--bg-elevated);
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .paste-wrap {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.6rem;
+      margin-top: 0.75rem;
+      padding-top: 0.9rem;
+      border-top: 1px dashed var(--border);
+    }
+    .paste-wrap.hidden { display: none; }
+    .paste-wrap textarea {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: 1.45;
+      padding: 0.55rem 0.7rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      min-height: 80px;
+      resize: vertical;
+      width: 100%;
+    }
+    .paste-wrap textarea:focus {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: 1px;
+      background: var(--bg-elevated);
+    }
+    .paste-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .paste-actions .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0 0 0 auto;
+    }
+    .paste-error {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--error);
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.75rem;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .paste-error.show { display: block; }
+
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    /* Filter tile grid */
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 0.5rem;
+    }
+    @media (max-width: 860px) {
+      .filter-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    .filter-tile {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.45rem 0.55rem;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .filter-tile:hover { border-color: var(--border-strong); }
+    .filter-tile.active {
+      background: var(--accent-bg);
+      border-color: var(--accent);
+    }
+    .filter-tile-name {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--fg);
+      margin-bottom: 0.25rem;
+    }
+    .filter-tile.active .filter-tile-name { color: var(--accent); }
+    .filter-tile svg { display: block; width: 100%; height: 36px; }
+
+    .logo-inset {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.85rem;
+      align-items: center;
+      margin-top: 0.85rem;
+      padding: 0.65rem 0.8rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius-sm);
+    }
+    .logo-inset-label {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      line-height: var(--leading-relaxed);
+    }
+    .logo-inset-label b {
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .logo-inset svg { display: block; width: 100%; max-width: 360px; height: 70px; }
+
+    /* Sequence display */
+    .seq-wrap {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      line-height: 1.5;
+      padding: 0.75rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      word-break: break-all;
+      letter-spacing: 0.04em;
+      font-weight: 500;
+    }
+    .seq-ruler {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--fg-subtle);
+      margin-top: 0.4rem;
+      letter-spacing: 0.04em;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    /* Tracks */
+    .tracks-svg { display: block; width: 100%; height: auto; }
+    .tracks-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 0.7rem;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner-row { margin: 0.15rem 0; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .controls-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="cnn-filter-bank">
+
+  <header class="artifact-head">
+    <h1>CNN Filter Bank Visualiser</h1>
+    <p>A toy model of Enformer's first convolutional layer. Eight 8-bp filters are each initialised to resemble a canonical TF motif (TATA, GC-box, AP1, NFkB, CTCF, E-box, SP1, poly-A). Feed in a DNA sequence and see per-filter activation tracks along the sequence. The aha: <b>a CNN filter bank is a PWM scan in parallel</b> — each filter is a matched template, each track is its scan output.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Filters (click to inspect)</p>
+    <div class="filter-grid" id="filter-grid"></div>
+    <div class="logo-inset" id="logo-inset">
+      <svg id="logo-svg" viewBox="0 0 360 70" preserveAspectRatio="xMidYMid meet" aria-label="Selected filter weight matrix"></svg>
+      <div class="logo-inset-label" id="logo-label">—</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Input sequence</p>
+
+    <div class="controls-row">
+      <div>
+        <label class="field-label" for="preset-select">Sequence preset</label>
+        <select id="preset-select">
+          <option value="active-promoter">active promoter (TATA + GC-box)</option>
+          <option value="enhancer">enhancer (AP1 + NFkB)</option>
+          <option value="silenced">silenced (low GC, no motifs)</option>
+          <option value="random">random</option>
+          <option value="paste">paste custom</option>
+        </select>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="thr-input">ReLU display threshold</label>
+          <span class="slider-value" id="thr-value">0.0</span>
+        </div>
+        <input id="thr-input" type="range" min="0" max="500" step="1" value="0">
+      </div>
+    </div>
+
+    <div class="paste-wrap hidden" id="paste-wrap">
+      <label class="field-label" for="paste-input">Paste DNA (A/C/G/T/N only · length &ge; 8)</label>
+      <textarea id="paste-input" spellcheck="false" placeholder="e.g. ACGTACGT...  or a 100+ bp stretch of your favourite promoter"></textarea>
+      <div class="paste-actions">
+        <button class="btn btn--primary" type="button" id="paste-btn">Load pasted</button>
+        <button class="btn" type="button" id="paste-clear">Clear paste</button>
+        <span class="hint">Whitespace + case ignored · non-ACGTN chars rejected</span>
+      </div>
+      <div class="paste-error" id="paste-error"></div>
+    </div>
+
+    <div style="margin-top: 0.9rem;">
+      <label class="field-label">Sequence</label>
+      <div class="seq-wrap" id="seq-wrap"></div>
+      <div class="seq-ruler" id="seq-ruler"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Per-filter activation tracks (ReLU output)</p>
+    <div class="tracks-wrap">
+      <svg id="tracks-svg" class="tracks-svg" viewBox="0 0 1000 360" preserveAspectRatio="xMidYMid meet" aria-label="Per-filter activation tracks"></svg>
+    </div>
+    <p class="plot-caption">Each row is one filter's ReLU activation at every valid window start. Taller spikes = stronger match. Threshold fades values below the slider.</p>
+  </section>
+
+  <div class="banner" id="banner">
+    <div class="banner-row">preset: <b id="b-preset">—</b> <span class="sep">·</span> length <b id="b-len">0</b> bp <span class="sep">·</span> GC <b id="b-gc">—</b></div>
+    <div class="banner-row">top-firing filters: <span id="b-top">—</span></div>
+    <div class="banner-row" style="color: var(--fg-muted); margin-top: 0.4rem;"><b style="color: var(--accent);">filter bank = parallel PWM-scan battery</b> — each of the 8 filters slides 8-bp windows across the sequence, dot-products them against its weights, and fires when the window resembles its motif.</div>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Base colours (locked per theme; lecture uses DNA bases) ──────────
+  // These match the lecture-06 house style palette given in the prompt.
+  const BASE_COLOR = {
+    A: '#c4342c',
+    C: '#1e3a8a',
+    G: '#b45309',
+    T: '#2d7a3e',
+    N: '#8a8a85',
+  };
+  const BASES = ['A', 'C', 'G', 'T'];
+  const BASE_IDX = { A: 0, C: 1, G: 2, T: 3, N: -1 };
+
+  // ── Filter bank ──────────────────────────────────────────────────────
+  //
+  // Eight 8-bp filters, each initialised to the canonical motif centroid
+  // of a well-known TF. Weights are hand-designed: the consensus base at
+  // each column gets +1.0, and other bases are mildly negative. For "N"
+  // consensus columns (ambiguity), all four bases share weight 0. This is
+  // the PWM-style starting point you'd use to hot-start a CNN first layer,
+  // so the filters literally ARE matched templates for those motifs.
+  //
+  // Weight source: "initialised to canonical motif centroid" — the
+  // consensus kmers listed inline are stylised 8-bp representatives of
+  // JASPAR-style logos for each TF, rounded to degenerate consensus.
+  const FILTER_SPECS = [
+    { name: 'CTCF',   consensus: 'CCCTCCTA' },   // CTCF core (simplified 8 bp)
+    { name: 'AP1',    consensus: 'TGACTCAN' },   // AP1 (TRE)
+    { name: 'TATA',   consensus: 'TATAAAAG' },   // TATA box
+    { name: 'GC-box', consensus: 'GGGGCGGG' },   // Sp1/GC-box
+    { name: 'E-box',  consensus: 'CACGTGNN' },   // E-box (bHLH)
+    { name: 'NFkB',   consensus: 'GGGACTTT' },   // NFkB (Rel) core
+    { name: 'SP1',    consensus: 'GGGGGCGG' },   // SP1 GC-rich variant
+    { name: 'poly-A', consensus: 'AAAAAAAA' },   // negative control / AT-rich
+  ];
+
+  // Build a 3D weight tensor: weights[f][i][b] where
+  //   f = filter index (0..7)
+  //   i = position within filter (0..7)
+  //   b = base index (0=A, 1=C, 2=G, 3=T)
+  // Consensus base gets +1.0, others get -0.33 so that a perfect match
+  // scores +8, a shuffled scrambled window scores roughly 0, and a clean
+  // anti-match scores ~-2.7. 'N' columns give flat 0 across all bases so
+  // they contribute nothing to the inner product — matching a true
+  // degenerate column.
+  const FILTERS = FILTER_SPECS.map(spec => {
+    const W = [];
+    for (let i = 0; i < 8; i++) {
+      const ch = spec.consensus[i];
+      const col = [0, 0, 0, 0];
+      if (ch === 'N') {
+        // neutral
+      } else {
+        const idx = BASE_IDX[ch];
+        for (let b = 0; b < 4; b++) {
+          col[b] = (b === idx) ? 1.0 : -0.33;
+        }
+      }
+      W.push(col);
+    }
+    return { name: spec.name, consensus: spec.consensus, W };
+  });
+
+  // ── Deterministic RNG (mulberry32) ──────────────────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function randBase(rnd, probs) {
+    // probs = [pA, pC, pG, pT]; default uniform.
+    const p = probs || [0.25, 0.25, 0.25, 0.25];
+    const u = rnd();
+    let acc = 0;
+    for (let b = 0; b < 4; b++) {
+      acc += p[b];
+      if (u < acc) return BASES[b];
+    }
+    return 'T';
+  }
+
+  function randomDNA(n, rnd, probs) {
+    let s = '';
+    for (let i = 0; i < n; i++) s += randBase(rnd, probs);
+    return s;
+  }
+
+  function injectMotif(seq, pos, motif) {
+    // Splice motif into seq starting at pos, replacing the existing bases.
+    // Motif is taken as consensus: any 'N' column leaves the original base
+    // in place so the preset still looks naturalistic.
+    const out = seq.split('');
+    for (let i = 0; i < motif.length && pos + i < out.length; i++) {
+      const ch = motif[i];
+      if (ch !== 'N') out[pos + i] = ch;
+    }
+    return out.join('');
+  }
+
+  // ── Preset sequences ────────────────────────────────────────────────
+  //
+  // Each preset is exactly 150 bp. Seeds fixed so the background is
+  // stable across reloads and students can point at the same spikes.
+  function buildPresets() {
+    const bg = (seed, probs) => randomDNA(150, mulberry32(seed), probs);
+
+    // Active promoter: AT-ish background with TATA at 30 and GC-box at 80.
+    let promoter = bg(770101, [0.30, 0.20, 0.20, 0.30]);
+    promoter = injectMotif(promoter, 30, 'TATAAAAG');  // TATA
+    promoter = injectMotif(promoter, 80, 'GGGGCGGG');  // GC-box
+
+    // Enhancer: moderate GC background with AP1 at 40 and NFkB at 100.
+    let enhancer = bg(880202, [0.25, 0.25, 0.25, 0.25]);
+    enhancer = injectMotif(enhancer, 40, 'TGACTCAG');  // AP1 (N → G)
+    enhancer = injectMotif(enhancer, 100, 'GGGACTTT'); // NFkB
+
+    // Silenced: heavily AT-rich, no canonical motifs (or only by chance).
+    // Explicitly avoid runs of ≥4 G to keep out GC-rich accidents.
+    const silenced = bg(990303, [0.45, 0.05, 0.05, 0.45]);
+
+    // Random: uniform.
+    const random = bg(10404, [0.25, 0.25, 0.25, 0.25]);
+
+    return {
+      'active-promoter': promoter,
+      'enhancer': enhancer,
+      'silenced': silenced,
+      'random': random,
+    };
+  }
+
+  const PRESETS = buildPresets();
+  const PRESET_LABEL = {
+    'active-promoter': 'active promoter (TATA + GC-box)',
+    'enhancer': 'enhancer (AP1 + NFkB)',
+    'silenced': 'silenced (low GC, no motifs)',
+    'random': 'random (uniform ACGT)',
+    'paste': 'pasted custom',
+  };
+
+  // ── State ───────────────────────────────────────────────────────────
+  const state = {
+    preset: 'active-promoter',
+    sequence: PRESETS['active-promoter'],
+    selectedFilter: 2,  // TATA by default — the active promoter shows it firing.
+    threshold: 0,
+    activations: null,  // 2D array [filter][position]
+    pasted: null,
+    rafId: 0,
+  };
+
+  // ── Scoring: filter × sequence → activation map ────────────────────
+  //
+  // activations[f][p] = ReLU( Σ_i W[f][i][onehot(seq[p+i])] )
+  // where p ranges over valid window starts [0, L-8].
+  function scoreAll(seq, filters) {
+    const L = seq.length;
+    const K = 8;
+    const out = new Array(filters.length);
+    for (let f = 0; f < filters.length; f++) {
+      const W = filters[f].W;
+      const row = new Float32Array(Math.max(0, L - K + 1));
+      for (let p = 0; p <= L - K; p++) {
+        let s = 0;
+        for (let i = 0; i < K; i++) {
+          const ch = seq[p + i];
+          const bi = BASE_IDX[ch];
+          if (bi >= 0) s += W[i][bi];
+          // 'N' contributes 0 — same as if the column were neutral.
+        }
+        row[p] = s > 0 ? s : 0;  // ReLU
+      }
+      out[f] = row;
+    }
+    return out;
+  }
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const filterGrid = $('filter-grid');
+  const logoSvg    = $('logo-svg');
+  const logoLabel  = $('logo-label');
+  const presetSel  = $('preset-select');
+  const thrEl      = $('thr-input');
+  const thrVal     = $('thr-value');
+  const pasteWrap  = $('paste-wrap');
+  const pasteEl    = $('paste-input');
+  const pasteBtn   = $('paste-btn');
+  const pasteClr   = $('paste-clear');
+  const pasteErr   = $('paste-error');
+  const seqWrap    = $('seq-wrap');
+  const seqRuler   = $('seq-ruler');
+  const tracksSvg  = $('tracks-svg');
+  const bPreset    = $('b-preset');
+  const bLen       = $('b-len');
+  const bGc        = $('b-gc');
+  const bTop       = $('b-top');
+
+  // ── SVG helpers ────────────────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // ── Build the filter tile grid once ────────────────────────────────
+  function buildFilterTiles() {
+    FILTERS.forEach((f, idx) => {
+      const tile = document.createElement('div');
+      tile.className = 'filter-tile' + (idx === state.selectedFilter ? ' active' : '');
+      tile.dataset.filter = idx;
+      tile.innerHTML = `
+        <div class="filter-tile-name">${f.name}</div>
+        <svg viewBox="0 0 160 36" preserveAspectRatio="xMidYMid meet"></svg>
+      `;
+      filterGrid.appendChild(tile);
+      drawMiniLogo(tile.querySelector('svg'), f);
+    });
+    filterGrid.addEventListener('click', (e) => {
+      const t = e.target.closest('.filter-tile');
+      if (!t) return;
+      const idx = +t.dataset.filter;
+      state.selectedFilter = idx;
+      filterGrid.querySelectorAll('.filter-tile').forEach((el, i) => {
+        el.classList.toggle('active', i === idx);
+      });
+      renderLogoInset();
+      // Also redraw tracks so the highlighted track is emphasised.
+      renderTracks();
+    });
+  }
+
+  // ── Mini logo (tile-sized) ─────────────────────────────────────────
+  //
+  // Each column is 8 stacked letters scaled by positive weight. Because
+  // our centroid weights assign +1.0 to the consensus base and -0.33 to
+  // others, we render each consensus letter as a full-height glyph
+  // coloured by base; 'N' columns render as a faint dash.
+  function drawMiniLogo(svg, filter) {
+    clear(svg);
+    const vbW = 160, vbH = 36;
+    const K = 8;
+    const colW = vbW / K;
+    for (let i = 0; i < K; i++) {
+      const ch = filter.consensus[i];
+      const cx = i * colW + colW / 2;
+      if (ch === 'N') {
+        svg.appendChild(el('line', {
+          x1: cx - colW * 0.35, x2: cx + colW * 0.35,
+          y1: vbH / 2, y2: vbH / 2,
+          stroke: BASE_COLOR.N, 'stroke-width': 1.5,
+        }));
+        continue;
+      }
+      svg.appendChild(el('text', {
+        x: cx.toFixed(2), y: vbH - 5,
+        'text-anchor': 'middle',
+        'font-family': 'JetBrains Mono, monospace',
+        'font-size': 22, 'font-weight': 700,
+        fill: BASE_COLOR[ch] || BASE_COLOR.N,
+      }, ch));
+    }
+  }
+
+  // ── Full-size logo for the inset ───────────────────────────────────
+  function renderLogoInset() {
+    clear(logoSvg);
+    const f = FILTERS[state.selectedFilter];
+    const vbW = 360, vbH = 70;
+    const K = 8;
+    const padL = 24, padR = 8, padT = 6, padB = 18;
+    const plotW = vbW - padL - padR;
+    const colW = plotW / K;
+    const rowH = vbH - padT - padB;
+
+    // y-axis hint ticks
+    logoSvg.appendChild(el('text', {
+      x: padL - 6, y: padT + 10,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-mono)', 'font-size': 9,
+      fill: 'var(--fg-subtle)',
+    }, '+1'));
+    logoSvg.appendChild(el('text', {
+      x: padL - 6, y: padT + rowH + 3,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-mono)', 'font-size': 9,
+      fill: 'var(--fg-subtle)',
+    }, '0'));
+    // baseline
+    logoSvg.appendChild(el('line', {
+      x1: padL, x2: padL + plotW,
+      y1: padT + rowH, y2: padT + rowH,
+      stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    for (let i = 0; i < K; i++) {
+      const ch = f.consensus[i];
+      const cx = padL + i * colW + colW / 2;
+      // position label
+      logoSvg.appendChild(el('text', {
+        x: cx.toFixed(2), y: vbH - 5,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 9,
+        fill: 'var(--fg-subtle)',
+      }, (i + 1).toString()));
+      if (ch === 'N') {
+        logoSvg.appendChild(el('line', {
+          x1: cx - colW * 0.32, x2: cx + colW * 0.32,
+          y1: padT + rowH - 2, y2: padT + rowH - 2,
+          stroke: BASE_COLOR.N, 'stroke-width': 2,
+        }));
+        continue;
+      }
+      logoSvg.appendChild(el('text', {
+        x: cx.toFixed(2), y: padT + rowH - 2,
+        'text-anchor': 'middle',
+        'font-family': 'JetBrains Mono, monospace',
+        'font-size': rowH, 'font-weight': 700,
+        fill: BASE_COLOR[ch] || BASE_COLOR.N,
+      }, ch));
+    }
+
+    logoLabel.innerHTML =
+      `<b>${f.name}</b> · consensus <span style="font-family: var(--font-mono);">${f.consensus}</span><br>` +
+      `<span style="color: var(--fg-subtle);">8×4 weight matrix · consensus = +1.0, off-consensus = -0.33, N = 0. Peak possible score = +${(
+        Array.from(f.consensus).filter(c => c !== 'N').length
+      ).toFixed(1)}.</span>`;
+  }
+
+  // ── Sequence renderer ──────────────────────────────────────────────
+  function renderSequence() {
+    const seq = state.sequence;
+    // Coloured letters. Wrap in blocks of 10 for readability, but keep
+    // inline-block spans so CSS word-break still works at narrow widths.
+    const parts = [];
+    for (let i = 0; i < seq.length; i++) {
+      const ch = seq[i];
+      const color = BASE_COLOR[ch] || BASE_COLOR.N;
+      parts.push(`<span style="color:${color}">${ch}</span>`);
+      if ((i + 1) % 10 === 0 && i !== seq.length - 1) {
+        parts.push('<span style="color:var(--fg-subtle)">·</span>');
+      }
+    }
+    seqWrap.innerHTML = parts.join('');
+
+    // Ruler: position marks at every 10 bp, labelled every 20 bp.
+    let ruler = '';
+    for (let i = 0; i < seq.length; i++) {
+      if (i % 20 === 0) {
+        const lbl = i.toString().padEnd(20, ' ');
+        ruler += lbl;
+      }
+    }
+    // Collapse any overflow, truncate to sequence length.
+    seqRuler.textContent = ruler.slice(0, seq.length);
+  }
+
+  // ── Tracks renderer ────────────────────────────────────────────────
+  //
+  // 8 stacked rows, each the ReLU activation of one filter along the
+  // sequence. A tiny bar chart per position. Highlighted filter row gets
+  // an accent-coloured fill; others are grey. Below-threshold values are
+  // faded.
+  function renderTracks() {
+    clear(tracksSvg);
+    const W = 1000, H = 360;
+    const PAD_L = 80, PAD_R = 18, PAD_T = 10, PAD_B = 24;
+    const nFilters = FILTERS.length;
+    const plotW = W - PAD_L - PAD_R;
+    const plotH = H - PAD_T - PAD_B;
+    const rowH = plotH / nFilters;
+    const rowInner = rowH - 4;
+
+    const L = state.sequence.length;
+    const K = 8;
+    const nWin = Math.max(0, L - K + 1);
+
+    // Use a global max across filters so row heights are comparable.
+    // Peak possible score = 8 for a filter with no 'N' columns and
+    // perfect match. For stability, clamp the visualisation to 8.
+    const VMAX = 8;
+
+    // x-coord of window-start position p. Anchor to window centre so the
+    // tick aligns with the middle of the 8-bp window, which matches how
+    // students read convolutions.
+    const xOf = (p) => PAD_L + ((p + K / 2) / L) * plotW;
+    const barW = Math.max(1.2, plotW / Math.max(L, 1) - 0.4);
+
+    const thr = state.threshold;
+
+    for (let f = 0; f < nFilters; f++) {
+      const row = state.activations[f];
+      const y0 = PAD_T + f * rowH;
+      const yBase = y0 + rowH - 4;
+
+      const isSelected = (f === state.selectedFilter);
+
+      // Row strip background
+      tracksSvg.appendChild(el('rect', {
+        x: PAD_L, y: y0 + 2,
+        width: plotW, height: rowInner,
+        fill: isSelected ? 'var(--accent-bg)' : 'var(--bg-elevated)',
+        stroke: 'var(--border)', 'stroke-width': 1,
+      }));
+
+      // Baseline
+      tracksSvg.appendChild(el('line', {
+        x1: PAD_L, x2: PAD_L + plotW,
+        y1: yBase, y2: yBase,
+        stroke: 'var(--border-strong)', 'stroke-width': 0.8,
+      }));
+
+      // Filter name on the left
+      tracksSvg.appendChild(el('text', {
+        x: PAD_L - 8, y: y0 + rowH / 2 + 3,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        'font-weight': isSelected ? 700 : 500,
+        fill: isSelected ? 'var(--accent)' : 'var(--fg)',
+      }, FILTERS[f].name));
+
+      // Bars
+      let topIdx = -1, topVal = 0;
+      for (let p = 0; p < nWin; p++) {
+        const v = row[p];
+        if (v > topVal) { topVal = v; topIdx = p; }
+        const h = Math.min(v, VMAX) / VMAX * (rowInner - 2);
+        if (h <= 0.05) continue;
+        const x = xOf(p) - barW / 2;
+        const y = yBase - h;
+        const above = v >= thr;
+        tracksSvg.appendChild(el('rect', {
+          x: x.toFixed(2), y: y.toFixed(2),
+          width: barW.toFixed(2), height: h.toFixed(2),
+          fill: isSelected ? 'var(--accent)' : '#525252',
+          opacity: above ? (isSelected ? 0.95 : 0.75) : 0.18,
+        }));
+      }
+
+      // Annotate the top spike with its position (only if above threshold).
+      if (topIdx >= 0 && topVal >= Math.max(thr, 2.0)) {
+        const x = xOf(topIdx);
+        tracksSvg.appendChild(el('text', {
+          x: x.toFixed(2),
+          y: (yBase - Math.min(topVal, VMAX) / VMAX * (rowInner - 2) - 2).toFixed(2),
+          'text-anchor': 'middle',
+          'font-family': 'var(--font-mono)', 'font-size': 9,
+          fill: isSelected ? 'var(--accent)' : 'var(--fg-muted)',
+        }, `@${topIdx}`));
+      }
+    }
+
+    // X-axis ticks (every 20 bp) along the bottom
+    const yTickBase = PAD_T + plotH + 2;
+    for (let p = 0; p <= L; p += 20) {
+      const x = PAD_L + (p / L) * plotW;
+      tracksSvg.appendChild(el('line', {
+        x1: x, x2: x, y1: yTickBase, y2: yTickBase + 3,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      tracksSvg.appendChild(el('text', {
+        x: x.toFixed(2), y: yTickBase + 14,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, p.toString()));
+    }
+  }
+
+  // ── Banner ─────────────────────────────────────────────────────────
+  function renderBanner() {
+    const seq = state.sequence;
+    bPreset.textContent = PRESET_LABEL[state.preset] || '—';
+    bLen.textContent = seq.length.toString();
+
+    let gc = 0;
+    for (let i = 0; i < seq.length; i++) {
+      if (seq[i] === 'G' || seq[i] === 'C') gc++;
+    }
+    const gcPct = seq.length ? (100 * gc / seq.length).toFixed(0) : '0';
+    bGc.textContent = `${gcPct}%`;
+
+    // Top-firing filters: max activation per filter, sort desc, keep any
+    // whose peak is ≥ threshold AND ≥ 2.0 (a meaningful score), else say
+    // "none above threshold".
+    const thr = state.threshold;
+    const peaks = FILTERS.map((f, i) => {
+      const row = state.activations[i];
+      let mx = 0, at = -1;
+      for (let p = 0; p < row.length; p++) {
+        if (row[p] > mx) { mx = row[p]; at = p; }
+      }
+      return { name: f.name, peak: mx, at };
+    });
+    peaks.sort((a, b) => b.peak - a.peak);
+
+    const cutoff = Math.max(thr, 2.0);
+    const firing = peaks.filter(p => p.peak >= cutoff).slice(0, 4);
+    if (firing.length === 0) {
+      bTop.innerHTML = '<span style="color: var(--fg-subtle);">none above threshold</span>';
+    } else {
+      bTop.innerHTML = firing.map(p =>
+        `<b>${p.name}</b> <span style="color: var(--fg-subtle);">(pos ${p.at}, score ${p.peak.toFixed(1)})</span>`
+      ).join(' <span class="sep">·</span> ');
+    }
+  }
+
+  // ── Pipeline ───────────────────────────────────────────────────────
+  function recompute() {
+    state.activations = scoreAll(state.sequence, FILTERS);
+  }
+
+  function schedule() {
+    if (state.rafId) return;
+    state.rafId = requestAnimationFrame(() => {
+      state.rafId = 0;
+      recompute();
+      renderSequence();
+      renderTracks();
+      renderBanner();
+    });
+  }
+
+  function setPreset(name) {
+    state.preset = name;
+    if (name === 'paste') {
+      pasteWrap.classList.remove('hidden');
+      // Leave sequence as-is until the user clicks "Load pasted"; if
+      // they haven't pasted yet, fall back to a neutral random buffer.
+      if (!state.pasted) {
+        state.sequence = PRESETS['random'];
+      } else {
+        state.sequence = state.pasted;
+      }
+    } else {
+      pasteWrap.classList.add('hidden');
+      pasteErr.classList.remove('show');
+      state.sequence = PRESETS[name];
+    }
+  }
+
+  // ── Paste gate: ACGTN only, length ≥ 8 ─────────────────────────────
+  function tryLoadPasted(text) {
+    const cleaned = (text || '').toUpperCase().replace(/\s+/g, '');
+    if (cleaned.length === 0) {
+      return { ok: false, error: 'Paste box is empty. Enter at least 8 bases of ACGTN.' };
+    }
+    if (cleaned.length < 8) {
+      return { ok: false, error: `Sequence too short (${cleaned.length} bp). A filter is 8 bp wide, so the minimum is 8.` };
+    }
+    const bad = cleaned.match(/[^ACGTN]/);
+    if (bad) {
+      const i = cleaned.search(/[^ACGTN]/);
+      return { ok: false, error: `Non-ACGTN character "${bad[0]}" at position ${i + 1}. Only A, C, G, T, N are allowed.` };
+    }
+    return { ok: true, seq: cleaned };
+  }
+
+  // ── Wiring ─────────────────────────────────────────────────────────
+  presetSel.addEventListener('change', () => {
+    setPreset(presetSel.value);
+    schedule();
+  });
+
+  thrEl.addEventListener('input', () => {
+    // Slider 0..500 maps linearly to 0..5 ReLU.
+    state.threshold = (+thrEl.value) / 100;
+    thrVal.textContent = state.threshold.toFixed(1);
+    renderTracks();
+    renderBanner();
+  });
+
+  pasteBtn.addEventListener('click', () => {
+    const res = tryLoadPasted(pasteEl.value);
+    if (!res.ok) {
+      pasteErr.textContent = res.error;
+      pasteErr.classList.add('show');
+      return;
+    }
+    pasteErr.classList.remove('show');
+    state.pasted = res.seq;
+    state.sequence = res.seq;
+    state.preset = 'paste';
+    presetSel.value = 'paste';
+    pasteWrap.classList.remove('hidden');
+    schedule();
+  });
+
+  pasteClr.addEventListener('click', () => {
+    pasteEl.value = '';
+    pasteErr.classList.remove('show');
+  });
+
+  // ── Boot ───────────────────────────────────────────────────────────
+  buildFilterTiles();
+  renderLogoInset();
+  setPreset('active-promoter');
+  recompute();
+  renderSequence();
+  renderTracks();
+  renderBanner();
+})();
+</script>
+
+</body>
+</html>

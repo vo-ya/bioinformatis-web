@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PWM Motif Scanner</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .control-row { display: flex; flex-direction: column; gap: 0.35rem; }
+
+    select, textarea {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.45rem 0.6rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+    }
+    select:focus, textarea:focus {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: 1px;
+      background: var(--bg-elevated);
+    }
+
+    .paste-wrap {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.6rem;
+      margin-top: 0.85rem;
+      padding-top: 0.9rem;
+      border-top: 1px dashed var(--border);
+    }
+    .paste-wrap.hidden { display: none; }
+    .paste-wrap textarea {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: 1.45;
+      min-height: 88px;
+      resize: vertical;
+      width: 100%;
+      letter-spacing: 0.02em;
+    }
+    .paste-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .paste-actions .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0 0 0 auto;
+    }
+    .paste-error {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--error);
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.75rem;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .paste-error.show { display: block; }
+
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      margin-top: 0.85rem;
+      padding-top: 0.8rem;
+      border-top: 1px dashed var(--border);
+    }
+    .check-row input[type="checkbox"] { accent-color: var(--accent); }
+    .check-row label { cursor: pointer; }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 2px;
+    }
+    .legend-swatch .sw.fwd { background: var(--accent); }
+    .legend-swatch .sw.rev { background: var(--warning); }
+    .legend-swatch .sw.score { background: var(--fg-muted); opacity: 0.6; }
+    .legend-swatch .ln {
+      display: inline-block;
+      width: 18px; height: 0;
+      border: 0;
+      border-top: 2px dashed var(--fg-subtle);
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .band-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+    }
+
+    #tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: var(--fg);
+      color: var(--bg-elevated);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      padding: 0.35rem 0.55rem;
+      border-radius: var(--radius-sm);
+      opacity: 0;
+      transition: opacity 0.1s ease;
+      white-space: nowrap;
+      z-index: 10;
+    }
+    #tooltip.show { opacity: 0.95; }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="pwm-motif-scanner">
+
+  <header class="artifact-head">
+    <h1>PWM Motif Scanner</h1>
+    <p>Slide a position weight matrix across a DNA sequence. Each window yields a log-odds score; positions above threshold are called hits. The aha is threshold-sensitivity: a strong PWM on a planted site gives a handful of clean hits, but drop the cutoff and spurious windows everywhere light up. The random-null expectation shows how easily chance alone matches a short motif.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Inputs</p>
+
+    <div class="control-grid">
+      <div class="control-row">
+        <label class="field-label" for="seq-preset">Sequence</label>
+        <select id="seq-preset">
+          <option value="ctcf">CTCF peak region (~500 bp, planted CCCTC site)</option>
+          <option value="nfkb">NFκB peak (~500 bp, planted GGGACTTTCC)</option>
+          <option value="random">random DNA (~500 bp, uniform)</option>
+          <option value="paste">paste custom DNA</option>
+        </select>
+      </div>
+
+      <div class="control-row">
+        <label class="field-label" for="pwm-select">PWM</label>
+        <select id="pwm-select">
+          <option value="ctcf">CTCF (19 bp)</option>
+          <option value="nfkb">NFκB / RELA (10 bp)</option>
+          <option value="ap1">AP-1 / FOS::JUN (7 bp)</option>
+          <option value="tata">TATA-box (10 bp)</option>
+        </select>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="thr-input">Threshold (log2 score)</label>
+          <span class="slider-value" id="thr-value">10.0</span>
+        </div>
+        <input id="thr-input" type="range" min="0" max="250" step="1" value="100">
+      </div>
+    </div>
+
+    <div class="check-row">
+      <input id="both-strands" type="checkbox" checked>
+      <label for="both-strands">Scan both strands (forward + reverse complement)</label>
+    </div>
+
+    <div class="paste-wrap hidden" id="paste-wrap">
+      <label class="field-label" for="paste-input">Paste DNA (ACGTN only, length ≥ PWM length)</label>
+      <textarea id="paste-input" spellcheck="false" placeholder="ACGTACGTACGTACGTACGT..."></textarea>
+      <div class="paste-actions">
+        <button class="btn btn--primary" type="button" id="paste-btn">Load pasted DNA</button>
+        <button class="btn" type="button" id="paste-clear">Clear paste</button>
+        <span class="hint">Whitespace and FASTA headers stripped · case-insensitive</span>
+      </div>
+      <div class="paste-error" id="paste-error"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Scan</p>
+    <div class="plot-wrap">
+      <svg id="scan-svg" class="plot-svg" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet" aria-label="PWM scan track"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw score"></span> log-odds score (filled area)</span>
+      <span class="legend-swatch"><span class="sw fwd"></span> forward-strand hit</span>
+      <span class="legend-swatch"><span class="sw rev"></span> reverse-strand hit</span>
+      <span class="legend-swatch"><span class="ln"></span> threshold</span>
+    </div>
+    <p class="plot-caption">(a) sequence · (b) sliding-window log-odds score · (c) hit markers above threshold · hover hits for score.</p>
+  </section>
+
+  <div class="banner" id="banner">
+    <b id="banner-hits">0</b> hits at threshold
+    <span class="sep">·</span>
+    <b id="banner-fwd">0</b> forward
+    <span class="sep">·</span>
+    <b id="banner-rev">0</b> reverse
+    <span class="sep">·</span>
+    top: <b id="banner-top">—</b>
+    <span class="sep">·</span>
+    random-null: <b id="banner-null">—</b> expected hits/kb
+  </div>
+</main>
+
+<div id="tooltip"></div>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Deterministic RNG ───────────────────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ── PWM library ─────────────────────────────────────────
+  //
+  // Each PWM is a list of per-position probability vectors [pA, pC, pG, pT].
+  // We convert to log-odds (log2(p / 0.25)) on the fly so the slider-space
+  // values are interpretable directly as bits of information.
+  //
+  // The probability rows are approximations of JASPAR canonical matrices,
+  // hand-curated for teaching clarity: strong consensus positions are near
+  // 0.9 at the preferred base, weakly informative positions are near 0.25.
+  //
+  // CTCF consensus ~ CCCTCCTAGTGGCCA (JASPAR MA0139.1 core), 19 bp window.
+  const PWM_LIB = {
+    ctcf: {
+      name: 'CTCF',
+      rows: [
+        // A    C    G    T
+        [0.18, 0.42, 0.26, 0.14], // 1
+        [0.10, 0.72, 0.10, 0.08], // 2  C
+        [0.06, 0.80, 0.08, 0.06], // 3  C
+        [0.06, 0.82, 0.06, 0.06], // 4  C
+        [0.06, 0.06, 0.06, 0.82], // 5  T
+        [0.06, 0.84, 0.05, 0.05], // 6  C
+        [0.20, 0.20, 0.20, 0.40], // 7  T/W
+        [0.05, 0.82, 0.08, 0.05], // 8  C
+        [0.08, 0.08, 0.08, 0.76], // 9  T
+        [0.70, 0.10, 0.10, 0.10], // 10 A
+        [0.08, 0.08, 0.78, 0.06], // 11 G
+        [0.08, 0.08, 0.06, 0.78], // 12 T
+        [0.05, 0.08, 0.82, 0.05], // 13 G
+        [0.05, 0.08, 0.82, 0.05], // 14 G
+        [0.06, 0.78, 0.10, 0.06], // 15 C
+        [0.06, 0.78, 0.10, 0.06], // 16 C
+        [0.70, 0.12, 0.10, 0.08], // 17 A
+        [0.30, 0.30, 0.20, 0.20], // 18 wobble
+        [0.30, 0.30, 0.20, 0.20], // 19 wobble
+      ],
+    },
+    // NFκB / RELA consensus GGGRNNYYCC; planted as GGGACTTTCC (JASPAR MA0107).
+    nfkb: {
+      name: 'NFκB (RELA)',
+      rows: [
+        [0.05, 0.08, 0.82, 0.05], // G
+        [0.05, 0.08, 0.82, 0.05], // G
+        [0.05, 0.08, 0.82, 0.05], // G
+        [0.62, 0.08, 0.22, 0.08], // R -> A/G, prefer A
+        [0.22, 0.30, 0.22, 0.26], // N
+        [0.20, 0.25, 0.20, 0.35], // slight T
+        [0.05, 0.08, 0.05, 0.82], // T
+        [0.05, 0.08, 0.05, 0.82], // T
+        [0.06, 0.78, 0.08, 0.08], // C
+        [0.06, 0.78, 0.08, 0.08], // C
+      ],
+    },
+    // AP-1 / FOS::JUN (TPA-response element) consensus TGA(C/G)TCA.
+    ap1: {
+      name: 'AP-1 (FOS::JUN)',
+      rows: [
+        [0.06, 0.06, 0.08, 0.80], // T
+        [0.06, 0.06, 0.82, 0.06], // G
+        [0.80, 0.08, 0.06, 0.06], // A
+        [0.06, 0.45, 0.45, 0.04], // C or G
+        [0.06, 0.06, 0.08, 0.80], // T
+        [0.06, 0.80, 0.08, 0.06], // C
+        [0.80, 0.08, 0.06, 0.06], // A
+      ],
+    },
+    // TATA-box (consensus TATAAA / TATAWAW), 10 bp window.
+    tata: {
+      name: 'TATA-box',
+      rows: [
+        [0.20, 0.20, 0.20, 0.40], // weakly T
+        [0.08, 0.06, 0.06, 0.80], // T
+        [0.82, 0.06, 0.06, 0.06], // A
+        [0.08, 0.06, 0.06, 0.80], // T
+        [0.82, 0.06, 0.06, 0.06], // A
+        [0.65, 0.10, 0.10, 0.15], // A (W)
+        [0.70, 0.10, 0.08, 0.12], // A
+        [0.55, 0.15, 0.15, 0.15], // A/W
+        [0.35, 0.20, 0.20, 0.25], // weak
+        [0.30, 0.25, 0.20, 0.25], // weak
+      ],
+    },
+  };
+
+  // ── Log-odds + PWM helpers ──────────────────────────────
+  const BG = 0.25; // uniform background
+  const BASE_IDX = { A: 0, C: 1, G: 2, T: 3 };
+
+  // Convert a probability matrix to a log2-odds matrix, with a small
+  // pseudocount to prevent log(0). N bases contribute score 0.
+  function toLogOdds(rows) {
+    const pc = 0.001; // tiny pseudocount
+    return rows.map(r => {
+      const s = r.reduce((a, b) => a + b, 0) + 4 * pc;
+      return r.map(p => Math.log2(((p + pc) / s) / BG));
+    });
+  }
+
+  // Reverse-complement a log-odds matrix: reverse positions, swap A<->T, C<->G.
+  function rcPWM(lo) {
+    const out = [];
+    for (let i = lo.length - 1; i >= 0; i--) {
+      const r = lo[i];
+      out.push([r[3], r[2], r[1], r[0]]); // T, G, C, A
+    }
+    return out;
+  }
+
+  // Score a single window starting at `start` in `seq` with log-odds `lo`.
+  // Returns the summed score. Positions containing non-ACGT contribute 0
+  // (treated as background). If the window runs off the end, returns null.
+  function scoreWindow(seq, start, lo) {
+    const L = lo.length;
+    if (start < 0 || start + L > seq.length) return null;
+    let s = 0;
+    for (let i = 0; i < L; i++) {
+      const b = seq.charCodeAt(start + i);
+      // A=65 C=67 G=71 T=84
+      let idx;
+      if (b === 65) idx = 0;
+      else if (b === 67) idx = 1;
+      else if (b === 71) idx = 2;
+      else if (b === 84) idx = 3;
+      else continue; // N or other → skip (background)
+      s += lo[i][idx];
+    }
+    return s;
+  }
+
+  // Full sliding-window scan across one strand.
+  function scanStrand(seq, lo) {
+    const L = lo.length;
+    const out = new Float64Array(Math.max(0, seq.length - L + 1));
+    for (let i = 0; i < out.length; i++) {
+      out[i] = scoreWindow(seq, i, lo);
+    }
+    return out;
+  }
+
+  // Call hits above threshold. Returns [{pos, score, strand}].
+  function callHits(scores, thr, strand) {
+    const out = [];
+    for (let i = 0; i < scores.length; i++) {
+      if (scores[i] >= thr) out.push({ pos: i, score: scores[i], strand });
+    }
+    return out;
+  }
+
+  // ── Sequence generators ────────────────────────────────
+  function randomDNA(n, rnd) {
+    const a = 'ACGT';
+    let s = '';
+    for (let i = 0; i < n; i++) s += a[(rnd() * 4) | 0];
+    return s;
+  }
+
+  // Emit a sequence sampled from a PWM (strong consensus, for planting hits).
+  function sampleFromPWM(rows, rnd) {
+    let s = '';
+    const alph = 'ACGT';
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      let u = rnd();
+      let k = 0;
+      while (k < 3 && (u -= r[k]) > 0) k++;
+      s += alph[k];
+    }
+    return s;
+  }
+
+  // Build preset sequences. The CTCF preset plants one strong site near
+  // position ~200 and a weaker partial site further downstream. NFκB plants
+  // one canonical 10-mer.
+  function buildCTCFPreset() {
+    const rnd = mulberry32(20240115);
+    let bg = randomDNA(500, rnd);
+    // Canonical CTCF-like 19-mers. The "strong" matches consensus at nearly
+    // every informative position; the "medium" differs at a couple positions
+    // so it still scores >10 bits. A reverse-oriented site lets the strand
+    // toggle produce a visible change.
+    const strong = 'CCCTCCTAGTGGCCACCGC';          // forward, ~14–15 bits
+    const medium = 'CCCTCATAGAGGCCACCAC';          // forward, weaker but >10
+    const rcHit  = 'GCGGTGGCCACTAGGAGGG';          // reverse-complement of strong
+    bg = bg.slice(0, 120) + strong + bg.slice(120 + strong.length);
+    bg = bg.slice(0, 260) + medium + bg.slice(260 + medium.length);
+    bg = bg.slice(0, 400) + rcHit  + bg.slice(400 + rcHit.length);
+    return bg.slice(0, 500);
+  }
+
+  function buildNFKBPreset() {
+    const rnd = mulberry32(20221107);
+    let bg = randomDNA(500, rnd);
+    const hit = 'GGGACTTTCC';
+    bg = bg.slice(0, 180) + hit + bg.slice(180 + hit.length);
+    // add a weaker one
+    const weak = 'GGGACTTACC';
+    bg = bg.slice(0, 355) + weak + bg.slice(355 + weak.length);
+    return bg.slice(0, 500);
+  }
+
+  function buildRandomPreset() {
+    const rnd = mulberry32(19700101);
+    return randomDNA(500, rnd);
+  }
+
+  const SEQ_PRESETS = {
+    ctcf:   buildCTCFPreset(),
+    nfkb:   buildNFKBPreset(),
+    random: buildRandomPreset(),
+  };
+
+  // ── Random-null expectation ────────────────────────────
+  //
+  // For each PWM we compute the expected number of hits per kilobase of
+  // uniform random DNA at the current threshold by scanning 1000 random
+  // 500-bp sequences. This is cached per-PWM-per-threshold granular to the
+  // slider tick so we never recompute redundantly.
+  //
+  // Fast path: the log-odds distribution for random windows is computed
+  // once per PWM (all 4^L windows is too many, so we Monte-Carlo 500k
+  // random windows). We then just count the tail fraction for any threshold.
+  const NULL_SAMPLES = 500000;
+  const nullCache = {}; // pwmKey → sorted Float64Array of scores
+
+  function buildNullDistribution(pwmKey) {
+    if (nullCache[pwmKey]) return nullCache[pwmKey];
+    const lo = toLogOdds(PWM_LIB[pwmKey].rows);
+    const rc = rcPWM(lo);
+    const L = lo.length;
+    const rnd = mulberry32(0xBADC0DE ^ pwmKey.charCodeAt(0));
+    const scores = new Float64Array(NULL_SAMPLES);
+    for (let i = 0; i < NULL_SAMPLES; i++) {
+      // Build a random L-mer and score on both strands, take max; that
+      // matches the "scan both strands" behaviour students see.
+      let s = '';
+      for (let j = 0; j < L; j++) s += 'ACGT'[(rnd() * 4) | 0];
+      const f = scoreWindow(s, 0, lo);
+      const r = scoreWindow(s, 0, rc);
+      scores[i] = Math.max(f, r);
+    }
+    scores.sort();
+    nullCache[pwmKey] = scores;
+    return scores;
+  }
+
+  // Expected hits per kb of random DNA above threshold: there are ~2000
+  // window starts per kb (one per bp, both strands included via max). We
+  // multiply tail-fraction by 1000 to get per-kb rate.
+  function expectedHitsPerKb(pwmKey, thr) {
+    const arr = buildNullDistribution(pwmKey);
+    // Binary search for first index >= thr.
+    let lo = 0, hi = arr.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (arr[mid] < thr) lo = mid + 1; else hi = mid;
+    }
+    const tail = arr.length - lo;
+    const frac = tail / arr.length;
+    // ~1000 window starts per kb on a single strand; we already took max
+    // over both strands per sample, so rate is per-kb single-window.
+    return frac * 1000;
+  }
+
+  // ── Paste validation ───────────────────────────────────
+  function cleanAndValidateDNA(raw, minLen) {
+    // Strip FASTA headers and whitespace, uppercase.
+    const noHdr = raw.split(/\r?\n/).filter(l => !l.startsWith('>')).join('');
+    const cleaned = noHdr.replace(/\s+/g, '').toUpperCase();
+    if (cleaned.length === 0) {
+      return { ok: false, err: 'Paste box is empty after stripping whitespace.' };
+    }
+    const bad = cleaned.match(/[^ACGTN]/g);
+    if (bad && bad.length) {
+      const uniq = Array.from(new Set(bad)).slice(0, 6).join(', ');
+      return { ok: false, err: `Invalid characters in DNA: ${uniq}${bad.length > 6 ? ', ...' : ''}. Only A, C, G, T, N are allowed.` };
+    }
+    if (cleaned.length < minLen) {
+      return { ok: false, err: `Sequence is ${cleaned.length} bp but the selected PWM is ${minLen} bp — need at least one full window.` };
+    }
+    return { ok: true, seq: cleaned };
+  }
+
+  // ── State ──────────────────────────────────────────────
+  const state = {
+    seqKey: 'ctcf',
+    pwmKey: 'ctcf',
+    seq: SEQ_PRESETS.ctcf,
+    pastedSeq: null,
+    thr: 10.0,
+    bothStrands: true,
+    rafId: 0,
+  };
+
+  // Map threshold slider (0..250) → 0..25 bits, step 0.1.
+  function thrFromSlider(s) { return s / 10; }
+
+  // ── DOM refs ───────────────────────────────────────────
+  const seqPresetEl = $('seq-preset');
+  const pwmSelectEl = $('pwm-select');
+  const thrInputEl  = $('thr-input');
+  const thrValueEl  = $('thr-value');
+  const bothEl      = $('both-strands');
+  const pasteWrap   = $('paste-wrap');
+  const pasteInput  = $('paste-input');
+  const pasteBtn    = $('paste-btn');
+  const pasteClr    = $('paste-clear');
+  const pasteErr    = $('paste-error');
+  const svg         = $('scan-svg');
+  const tooltipEl   = $('tooltip');
+
+  // ── SVG helpers ────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  // Base colours — house palette (JetBrains Mono letters).
+  const BASE_COLOR = {
+    A: '#c4342c',
+    C: '#1e3a8a',
+    G: '#b45309',
+    T: '#2d7a3e',
+    N: '#6b7280',
+  };
+
+  // ── Rendering ──────────────────────────────────────────
+  function render() {
+    clear(svg);
+
+    const seq = state.seq;
+    const N = seq.length;
+    const lo = toLogOdds(PWM_LIB[state.pwmKey].rows);
+    const rc = rcPWM(lo);
+    const L = lo.length;
+
+    const fwdScores = scanStrand(seq, lo);
+    const revScores = state.bothStrands ? scanStrand(seq, rc) : new Float64Array(0);
+
+    const thr = state.thr;
+    const fwdHits = callHits(fwdScores, thr, '+');
+    const revHits = state.bothStrands ? callHits(revScores, thr, '-') : [];
+
+    // ── Canvas layout ───────────────────────────────────
+    //
+    // We wrap the sequence into rows so characters remain readable at 500 bp.
+    // Each row is `PER_ROW` bp wide; three bands per row: sequence, score, hits.
+    // Total SVG height depends on row count.
+    const W = 1000;
+    const PAD_L = 64, PAD_R = 24;
+    const plotW = W - PAD_L - PAD_R;
+    const PER_ROW = 100; // bp per row
+    const ROWS = Math.ceil(N / PER_ROW);
+    const charW = plotW / PER_ROW;
+
+    const BAND_SEQ_H   = 26;
+    const BAND_SCORE_H = 78;
+    const BAND_HIT_H   = 18;
+    const BAND_GAP     = 6;
+    const ROW_H = BAND_SEQ_H + BAND_SCORE_H + BAND_HIT_H + BAND_GAP * 3;
+    const ROW_TOP_PAD = 18;
+    const TOTAL_H = ROWS * ROW_H + ROW_TOP_PAD + 20;
+    svg.setAttribute('viewBox', `0 0 ${W} ${TOTAL_H}`);
+
+    // Global score range for the area band — pin minimum at 0 for visual clarity,
+    // upper bound at max(score, thr, 5) so the threshold line is always visible.
+    let sMax = 0;
+    for (let i = 0; i < fwdScores.length; i++) if (fwdScores[i] > sMax) sMax = fwdScores[i];
+    for (let i = 0; i < revScores.length; i++) if (revScores[i] > sMax) sMax = revScores[i];
+    sMax = Math.max(sMax, thr + 2, 6);
+
+    // Helpers for bands
+    const scaleScore = (v, top, bot) => {
+      const clipped = Math.max(0, v);
+      return bot - (clipped / sMax) * (bot - top);
+    };
+
+    for (let row = 0; row < ROWS; row++) {
+      const rowStart = row * PER_ROW;
+      const rowEnd = Math.min(N, rowStart + PER_ROW);
+      const rowChars = rowEnd - rowStart;
+      const yRow = ROW_TOP_PAD + row * ROW_H;
+
+      // Row label (bp coordinate of row start)
+      svg.appendChild(el('text', {
+        x: 8, y: yRow + BAND_SEQ_H * 0.7,
+        'font-family': 'var(--font-mono)',
+        'font-size': 10,
+        fill: 'var(--fg-subtle)',
+        'text-anchor': 'start',
+      }, String(rowStart + 1).padStart(4, ' ')));
+
+      // ── (a) Sequence band ─────────────────────────────
+      const seqY = yRow + BAND_SEQ_H * 0.78;
+      for (let i = 0; i < rowChars; i++) {
+        const b = seq[rowStart + i];
+        const cx = PAD_L + (i + 0.5) * charW;
+        svg.appendChild(el('text', {
+          x: cx.toFixed(2), y: seqY.toFixed(2),
+          'text-anchor': 'middle',
+          'font-family': 'var(--font-mono)',
+          'font-size': Math.min(13, charW * 1.5),
+          'font-weight': 500,
+          fill: BASE_COLOR[b] || BASE_COLOR.N,
+        }, b));
+      }
+
+      // ── (b) Score band background ─────────────────────
+      const sTop = yRow + BAND_SEQ_H + BAND_GAP;
+      const sBot = sTop + BAND_SCORE_H;
+      svg.appendChild(el('rect', {
+        x: PAD_L, y: sTop.toFixed(2),
+        width: plotW.toFixed(2), height: BAND_SCORE_H,
+        fill: 'var(--bg-elevated)',
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+
+      // Y-axis tick labels for score band (on first row only, every 5 bits)
+      if (row === 0) {
+        for (let t = 0; t <= sMax; t += 5) {
+          if (t > sMax) break;
+          const y = scaleScore(t, sTop, sBot);
+          svg.appendChild(el('line', {
+            x1: PAD_L - 3, x2: PAD_L, y1: y.toFixed(2), y2: y.toFixed(2),
+            stroke: 'var(--border-strong)', 'stroke-width': 1,
+          }));
+          svg.appendChild(el('text', {
+            x: PAD_L - 6, y: (y + 3).toFixed(2),
+            'font-family': 'var(--font-mono)',
+            'font-size': 9,
+            fill: 'var(--fg-subtle)',
+            'text-anchor': 'end',
+          }, t.toFixed(0)));
+        }
+      }
+
+      // Threshold dashed line in score band
+      if (thr >= 0 && thr <= sMax) {
+        const yThr = scaleScore(thr, sTop, sBot);
+        svg.appendChild(el('line', {
+          x1: PAD_L, x2: PAD_L + plotW,
+          y1: yThr.toFixed(2), y2: yThr.toFixed(2),
+          stroke: 'var(--fg-subtle)', 'stroke-width': 1.2,
+          'stroke-dasharray': '4 4',
+        }));
+        if (row === 0) {
+          svg.appendChild(el('text', {
+            x: (PAD_L + plotW - 4).toFixed(2), y: (yThr - 3).toFixed(2),
+            'font-family': 'var(--font-mono)',
+            'font-size': 9,
+            fill: 'var(--fg-muted)',
+            'text-anchor': 'end',
+          }, `threshold = ${thr.toFixed(1)}`));
+        }
+      }
+
+      // Forward-strand filled area path
+      // We draw area from baseline (y=sBot for score=0) up to the score curve.
+      // Each bp column is `charW` wide; the score at position p aligns with
+      // the start of that window. For positions past N-L, no score exists.
+      const buildArea = (scores, maxP, colorVar, opacity) => {
+        const points = [];
+        const n = Math.min(rowChars, Math.max(0, maxP - rowStart));
+        if (n <= 0) return null;
+        // Move to first baseline point
+        points.push([PAD_L, sBot]);
+        for (let i = 0; i < n; i++) {
+          const p = rowStart + i;
+          if (p >= scores.length) break;
+          const x = PAD_L + (i + 0.5) * charW;
+          const y = scaleScore(scores[p], sTop, sBot);
+          points.push([x, y]);
+        }
+        // Close to baseline
+        const lastX = points[points.length - 1][0];
+        points.push([lastX, sBot]);
+        let d = `M ${points[0][0].toFixed(2)} ${points[0][1].toFixed(2)}`;
+        for (let i = 1; i < points.length; i++) {
+          d += ` L ${points[i][0].toFixed(2)} ${points[i][1].toFixed(2)}`;
+        }
+        d += ' Z';
+        return d;
+      };
+
+      const fwdPath = buildArea(fwdScores, fwdScores.length, 'accent', 0.45);
+      if (fwdPath) {
+        svg.appendChild(el('path', {
+          d: fwdPath,
+          fill: 'var(--accent)', 'fill-opacity': 0.35,
+          stroke: 'var(--accent)', 'stroke-width': 1,
+          'stroke-opacity': 0.9,
+        }));
+      }
+      if (state.bothStrands) {
+        const revPath = buildArea(revScores, revScores.length, 'warning', 0.35);
+        if (revPath) {
+          svg.appendChild(el('path', {
+            d: revPath,
+            fill: 'var(--warning)', 'fill-opacity': 0.25,
+            stroke: 'var(--warning)', 'stroke-width': 1,
+            'stroke-opacity': 0.8,
+          }));
+        }
+      }
+
+      // ── (c) Hit markers band ─────────────────────────
+      const hTop = sBot + BAND_GAP;
+      const hBot = hTop + BAND_HIT_H;
+      svg.appendChild(el('rect', {
+        x: PAD_L, y: hTop.toFixed(2),
+        width: plotW.toFixed(2), height: BAND_HIT_H,
+        fill: 'var(--bg-muted)',
+        stroke: 'var(--border)', 'stroke-width': 1,
+      }));
+
+      const drawMarker = (hit) => {
+        const p = hit.pos;
+        if (p < rowStart || p >= rowEnd) return;
+        // Span the hit marker across its full motif width.
+        const xStart = PAD_L + (p - rowStart) * charW;
+        const rightEnd = Math.min(p + L, rowEnd);
+        const xEnd = PAD_L + (rightEnd - rowStart) * charW;
+        const width = Math.max(2, xEnd - xStart - 0.5);
+        const yMid = (hTop + hBot) / 2;
+        const color = hit.strand === '+' ? 'var(--accent)' : 'var(--warning)';
+        const strand = hit.strand === '+' ? 'fwd' : 'rev';
+        const yOffset = hit.strand === '+' ? -5 : 1;
+        const rect = el('rect', {
+          x: xStart.toFixed(2),
+          y: (yMid + yOffset).toFixed(2),
+          width: width.toFixed(2),
+          height: 4,
+          fill: color,
+          'fill-opacity': 0.9,
+          rx: 1,
+          'data-score': hit.score.toFixed(2),
+          'data-pos': p,
+          'data-strand': strand,
+        });
+        rect.addEventListener('mouseenter', onHitHover);
+        rect.addEventListener('mousemove', onHitHover);
+        rect.addEventListener('mouseleave', onHitLeave);
+        svg.appendChild(rect);
+      };
+      for (let i = 0; i < fwdHits.length; i++) drawMarker(fwdHits[i]);
+      for (let i = 0; i < revHits.length; i++) drawMarker(revHits[i]);
+    }
+
+    // ── Band titles (first row only) ──────────────────
+    svg.appendChild(el('text', {
+      x: 8, y: 10,
+      'font-family': 'var(--font-sans)',
+      'font-size': 9,
+      'font-weight': 600,
+      'letter-spacing': '0.12em',
+      fill: 'var(--fg-subtle)',
+    }, 'bp'));
+
+    // Update banner
+    updateBanner(fwdHits, revHits, fwdScores, revScores);
+  }
+
+  function onHitHover(e) {
+    const t = e.currentTarget;
+    const score = t.getAttribute('data-score');
+    const pos   = t.getAttribute('data-pos');
+    const strand = t.getAttribute('data-strand') === 'fwd' ? '+' : '-';
+    tooltipEl.textContent = `pos ${+pos + 1} (${strand})  ·  score ${score}`;
+    tooltipEl.classList.add('show');
+    tooltipEl.style.left = (e.clientX + window.scrollX + 10) + 'px';
+    tooltipEl.style.top  = (e.clientY + window.scrollY - 26) + 'px';
+  }
+  function onHitLeave() { tooltipEl.classList.remove('show'); }
+
+  function updateBanner(fwdHits, revHits, fwdScores, revScores) {
+    const total = fwdHits.length + revHits.length;
+    $('banner-hits').textContent = total.toString();
+    $('banner-fwd').textContent  = fwdHits.length.toString();
+    $('banner-rev').textContent  = revHits.length.toString();
+
+    // Best position overall
+    let top = null;
+    for (let i = 0; i < fwdHits.length; i++) {
+      if (!top || fwdHits[i].score > top.score) top = fwdHits[i];
+    }
+    for (let i = 0; i < revHits.length; i++) {
+      if (!top || revHits[i].score > top.score) top = revHits[i];
+    }
+    if (!top) {
+      // Fall back to the max score anywhere (informational), flagged below-threshold.
+      let bestS = -Infinity, bestP = -1, bestStrand = '+';
+      for (let i = 0; i < fwdScores.length; i++) if (fwdScores[i] > bestS) { bestS = fwdScores[i]; bestP = i; bestStrand = '+'; }
+      for (let i = 0; i < revScores.length; i++) if (revScores[i] > bestS) { bestS = revScores[i]; bestP = i; bestStrand = '-'; }
+      if (bestP >= 0 && isFinite(bestS)) {
+        $('banner-top').textContent = `pos ${bestP + 1} (${bestStrand}, max ${bestS.toFixed(1)}, below thr)`;
+      } else {
+        $('banner-top').textContent = '—';
+      }
+    } else {
+      $('banner-top').textContent = `pos ${top.pos + 1} (${top.strand}, score ${top.score.toFixed(1)})`;
+    }
+
+    // Random-null expectation per kb
+    const ehpk = expectedHitsPerKb(state.pwmKey, state.thr);
+    const disp = ehpk >= 10
+      ? ehpk.toFixed(0)
+      : ehpk >= 1
+      ? ehpk.toFixed(1)
+      : ehpk >= 0.01
+      ? ehpk.toFixed(2)
+      : ehpk > 0
+      ? ehpk.toExponential(1)
+      : '0';
+    $('banner-null').textContent = disp;
+  }
+
+  // ── Readouts ──────────────────────────────────────────
+  function updateReadouts() {
+    thrValueEl.textContent = state.thr.toFixed(1);
+  }
+
+  // ── Pipeline ──────────────────────────────────────────
+  function schedule() {
+    if (state.rafId) return;
+    state.rafId = requestAnimationFrame(() => {
+      state.rafId = 0;
+      updateReadouts();
+      render();
+    });
+  }
+
+  function readControls() {
+    state.thr = thrFromSlider(+thrInputEl.value);
+    state.bothStrands = bothEl.checked;
+  }
+
+  function selectSequence() {
+    const key = seqPresetEl.value;
+    state.seqKey = key;
+    if (key === 'paste') {
+      pasteWrap.classList.remove('hidden');
+      if (state.pastedSeq) {
+        state.seq = state.pastedSeq;
+      } else {
+        // Keep the previously-active sequence on first switch so the scan
+        // doesn't empty out; the student then chooses to paste and load.
+        // If we have no pasted seq, fall back to the CTCF preset.
+        state.seq = state.seq || SEQ_PRESETS.ctcf;
+      }
+    } else {
+      pasteWrap.classList.add('hidden');
+      state.seq = SEQ_PRESETS[key];
+    }
+  }
+
+  function selectPWM() {
+    state.pwmKey = pwmSelectEl.value;
+  }
+
+  // ── Wiring ─────────────────────────────────────────────
+  seqPresetEl.addEventListener('change', () => {
+    selectSequence();
+    schedule();
+  });
+  pwmSelectEl.addEventListener('change', () => {
+    selectPWM();
+    schedule();
+  });
+  thrInputEl.addEventListener('input', () => { readControls(); schedule(); });
+  bothEl.addEventListener('change', () => { readControls(); schedule(); });
+
+  pasteBtn.addEventListener('click', () => {
+    const L = PWM_LIB[state.pwmKey].rows.length;
+    const res = cleanAndValidateDNA(pasteInput.value || '', L);
+    if (!res.ok) {
+      pasteErr.textContent = res.err;
+      pasteErr.classList.add('show');
+      return;
+    }
+    pasteErr.classList.remove('show');
+    state.pastedSeq = res.seq;
+    state.seq = res.seq;
+    state.seqKey = 'paste';
+    seqPresetEl.value = 'paste';
+    schedule();
+  });
+  pasteClr.addEventListener('click', () => {
+    pasteInput.value = '';
+    pasteErr.classList.remove('show');
+  });
+
+  // ── Boot ───────────────────────────────────────────────
+  selectSequence();
+  selectPWM();
+  readControls();
+  updateReadouts();
+  // Pre-warm the null distributions (so the banner is instant).
+  buildNullDistribution('ctcf');
+  render();
+})();
+</script>
+
+</body>
+</html>

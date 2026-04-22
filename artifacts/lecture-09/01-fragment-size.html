@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fragment-Size Distribution Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg); cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .mode-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.9rem;
+    }
+    .mode-btn {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      letter-spacing: 0.04em; font-weight: 500;
+      padding: 0.4rem 0.9rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg-muted); cursor: pointer;
+    }
+    .mode-btn:hover { background: var(--bg-inset); border-color: var(--border-strong); color: var(--fg); }
+    .mode-btn.active {
+      background: var(--accent-bg); border-color: var(--accent);
+      color: var(--accent); font-weight: 600;
+    }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+    .slider-row input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .range-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem 0.75rem;
+    }
+    .range-pair .mini { display: flex; flex-direction: column; gap: 0.2rem; }
+    .range-pair .mini-label {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      letter-spacing: 0.04em;
+    }
+    .range-pair .mini-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg);
+    }
+
+    .controls-row {
+      display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+      margin-top: 1rem; padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .warn-inline {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--warning);
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.75rem;
+      margin-top: 0.75rem;
+      display: none;
+    }
+    .warn-inline.show { display: block; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+    .plot-caption {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-subtle); margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 0.9rem;
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-muted); margin-top: 0.5rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+    .legend-swatch .sw.area { background: var(--accent); opacity: 0.25; border: 1px solid var(--accent); }
+    .legend-swatch .sw.peak { background: var(--base-a); }
+    .legend-swatch .ln {
+      display: inline-block; width: 22px; height: 0;
+      border: 0; border-top: 1.5px dashed var(--fg-subtle);
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner.warn { background: #fffbeb; border-color: #d97706; }
+    .banner.warn b { color: #b45309; }
+    .banner.err  { background: #fef2f2; border-color: var(--error); }
+    .banner.err b { color: var(--error); }
+
+    .status-line {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 1rem; padding: 0.85rem 1rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); margin-top: 1rem;
+    }
+    .status-line .label {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--fg-subtle); font-weight: 600; margin: 0;
+    }
+    .status-line .value {
+      font-family: var(--font-mono); font-size: var(--text-lg);
+      color: var(--fg); margin: 0.15rem 0 0;
+    }
+    .status-line .value.good { color: var(--accent); }
+    .status-line .value.warn { color: var(--warning); }
+    .status-line .value.err  { color: var(--error); }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="fragment-size">
+
+  <header class="artifact-head">
+    <h1>Fragment-Size Distribution Explorer</h1>
+    <p>ATAC-seq fragment-size distributions carry a fingerprint of the chromatin they came from. Tn5 hops into open DNA, then hops again — the distance between cuts is either sub-nucleosomal (naked linker), one wrap of a nucleosome, two wraps, three wraps. Plot the distribution on log-x and you see a ladder. Break your protocol and the ladder vanishes. ChIP-seq, which sonicates pre-fragmented chromatin, never had a ladder in the first place.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Assay</p>
+    <div class="mode-row">
+      <button class="mode-btn active" id="mode-atac" type="button">ATAC-seq (Tn5)</button>
+      <button class="mode-btn" id="mode-chip" type="button">ChIP-seq (sonicated)</button>
+    </div>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="open-input">Open fraction</label>
+          <span class="slider-value" id="open-value">0.25</span>
+        </div>
+        <input id="open-input" type="range" min="0" max="1" step="0.01" value="0.25">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="reg-input">Nucleosome regularity</label>
+          <span class="slider-value" id="reg-value">0.80</span>
+        </div>
+        <input id="reg-input" type="range" min="0" max="1" step="0.01" value="0.80">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="tn5-input">Tn5 insertion rate</label>
+          <span class="slider-value" id="tn5-value">1.00&times;</span>
+        </div>
+        <input id="tn5-input" type="range" min="0.1" max="3" step="0.05" value="1.0">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label">Size selection (bp)</label>
+          <span class="slider-value" id="sel-value">40 &ndash; 700</span>
+        </div>
+        <div class="range-pair">
+          <div class="mini">
+            <input id="selmin-input" type="range" min="0" max="300" step="5" value="40">
+            <span class="mini-label">min &middot; <span class="mini-value" id="selmin-value">40</span></span>
+          </div>
+          <div class="mini">
+            <input id="selmax-input" type="range" min="200" max="1000" step="10" value="700">
+            <span class="mini-label">max &middot; <span class="mini-value" id="selmax-value">700</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="warn-inline" id="warn-inline"></div>
+
+    <div class="controls-row">
+      <button id="resim-btn" class="btn btn--primary" type="button">Re-simulate</button>
+      <button id="reset-btn" class="btn" type="button">Reset defaults</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Fragment-size histogram</p>
+    <div class="plot-wrap">
+      <svg id="hist-svg" class="plot-svg" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet" aria-label="Fragment-size histogram"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw area"></span> read density</span>
+      <span class="legend-swatch"><span class="sw peak"></span> detected peak</span>
+      <span class="legend-swatch"><span class="ln"></span> size-selection bounds</span>
+    </div>
+    <p class="plot-caption">x-axis: fragment size in base pairs (log scale, 10&ndash;1000 bp). y-axis: read density (linear). Arrows mark peaks detected by local-maximum search on the Gaussian-smoothed distribution.</p>
+
+    <div class="banner" id="banner">
+      <b id="banner-count">0</b> peaks detected
+      <span class="sep">&middot;</span>
+      ratios <b id="banner-ratios">&mdash;</b>
+      <span class="sep">&middot;</span>
+      verdict: <b id="banner-verdict">&mdash;</b>
+    </div>
+
+    <div class="status-line">
+      <div>
+        <p class="label">Fragments kept</p>
+        <p class="value" id="stat-kept">&mdash;</p>
+      </div>
+      <div>
+        <p class="label">Median size</p>
+        <p class="value" id="stat-median">&mdash;</p>
+      </div>
+      <div>
+        <p class="label">Sub-nuc share</p>
+        <p class="value" id="stat-sub">&mdash;</p>
+      </div>
+      <div>
+        <p class="label">Peak positions</p>
+        <p class="value good" id="stat-peaks">&mdash;</p>
+      </div>
+    </div>
+
+    <p class="hint">Try these: (1) defaults &rarr; clean 4-peak ladder. (2) Drag regularity to 0.10 &rarr; ladder collapses into a blob. (3) Push Tn5 rate to 2.5 &rarr; sub-nucleosomal peak swells and the nucleosomal peaks shrivel (over-tagmentation). (4) Switch to ChIP-seq &rarr; one smooth hump near 300 bp and nothing else, because sonication does not respect nucleosomes.</p>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── DOM refs ────────────────────────────────────────────
+  const modeAtacEl = $('mode-atac');
+  const modeChipEl = $('mode-chip');
+  const openEl   = $('open-input');
+  const regEl    = $('reg-input');
+  const tn5El    = $('tn5-input');
+  const selMinEl = $('selmin-input');
+  const selMaxEl = $('selmax-input');
+  const resimBtn = $('resim-btn');
+  const resetBtn = $('reset-btn');
+  const warnEl   = $('warn-inline');
+  const svg      = $('hist-svg');
+
+  const openVal   = $('open-value');
+  const regVal    = $('reg-value');
+  const tn5Val    = $('tn5-value');
+  const selVal    = $('sel-value');
+  const selMinVal = $('selmin-value');
+  const selMaxVal = $('selmax-value');
+
+  const banner    = $('banner');
+  const bannerCount   = $('banner-count');
+  const bannerRatios  = $('banner-ratios');
+  const bannerVerdict = $('banner-verdict');
+  const statKept   = $('stat-kept');
+  const statMedian = $('stat-median');
+  const statSub    = $('stat-sub');
+  const statPeaks  = $('stat-peaks');
+
+  // ── Defaults ────────────────────────────────────────────
+  const DEFAULTS = {
+    assay: 'atac',
+    openFraction: 0.25,
+    regularity: 0.80,
+    tn5Rate: 1.00,
+    selMin: 40,
+    selMax: 700,
+  };
+  const N_FRAGMENTS = 10000;
+
+  // ── State ───────────────────────────────────────────────
+  const state = {
+    assay: DEFAULTS.assay,
+    openFraction: DEFAULTS.openFraction,
+    regularity: DEFAULTS.regularity,
+    tn5Rate: DEFAULTS.tn5Rate,
+    selMin: DEFAULTS.selMin,
+    selMax: DEFAULTS.selMax,
+    seed: 20260421,
+    fragments: [],       // raw simulated sizes
+    kept: [],            // after size selection
+    bins: null,          // histogram bins {edges, centers, counts, density}
+    smoothed: null,      // smoothed density for peak detection
+    peaks: [],           // detected peaks: [{center, density, label}]
+    rafPending: false,
+  };
+
+  // ── PRNG — mulberry32 ───────────────────────────────────
+  function mulberry32(seedVal) {
+    let t = seedVal >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function makeRandn(rnd) {
+    return function () {
+      let u = 0, v = 0;
+      while (u === 0) u = rnd();
+      while (v === 0) v = rnd();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    };
+  }
+
+  // ── Simulation ──────────────────────────────────────────
+  //
+  // ATAC: mixture of four modes — sub-nucleosomal (~50 bp), mono (~180),
+  // di (~330), tri (~500). Weights:
+  //   sub  ∝ open_fraction * (1 - penalty)  + overTagmentationBoost(tn5)
+  //   mono ∝ regularity
+  //   di   ∝ regularity^2
+  //   tri  ∝ regularity^3
+  // Higher tn5 shifts mass toward sub. We also widen nucleosomal σ as
+  // regularity drops, so low-regularity runs smear their peaks into the
+  // valleys between modes.
+  //
+  // ChIP: single log-normal(log 300, 0.4). No laddering.
+
+  function truncNormalPositive(randn, mu, sigma) {
+    for (let i = 0; i < 8; i++) {
+      const v = mu + sigma * randn();
+      if (v > 0) return v;
+    }
+    return Math.max(1, mu);
+  }
+
+  function simulate() {
+    const rnd = mulberry32(state.seed);
+    const randn = makeRandn(rnd);
+    const N = N_FRAGMENTS;
+    const out = new Array(N);
+
+    if (state.assay === 'chip') {
+      // Sonicated single mode: log-normal at ~300 bp.
+      const muLog = Math.log(300);
+      const sigmaLog = 0.4;
+      for (let i = 0; i < N; i++) {
+        out[i] = Math.exp(muLog + sigmaLog * randn());
+      }
+    } else {
+      // ATAC mixture.
+      const open = clamp01(state.openFraction);
+      const reg  = clamp01(state.regularity);
+      const tn5  = Math.max(0.1, Math.min(3.0, state.tn5Rate));
+
+      // Over-tagmentation penalty: when Tn5 is too hot, nucleosomal fragments
+      // get chopped into sub-nucleosomal pieces. Goes from 0 at tn5=1 to ~0.7
+      // at tn5=3.
+      const overPenalty = Math.max(0, Math.min(0.85, (tn5 - 1) * 0.45));
+      // Sub-nucleosomal boost from high Tn5 rates.
+      const subBoost = overPenalty * 1.4;
+
+      // Raw weights. Scaling constants are chosen so the default ATAC
+      // configuration (reg=0.8, open=0.25, tn5=1.0) produces a visible
+      // 4-peak ladder with clear sub<mono>di>tri descent. Tri and di
+      // coefficients are boosted to compensate for their broader σ (which
+      // dilutes peak density), so all four peaks clear the detector
+      // threshold at high regularity.
+      let wSub  = 0.45 * open * (1 - overPenalty * 0.25) + subBoost;
+      let wMono = 1.00 * reg              * (1 - overPenalty);
+      let wDi   = 1.20 * reg * reg        * (1 - overPenalty);
+      let wTri  = 1.60 * reg * reg * reg  * (1 - overPenalty);
+
+      // When open_fraction is high there are more short accessible stretches,
+      // so the sub-nuc mode also inherits a little mass from open regions.
+      wSub += 0.20 * open;
+
+      // Minimum floor so no weight collapses to zero entirely.
+      wSub  = Math.max(wSub,  0.02);
+      wMono = Math.max(wMono, 0.02);
+      wDi   = Math.max(wDi,   0.01);
+      wTri  = Math.max(wTri,  0.005);
+
+      const wTot = wSub + wMono + wDi + wTri;
+      const pSub  = wSub  / wTot;
+      const pMono = pSub  + wMono / wTot;
+      const pDi   = pMono + wDi   / wTot;
+      // pTri implicit at 1.0
+
+      // Peak parameters. σ for nucleosomal peaks widens as regularity drops
+      // so peaks bleed into each other at reg → 0. Narrower σ at high
+      // regularity makes the ladder crisp; wider σ at low regularity causes
+      // di and tri modes to smear into a single hump.
+      const sigmaScale = 1 + 1.8 * (1 - reg);
+      const muSub = 50,  sSub  = 22;
+      const muMono = 180, sMono = 20 * sigmaScale;
+      const muDi   = 330, sDi   = 30 * sigmaScale;
+      const muTri  = 500, sTri  = 40 * sigmaScale;
+
+      for (let i = 0; i < N; i++) {
+        const u = rnd();
+        let v;
+        if (u < pSub) {
+          v = truncNormalPositive(randn, muSub, sSub);
+        } else if (u < pMono) {
+          v = truncNormalPositive(randn, muMono, sMono);
+        } else if (u < pDi) {
+          v = truncNormalPositive(randn, muDi, sDi);
+        } else {
+          v = truncNormalPositive(randn, muTri, sTri);
+        }
+        out[i] = v;
+      }
+    }
+
+    state.fragments = out;
+    applySizeSelection();
+    buildHistogram();
+    detectPeaks();
+  }
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+
+  function applySizeSelection() {
+    const lo = state.selMin;
+    const hi = state.selMax;
+    if (lo >= hi) {
+      state.kept = [];
+      return;
+    }
+    const src = state.fragments;
+    const out = [];
+    for (let i = 0; i < src.length; i++) {
+      const v = src[i];
+      if (v >= lo && v <= hi) out.push(v);
+    }
+    state.kept = out;
+  }
+
+  // ── Histogram (log-spaced bins) ─────────────────────────
+  const LOG_MIN = Math.log10(10);
+  const LOG_MAX = Math.log10(1000);
+  const N_BINS  = 50;
+
+  function buildHistogram() {
+    const edges   = new Array(N_BINS + 1);
+    const centers = new Array(N_BINS);
+    for (let i = 0; i <= N_BINS; i++) {
+      const t = i / N_BINS;
+      edges[i] = Math.pow(10, LOG_MIN + t * (LOG_MAX - LOG_MIN));
+    }
+    for (let i = 0; i < N_BINS; i++) {
+      centers[i] = Math.sqrt(edges[i] * edges[i + 1]); // geometric midpoint
+    }
+
+    const counts = new Array(N_BINS).fill(0);
+    const kept = state.kept;
+    for (let i = 0; i < kept.length; i++) {
+      const v = kept[i];
+      if (v < edges[0] || v > edges[N_BINS]) continue;
+      // Binary search edges.
+      let lo = 0, hi = N_BINS;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (v < edges[mid + 1]) hi = mid;
+        else lo = mid + 1;
+      }
+      counts[lo]++;
+    }
+
+    // Density = count / bin width (in bp), normalized to peak = 1 for plot.
+    const density = new Array(N_BINS);
+    let maxD = 0;
+    for (let i = 0; i < N_BINS; i++) {
+      const w = edges[i + 1] - edges[i];
+      density[i] = w > 0 ? counts[i] / w : 0;
+      if (density[i] > maxD) maxD = density[i];
+    }
+    if (maxD > 0) {
+      for (let i = 0; i < N_BINS; i++) density[i] /= maxD;
+    }
+
+    state.bins = { edges, centers, counts, density };
+  }
+
+  // ── Peak detection ──────────────────────────────────────
+  //
+  // Smooth the density with a small Gaussian kernel (operating over bin
+  // indices, which is acceptable because bins are uniform in log-space).
+  // Then find local maxima above a relative threshold. Label peaks by
+  // where their center lands relative to canonical sub/mono/di/tri bands.
+
+  function gaussianKernel(sigmaBins) {
+    const half = Math.max(1, Math.ceil(sigmaBins * 3));
+    const k = new Array(2 * half + 1);
+    let sum = 0;
+    for (let i = -half; i <= half; i++) {
+      const g = Math.exp(-(i * i) / (2 * sigmaBins * sigmaBins));
+      k[i + half] = g;
+      sum += g;
+    }
+    for (let i = 0; i < k.length; i++) k[i] /= sum;
+    return { k, half };
+  }
+
+  function smooth(arr, sigmaBins) {
+    const { k, half } = gaussianKernel(sigmaBins);
+    const n = arr.length;
+    const out = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) {
+      let s = 0, wSum = 0;
+      for (let j = -half; j <= half; j++) {
+        const idx = i + j;
+        if (idx < 0 || idx >= n) continue;
+        s += arr[idx] * k[j + half];
+        wSum += k[j + half];
+      }
+      out[i] = wSum > 0 ? s / wSum : arr[i];
+    }
+    return out;
+  }
+
+  function labelForCenter(bp) {
+    // ATAC canonical bands with tolerance windows.
+    if (bp < 110)              return 'sub';
+    if (bp >= 110 && bp < 260) return 'mono';
+    if (bp >= 260 && bp < 420) return 'di';
+    if (bp >= 420 && bp < 700) return 'tri';
+    return '+';
+  }
+  function labelForChip(bp) {
+    // ChIP is sonicated — label peaks by rough size class rather than
+    // nucleosomal wraps, which don't apply.
+    if (bp < 150)  return 'short';
+    if (bp < 450)  return 'mode';
+    return 'long';
+  }
+
+  function detectPeaks() {
+    const b = state.bins;
+    if (!b) { state.peaks = []; state.smoothed = null; return; }
+    // σ ≈ 1.2 bins → narrow enough to separate the ladder when it's clean.
+    const sm = smooth(b.density, 1.2);
+    state.smoothed = sm;
+
+    const n = sm.length;
+    const peaks = [];
+    const relThreshold = 0.15;
+    for (let i = 1; i < n - 1; i++) {
+      const y = sm[i];
+      if (y < relThreshold) continue;
+      if (y >= sm[i - 1] && y >= sm[i + 1] && (y > sm[i - 1] || y > sm[i + 1])) {
+        peaks.push({ idx: i, center: b.centers[i], density: y });
+      }
+    }
+
+    // Merge peaks that are too close together in log space (< 0.08 log units).
+    const merged = [];
+    for (const p of peaks) {
+      const last = merged[merged.length - 1];
+      if (last && Math.abs(Math.log10(p.center) - Math.log10(last.center)) < 0.08) {
+        if (p.density > last.density) merged[merged.length - 1] = p;
+      } else {
+        merged.push(p);
+      }
+    }
+
+    // Attach labels, prefer unique labels per band (keep tallest).
+    const labeler = state.assay === 'chip' ? labelForChip : labelForCenter;
+    const byLabel = {};
+    for (const p of merged) {
+      p.label = labeler(p.center);
+      if (!byLabel[p.label] || p.density > byLabel[p.label].density) {
+        byLabel[p.label] = p;
+      }
+    }
+    const order = state.assay === 'chip'
+      ? ['short', 'mode', 'long']
+      : ['sub', 'mono', 'di', 'tri', '+'];
+    const final = [];
+    for (const lbl of order) {
+      if (byLabel[lbl]) final.push(byLabel[lbl]);
+    }
+
+    state.peaks = final;
+  }
+
+  // ── Rendering ───────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  // Plot geometry
+  const W = 1000, H = 520;
+  const PAD_L = 72, PAD_R = 28, PAD_T = 58, PAD_B = 58;
+
+  function render() {
+    clear(svg);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const x0 = PAD_L, x1 = W - PAD_R;
+    const y0 = PAD_T,  y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    const xOf = (bp) => {
+      const lx = Math.log10(Math.max(LOG_MIN === 0 ? 1 : 10, bp));
+      return x0 + ((lx - LOG_MIN) / (LOG_MAX - LOG_MIN)) * plotW;
+    };
+    const yOf = (d) => y1 - d * plotH; // density already normalized 0..1
+
+    // Frame
+    svg.appendChild(el('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // X gridlines: decade ticks 10, 100, 1000 + minor ticks.
+    const minorTicks = [20, 30, 40, 50, 70, 200, 300, 500, 700];
+    for (const m of minorTicks) {
+      const xp = xOf(m);
+      if (xp < x0 || xp > x1) continue;
+      svg.appendChild(el('line', {
+        x1: xp, x2: xp, y1: y0, y2: y1,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': '1 4',
+      }));
+    }
+    const majorTicks = [10, 100, 1000];
+    for (const m of majorTicks) {
+      const xp = xOf(m);
+      if (xp < x0 || xp > x1) continue;
+      svg.appendChild(el('line', {
+        x1: xp, x2: xp, y1: y0, y2: y1,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x: xp, y: y1 + 18,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      }, String(m)));
+    }
+    // Medium labels.
+    for (const m of [50, 200, 500]) {
+      const xp = xOf(m);
+      if (xp < x0 || xp > x1) continue;
+      svg.appendChild(el('text', {
+        x: xp, y: y1 + 18,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+        opacity: 0.7,
+      }, String(m)));
+    }
+
+    // Y gridlines: 0, 0.25, 0.5, 0.75, 1.0
+    const yTicks = [0, 0.25, 0.5, 0.75, 1.0];
+    for (const t of yTicks) {
+      const yp = yOf(t);
+      svg.appendChild(el('line', {
+        x1: x0, x2: x1, y1: yp, y2: yp,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': t === 0 ? '' : '2 4',
+      }));
+      svg.appendChild(el('text', {
+        x: x0 - 8, y: yp + 4,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      }, t.toFixed(2)));
+    }
+
+    // Axis titles
+    svg.appendChild(el('text', {
+      x: (x0 + x1) / 2, y: H - 14,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+    }, 'fragment size (bp, log scale)'));
+    svg.appendChild(el('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+      transform: `translate(20, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, 'read density (normalized)'));
+
+    // Size-selection bounds (shaded outside region)
+    const selLo = state.selMin;
+    const selHi = state.selMax;
+    const lo10 = Math.max(10, selLo || 10);
+    const hi10 = Math.min(1000, selHi || 1000);
+
+    // Shade outside-selected regions.
+    if (lo10 > 10) {
+      const xLo = xOf(lo10);
+      svg.appendChild(el('rect', {
+        x: x0, y: y0,
+        width: Math.max(0, xLo - x0), height: plotH,
+        fill: 'var(--bg-inset)', opacity: 0.55,
+      }));
+    }
+    if (hi10 < 1000) {
+      const xHi = xOf(hi10);
+      svg.appendChild(el('rect', {
+        x: xHi, y: y0,
+        width: Math.max(0, x1 - xHi), height: plotH,
+        fill: 'var(--bg-inset)', opacity: 0.55,
+      }));
+    }
+    // Dashed selection lines
+    for (const m of [lo10, hi10]) {
+      const xp = xOf(m);
+      if (xp <= x0 + 0.5 || xp >= x1 - 0.5) continue;
+      svg.appendChild(el('line', {
+        x1: xp, x2: xp, y1: y0, y2: y1,
+        stroke: 'var(--fg-subtle)', 'stroke-width': 1.3,
+        'stroke-dasharray': '5 4',
+      }));
+    }
+
+    // Area + line
+    const b = state.bins;
+    const sm = state.smoothed;
+    if (b && sm) {
+      let path = '';
+      let first = true;
+      for (let i = 0; i < b.centers.length; i++) {
+        const xp = xOf(b.centers[i]);
+        const yp = yOf(Math.max(0, Math.min(1, sm[i])));
+        path += (first ? 'M' : 'L') + xp.toFixed(2) + ' ' + yp.toFixed(2) + ' ';
+        first = false;
+      }
+      // Area: close to baseline
+      const firstX = xOf(b.centers[0]);
+      const lastX  = xOf(b.centers[b.centers.length - 1]);
+      const baseY  = yOf(0);
+      const areaPath = `M${firstX.toFixed(2)} ${baseY.toFixed(2)} ` +
+        path.substring(1) +
+        `L${lastX.toFixed(2)} ${baseY.toFixed(2)} Z`;
+
+      svg.appendChild(el('path', {
+        d: areaPath,
+        fill: 'var(--accent)', 'fill-opacity': 0.18,
+        stroke: 'none',
+      }));
+      svg.appendChild(el('path', {
+        d: path.trim(),
+        fill: 'none',
+        stroke: 'var(--accent)', 'stroke-width': 1.8,
+        'stroke-linejoin': 'round',
+      }));
+
+      // Also draw the raw binned density (light steps) to hint at the
+      // pre-smoothing histogram.
+      let raw = '';
+      let rfirst = true;
+      for (let i = 0; i < b.centers.length; i++) {
+        const xpL = xOf(b.edges[i]);
+        const xpR = xOf(b.edges[i + 1]);
+        const yp  = yOf(Math.max(0, Math.min(1, b.density[i])));
+        raw += (rfirst ? 'M' : 'L') + xpL.toFixed(2) + ' ' + yp.toFixed(2) + ' ';
+        raw += 'L' + xpR.toFixed(2) + ' ' + yp.toFixed(2) + ' ';
+        rfirst = false;
+      }
+      svg.appendChild(el('path', {
+        d: raw.trim(),
+        fill: 'none',
+        stroke: 'var(--accent)', 'stroke-width': 0.6,
+        opacity: 0.35,
+      }));
+    }
+
+    // Peak markers: arrow down to the peak, label above.
+    const peaks = state.peaks;
+    for (const p of peaks) {
+      const xp = xOf(p.center);
+      const yp = yOf(Math.max(0, Math.min(1, p.density)));
+      if (xp < x0 || xp > x1) continue;
+
+      // Label above peak
+      const labelY = Math.max(y0 + 14, yp - 24);
+      svg.appendChild(el('text', {
+        x: xp, y: labelY - 3,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 11, 'font-weight': 600,
+        fill: 'var(--base-a)',
+      }, p.label));
+      svg.appendChild(el('text', {
+        x: xp, y: labelY + 10,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 9,
+        fill: 'var(--fg-subtle)',
+      }, Math.round(p.center) + ' bp'));
+
+      // Arrow shaft
+      svg.appendChild(el('line', {
+        x1: xp, x2: xp,
+        y1: labelY + 13, y2: yp - 5,
+        stroke: 'var(--base-a)', 'stroke-width': 1.3,
+      }));
+      // Arrow head (triangle)
+      svg.appendChild(el('polygon', {
+        points: `${xp - 3.5},${yp - 5} ${xp + 3.5},${yp - 5} ${xp},${yp - 0.5}`,
+        fill: 'var(--base-a)',
+      }));
+    }
+
+    // Top band annotations: show canonical positions as ghost ticks.
+    if (state.assay === 'atac') {
+      const bands = [
+        { pos: 50,  lbl: 'sub' },
+        { pos: 180, lbl: 'mono' },
+        { pos: 330, lbl: 'di' },
+        { pos: 500, lbl: 'tri' },
+      ];
+      for (const band of bands) {
+        const xp = xOf(band.pos);
+        if (xp < x0 || xp > x1) continue;
+        svg.appendChild(el('line', {
+          x1: xp, x2: xp,
+          y1: y0 - 14, y2: y0,
+          stroke: 'var(--fg-subtle)', 'stroke-width': 1,
+          'stroke-dasharray': '2 2',
+          opacity: 0.7,
+        }));
+        svg.appendChild(el('text', {
+          x: xp, y: y0 - 18,
+          'text-anchor': 'middle',
+          'font-family': 'var(--font-sans)', 'font-size': 9,
+          fill: 'var(--fg-subtle)',
+          'letter-spacing': '0.08em',
+        }, band.lbl));
+      }
+      // Caption above
+      svg.appendChild(el('text', {
+        x: x0, y: y0 - 32,
+        'text-anchor': 'start',
+        'font-family': 'var(--font-sans)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+        'letter-spacing': '0.1em',
+        'text-transform': 'uppercase',
+      }, 'canonical ATAC bands'));
+    } else {
+      // ChIP: one expected mode marker at 300.
+      const xp = xOf(300);
+      svg.appendChild(el('line', {
+        x1: xp, x2: xp, y1: y0 - 14, y2: y0,
+        stroke: 'var(--fg-subtle)', 'stroke-width': 1,
+        'stroke-dasharray': '2 2', opacity: 0.7,
+      }));
+      svg.appendChild(el('text', {
+        x: xp, y: y0 - 18,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-sans)', 'font-size': 9,
+        fill: 'var(--fg-subtle)',
+        'letter-spacing': '0.08em',
+      }, 'sonicated mode'));
+      svg.appendChild(el('text', {
+        x: x0, y: y0 - 32,
+        'text-anchor': 'start',
+        'font-family': 'var(--font-sans)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+        'letter-spacing': '0.1em',
+        'text-transform': 'uppercase',
+      }, 'ChIP-seq: single-mode sonication'));
+    }
+  }
+
+  // ── Status / banner ─────────────────────────────────────
+  function median(arr) {
+    if (!arr.length) return 0;
+    const s = arr.slice().sort((a, b) => a - b);
+    const m = s.length >> 1;
+    return s.length % 2 ? s[m] : 0.5 * (s[m - 1] + s[m]);
+  }
+
+  function updateStatus() {
+    const kept = state.kept;
+    statKept.textContent = kept.length.toLocaleString();
+
+    if (!kept.length) {
+      statMedian.textContent = '—';
+      statSub.textContent = '—';
+      statPeaks.textContent = '—';
+      bannerCount.textContent = '0';
+      bannerRatios.textContent = '—';
+      bannerVerdict.textContent = 'no fragments in window';
+      banner.classList.remove('warn');
+      banner.classList.add('err');
+      return;
+    }
+
+    statMedian.textContent = Math.round(median(kept)) + ' bp';
+    let sub = 0;
+    for (let i = 0; i < kept.length; i++) if (kept[i] < 110) sub++;
+    statSub.textContent = (100 * sub / kept.length).toFixed(1) + '%';
+
+    const peaks = state.peaks;
+    bannerCount.textContent = String(peaks.length);
+
+    if (peaks.length === 0) {
+      bannerRatios.textContent = '—';
+      statPeaks.textContent = '—';
+    } else {
+      // Ratios relative to the tallest peak, in canonical order.
+      const maxD = Math.max.apply(null, peaks.map(p => p.density));
+      const order = state.assay === 'chip'
+        ? ['short', 'mode', 'long']
+        : ['sub', 'mono', 'di', 'tri', '+'];
+      const labelled = [];
+      for (const lbl of order) {
+        const p = peaks.find(x => x.label === lbl);
+        if (p) labelled.push((p.density / maxD * 10).toFixed(1));
+      }
+      bannerRatios.textContent = labelled.length ? labelled.join(':') : '—';
+      statPeaks.textContent = peaks.map(p => Math.round(p.center) + 'bp').join(' · ');
+    }
+
+    // Verdict
+    let verdict = '';
+    if (state.selMin >= state.selMax) {
+      verdict = 'infeasible window';
+      banner.classList.remove('warn');
+      banner.classList.add('err');
+    } else if (state.assay === 'chip') {
+      if (peaks.length <= 1) verdict = 'sonicated single-mode';
+      else                   verdict = 'sonicated (unexpected multi-mode)';
+      banner.classList.remove('warn', 'err');
+    } else {
+      if (peaks.length >= 3) {
+        verdict = 'healthy ladder';
+        banner.classList.remove('warn', 'err');
+      } else if (peaks.length >= 1) {
+        verdict = 'degraded ladder';
+        banner.classList.remove('err');
+        banner.classList.add('warn');
+      } else {
+        verdict = 'no laddering';
+        banner.classList.remove('warn');
+        banner.classList.add('err');
+      }
+    }
+    bannerVerdict.textContent = verdict;
+  }
+
+  // ── Readouts ────────────────────────────────────────────
+  function updateReadouts() {
+    openVal.textContent = state.openFraction.toFixed(2);
+    regVal.textContent  = state.regularity.toFixed(2);
+    tn5Val.textContent  = state.tn5Rate.toFixed(2) + '\u00D7';
+    selMinVal.textContent = String(state.selMin);
+    selMaxVal.textContent = String(state.selMax);
+    selVal.textContent = state.selMin + ' \u2013 ' + state.selMax + ' bp';
+  }
+
+  function updateFeasibility() {
+    if (state.selMin >= state.selMax) {
+      warnEl.textContent = '\u26A0 Size-selection window is empty: min (' + state.selMin + ') \u2265 max (' + state.selMax + '). No fragments will survive trimming.';
+      warnEl.classList.add('show');
+    } else {
+      warnEl.classList.remove('show');
+    }
+  }
+
+  // ── Mode switching ──────────────────────────────────────
+  function setAssay(a) {
+    state.assay = a;
+    modeAtacEl.classList.toggle('active', a === 'atac');
+    modeChipEl.classList.toggle('active', a === 'chip');
+    // ATAC-specific sliders lose meaning under ChIP.
+    const chipMode = (a === 'chip');
+    openEl.disabled = chipMode;
+    regEl.disabled  = chipMode;
+    tn5El.disabled  = chipMode;
+  }
+
+  // ── Pipeline ────────────────────────────────────────────
+  function run(resim) {
+    if (resim) simulate();
+    else {
+      // Only size selection / histogram / peaks need rerun.
+      applySizeSelection();
+      buildHistogram();
+      detectPeaks();
+    }
+    updateFeasibility();
+    updateReadouts();
+    updateStatus();
+    render();
+  }
+
+  function requestRun(resim) {
+    if (state.rafPending) return;
+    state.rafPending = true;
+    const doResim = !!resim;
+    requestAnimationFrame(() => {
+      state.rafPending = false;
+      run(doResim);
+    });
+  }
+
+  function readControls() {
+    state.openFraction = +openEl.value;
+    state.regularity   = +regEl.value;
+    state.tn5Rate      = +tn5El.value;
+
+    let lo = +selMinEl.value;
+    let hi = +selMaxEl.value;
+    // Softly keep lo < hi with a small gap, but do not hide feasibility warning.
+    if (lo > +selMinEl.max) lo = +selMinEl.max;
+    if (hi < +selMaxEl.min) hi = +selMaxEl.min;
+    state.selMin = lo;
+    state.selMax = hi;
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  modeAtacEl.addEventListener('click', () => {
+    setAssay('atac');
+    requestRun(true);
+  });
+  modeChipEl.addEventListener('click', () => {
+    setAssay('chip');
+    requestRun(true);
+  });
+
+  openEl.addEventListener('input', () => { readControls(); requestRun(true); });
+  regEl.addEventListener('input',  () => { readControls(); requestRun(true); });
+  tn5El.addEventListener('input',  () => { readControls(); requestRun(true); });
+
+  selMinEl.addEventListener('input', () => { readControls(); requestRun(false); });
+  selMaxEl.addEventListener('input', () => { readControls(); requestRun(false); });
+
+  resimBtn.addEventListener('click', () => {
+    state.seed = (Math.floor(Math.random() * 0x7fffffff) || 1) >>> 0;
+    readControls();
+    run(true);
+  });
+
+  resetBtn.addEventListener('click', () => {
+    state.seed = 20260421;
+    openEl.value = DEFAULTS.openFraction;
+    regEl.value  = DEFAULTS.regularity;
+    tn5El.value  = DEFAULTS.tn5Rate;
+    selMinEl.value = DEFAULTS.selMin;
+    selMaxEl.value = DEFAULTS.selMax;
+    setAssay(DEFAULTS.assay);
+    readControls();
+    run(true);
+  });
+
+  // ── Boot ────────────────────────────────────────────────
+  setAssay(DEFAULTS.assay);
+  readControls();
+  run(true);
+})();
+</script>
+
+</body>
+</html>

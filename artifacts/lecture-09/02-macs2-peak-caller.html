@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MACS2 Peak Caller</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg); cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+    .slider-row input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 0.75rem 1.25rem;
+      margin-top: 0.9rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+    }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .toggle-row .toggle-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+    }
+    .mode-row { display: inline-flex; gap: 0.25rem; }
+    .mode-btn {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      letter-spacing: 0.04em; font-weight: 500;
+      padding: 0.35rem 0.7rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg-muted); cursor: pointer;
+    }
+    .mode-btn:hover { background: var(--bg-inset); border-color: var(--border-strong); color: var(--fg); }
+    .mode-btn.active {
+      background: var(--accent-bg); border-color: var(--accent);
+      color: var(--accent); font-weight: 600;
+    }
+
+    .controls-row {
+      display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+      margin-top: 1rem; padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .warn-inline {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--warning);
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.75rem;
+      margin-top: 0.75rem;
+      display: none;
+    }
+    .warn-inline.show { display: block; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+    .plot-caption {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-subtle); margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 0.9rem;
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-muted); margin-top: 0.5rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw { display: inline-block; width: 12px; height: 10px; border-radius: 2px; }
+    .legend-swatch .sw.cov { background: #1e3a8a; opacity: 0.85; }
+    .legend-swatch .sw.planted { background: var(--success); }
+    .legend-swatch .sw.tp { background: var(--warning); }
+    .legend-swatch .sw.fp { background: var(--error); }
+    .legend-swatch .sw.noisy {
+      background: #fef3c7;
+      border: 1px solid #fde68a;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+
+    .status-line {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem; padding: 0.85rem 1rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); margin-top: 1rem;
+    }
+    .status-line .label {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--fg-subtle); font-weight: 600; margin: 0;
+    }
+    .status-line .value {
+      font-family: var(--font-mono); font-size: var(--text-lg);
+      color: var(--fg); margin: 0.15rem 0 0;
+    }
+    .status-line .value.good { color: var(--success); }
+    .status-line .value.warn { color: var(--warning); }
+    .status-line .value.bad  { color: var(--error); }
+    .status-line .value.accent { color: var(--accent); }
+
+    .compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .compare .cell {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.9rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+    .compare .cell .hdr {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+    .compare .cell.active { border-color: var(--accent); background: var(--accent-bg); }
+    .compare .cell.active .hdr { color: var(--accent); }
+    .compare .cell b { color: var(--fg); font-weight: 600; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 820px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .compare { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="macs2-peak-caller">
+
+  <header class="artifact-head">
+    <h1>MACS2 Peak Caller</h1>
+    <p>Slide a 200 bp window across simulated ChIP-seq coverage. At each position, compute a <em>local</em> Poisson rate from nested windows (1 kb, 5 kb, up to your chosen size) and take the maximum — that is MACS2's CFAR trick. A peak is only called when the window count is improbably high <em>against its own neighbourhood</em>, so a local bump in baseline — a repeat, a copy-number amplicon, an ATAC-seq open chromatin region — cannot fake a peak. Toggle local &lambda; off with the noisy region on and watch the false positives bloom.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Simulation</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="npeaks-input">Planted peak count</label>
+          <span class="slider-value" id="npeaks-value">20</span>
+        </div>
+        <input id="npeaks-input" type="range" min="5" max="50" step="1" value="20">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="bgrate-input">Background rate (reads / bp)</label>
+          <span class="slider-value" id="bgrate-value">0.20</span>
+        </div>
+        <input id="bgrate-input" type="range" min="5" max="100" step="1" value="20">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="signal-input">Signal strength (peak : bg)</label>
+          <span class="slider-value" id="signal-value">8.0&times;</span>
+        </div>
+        <input id="signal-input" type="range" min="20" max="200" step="1" value="80">
+      </div>
+    </div>
+
+    <div class="toggle-grid">
+      <div class="toggle-row">
+        <span class="toggle-label">Noisy region</span>
+        <div class="mode-row" role="tablist" aria-label="Noisy region">
+          <button class="mode-btn active" id="noisy-off" type="button">off</button>
+          <button class="mode-btn" id="noisy-on" type="button">on (10 kb elevated baseline)</button>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Use local &lambda;</span>
+        <div class="mode-row" role="tablist" aria-label="Use local lambda">
+          <button class="mode-btn active" id="local-on" type="button">on (MACS2-style)</button>
+          <button class="mode-btn" id="local-off" type="button">off (genome-wide only)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="warn-inline" id="warn-inline"></div>
+
+    <div class="controls-row">
+      <button id="resim-btn" class="btn btn--primary" type="button">Re-simulate + run</button>
+      <button id="run-btn" class="btn" type="button">Re-run (keep data)</button>
+      <button id="reset-btn" class="btn" type="button">Reset defaults</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Caller settings</p>
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="lambdaw-input">Largest local &lambda; window</label>
+          <span class="slider-value" id="lambdaw-value">5,000 bp</span>
+        </div>
+        <input id="lambdaw-input" type="range" min="1000" max="20000" step="500" value="5000">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="fdr-input">FDR threshold (BH)</label>
+          <span class="slider-value" id="fdr-value">0.050</span>
+        </div>
+        <input id="fdr-input" type="range" min="0" max="1000" step="1" value="849">
+      </div>
+    </div>
+    <p class="hint">&lambda;<sub>local</sub> = max(&lambda;<sub>bg</sub>, &lambda;<sub>1 kb</sub>, &lambda;<sub>5 kb</sub>, &lambda;<sub>max</sub>) scaled to the 200 bp candidate window. Candidates are tested with a Poisson tail, then Benjamini&ndash;Hochberg corrected across the whole genome. Adjacent significant windows are merged into a single peak call.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Genomic track &middot; 100 kb</p>
+    <div class="plot-wrap">
+      <svg id="track-svg" class="plot-svg" viewBox="0 0 1100 440" preserveAspectRatio="xMidYMid meet" aria-label="Simulated ChIP-seq coverage track"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw cov"></span> coverage (per 10 bp bin)</span>
+      <span class="legend-swatch"><span class="sw planted"></span> planted peak (truth)</span>
+      <span class="legend-swatch"><span class="sw tp"></span> called &mdash; true positive</span>
+      <span class="legend-swatch"><span class="sw fp"></span> called &mdash; false positive</span>
+      <span class="legend-swatch"><span class="sw noisy"></span> noisy region (elevated baseline)</span>
+    </div>
+    <p class="plot-caption">x-axis: genomic coordinate (kb) &middot; y-axis: read count per 10 bp bin. Planted peaks sit below the axis, called peaks sit above. True-positive tolerance: 200 bp.</p>
+
+    <div class="banner" id="banner">
+      <b id="banner-called">0</b> called
+      <span class="sep">&middot;</span>
+      <b id="banner-tp">0</b> TP
+      <span class="sep">&middot;</span>
+      <b id="banner-fp">0</b> FP
+      <span class="sep">&middot;</span>
+      <b id="banner-miss">0</b> missed
+      <span class="sep">&middot;</span>
+      precision <b id="banner-prec">&mdash;</b>
+      <span class="sep">&middot;</span>
+      recall <b id="banner-rec">&mdash;</b>
+    </div>
+
+    <div class="status-line">
+      <div>
+        <p class="label">&lambda;<sub>bg</sub> (per 200 bp)</p>
+        <p class="value" id="stat-lambda">&mdash;</p>
+      </div>
+      <div>
+        <p class="label">Candidate windows</p>
+        <p class="value" id="stat-candidates">&mdash;</p>
+      </div>
+      <div>
+        <p class="label">Significant windows</p>
+        <p class="value accent" id="stat-sigwindows">&mdash;</p>
+      </div>
+      <div>
+        <p class="label">Planted peaks</p>
+        <p class="value good" id="stat-planted">&mdash;</p>
+      </div>
+      <div>
+        <p class="label">False-positive rate</p>
+        <p class="value warn" id="stat-fpr">&mdash;</p>
+      </div>
+    </div>
+
+    <div class="compare">
+      <div class="cell" id="cmp-local">
+        <div class="hdr">Local &lambda; (on)</div>
+        called <b id="cmp-local-called">&mdash;</b> &middot; TP <b id="cmp-local-tp">&mdash;</b> &middot; FP <b id="cmp-local-fp">&mdash;</b>
+        &middot; prec <b id="cmp-local-prec">&mdash;</b> &middot; rec <b id="cmp-local-rec">&mdash;</b>
+      </div>
+      <div class="cell" id="cmp-global">
+        <div class="hdr">Genome-wide &lambda; only</div>
+        called <b id="cmp-global-called">&mdash;</b> &middot; TP <b id="cmp-global-tp">&mdash;</b> &middot; FP <b id="cmp-global-fp">&mdash;</b>
+        &middot; prec <b id="cmp-global-prec">&mdash;</b> &middot; rec <b id="cmp-global-rec">&mdash;</b>
+      </div>
+    </div>
+
+    <p class="hint">Try the canonical demo: turn the noisy region <em>on</em>, keep local &lambda; <em>on</em> &mdash; clean precision. Then switch local &lambda; <em>off</em>. The genome-wide &lambda; underestimates the noise inside the amber stripe, and a crop of red false positives sprouts there. The compare cards always show both regimes side by side so the effect is visible without toggling.</p>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── DOM refs ────────────────────────────────────────────
+  const npeaksEl  = $('npeaks-input');
+  const bgrateEl  = $('bgrate-input');
+  const signalEl  = $('signal-input');
+  const lambdaWEl = $('lambdaw-input');
+  const fdrEl     = $('fdr-input');
+
+  const noisyOffEl = $('noisy-off');
+  const noisyOnEl  = $('noisy-on');
+  const localOnEl  = $('local-on');
+  const localOffEl = $('local-off');
+
+  const resimBtn = $('resim-btn');
+  const runBtn   = $('run-btn');
+  const resetBtn = $('reset-btn');
+  const warnEl   = $('warn-inline');
+  const svg      = $('track-svg');
+
+  const npeaksVal  = $('npeaks-value');
+  const bgrateVal  = $('bgrate-value');
+  const signalVal  = $('signal-value');
+  const lambdaWVal = $('lambdaw-value');
+  const fdrVal     = $('fdr-value');
+
+  const bannerCalled = $('banner-called');
+  const bannerTP     = $('banner-tp');
+  const bannerFP     = $('banner-fp');
+  const bannerMiss   = $('banner-miss');
+  const bannerPrec   = $('banner-prec');
+  const bannerRec    = $('banner-rec');
+
+  const statLambda     = $('stat-lambda');
+  const statCandidates = $('stat-candidates');
+  const statSig        = $('stat-sigwindows');
+  const statPlanted    = $('stat-planted');
+  const statFPR        = $('stat-fpr');
+
+  const cmpLocalCard = $('cmp-local');
+  const cmpGlobalCard= $('cmp-global');
+  const cmpLocal = {
+    called: $('cmp-local-called'),
+    tp: $('cmp-local-tp'),
+    fp: $('cmp-local-fp'),
+    prec: $('cmp-local-prec'),
+    rec: $('cmp-local-rec'),
+  };
+  const cmpGlobal = {
+    called: $('cmp-global-called'),
+    tp: $('cmp-global-tp'),
+    fp: $('cmp-global-fp'),
+    prec: $('cmp-global-prec'),
+    rec: $('cmp-global-rec'),
+  };
+
+  // ── Defaults / state ───────────────────────────────────
+  const DEFAULTS = {
+    nPeaks: 20,
+    bgRate: 0.20,
+    signal: 8.0,
+    noisy: false,
+    localOn: true,
+    lambdaW: 5000,
+    fdr: 0.05,
+  };
+
+  // Genome geometry
+  const GENOME_BP   = 100000;   // 100 kb
+  const BIN_BP      = 10;       // per-10 bp coverage bin
+  const N_BINS      = GENOME_BP / BIN_BP; // 10 000 bins
+  const WIN_BP      = 200;      // candidate sliding window
+  const STEP_BP     = 100;      // step
+  const WIN_BINS    = WIN_BP / BIN_BP; // 20 bins per window
+  const STEP_BINS   = STEP_BP / BIN_BP; // 10 bins per step
+  const N_WINDOWS   = Math.floor((GENOME_BP - WIN_BP) / STEP_BP) + 1;
+
+  // Noisy region: 55 000 – 65 000 bp with 3x baseline elevation
+  const NOISY_START = 55000;
+  const NOISY_END   = 65000;
+
+  const state = {
+    nPeaks:  DEFAULTS.nPeaks,
+    bgRate:  DEFAULTS.bgRate,
+    signal:  DEFAULTS.signal,
+    noisy:   DEFAULTS.noisy,
+    localOn: DEFAULTS.localOn,
+    lambdaW: DEFAULTS.lambdaW,
+    fdr:     DEFAULTS.fdr,
+
+    seed: 20260420,
+    coverage:  null,   // Float64Array of length N_BINS
+    plantedPos: [],    // ground-truth peak centres (bp)
+
+    // Most recent run result object
+    result: null,
+    // Sibling result for the "other" mode (for compare cards)
+    resultOther: null,
+  };
+
+  // ── PRNG — mulberry32 ──────────────────────────────────
+  function mulberry32(seedVal) {
+    let t = seedVal >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function makeRandn(rnd) {
+    return function () {
+      let u = 0, v = 0;
+      while (u === 0) u = rnd();
+      while (v === 0) v = rnd();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    };
+  }
+
+  // Poisson sampler. For small λ (< ~30) uses Knuth, otherwise a
+  // normal approximation with continuity correction — accurate enough
+  // for per-bin simulation counts.
+  function makePoisson(rnd, randn) {
+    return function (lambda) {
+      if (lambda <= 0) return 0;
+      if (lambda < 30) {
+        const L = Math.exp(-lambda);
+        let k = 0, p = 1;
+        do { k++; p *= rnd(); } while (p > L);
+        return k - 1;
+      }
+      const x = lambda + Math.sqrt(lambda) * randn();
+      return Math.max(0, Math.round(x));
+    };
+  }
+
+  // ── Simulation ─────────────────────────────────────────
+  //
+  // Per-bin baseline rate = bgRate * BIN_BP, multiplied by noisy-region
+  // factor (3x) inside [NOISY_START, NOISY_END]. Planted peaks are
+  // Gaussian bumps of width σ ≈ 85 bp (FWHM ~200 bp) with amplitude
+  // signal × baseline. Peak centres are sampled uniformly outside the
+  // noisy stripe so the noisy region contains *no* planted peaks —
+  // that makes every call inside it a false positive.
+
+  function simulate() {
+    const rnd   = mulberry32(state.seed);
+    const randn = makeRandn(rnd);
+    const pois  = makePoisson(rnd, randn);
+
+    const baseline = state.bgRate * BIN_BP;    // per-bin background counts
+    const cov = new Float64Array(N_BINS);
+
+    for (let i = 0; i < N_BINS; i++) {
+      const bp = i * BIN_BP;
+      let lam = baseline;
+      if (state.noisy && bp >= NOISY_START && bp < NOISY_END) lam *= 3;
+      cov[i] = pois(lam);
+    }
+
+    // Plant peaks outside the noisy region (if on) and with a 600 bp
+    // minimum separation so they do not fuse visually.
+    const positions = [];
+    const MARGIN = 600;
+    let tries = 0;
+    while (positions.length < state.nPeaks && tries < 10000) {
+      tries++;
+      const bp = Math.floor(rnd() * (GENOME_BP - 2 * MARGIN)) + MARGIN;
+      if (state.noisy && bp >= NOISY_START - 400 && bp < NOISY_END + 400) continue;
+      let ok = true;
+      for (let j = 0; j < positions.length; j++) {
+        if (Math.abs(positions[j] - bp) < MARGIN) { ok = false; break; }
+      }
+      if (!ok) continue;
+      positions.push(bp);
+    }
+    positions.sort((a, b) => a - b);
+
+    // Add the Gaussian bumps. Amplitude is (signal-1)×baseline so that
+    // total rate at peak centre ≈ signal × baseline — the peak:bg ratio
+    // the slider promises.
+    const sigma = 85; // bp
+    const amp = (state.signal - 1) * baseline;
+    for (let p = 0; p < positions.length; p++) {
+      const centre = positions[p];
+      const halfWidth = 4 * sigma; // ±340 bp window covers the bump
+      const lo = Math.max(0, centre - halfWidth);
+      const hi = Math.min(GENOME_BP - BIN_BP, centre + halfWidth);
+      const binLo = Math.floor(lo / BIN_BP);
+      const binHi = Math.floor(hi / BIN_BP);
+      for (let i = binLo; i <= binHi; i++) {
+        const bp = i * BIN_BP + BIN_BP / 2;
+        const dx = bp - centre;
+        const extraLam = amp * Math.exp(-(dx * dx) / (2 * sigma * sigma));
+        if (extraLam <= 0) continue;
+        cov[i] += pois(extraLam);
+      }
+    }
+
+    state.coverage = cov;
+    state.plantedPos = positions;
+  }
+
+  // ── Poisson survival P(X ≥ k | λ) ──────────────────────
+  //
+  // For small λ (< 30) sum the PMF from 0..k-1 and return 1 - that.
+  // For large λ use a continuity-corrected normal approximation
+  // P(X ≥ k) ≈ 1 - Φ((k - 0.5 - λ) / √λ).
+
+  function erf(x) {
+    // Abramowitz & Stegun 7.1.26, accurate to ~1.5e-7
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x);
+    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+    const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+    const t = 1 / (1 + p * x);
+    const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    return sign * y;
+  }
+  function normCdf(z) { return 0.5 * (1 + erf(z / Math.SQRT2)); }
+
+  // Poisson tail P(X ≥ k | λ). Both inputs can be floats; k is rounded.
+  function poissonTail(k, lam) {
+    if (lam <= 0) return k <= 0 ? 1 : 0;
+    k = Math.round(k);
+    if (k <= 0) return 1;
+    if (lam >= 30) {
+      const z = (k - 0.5 - lam) / Math.sqrt(lam);
+      return 1 - normCdf(z);
+    }
+    // Sum PMF 0..k-1
+    let term = Math.exp(-lam);
+    let sum = term;
+    for (let i = 1; i < k; i++) {
+      term *= lam / i;
+      sum += term;
+    }
+    const p = 1 - sum;
+    return p < 0 ? 0 : (p > 1 ? 1 : p);
+  }
+
+  // ── Prefix sums for fast window queries ────────────────
+  function buildPrefix(cov) {
+    const n = cov.length;
+    const pref = new Float64Array(n + 1);
+    for (let i = 0; i < n; i++) pref[i + 1] = pref[i] + cov[i];
+    return pref;
+  }
+  // Sum over bp range [bpLo, bpHi) — clipped to genome.
+  function sumBp(pref, bpLo, bpHi) {
+    const lo = Math.max(0, Math.floor(bpLo / BIN_BP));
+    const hi = Math.min(N_BINS, Math.floor(bpHi / BIN_BP));
+    if (hi <= lo) return 0;
+    return pref[hi] - pref[lo];
+  }
+
+  // ── Benjamini–Hochberg ─────────────────────────────────
+  //
+  // Input: array of p-values. Output: boolean array of same length,
+  // true where H₀ is rejected at FDR α. Standard step-up procedure.
+
+  function bhReject(pvals, alpha) {
+    const n = pvals.length;
+    const idx = new Array(n);
+    for (let i = 0; i < n; i++) idx[i] = i;
+    idx.sort((a, b) => pvals[a] - pvals[b]);
+    let maxK = -1;
+    for (let r = 0; r < n; r++) {
+      const p = pvals[idx[r]];
+      const thr = ((r + 1) / n) * alpha;
+      if (p <= thr) maxK = r;
+    }
+    const rej = new Uint8Array(n);
+    for (let r = 0; r <= maxK; r++) rej[idx[r]] = 1;
+    return rej;
+  }
+
+  // ── MACS2-style caller ─────────────────────────────────
+  //
+  // For each candidate 200 bp window at step 100 bp, compute observed
+  // count c. Compute λ_bg (genome-wide) and — if local is on — the
+  // maxima over 1 kb, 5 kb, and lambdaW windows, all scaled to the
+  // 200 bp footprint. λ_local = max of these. p = P(X ≥ c | λ_local).
+  // BH across all windows, then merge adjacent significant windows.
+
+  function callPeaks(opts) {
+    const { useLocal, lambdaW, fdr } = opts;
+    const cov = state.coverage;
+    const pref = buildPrefix(cov);
+
+    const totalReads = pref[N_BINS];
+    const genomeLambda = totalReads / (GENOME_BP / WIN_BP); // per-200 bp
+
+    const centres = new Float64Array(N_WINDOWS);
+    const counts  = new Float64Array(N_WINDOWS);
+    const lams    = new Float64Array(N_WINDOWS);
+    const pvals   = new Float64Array(N_WINDOWS);
+
+    // Local window sizes — always include 1 kb and 5 kb, plus lambdaW
+    // (the big one). If lambdaW <= 5000, treat the big one as max(5k, lambdaW).
+    const localSizes = useLocal
+      ? [1000, 5000, Math.max(5000, lambdaW)]
+      : [];
+
+    for (let w = 0; w < N_WINDOWS; w++) {
+      const bpLo = w * STEP_BP;
+      const bpHi = bpLo + WIN_BP;
+      const centre = bpLo + WIN_BP / 2;
+      const c = pref[bpLo / BIN_BP + WIN_BINS] - pref[bpLo / BIN_BP];
+
+      let lamLocal = genomeLambda;
+      for (let s = 0; s < localSizes.length; s++) {
+        const W = localSizes[s];
+        const lo = centre - W / 2;
+        const hi = centre + W / 2;
+        const sum = sumBp(pref, lo, hi);
+        const span = Math.min(GENOME_BP, Math.max(WIN_BP, hi - Math.max(0, lo)));
+        const lamW = (sum * WIN_BP) / span;
+        if (lamW > lamLocal) lamLocal = lamW;
+      }
+      // Guard against zero λ (empty genomes)
+      if (lamLocal < 1e-6) lamLocal = 1e-6;
+
+      centres[w] = centre;
+      counts[w]  = c;
+      lams[w]    = lamLocal;
+      pvals[w]   = poissonTail(c, lamLocal);
+    }
+
+    // BH correction across all candidate windows
+    const rej = bhReject(pvals, fdr);
+
+    // Merge adjacent significant windows into peaks. Adjacent = step apart.
+    // If a merged run is wider than ~600 bp (a biological peak is usually
+    // narrower), split it at local minima of p-value so distinct summits
+    // become distinct peaks — what MACS2 does with its --call-summits flag.
+    // This matters for the teaching point: with local λ off, the entire
+    // noisy region gets flagged as one huge run; splitting surfaces many
+    // discrete false positives instead of a single giant one.
+    const peaks = [];
+    const MAX_PEAK_BP = 600; // bp; wider runs get split at local summits
+    let i = 0;
+    while (i < N_WINDOWS) {
+      if (!rej[i]) { i++; continue; }
+      let j = i;
+      while (j + 1 < N_WINDOWS && rej[j + 1]) j++;
+      const runStartBp = Math.max(0, i * STEP_BP);
+      const runEndBp   = Math.min(GENOME_BP, j * STEP_BP + WIN_BP);
+      const runW = runEndBp - runStartBp;
+
+      if (runW <= MAX_PEAK_BP) {
+        // Simple peak — single summit
+        let bestW = i, bestP = pvals[i];
+        for (let k = i + 1; k <= j; k++) {
+          if (pvals[k] < bestP) { bestP = pvals[k]; bestW = k; }
+        }
+        peaks.push({
+          startBp: runStartBp, endBp: runEndBp,
+          summit: centres[bestW],
+          pMin: bestP,
+          count: counts[bestW],
+          lam: lams[bestW],
+        });
+      } else {
+        // Wide run — chop into MAX_PEAK_BP-wide chunks around local summits.
+        // Find all local minima of pvals inside [i..j] (windows whose p is
+        // smaller than both neighbours). If none, fall back to chunking.
+        const summitWindows = [];
+        for (let k = i; k <= j; k++) {
+          const pk = pvals[k];
+          const pl = (k - 1 >= i) ? pvals[k - 1] : Infinity;
+          const pr = (k + 1 <= j) ? pvals[k + 1] : Infinity;
+          if (pk <= pl && pk <= pr) summitWindows.push(k);
+        }
+        // Enforce a minimum separation between summits so very close
+        // minima don't produce duplicate peaks.
+        const MIN_SEP_BINS = Math.ceil(MAX_PEAK_BP / STEP_BP);
+        const picked = [];
+        summitWindows.sort((a, b) => pvals[a] - pvals[b]);
+        for (let s = 0; s < summitWindows.length; s++) {
+          const w = summitWindows[s];
+          let clash = false;
+          for (let t = 0; t < picked.length; t++) {
+            if (Math.abs(picked[t] - w) < MIN_SEP_BINS) { clash = true; break; }
+          }
+          if (!clash) picked.push(w);
+        }
+        picked.sort((a, b) => a - b);
+        if (picked.length === 0) picked.push(Math.floor((i + j) / 2));
+        for (let s = 0; s < picked.length; s++) {
+          const w = picked[s];
+          const c = centres[w];
+          const startBp = Math.max(runStartBp, c - MAX_PEAK_BP / 2);
+          const endBp   = Math.min(runEndBp, c + MAX_PEAK_BP / 2);
+          peaks.push({
+            startBp, endBp,
+            summit: c,
+            pMin: pvals[w],
+            count: counts[w],
+            lam: lams[w],
+          });
+        }
+      }
+      i = j + 1;
+    }
+
+    // Evaluate against ground truth (200 bp tolerance from summit)
+    const TOL = 200;
+    const planted = state.plantedPos.slice();
+    const used = new Uint8Array(planted.length);
+    let tp = 0, fp = 0;
+    const peakFlags = new Array(peaks.length).fill(false);
+    for (let p = 0; p < peaks.length; p++) {
+      let matchedJ = -1, best = Infinity;
+      for (let j = 0; j < planted.length; j++) {
+        if (used[j]) continue;
+        const d = Math.abs(peaks[p].summit - planted[j]);
+        if (d <= TOL && d < best) { best = d; matchedJ = j; }
+      }
+      if (matchedJ >= 0) {
+        used[matchedJ] = 1;
+        tp++;
+        peakFlags[p] = true;
+      } else {
+        fp++;
+      }
+    }
+    let missed = 0;
+    for (let j = 0; j < planted.length; j++) if (!used[j]) missed++;
+
+    const sigWindows = rej.reduce((s, v) => s + v, 0);
+    const precision = (tp + fp) > 0 ? tp / (tp + fp) : (planted.length === 0 ? 1 : 0);
+    const recall    = planted.length > 0 ? tp / planted.length : 1;
+
+    return {
+      peaks, peakFlags, tp, fp, missed,
+      precision, recall,
+      genomeLambda, sigWindows,
+      candidates: N_WINDOWS,
+    };
+  }
+
+  // ── Rendering ──────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  // Plot geometry
+  const W = 1100, H = 440;
+  const PAD_L = 62, PAD_R = 22, PAD_T = 58, PAD_B = 74;
+  // Track strip: planted ticks below, called ticks above.
+
+  function render() {
+    clear(svg);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const cov = state.coverage;
+    const result = state.result;
+    if (!cov || !result) return;
+
+    const x0 = PAD_L, x1 = W - PAD_R;
+    const y0 = PAD_T,  y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    // Scale: x = bp → px; y = count → px (log-ish: clamp to max)
+    const xOf = (bp) => x0 + (bp / GENOME_BP) * plotW;
+    let covMax = 0;
+    for (let i = 0; i < cov.length; i++) if (cov[i] > covMax) covMax = cov[i];
+    // Give a little headroom and avoid divide-by-zero
+    const yMax = Math.max(5, covMax * 1.08);
+    const yOf = (v) => y1 - (Math.min(v, yMax) / yMax) * plotH;
+
+    // Noisy region shading (behind everything)
+    if (state.noisy) {
+      svg.appendChild(el('rect', {
+        x: xOf(NOISY_START), y: y0 - 18,
+        width: xOf(NOISY_END) - xOf(NOISY_START),
+        height: (y1 + 34) - (y0 - 18),
+        fill: '#fef3c7', opacity: 0.55,
+      }));
+      svg.appendChild(el('text', {
+        x: (xOf(NOISY_START) + xOf(NOISY_END)) / 2,
+        y: y0 - 24,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-sans)', 'font-size': 10,
+        fill: '#b45309', 'letter-spacing': '0.12em',
+      }, 'NOISY REGION \u00b7 3\u00d7 BASELINE'));
+    }
+
+    // Plot frame
+    svg.appendChild(el('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Y gridlines — 4 evenly-spaced ticks
+    const nYTicks = 4;
+    for (let t = 0; t <= nYTicks; t++) {
+      const v = (t / nYTicks) * yMax;
+      const yp = yOf(v);
+      svg.appendChild(el('line', {
+        x1: x0, x2: x1, y1: yp, y2: yp,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': t === 0 ? '' : '2 4',
+      }));
+      svg.appendChild(el('text', {
+        x: x0 - 8, y: yp + 4,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, Math.round(v).toString()));
+    }
+
+    // X gridlines — 10 kb steps
+    for (let bp = 0; bp <= GENOME_BP; bp += 10000) {
+      const xp = xOf(bp);
+      svg.appendChild(el('line', {
+        x1: xp, x2: xp, y1: y0, y2: y1,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': bp === 0 || bp === GENOME_BP ? '' : '2 4',
+      }));
+      svg.appendChild(el('text', {
+        x: xp, y: y1 + 18,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, (bp / 1000) + ' kb'));
+    }
+
+    // Axis labels
+    svg.appendChild(el('text', {
+      x: (x0 + x1) / 2, y: H - 20,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+    }, 'genomic coordinate'));
+    svg.appendChild(el('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+      transform: `translate(16, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, 'reads per 10 bp bin'));
+
+    // Coverage filled area — a single path, down-sampled by grouping
+    // pairs of bins so the SVG is not huge. 10 000 bins → 5 000 points
+    // is still crisp at this plot width.
+    const step = 2;
+    let d = '';
+    d += `M ${xOf(0).toFixed(2)} ${y1.toFixed(2)}`;
+    for (let i = 0; i < cov.length; i += step) {
+      let v = cov[i];
+      if (step > 1 && i + 1 < cov.length && cov[i + 1] > v) v = cov[i + 1];
+      const bp = i * BIN_BP;
+      d += ` L ${xOf(bp).toFixed(2)} ${yOf(v).toFixed(2)}`;
+    }
+    d += ` L ${xOf(GENOME_BP).toFixed(2)} ${y1.toFixed(2)} Z`;
+
+    svg.appendChild(el('path', {
+      d,
+      fill: 'var(--accent)', 'fill-opacity': 0.22,
+      stroke: 'var(--accent)', 'stroke-width': 0.8,
+      'stroke-opacity': 0.9,
+    }));
+
+    // Planted peaks — green ticks below axis
+    const plantedStripY = y1 + 26;
+    for (let i = 0; i < state.plantedPos.length; i++) {
+      const xp = xOf(state.plantedPos[i]);
+      svg.appendChild(el('line', {
+        x1: xp, x2: xp,
+        y1: plantedStripY - 8, y2: plantedStripY + 8,
+        stroke: 'var(--success)', 'stroke-width': 2.5, 'stroke-linecap': 'round',
+      }));
+    }
+    svg.appendChild(el('text', {
+      x: x0 - 6, y: plantedStripY + 4,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-sans)', 'font-size': 9,
+      fill: 'var(--success)', 'letter-spacing': '0.1em', 'font-weight': 600,
+    }, 'TRUTH'));
+
+    // Called peaks — amber (TP) or red (FP), as filled bars above the track
+    const calledStripY = y0 - 2;
+    for (let i = 0; i < result.peaks.length; i++) {
+      const p = result.peaks[i];
+      const tp = result.peakFlags[i];
+      const col = tp ? 'var(--warning)' : 'var(--error)';
+      const x = xOf(p.startBp);
+      const wpx = Math.max(2.5, xOf(p.endBp) - xOf(p.startBp));
+      svg.appendChild(el('rect', {
+        x: x, y: calledStripY - 8,
+        width: wpx, height: 6,
+        fill: col, rx: 1, ry: 1,
+        opacity: 0.92,
+      }));
+      // Summit dot
+      svg.appendChild(el('circle', {
+        cx: xOf(p.summit), cy: calledStripY - 14, r: 2.2,
+        fill: col,
+      }));
+    }
+    svg.appendChild(el('text', {
+      x: x0 - 6, y: calledStripY - 10,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-sans)', 'font-size': 9,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.1em', 'font-weight': 600,
+    }, 'CALLED'));
+  }
+
+  // ── Outcome / status update ────────────────────────────
+  function fmtInt(n) { return Math.round(n).toLocaleString(); }
+  function fmtPct(p) {
+    if (!isFinite(p)) return '\u2014';
+    return (p * 100).toFixed(1) + '%';
+  }
+  function fmtFloat(x, d = 2) {
+    if (!isFinite(x)) return '\u2014';
+    return x.toFixed(d);
+  }
+
+  function updateReadouts() {
+    npeaksVal.textContent = state.nPeaks.toString();
+    bgrateVal.textContent = state.bgRate.toFixed(2);
+    signalVal.textContent = state.signal.toFixed(1) + '\u00d7';
+    lambdaWVal.textContent = state.lambdaW.toLocaleString() + ' bp';
+    fdrVal.textContent = state.fdr.toFixed(3);
+
+    noisyOffEl.classList.toggle('active', !state.noisy);
+    noisyOnEl.classList.toggle('active', state.noisy);
+    localOnEl.classList.toggle('active', state.localOn);
+    localOffEl.classList.toggle('active', !state.localOn);
+
+    const r = state.result;
+    if (!r) return;
+    bannerCalled.textContent = fmtInt(r.peaks.length);
+    bannerTP.textContent     = fmtInt(r.tp);
+    bannerFP.textContent     = fmtInt(r.fp);
+    bannerMiss.textContent   = fmtInt(r.missed);
+    bannerPrec.textContent   = fmtPct(r.precision);
+    bannerRec.textContent    = fmtPct(r.recall);
+
+    statLambda.textContent     = fmtFloat(r.genomeLambda, 2);
+    statCandidates.textContent = fmtInt(r.candidates);
+    statSig.textContent        = fmtInt(r.sigWindows);
+    statPlanted.textContent    = fmtInt(state.plantedPos.length);
+    // False positive rate = FP / (FP + TN) where TN ≈ candidates - sig-at-truth
+    // Practically, report FP count as share of called peaks.
+    const fpShare = r.peaks.length > 0 ? r.fp / r.peaks.length : 0;
+    statFPR.textContent = fmtPct(fpShare);
+
+    // Compare cards — always show both regimes
+    const other = state.resultOther;
+    const currentKey = state.localOn ? 'local' : 'global';
+    const otherKey   = state.localOn ? 'global' : 'local';
+    const local  = currentKey === 'local' ? r : other;
+    const global = currentKey === 'global' ? r : other;
+
+    function fillCell(card, res) {
+      if (!res) {
+        card.called.textContent = '\u2014';
+        card.tp.textContent = '\u2014';
+        card.fp.textContent = '\u2014';
+        card.prec.textContent = '\u2014';
+        card.rec.textContent = '\u2014';
+        return;
+      }
+      card.called.textContent = fmtInt(res.peaks.length);
+      card.tp.textContent     = fmtInt(res.tp);
+      card.fp.textContent     = fmtInt(res.fp);
+      card.prec.textContent   = fmtPct(res.precision);
+      card.rec.textContent    = fmtPct(res.recall);
+    }
+    fillCell(cmpLocal, local);
+    fillCell(cmpGlobal, global);
+
+    cmpLocalCard.classList.toggle('active', state.localOn);
+    cmpGlobalCard.classList.toggle('active', !state.localOn);
+  }
+
+  function updateFeasibility() {
+    if (state.signal < 2) {
+      warnEl.textContent = '\u26A0 Signal strength below 2\u00d7 \u2014 peaks are nearly indistinguishable from background. Expect low recall and ambiguous calls. This is the feasibility floor for ChIP-seq peak detection.';
+      warnEl.classList.add('show');
+    } else {
+      warnEl.classList.remove('show');
+    }
+  }
+
+  function run() {
+    state.result = callPeaks({
+      useLocal: state.localOn,
+      lambdaW: state.lambdaW,
+      fdr: state.fdr,
+    });
+    // Also compute the "other regime" for the compare cards.
+    state.resultOther = callPeaks({
+      useLocal: !state.localOn,
+      lambdaW: state.lambdaW,
+      fdr: state.fdr,
+    });
+    updateFeasibility();
+    updateReadouts();
+    render();
+  }
+
+  function simulateAndRun() {
+    simulate();
+    run();
+  }
+
+  // ── Control wiring ─────────────────────────────────────
+  function fdrFromSlider(s) {
+    // Map 0..1000 log-uniformly to [0.001, 0.1]
+    const lo = Math.log(0.001), hi = Math.log(0.1);
+    const t = s / 1000;
+    return Math.exp(lo + t * (hi - lo));
+  }
+  function bgrateFromSlider(s) {
+    // 5..100 → 0.05..1.00
+    return s / 100;
+  }
+  function signalFromSlider(s) {
+    // 20..200 → 2.0..20.0
+    return s / 10;
+  }
+
+  function readControls() {
+    state.nPeaks  = +npeaksEl.value;
+    state.bgRate  = bgrateFromSlider(+bgrateEl.value);
+    state.signal  = signalFromSlider(+signalEl.value);
+    state.lambdaW = +lambdaWEl.value;
+    state.fdr     = fdrFromSlider(+fdrEl.value);
+  }
+
+  // Any slider that affects the coverage track requires a full re-sim.
+  // Caller-only sliders (lambdaW, fdr) can re-run on the same data.
+  function onSimSlider() {
+    readControls();
+    simulateAndRun();
+  }
+  function onCallerSlider() {
+    readControls();
+    run();
+  }
+
+  [npeaksEl, bgrateEl, signalEl].forEach(el => {
+    el.addEventListener('input', onSimSlider);
+  });
+  [lambdaWEl, fdrEl].forEach(el => {
+    el.addEventListener('input', onCallerSlider);
+  });
+
+  noisyOffEl.addEventListener('click', () => {
+    if (!state.noisy) return;
+    state.noisy = false;
+    simulateAndRun();
+  });
+  noisyOnEl.addEventListener('click', () => {
+    if (state.noisy) return;
+    state.noisy = true;
+    simulateAndRun();
+  });
+  localOnEl.addEventListener('click', () => {
+    if (state.localOn) return;
+    state.localOn = true;
+    run();
+  });
+  localOffEl.addEventListener('click', () => {
+    if (!state.localOn) return;
+    state.localOn = false;
+    run();
+  });
+
+  resimBtn.addEventListener('click', () => {
+    // Fresh seed
+    state.seed = (Math.floor(Math.random() * 0x7fffffff) || 1) >>> 0;
+    readControls();
+    simulateAndRun();
+  });
+  runBtn.addEventListener('click', () => {
+    readControls();
+    run();
+  });
+  resetBtn.addEventListener('click', () => {
+    state.seed = 20260420;
+    npeaksEl.value  = 20;
+    bgrateEl.value  = 20;   // → 0.20
+    signalEl.value  = 80;   // → 8.0
+    lambdaWEl.value = 5000;
+    fdrEl.value     = 849;  // → ~0.05
+    state.noisy   = false;
+    state.localOn = true;
+    readControls();
+    simulateAndRun();
+  });
+
+  // ── Boot ───────────────────────────────────────────────
+  readControls();
+  simulateAndRun();
+})();
+</script>
+
+</body>
+</html>

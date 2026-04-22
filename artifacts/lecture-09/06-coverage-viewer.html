@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChIP vs ATAC Coverage Viewer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: minmax(260px, 1.3fr) minmax(260px, 1fr);
+      gap: 1.25rem 1.5rem;
+      align-items: start;
+    }
+    @media (max-width: 720px) {
+      .controls-grid { grid-template-columns: 1fr; }
+    }
+
+    .scenario-wrap select {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.5rem 0.7rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      width: 100%;
+    }
+    .scenario-wrap select:focus {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: 1px;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .toggles {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.5rem 0.9rem;
+    }
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      cursor: pointer;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-muted);
+    }
+    .toggle:hover { border-color: var(--border-strong); }
+    .toggle input[type="checkbox"] { accent-color: var(--accent); }
+    .toggle .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 2px;
+    }
+    .toggle .name {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: 600;
+    }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-relaxed);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 2px;
+    }
+    .legend-swatch .sw.tss {
+      width: 0; height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 9px solid var(--fg);
+      border-radius: 0;
+    }
+    .legend-swatch .sw.tfbs { background: var(--fg); width: 9px; height: 9px; }
+    .legend-swatch .sw.nuc {
+      width: 14px; height: 7px;
+      background: var(--fg-muted);
+      border-radius: 50%;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .toggles { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="coverage-viewer">
+
+  <header class="artifact-head">
+    <h1>ChIP vs ATAC Coverage Viewer</h1>
+    <p>Walk a ~20 kb genomic window and compare signal shape across four assays: CTCF ChIP, H3K4me3, H3K27me3, and ATAC-seq. Switch scenarios to see how the same four tracks rearrange themselves over an active promoter, a silenced domain, a cluster of enhancers, and an active gene body. The aha is that no single track diagnoses regulatory state — the combination does.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Controls</p>
+
+    <div class="controls-grid">
+      <div class="scenario-wrap">
+        <label class="field-label" for="scenario-select">Scenario preset</label>
+        <select id="scenario-select">
+          <option value="active_promoter">active promoter + TF</option>
+          <option value="silenced_domain">silenced domain (H3K27me3 high)</option>
+          <option value="enhancer_cluster">enhancer cluster (narrow active peaks)</option>
+          <option value="gene_body">active gene body</option>
+        </select>
+        <div class="action-row">
+          <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate</button>
+        </div>
+        <p class="hint" id="scenario-caption"></p>
+      </div>
+
+      <div>
+        <span class="field-label">Tracks</span>
+        <div class="toggles" id="track-toggles">
+          <label class="toggle">
+            <input type="checkbox" data-track="ctcf" checked>
+            <span class="sw" style="background:#1e3a8a"></span>
+            <span class="name">CTCF</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" data-track="k4me3" checked>
+            <span class="sw" style="background:#0d7377"></span>
+            <span class="name">H3K4me3</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" data-track="k27me3" checked>
+            <span class="sw" style="background:#b45309"></span>
+            <span class="name">H3K27me3</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" data-track="atac" checked>
+            <span class="sw" style="background:#c4342c"></span>
+            <span class="name">ATAC</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Browser</p>
+    <div class="plot-wrap">
+      <svg id="browser-svg" class="plot-svg" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet" aria-label="Genome browser coverage view"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw tss"></span> TSS</span>
+      <span class="legend-swatch"><span class="sw tfbs"></span> TF binding site</span>
+      <span class="legend-swatch"><span class="sw nuc"></span> nucleosome</span>
+    </div>
+    <p class="plot-caption">x-axis: coordinate along a 20 kb window (0 – 20,000 bp). Tracks are stacked with independent y-scaling; peak heights are comparable within a track, not across tracks.</p>
+  </section>
+
+  <div class="banner" id="banner"></div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Deterministic RNG (mulberry32) ───────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rnd) {
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  // Small-lambda Poisson via Knuth's algorithm. Good enough for lambda <= ~20.
+  function poisson(rnd, lambda) {
+    if (lambda <= 0) return 0;
+    const L = Math.exp(-lambda);
+    let k = 0, p = 1;
+    do { k++; p *= rnd(); } while (p > L);
+    return k - 1;
+  }
+
+  // ── Window / bin geometry ────────────────────────────────
+  const WIN_BP = 20000;
+  const BINS = 400;                       // 50 bp per bin
+  const BP_PER_BIN = WIN_BP / BINS;       // 50
+
+  // ── Peak-shape kernels ──────────────────────────────────
+  // All functions return a contribution to track signal at bin index `i`,
+  // given a peak centred at bp `center` with amplitude `amp`.
+  function gaussianBp(i, centerBp, sigmaBp, amp) {
+    const x = (i + 0.5) * BP_PER_BIN - centerBp;
+    const s = sigmaBp;
+    return amp * Math.exp(-(x * x) / (2 * s * s));
+  }
+  function plateauBp(i, startBp, endBp, amp, edgeBp) {
+    // Flat top with smooth gaussian roll-off at each edge.
+    const x = (i + 0.5) * BP_PER_BIN;
+    if (x >= startBp && x <= endBp) return amp;
+    const e = edgeBp;
+    if (x < startBp) {
+      const d = startBp - x;
+      return amp * Math.exp(-(d * d) / (2 * e * e));
+    } else {
+      const d = x - endBp;
+      return amp * Math.exp(-(d * d) / (2 * e * e));
+    }
+  }
+
+  // ── Scenario definitions ─────────────────────────────────
+  //
+  // Each scenario fixes the positions of TSS / TFBS / nucleosomes and the
+  // list of "planted" peaks per track. A planted peak is a small record
+  // { kind, center, width, amp } that a track builder turns into bin-wise
+  // signal. Widths are in bp.
+  const SCENARIOS = {
+    active_promoter: {
+      label: 'active promoter + TF',
+      caption: 'A promoter at ~6 kb flanked by two CTCF TFBS. H3K4me3 builds a broad peak across the TSS; CTCF spikes sharply at each binding site; H3K27me3 stays flat because the locus is active; ATAC opens up at the TSS and at a nearby enhancer.',
+      explain: 'CTCF shows <b>2 sharp peaks</b> at TFBS positions; H3K4me3 forms a <b>broad peak</b> over the promoter; H3K27me3 is <b>flat</b>; ATAC opens the promoter and a downstream enhancer.',
+      annot: {
+        tss:   [{ bp: 6000, strand: '+' }],
+        tfbs:  [{ bp: 4200 }, { bp: 7600 }],
+        nucs:  [4800, 5400, 6600, 7200, 12000, 13000].map(bp => ({ bp })),
+      },
+      tracks: {
+        ctcf:   { bg: 0.4, peaks: [
+          { k: 'g', c: 4200, s: 90,  a: 9.0 },
+          { k: 'g', c: 7600, s: 90,  a: 8.2 },
+        ]},
+        k4me3:  { bg: 0.5, peaks: [
+          { k: 'g', c: 6000, s: 420, a: 7.5 },
+        ]},
+        k27me3: { bg: 0.8, peaks: [] },
+        atac:   { bg: 0.5, peaks: [
+          { k: 'g', c: 6000,  s: 130, a: 8.5 },
+          { k: 'g', c: 12800, s: 150, a: 5.0 },
+        ]},
+      },
+    },
+
+    silenced_domain: {
+      label: 'silenced domain (H3K27me3 high)',
+      caption: 'A Polycomb-silenced domain spanning most of the window. H3K27me3 forms a broad plateau across ~12 kb; every other track is nearly flat because the chromatin is closed and no promoter is active.',
+      explain: 'H3K27me3 forms a <b>broad plateau</b> across the silenced domain; CTCF, H3K4me3, and ATAC are all essentially <b>flat</b> — no active promoter, no open chromatin, no TF binding.',
+      annot: {
+        tss:   [{ bp: 9500, strand: '+' }],
+        tfbs:  [],
+        nucs:  [4500, 5200, 6100, 7000, 7900, 8700, 9400, 10300, 11100, 12000, 12900, 13800, 14700].map(bp => ({ bp })),
+      },
+      tracks: {
+        ctcf:   { bg: 0.35, peaks: [] },
+        k4me3:  { bg: 0.45, peaks: [] },
+        k27me3: { bg: 0.9,  peaks: [
+          { k: 'p', c0: 4000, c1: 15500, a: 6.5, e: 700 },
+        ]},
+        atac:   { bg: 0.35, peaks: [] },
+      },
+    },
+
+    enhancer_cluster: {
+      label: 'enhancer cluster (narrow active peaks)',
+      caption: 'A super-enhancer-style cluster of short, sharp active peaks. H3K4me3 is modest — these are enhancers, not promoters. ATAC is strong and co-localised with each open element. CTCF has a boundary mark. H3K27me3 is flat in the active region.',
+      explain: 'A cluster of <b>narrow</b> active peaks: H3K4me3 and ATAC track <b>each other</b> at the enhancer positions; CTCF marks a <b>boundary</b>; H3K27me3 is flat inside the active cluster.',
+      annot: {
+        tss:   [],
+        tfbs:  [{ bp: 3400 }, { bp: 7100 }, { bp: 9500 }, { bp: 12200 }, { bp: 15000 }],
+        nucs:  [4200, 6000, 8200, 10800, 13500, 16400].map(bp => ({ bp })),
+      },
+      tracks: {
+        ctcf:   { bg: 0.4, peaks: [
+          { k: 'g', c: 3400, s: 110, a: 7.5 },
+          { k: 'g', c: 17000, s: 110, a: 6.8 },
+        ]},
+        k4me3:  { bg: 0.4, peaks: [
+          { k: 'g', c: 7100, s: 180, a: 4.8 },
+          { k: 'g', c: 9500, s: 180, a: 5.2 },
+          { k: 'g', c: 12200, s: 180, a: 5.0 },
+          { k: 'g', c: 15000, s: 180, a: 4.6 },
+        ]},
+        k27me3: { bg: 0.6, peaks: [] },
+        atac:   { bg: 0.4, peaks: [
+          { k: 'g', c: 7100,  s: 160, a: 7.8 },
+          { k: 'g', c: 9500,  s: 160, a: 8.2 },
+          { k: 'g', c: 12200, s: 160, a: 7.6 },
+          { k: 'g', c: 15000, s: 160, a: 7.0 },
+        ]},
+      },
+    },
+
+    gene_body: {
+      label: 'active gene body',
+      caption: 'An expressed gene from TSS (~3 kb) through gene body to TES (~17 kb). H3K4me3 peaks sharply at the TSS; H3K27me3 is flat; CTCF marks a nearby boundary; ATAC opens at the TSS plus two intragenic regulatory elements.',
+      explain: 'H3K4me3 spikes over the <b>TSS</b>; ATAC opens the TSS plus two <b>intragenic</b> regulatory elements; CTCF marks a <b>boundary</b> at the edge; H3K27me3 stays flat across the active gene body.',
+      annot: {
+        tss:   [{ bp: 3000, strand: '+' }],
+        tfbs:  [{ bp: 1500 }],
+        nucs:  [3500, 4200, 5000, 6000, 7500, 9000, 10500, 12000, 13500, 15000, 16500].map(bp => ({ bp })),
+      },
+      tracks: {
+        ctcf:   { bg: 0.4, peaks: [
+          { k: 'g', c: 1500, s: 110, a: 7.0 },
+        ]},
+        k4me3:  { bg: 0.5, peaks: [
+          { k: 'g', c: 3000, s: 380, a: 8.5 },
+        ]},
+        k27me3: { bg: 0.6, peaks: [] },
+        atac:   { bg: 0.5, peaks: [
+          { k: 'g', c: 3000,  s: 140, a: 8.2 },
+          { k: 'g', c: 9000,  s: 150, a: 4.6 },
+          { k: 'g', c: 14500, s: 150, a: 4.8 },
+        ]},
+      },
+    },
+  };
+
+  const TRACK_ORDER = ['ctcf', 'k4me3', 'k27me3', 'atac'];
+  const TRACK_META = {
+    ctcf:   { label: 'CTCF ChIP',       color: '#1e3a8a' },
+    k4me3:  { label: 'H3K4me3 ChIP',    color: '#0d7377' },
+    k27me3: { label: 'H3K27me3 ChIP',   color: '#b45309' },
+    atac:   { label: 'ATAC-seq',        color: '#c4342c' },
+  };
+
+  // ── Signal synthesis ────────────────────────────────────
+  //
+  // Build a bin-wise array of length BINS for a single track. Deterministic
+  // expected signal is sum of all peak kernels plus `bg`; the observed signal
+  // is a Poisson draw at that lambda, so independent calls with a new seed
+  // produce visibly different noise but the same underlying shape.
+  function buildTrackSignal(trackCfg, rnd) {
+    const signal = new Float32Array(BINS);
+    for (let i = 0; i < BINS; i++) {
+      let lambda = trackCfg.bg || 0;
+      for (const pk of trackCfg.peaks) {
+        if (pk.k === 'g') {
+          lambda += gaussianBp(i, pk.c, pk.s, pk.a);
+        } else if (pk.k === 'p') {
+          lambda += plateauBp(i, pk.c0, pk.c1, pk.a, pk.e || 600);
+        }
+      }
+      // Add a dash of multiplicative noise, then Poisson the whole thing to
+      // mimic read-count variability. Clip lambda at a sane ceiling so the
+      // Knuth loop never iterates pathologically.
+      lambda *= 1 + 0.08 * randn(rnd);
+      if (lambda < 0) lambda = 0;
+      if (lambda > 25) lambda = 25;
+      signal[i] = poisson(rnd, lambda);
+    }
+    return signal;
+  }
+
+  function buildAllTracks(scenarioKey, seed) {
+    const scn = SCENARIOS[scenarioKey];
+    const rnd = mulberry32(seed);
+    const out = {};
+    for (const tk of TRACK_ORDER) {
+      out[tk] = buildTrackSignal(scn.tracks[tk], rnd);
+    }
+    return out;
+  }
+
+  // ── State ────────────────────────────────────────────────
+  const state = {
+    scenario: 'active_promoter',
+    seed: 20260421,
+    tracks: null,
+    visible: { ctcf: true, k4me3: true, k27me3: true, atac: true },
+  };
+
+  // ── DOM refs ─────────────────────────────────────────────
+  const svg = $('browser-svg');
+  const scenarioSel = $('scenario-select');
+  const scenarioCap = $('scenario-caption');
+  const banner = $('banner');
+  const resimBtn = $('resim-btn');
+  const toggleRow = $('track-toggles');
+
+  // ── Rendering ────────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // Layout: header strip at top (axis), four stacked track rows, annotation
+  // row at the bottom. Y-axis within each track is auto-scaled to its own
+  // observed max so quiet tracks still render as a visible flat line.
+  const W = 1000, H = 560;
+  const PAD_L = 96, PAD_R = 20, PAD_T = 30, PAD_B = 60;
+  const plotW = W - PAD_L - PAD_R;
+  const plotH = H - PAD_T - PAD_B;
+  const ANNOT_H = 58;
+  const trackAreaH = plotH - ANNOT_H;
+
+  function renderBrowser() {
+    clear(svg);
+
+    // ── coordinate helpers ────────────────────────────────
+    const xOfBp = (bp) => PAD_L + (bp / WIN_BP) * plotW;
+    const xOfBin = (i) => PAD_L + ((i + 0.5) / BINS) * plotW;
+
+    // ── outer frame ───────────────────────────────────────
+    svg.appendChild(el('rect', {
+      x: PAD_L, y: PAD_T, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // ── top coordinate axis ───────────────────────────────
+    // Major ticks at every 2 kb.
+    for (let bp = 0; bp <= WIN_BP; bp += 2000) {
+      const x = xOfBp(bp);
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: PAD_T - 6, y2: PAD_T,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x, y: PAD_T - 10,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, (bp / 1000).toFixed(0) + ' kb'));
+    }
+    // Faint vertical gridlines every 2 kb (inside the plot area).
+    for (let bp = 2000; bp < WIN_BP; bp += 2000) {
+      const x = xOfBp(bp);
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: PAD_T, y2: PAD_T + plotH,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': '2 4',
+      }));
+    }
+
+    // ── track rows ────────────────────────────────────────
+    const visibleTracks = TRACK_ORDER.filter(k => state.visible[k]);
+    const n = Math.max(1, visibleTracks.length);
+    const rowH = trackAreaH / n;
+
+    for (let ti = 0; ti < visibleTracks.length; ti++) {
+      const tk = visibleTracks[ti];
+      const meta = TRACK_META[tk];
+      const sig = state.tracks[tk];
+      const top = PAD_T + ti * rowH;
+      const bot = top + rowH;
+
+      // Compute per-track y-scale: max signal w/ a floor so near-zero tracks
+      // still get a nonzero baseline, and a small ceiling so a single outlier
+      // bin doesn't flatten everything else.
+      let smax = 1;
+      for (let i = 0; i < sig.length; i++) if (sig[i] > smax) smax = sig[i];
+      smax = Math.max(smax, 4);
+
+      // Row separator (light)
+      if (ti > 0) {
+        svg.appendChild(el('line', {
+          x1: PAD_L, x2: PAD_L + plotW, y1: top, y2: top,
+          stroke: 'var(--border)', 'stroke-width': 1,
+        }));
+      }
+
+      // Track label box on the left gutter
+      svg.appendChild(el('rect', {
+        x: 4, y: top + 4, width: PAD_L - 10, height: rowH - 8,
+        fill: 'var(--bg-muted)',
+        stroke: 'var(--border)', 'stroke-width': 1,
+        rx: 3,
+      }));
+      svg.appendChild(el('rect', {
+        x: 4, y: top + 4, width: 5, height: rowH - 8,
+        fill: meta.color,
+        rx: 1,
+      }));
+      svg.appendChild(el('text', {
+        x: 14, y: top + 20,
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg)', 'font-weight': 600,
+      }, meta.label));
+      svg.appendChild(el('text', {
+        x: 14, y: top + 34,
+        'font-family': 'var(--font-mono)', 'font-size': 9,
+        fill: 'var(--fg-subtle)',
+      }, `max ≈ ${smax.toFixed(0)}`));
+
+      // Baseline inside track area
+      const baseline = bot - 4;
+      svg.appendChild(el('line', {
+        x1: PAD_L, x2: PAD_L + plotW, y1: baseline, y2: baseline,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+
+      // Draw the signal as a filled area polygon (continuous, bigwig-ish).
+      // We reserve 6 px above the top of the row and 4 px at baseline.
+      const yTop = top + 8;
+      const yBot = baseline;
+      const amp = yBot - yTop;
+
+      const pts = [];
+      pts.push(`${PAD_L.toFixed(1)},${yBot.toFixed(1)}`);
+      for (let i = 0; i < sig.length; i++) {
+        const x = xOfBin(i);
+        const frac = sig[i] / smax;
+        const y = yBot - frac * amp;
+        pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+      }
+      pts.push(`${(PAD_L + plotW).toFixed(1)},${yBot.toFixed(1)}`);
+
+      svg.appendChild(el('polygon', {
+        points: pts.join(' '),
+        fill: meta.color,
+        'fill-opacity': 0.85,
+        stroke: meta.color,
+        'stroke-width': 0.6,
+      }));
+    }
+
+    // Empty-state: no tracks toggled on
+    if (visibleTracks.length === 0) {
+      svg.appendChild(el('text', {
+        x: PAD_L + plotW / 2, y: PAD_T + trackAreaH / 2,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-sans)', 'font-size': 14,
+        fill: 'var(--fg-subtle)',
+      }, 'No tracks selected — toggle CTCF / H3K4me3 / H3K27me3 / ATAC above.'));
+    }
+
+    // ── annotation row ────────────────────────────────────
+    const annotTop = PAD_T + trackAreaH;
+    svg.appendChild(el('line', {
+      x1: PAD_L, x2: PAD_L + plotW, y1: annotTop, y2: annotTop,
+      stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+    // Annot gutter label
+    svg.appendChild(el('rect', {
+      x: 4, y: annotTop + 4, width: PAD_L - 10, height: ANNOT_H - 8,
+      fill: 'var(--bg-muted)',
+      stroke: 'var(--border)', 'stroke-width': 1,
+      rx: 3,
+    }));
+    svg.appendChild(el('text', {
+      x: 14, y: annotTop + 20,
+      'font-family': 'var(--font-mono)', 'font-size': 11,
+      fill: 'var(--fg)', 'font-weight': 600,
+    }, 'Annotation'));
+    svg.appendChild(el('text', {
+      x: 14, y: annotTop + 34,
+      'font-family': 'var(--font-mono)', 'font-size': 9,
+      fill: 'var(--fg-subtle)',
+    }, 'TSS · TFBS · nucs'));
+
+    const annot = SCENARIOS[state.scenario].annot;
+
+    // Row 1: nucleosomes (ovals)
+    const nucY = annotTop + 16;
+    for (const n of annot.nucs) {
+      const x = xOfBp(n.bp);
+      svg.appendChild(el('ellipse', {
+        cx: x, cy: nucY,
+        rx: 7, ry: 3.5,
+        fill: 'var(--fg-muted)',
+        'fill-opacity': 0.7,
+        stroke: 'var(--fg-subtle)', 'stroke-width': 0.5,
+      }));
+    }
+
+    // Row 2: TFBS (small squares) + TSS (arrowheads) share a row
+    const markY = annotTop + 36;
+    for (const t of annot.tfbs) {
+      const x = xOfBp(t.bp);
+      svg.appendChild(el('rect', {
+        x: x - 4, y: markY - 4,
+        width: 8, height: 8,
+        fill: 'var(--fg)',
+        stroke: 'var(--bg-elevated)', 'stroke-width': 0.8,
+      }));
+    }
+    for (const t of annot.tss) {
+      const x = xOfBp(t.bp);
+      // Stem (bent arrow: short vertical + horizontal w/ arrowhead)
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: markY + 6, y2: markY - 10,
+        stroke: 'var(--fg)', 'stroke-width': 1.6,
+      }));
+      const dir = t.strand === '-' ? -1 : 1;
+      svg.appendChild(el('line', {
+        x1: x, x2: x + dir * 14, y1: markY - 10, y2: markY - 10,
+        stroke: 'var(--fg)', 'stroke-width': 1.6,
+      }));
+      // Arrowhead
+      const ax = x + dir * 14;
+      svg.appendChild(el('polygon', {
+        points: `${ax},${markY - 14} ${ax + dir * 5},${markY - 10} ${ax},${markY - 6}`,
+        fill: 'var(--fg)',
+      }));
+    }
+
+    // Row 3: coordinate axis at bottom
+    const axisY = PAD_T + plotH + 18;
+    svg.appendChild(el('line', {
+      x1: PAD_L, x2: PAD_L + plotW, y1: axisY, y2: axisY,
+      stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+    for (let bp = 0; bp <= WIN_BP; bp += 2000) {
+      const x = xOfBp(bp);
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: axisY, y2: axisY + 4,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x, y: axisY + 16,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, bp.toLocaleString() + ' bp'));
+    }
+    svg.appendChild(el('text', {
+      x: PAD_L + plotW / 2, y: H - 8,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.08em',
+    }, 'genomic coordinate (20 kb window)'));
+  }
+
+  function updateBanner() {
+    const scn = SCENARIOS[state.scenario];
+    banner.innerHTML = `<b>${scn.label}</b> — ${scn.explain}`;
+  }
+  function updateCaption() {
+    scenarioCap.textContent = SCENARIOS[state.scenario].caption;
+  }
+
+  // ── Simulation drivers ──────────────────────────────────
+  function resimulate(newSeed) {
+    if (newSeed != null) state.seed = newSeed;
+    state.tracks = buildAllTracks(state.scenario, state.seed);
+  }
+
+  function setScenario(key) {
+    if (!SCENARIOS[key]) return;
+    state.scenario = key;
+    resimulate();
+    updateCaption();
+    updateBanner();
+    renderBrowser();
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  scenarioSel.addEventListener('change', () => {
+    setScenario(scenarioSel.value);
+  });
+
+  resimBtn.addEventListener('click', () => {
+    // New seed drawn from Math.random so the user gets fresh noise each click.
+    const fresh = (Math.random() * 0xffffffff) >>> 0;
+    resimulate(fresh);
+    renderBrowser();
+  });
+
+  toggleRow.addEventListener('change', (e) => {
+    const cb = e.target.closest('input[type="checkbox"][data-track]');
+    if (!cb) return;
+    state.visible[cb.dataset.track] = cb.checked;
+    renderBrowser();
+  });
+
+  // ── Boot ────────────────────────────────────────────────
+  scenarioSel.value = 'active_promoter';
+  setScenario('active_promoter');
+})();
+</script>
+
+</body>
+</html>

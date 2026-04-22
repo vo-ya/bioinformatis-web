@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 400" role="img" aria-labelledby="t d">
+  <title id="t">Enformer architecture sketch</title>
+  <desc id="d">Left-to-right schematic. Input: 100 kb DNA strand as 200K × 4 channel one-hot representation with a short highlighted stretch. CNN block: three stacked rectangles labelled 'conv + ReLU' with arrows showing downsampling from 1 bp to 128 bp bins; output 'local sequence features'. Transformer block: three stacked boxes labelled 'transformer layer (self-attention)'; output 'long-range contextualised features'. Output heads: parallel branches for CAGE, DNase/ATAC, TF ChIP, histone marks; per-128-bp-bin signal.</desc>
+
+  <defs>
+    <marker id="arr-cobalt-big" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+  </defs>
+
+  <text x="540" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">ENFORMER · CNN → TRANSFORMER → MANY REGULATORY PREDICTIONS</text>
+
+  <!-- ── Input block ── -->
+  <g>
+    <rect x="30" y="80" width="160" height="220" rx="6" fill="#ffffff" stroke="#c4c1b6"/>
+    <text x="110" y="102" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">INPUT</text>
+    <text x="110" y="118" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">DNA sequence</text>
+
+    <!-- Long DNA bar -->
+    <rect x="50" y="140" width="120" height="22" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.8"/>
+    <!-- Highlighted stretch with visible bases -->
+    <rect x="90" y="140" width="44" height="22" fill="#1e3a8a"/>
+    <g font-family="JetBrains Mono, monospace" font-size="8" fill="#ffffff" text-anchor="middle">
+      <text x="94" y="154">A</text>
+      <text x="102" y="154">C</text>
+      <text x="110" y="154">G</text>
+      <text x="118" y="154">T</text>
+      <text x="126" y="154">G</text>
+    </g>
+
+    <text x="110" y="184" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#1e3a8a" font-weight="600">100 kb</text>
+    <text x="110" y="200" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">200K bases × 4 channels</text>
+    <text x="110" y="215" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">(one-hot A/C/G/T)</text>
+
+    <text x="110" y="252" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">1 bp resolution</text>
+    <text x="110" y="268" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">no ChIP, no ATAC, no bulk data</text>
+    <text x="110" y="284" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">just the genome's letters</text>
+  </g>
+
+  <line x1="195" y1="190" x2="225" y2="190" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arr-cobalt-big)"/>
+
+  <!-- ── CNN block ── -->
+  <g>
+    <rect x="230" y="80" width="200" height="220" rx="6" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5"/>
+    <text x="330" y="102" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a">CNN block</text>
+    <text x="330" y="118" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">local feature extraction</text>
+
+    <g stroke="#1e3a8a" stroke-width="1" fill="#ffffff">
+      <rect x="258" y="135" width="144" height="26" rx="3"/>
+      <rect x="258" y="170" width="144" height="26" rx="3"/>
+      <rect x="258" y="205" width="144" height="26" rx="3"/>
+    </g>
+    <g font-family="JetBrains Mono, monospace" font-size="9" fill="#1e3a8a" text-anchor="middle">
+      <text x="330" y="152">conv₁ (15 bp) + ReLU</text>
+      <text x="330" y="187">conv₂ + ReLU + pool</text>
+      <text x="330" y="222">conv₃ + ReLU + pool</text>
+    </g>
+
+    <!-- Downsampling annotation -->
+    <g transform="translate(258 245)">
+      <text x="0" y="0" font-family="JetBrains Mono, monospace" font-size="8" fill="#525252">1 bp</text>
+      <line x1="22" y1="-3" x2="115" y2="-3" stroke="#525252" stroke-width="0.8" marker-end="url(#arr-cobalt-big)"/>
+      <text x="130" y="0" font-family="JetBrains Mono, monospace" font-size="8" fill="#525252">128 bp bins</text>
+    </g>
+
+    <text x="330" y="285" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">≈ a learned matched-filter bank</text>
+  </g>
+
+  <line x1="435" y1="190" x2="465" y2="190" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arr-cobalt-big)"/>
+
+  <!-- ── Transformer block ── -->
+  <g>
+    <rect x="470" y="80" width="220" height="220" rx="6" fill="#fef3c7" stroke="#b45309" stroke-width="1.5"/>
+    <text x="580" y="102" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#b45309">Transformer block</text>
+    <text x="580" y="118" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">long-range interactions</text>
+
+    <g stroke="#b45309" stroke-width="1" fill="#ffffff">
+      <rect x="500" y="135" width="160" height="26" rx="3"/>
+      <rect x="500" y="170" width="160" height="26" rx="3"/>
+      <rect x="500" y="205" width="160" height="26" rx="3"/>
+    </g>
+    <g font-family="JetBrains Mono, monospace" font-size="9" fill="#b45309" text-anchor="middle">
+      <text x="580" y="152">self-attention + FFN</text>
+      <text x="580" y="187">self-attention + FFN</text>
+      <text x="580" y="222">self-attention + FFN</text>
+    </g>
+
+    <text x="580" y="252" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">lets every position attend to every other</text>
+    <text x="580" y="268" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">→ enhancer-promoter relations over 100 kb</text>
+    <text x="580" y="286" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">contextualised features per bin</text>
+  </g>
+
+  <line x1="695" y1="190" x2="720" y2="190" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arr-cobalt-big)"/>
+
+  <!-- ── Output heads ── -->
+  <g>
+    <rect x="725" y="80" width="330" height="220" rx="6" fill="#ffffff" stroke="#c4c1b6"/>
+    <text x="890" y="102" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">OUTPUT HEADS</text>
+    <text x="890" y="118" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">per-128-bp-bin signal predictions</text>
+
+    <!-- 4 output-head pills -->
+    <g>
+      <rect x="750" y="140" width="280" height="22" rx="11" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.8"/>
+      <text x="765" y="156" font-family="JetBrains Mono, monospace" font-size="10" fill="#1e3a8a" font-weight="600">CAGE</text>
+      <text x="810" y="156" font-family="Inter, sans-serif" font-size="9" fill="#525252">· ~5,000 tracks · TSS activity</text>
+
+      <rect x="750" y="170" width="280" height="22" rx="11" fill="#fef3c7" stroke="#b45309" stroke-width="0.8"/>
+      <text x="765" y="186" font-family="JetBrains Mono, monospace" font-size="10" fill="#b45309" font-weight="600">DNase/ATAC</text>
+      <text x="835" y="186" font-family="Inter, sans-serif" font-size="9" fill="#525252">· ~700 tracks · accessibility</text>
+
+      <rect x="750" y="200" width="280" height="22" rx="11" fill="#e0f2f1" stroke="#0d7377" stroke-width="0.8"/>
+      <text x="765" y="216" font-family="JetBrains Mono, monospace" font-size="10" fill="#0d7377" font-weight="600">TF ChIP</text>
+      <text x="815" y="216" font-family="Inter, sans-serif" font-size="9" fill="#525252">· ~4,000 tracks · many TFs</text>
+
+      <rect x="750" y="230" width="280" height="22" rx="11" fill="#f3e8ff" stroke="#7c3aed" stroke-width="0.8"/>
+      <text x="765" y="246" font-family="JetBrains Mono, monospace" font-size="10" fill="#7c3aed" font-weight="600">histone marks</text>
+      <text x="840" y="246" font-family="Inter, sans-serif" font-size="9" fill="#525252">· ~2,000 tracks</text>
+    </g>
+
+    <text x="890" y="286" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">all heads share the encoder</text>
+  </g>
+
+  <!-- Bottom caption band -->
+  <g transform="translate(30 320)">
+    <rect x="0" y="0" width="1020" height="60" rx="6" fill="#f6f4ee" stroke="#c4c1b6"/>
+    <text x="510" y="22" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a">Enformer · Avsec et al. 2021 · DeepMind + Calico</text>
+    <text x="510" y="42" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">Trained on all public ENCODE / Roadmap / FANTOM regulatory data. Forward pointer to Lecture 16 — architecture synthesis.</text>
+  </g>
+</svg>

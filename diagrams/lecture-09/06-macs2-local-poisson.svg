@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 460" role="img" aria-labelledby="t d">
+  <title id="t">MACS2 local-Poisson detection</title>
+  <desc id="d">Three-column algorithmic schematic. Column 1: a coverage track section with a candidate 200 bp window marked, observed count c = 24. Column 2: same track with nested larger windows around the candidate, 1 kb, 5 kb, 10 kb, each labelled with its per-200bp lambda estimate — 0.5 genome-wide, 2.1 at 1 kb, 3.8 at 5 kb, 2.9 at 10 kb, 1.2 input control. Bottom text: lambda_local = max = 3.8. Column 3: a Poisson PMF histogram at lambda = 3.8 with the candidate count c = 24 marked on the far right tail, with text 'P(X ≥ 24 | λ = 3.8) = 2.4e-14 → reject H_0'. Arrows between columns mark the algorithmic flow.</desc>
+
+  <defs>
+    <marker id="arr-acc" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+  </defs>
+
+  <text x="540" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">MACS2 · LOCAL-POISSON DETECTION · CFAR ON GENOMIC COORDINATES</text>
+
+  <!-- ── Column 1: candidate window ── -->
+  <g>
+    <rect x="30" y="50" width="310" height="370" rx="6" fill="#ffffff" stroke="#c4c1b6"/>
+    <text x="185" y="72" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#0a0a0a">(a) candidate window</text>
+
+    <!-- Coverage track -->
+    <g>
+      <line x1="60" y1="260" x2="320" y2="260" stroke="#525252" stroke-width="0.8"/>
+      <path d="M 60 258 L 110 254 L 140 248 L 170 210 L 180 180 L 190 175 L 200 185 L 215 225 L 240 255 L 280 257 L 320 258 L 320 260 L 60 260 Z"
+            fill="#1e3a8a" fill-opacity="0.6"/>
+      <!-- 200 bp candidate window marker -->
+      <rect x="165" y="168" width="45" height="95" fill="none" stroke="#b45309" stroke-width="1.8" stroke-dasharray="4 2"/>
+    </g>
+
+    <!-- Observation -->
+    <g transform="translate(60 300)">
+      <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">observed count in window:</text>
+      <text x="0" y="26" font-family="Source Serif 4, serif" font-size="22" font-style="italic" fill="#b45309">c = 24</text>
+      <text x="0" y="52" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">200 bp window · centred on candidate</text>
+    </g>
+
+    <text x="185" y="398" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">"is c unusually large under H₀?"</text>
+  </g>
+
+  <!-- Arrow 1 -->
+  <line x1="345" y1="230" x2="375" y2="230" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arr-acc)"/>
+
+  <!-- ── Column 2: local windows ── -->
+  <g>
+    <rect x="380" y="50" width="330" height="370" rx="6" fill="#ffffff" stroke="#c4c1b6"/>
+    <text x="545" y="72" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#0a0a0a">(b) local background · several scales</text>
+
+    <!-- Coverage track with nested windows -->
+    <g>
+      <line x1="410" y1="160" x2="690" y2="160" stroke="#525252" stroke-width="0.8"/>
+      <path d="M 410 158 L 460 154 L 495 148 L 520 110 L 532 82 L 540 80 L 548 88 L 565 130 L 590 155 L 630 157 L 690 158 L 690 160 L 410 160 Z"
+            fill="#1e3a8a" fill-opacity="0.5"/>
+      <!-- Candidate marker -->
+      <rect x="520" y="70" width="33" height="92" fill="none" stroke="#b45309" stroke-width="1.5" stroke-dasharray="3 2"/>
+
+      <!-- Nested windows -->
+      <g fill="none">
+        <!-- 1 kb -->
+        <rect x="500" y="100" width="73" height="60" stroke="#0d7377" stroke-width="0.8" stroke-dasharray="2 2"/>
+        <!-- 5 kb -->
+        <rect x="460" y="90" width="160" height="80" stroke="#b45309" stroke-width="0.8" stroke-dasharray="2 2"/>
+        <!-- 10 kb -->
+        <rect x="420" y="78" width="250" height="95" stroke="#7c3aed" stroke-width="0.8" stroke-dasharray="2 2"/>
+      </g>
+    </g>
+
+    <!-- Lambda table -->
+    <g transform="translate(410 210)" font-family="JetBrains Mono, monospace" font-size="10">
+      <text x="0" y="0" fill="#525252" font-weight="600">local λ estimates (per 200 bp):</text>
+
+      <text x="0"   y="22" fill="#8a8a85">λ_bg      = 0.5</text>
+      <text x="170" y="22" fill="#8a8a85">(genome-wide)</text>
+
+      <text x="0"   y="38" fill="#0d7377">λ_1000    = 2.1</text>
+      <text x="170" y="38" fill="#525252">(1 kb window)</text>
+
+      <text x="0"   y="54" fill="#b45309" font-weight="700">λ_5000    = 3.8</text>
+      <text x="170" y="54" fill="#525252">(5 kb window)</text>
+
+      <text x="0"   y="70" fill="#7c3aed">λ_10000   = 2.9</text>
+      <text x="170" y="70" fill="#525252">(10 kb window)</text>
+
+      <text x="0"   y="86" fill="#8a8a85">λ_input   = 1.2</text>
+      <text x="170" y="86" fill="#525252">(matched control)</text>
+    </g>
+
+    <!-- Lambda_local -->
+    <g transform="translate(410 320)">
+      <rect x="0" y="0" width="270" height="40" rx="4" fill="#fef3c7" stroke="#b45309" stroke-width="1.5"/>
+      <text x="135" y="17" text-anchor="middle" font-family="Source Serif 4, serif" font-size="13" fill="#0a0a0a">λ<tspan font-size="10">local</tspan> = max(...) = <tspan fill="#b45309" font-weight="700">3.8</tspan></text>
+      <text x="135" y="32" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">conservative: take the highest local estimate</text>
+    </g>
+
+    <text x="545" y="398" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">multi-scale guard cells, greatest-of CFAR</text>
+  </g>
+
+  <!-- Arrow 2 -->
+  <line x1="715" y1="230" x2="745" y2="230" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arr-acc)"/>
+
+  <!-- ── Column 3: Poisson null + test ── -->
+  <g>
+    <rect x="750" y="50" width="300" height="370" rx="6" fill="#ffffff" stroke="#c4c1b6"/>
+    <text x="900" y="72" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#0a0a0a">(c) Poisson tail test</text>
+
+    <!-- Axes for PMF histogram -->
+    <g>
+      <line x1="780" y1="290" x2="1030" y2="290" stroke="#525252" stroke-width="0.8"/>
+      <line x1="780" y1="120" x2="780" y2="290" stroke="#525252" stroke-width="0.8"/>
+
+      <!-- Poisson(3.8) PMF bars. Modal around x=3-4. bars from k=0..15 -->
+      <!-- manually place pmf heights (scaled): k=0: 0.022, 1: 0.085, 2: 0.162, 3: 0.205, 4: 0.195, 5: 0.148, 6: 0.094, 7: 0.051, 8: 0.024, 9: 0.010, 10: 0.004 -->
+      <g fill="#1e3a8a">
+        <rect x="784" y="285" width="12" height="5"/>   <!-- k=0 -->
+        <rect x="798" y="271" width="12" height="19"/>  <!-- k=1 -->
+        <rect x="812" y="254" width="12" height="36"/>  <!-- k=2 -->
+        <rect x="826" y="245" width="12" height="45"/>  <!-- k=3 -->
+        <rect x="840" y="247" width="12" height="43"/>  <!-- k=4 -->
+        <rect x="854" y="258" width="12" height="32"/>  <!-- k=5 -->
+        <rect x="868" y="269" width="12" height="21"/>  <!-- k=6 -->
+        <rect x="882" y="279" width="12" height="11"/>  <!-- k=7 -->
+        <rect x="896" y="285" width="12" height="5"/>   <!-- k=8 -->
+      </g>
+      <!-- Rejection region -->
+      <g fill="#b91c1c" fill-opacity="0.3">
+        <rect x="910" y="288" width="118" height="2"/>
+      </g>
+
+      <!-- Candidate count marker in rejection region -->
+      <g>
+        <line x1="1012" y1="130" x2="1012" y2="290" stroke="#b91c1c" stroke-width="1.5"/>
+        <polygon points="1008,140 1016,140 1012,130" fill="#b91c1c"/>
+        <text x="1012" y="122" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#b91c1c">c = 24</text>
+      </g>
+
+      <!-- Axis labels -->
+      <text x="905" y="308" text-anchor="middle" font-family="Source Serif 4, serif" font-size="11" fill="#525252" font-style="italic">count X</text>
+      <text x="770" y="200" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#525252" transform="rotate(-90 770 200)">P(X | λ=3.8)</text>
+
+      <!-- Axis ticks for X -->
+      <g font-family="JetBrains Mono, monospace" font-size="8" fill="#8a8a85" text-anchor="middle">
+        <text x="790" y="302">0</text>
+        <text x="832" y="302">3</text>
+        <text x="874" y="302">6</text>
+        <text x="916" y="302">9</text>
+        <text x="1012" y="302">24</text>
+      </g>
+    </g>
+
+    <!-- Tail probability -->
+    <g transform="translate(770 325)">
+      <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" fill="#525252">tail probability</text>
+      <text x="0" y="22" font-family="Source Serif 4, serif" font-size="13" fill="#0a0a0a">P(X ≥ 24 | λ=3.8) = <tspan fill="#b91c1c" font-weight="700">2.4 × 10⁻¹⁴</tspan></text>
+      <text x="0" y="44" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#b91c1c">reject H₀ · peak called</text>
+    </g>
+
+    <text x="900" y="410" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">apply BH across all candidates → FDR control</text>
+  </g>
+</svg>

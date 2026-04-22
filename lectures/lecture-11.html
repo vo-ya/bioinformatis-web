@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 11 — Long Reads and the Pangenome</title>
+  <meta name="description" content="PacBio HiFi and Oxford Nanopore in 2024, what long reads unlock (SVs, tandem repeats, haplotype phasing, T2T assemblies), the pangenome shift from single linear reference to population graph (HPRC v1), graph-based seed-and-extend alignment, Viterbi dynamic programming generalised from linear chains to DAGs, and phasing as source separation.">
+
+  <meta property="og:title" content="Lecture 11 — Long Reads and the Pangenome">
+  <meta property="og:description" content="HiFi / ONT in 2024 · SVs and tandem repeats · pangenome graphs · graph alignment as Viterbi on a DAG · T2T / HPRC state of the art.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — Long-Read Tech in 2024</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Where we left long reads</a></li>
+          <li><a href="#sec-1-2">1.2 HiFi vs ONT</a></li>
+          <li><a href="#sec-1-3">1.3 Crossing Q20</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — What Long Reads Unlock</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 SVs directly</a></li>
+          <li><a href="#sec-2-2">2.2 Spanning repeats</a></li>
+          <li><a href="#sec-2-3">2.3 Phasing from reads</a></li>
+          <li><a href="#sec-2-4">2.4 T2T assemblies</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — The Pangenome Shift</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Linear reference is a lie</a></li>
+          <li><a href="#sec-3-2">3.2 Reference bias</a></li>
+          <li><a href="#sec-3-3">3.3 Graph genome concept</a></li>
+          <li><a href="#sec-3-4">3.4 GFA format</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Seed-and-Extend</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Seed-and-extend on DAGs</a></li>
+          <li><a href="#sec-4-2">4.2 vg toolchain</a></li>
+          <li><a href="#sec-4-3">4.3 Path decoding &amp; tradeoffs</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Viterbi on a DAG</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 Linear alignment as Viterbi</a></li>
+          <li><a href="#sec-5-2">5.2 Generalising to a DAG</a></li>
+          <li><a href="#sec-5-3">5.3 Complexity &amp; when graph wins</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — T2T &amp; HPRC</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 T2T-CHM13 revisited</a></li>
+          <li><a href="#sec-6-2">6.2 HPRC v1</a></li>
+          <li><a href="#sec-6-3">6.3 What's still missing</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — Phasing</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 The phasing problem</a></li>
+          <li><a href="#sec-7-2">7.2 Trio binning &amp; hifiasm</a></li>
+          <li><a href="#sec-7-3">7.3 Phasing as source separation</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 11</div>
+      <h1 class="lecture-title">Long Reads and the Pangenome</h1>
+      <p class="lecture-subtitle">HiFi and Nanopore now live in the reference-grade quadrant, SVs and tandem repeats and phasing are routine, and the reference itself has become a graph — pangenomes plus graph alignment as Viterbi on a DAG.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — Long-read tech in 2024</a></li>
+        <li><a href="#part-2">Part 2 — What long reads unlock</a></li>
+        <li><a href="#part-3">Part 3 — The pangenome shift</a></li>
+        <li><a href="#part-4">Part 4 — Seed-and-extend</a></li>
+        <li><a href="#part-5">Part 5 — Viterbi on a DAG</a></li>
+        <li><a href="#part-6">Part 6 — T2T &amp; HPRC</a></li>
+        <li><a href="#part-7">Part 7 — Phasing</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Six moves:</em>
+        <span class="lecture-tagline-beat">read longer and accurately</span>,
+        <span class="lecture-tagline-beat">span the events short reads can't</span>,
+        <span class="lecture-tagline-beat">retire the linear reference</span>,
+        <span class="lecture-tagline-beat">seed on graphs</span>,
+        <span class="lecture-tagline-beat">Viterbi on the DAG</span>,
+        <span class="lecture-tagline-beat">separate the two haplotypes</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Compare PacBio HiFi and Oxford Nanopore in 2024 along three axes — read length, per-base accuracy, cost per Gb — and explain why both are now at quality levels that change the analytical calculus vs short reads.</li>
+          <li>Name three classes of biological problem that are dramatically easier with long reads than with short: structural variants, tandem repeats, haplotype phasing.</li>
+          <li>Explain what a telomere-to-telomere (T2T) assembly is, why it was unachievable with short reads, and what the CHM13 / T2T-CHM13 v2.0 assembly added to the human reference in 2022.</li>
+          <li>Describe reference bias — why a single linear reference under-represents variation in populations genetically distant from the reference donor — and state one concrete clinical consequence.</li>
+          <li>Explain the pangenome graph concept, read GFA (Graphical Fragment Assembly) format, and describe how a graph genome represents variation explicitly.</li>
+          <li>Generalise seed-and-extend alignment from Lecture 2's linear-chain reference to a DAG reference, and state how vg / minigraph / GraphAligner each solve the graph-alignment problem.</li>
+          <li>Relate graph alignment to Viterbi decoding — the linear-chain Viterbi of Lecture 2 is the special case where the state graph is a single line; the general case is Viterbi on an arbitrary DAG.</li>
+          <li>Describe haplotype phasing from long reads, contrast it with short-read statistical phasing, and frame phasing as a source-separation problem.</li>
+          <li>Explain what the HPRC v1 pangenome (47 haplotypes, 2023) adds over a linear reference and state what's still missing.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 25 min</span>
+          Long-Read Tech in 2024
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Where we left long reads in Lecture 1</h3>
+
+          <p>Lecture 1 introduced three sequencing eras in broad strokes — Sanger (1977), next-gen short-read (2005), and long-read (late 2010s). The long-read platforms in Lecture 1's snapshot:</p>
+
+          <ul>
+            <li><strong>PacBio</strong> Single-Molecule Real-Time (SMRT) sequencing: ~10 kb average read, ~85% per-base accuracy in the early era.</li>
+            <li><strong>Oxford Nanopore (ONT)</strong>: 10 kb – 1 Mb reads, ~80% per-base accuracy circa 2018.</li>
+          </ul>
+
+          <p>That framing is now obsolete. Both platforms have made step-function accuracy improvements since 2019, and the analytical workflows that assume "long = inaccurate" don't match 2024 reality.</p>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 PacBio HiFi vs Oxford Nanopore in 2024</h3>
+
+          <p><strong>PacBio HiFi</strong> (Circular Consensus Sequencing, CCS). A HiFi read is constructed by repeated passes of the polymerase around a circularised template; 8–15 passes average gives a consensus base-call with <strong>~99.9% per-base accuracy</strong> (Q30+). Read lengths 15–25 kb typical. The 2019 HiFi release changed the cost-accuracy curve completely — HiFi reads are as accurate as Sanger reads, 1000× faster and cheaper per base.</p>
+
+          <p><strong>Oxford Nanopore (ONT)</strong>. Electrical sensing through protein pores. Read lengths 10 kb – 4 Mb+ (the "ultra-long" R10 chemistry regularly produces reads &gt; 1 Mb). Accuracy has improved through three chemistry generations:</p>
+
+          <ul>
+            <li>R9.4 (pre-2022): ~95% raw, ~98% after polishing.</li>
+            <li>R10.4 (2022–): ~99% raw, ~99.5% with modern Guppy/Dorado basecallers.</li>
+            <li>R10.4.1 + Q20+ chemistry (2023–): ~Q20 raw, ~Q25+ polished — approaching HiFi territory.</li>
+          </ul>
+
+          <p>Modern ONT is now at <strong>Q20+</strong> per-base accuracy. Not identical to HiFi but close enough that the 2018-era mental model — "long = noisy" — no longer applies.</p>
+
+          <p><strong>Comparative strengths</strong>:</p>
+
+          <table>
+            <thead><tr><th>Axis</th><th>PacBio HiFi</th><th>ONT R10.4+</th></tr></thead>
+            <tbody>
+              <tr><td>Per-base accuracy</td><td>~99.9% (Q30+)</td><td>~99% (Q20+) raw, Q25+ polished</td></tr>
+              <tr><td>Read length</td><td>15–25 kb typical, up to ~30 kb</td><td>10 kb – 4 Mb+, ultra-long sub-population</td></tr>
+              <tr><td>Throughput (Gb/day)</td><td>~2000 Gb/day (Revio)</td><td>~300 Gb/day (PromethION)</td></tr>
+              <tr><td>Cost per Gb (2024)</td><td>~$10–20</td><td>~$5–10</td></tr>
+              <tr><td>Methylation calling</td><td>Native</td><td>Native</td></tr>
+              <tr><td>Streaming / selective seq</td><td>No</td><td>Yes (adaptive sampling)</td></tr>
+            </tbody>
+          </table>
+
+          <p>Both are now used in production for reference-grade genomics. PacBio HiFi is the default for "I need maximum per-base accuracy in a 20 kb read" (SNP-heavy small-variant calling in regions short reads can't reach, plus small-to-medium SVs). ONT is the default for ultra-long reads (spanning 500 kb+ repeat arrays, centromeres, telomeres) and for real-time / selective sequencing use cases.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-11/01-hifi-vs-ont.svg"
+                 alt="Two-axis plot with x = read length (log scale, 100 bp to 2 Mb) and y = per-base accuracy (Phred Q, Q10 to Q35). Illumina short reads cluster top-left at 150 bp × Q30+. PacBio HiFi 2018 and 2024 shown as two points both around Q30, at 15 and 20 kb. ONT 2018 (R9.4) at 10 kb × Q12, ONT 2022 (R10.4) at 20 kb × Q18, ONT 2024 (R10.4.1) at 20 kb × Q22 with an ultra-long sub-population extending to 1 Mb × Q22. An accent-bg shaded 'reference-grade' region highlights accuracy ≥ Q20 and length ≥ 10 kb.">
+            <figcaption>Figure 1. The reference-grade long-read quadrant. Both HiFi and modern ONT now cross Q20 at ≥ 10 kb read length — a space that was empty until 2019.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>Read length and accuracy are separate axes. Short reads are short and accurate. Long reads used to be long and noisy. The 2019–2023 accuracy improvements mean long reads are now long <em>and</em> accurate — the bottom-right quadrant, which used to be empty, is where HiFi and modern ONT both live. Most downstream tools were designed for the top-left (short + accurate) and re-tooled for the bottom-right (long + accurate) between 2019 and 2024.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 Why accuracy crossing ~Q20 changes the field</h3>
+
+          <p>A per-base error rate around 1% (Q20) is the threshold where several analytical techniques become possible:</p>
+
+          <p><strong>Variant calling with per-read consensus.</strong> Below Q20, you need heavy alignment-based consensus (many reads voting on each base) to call variants reliably. Above Q20, each read can be treated as a mostly-correct witness, and small-variant callers that treat long reads like short reads (with error correction) work.</p>
+
+          <p><strong>Methylation and modification calling with per-read confidence.</strong> Lecture 10 §2.4 covered this — ONT Dorado's 5mC model hits &gt;95% accuracy, PacBio HiFi's IPD-based model hits ~95%. Sub-Q20 read accuracy would drown these signals in basecaller noise.</p>
+
+          <p><strong>Phasing without statistical inference.</strong> Lecture 12 (population genetics) covers short-read haplotype phasing, which uses linkage disequilibrium statistics across a population to infer which allele-pairs on one chromosome. Long reads covering 10+ heterozygous sites let you read phase directly from a single molecule — no population, no statistics, no ambiguity.</p>
+
+          <p><strong>Reference-grade assembly.</strong> Spanning repeats and long homopolymers is what makes T2T possible. Lecture 3 built short-read assemblies; long reads have made complete chromosome-arm-to-chromosome-arm assembly routine since 2022.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Long reads still have error modes. HiFi's residual errors are concentrated in homopolymer runs (stretches of the same base — AAAAA) and in mapped positions where the polymerase stuttered. ONT's residual errors are bias-structured: certain k-mers basecall worse than others; the error distribution is neither Poisson nor Gaussian. Use a modern long-read-aware variant caller (DeepVariant, Clair3, PEPPER-Margin-DeepVariant) rather than assuming short-read callers will work unchanged. The "reads are perfect now" overclaim breaks at specific loci that pre-Q20 intuition would have flagged.</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Long-Read vs Short-Read Comparator</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-11/01-longread-comparator.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-11/01-longread-comparator.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Long-Read vs Short-Read Comparator"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 40 min</span>
+          What Long Reads Unlock
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 SVs resolved directly</h3>
+
+          <p><strong>Structural variants (SVs)</strong> — insertions, deletions, inversions, duplications, translocations of 50 bp or longer — were the hardest variant class for short-read sequencing. Lecture 4 covered why: a 100 bp short read that overlaps a 500 bp insertion sees only the break points from each side; reconstructing the insert requires inference from mate-pair geometry, split reads, and local assembly. Sensitivity below 60% was typical for mid-size SVs even on high-coverage short-read WGS.</p>
+
+          <p>Long reads change this because a single 20 kb read can <strong>span the entire SV plus flanking sequence</strong> — the SV is resolved directly from one or a few reads. Detection becomes an alignment problem rather than an inference problem.</p>
+
+          <p>Tools:</p>
+
+          <ul>
+            <li><strong>Sniffles2</strong> (Smolka et al. 2024). Standard long-read SV caller. Works on both HiFi and ONT. Produces VCFs with precise breakpoint coordinates and SV sequence where possible.</li>
+            <li><strong>CuteSV</strong> (Jiang et al. 2020). Parallel to Sniffles; distinct internal logic; often run as a second caller for consensus.</li>
+            <li><strong>Severus</strong> (Keskus et al. 2024). PacBio-focused; produces phased SV calls when combined with HiFi read-level phasing.</li>
+          </ul>
+
+          <p>2024 performance on GIAB HG002 (gold-standard SV benchmark): precision + recall both &gt; 95% for mid-size (50 bp – 10 kb) SVs. Short-read callers on the same sample are typically &lt; 80% recall, even with dedicated SV tools.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-11/02-sv-long-vs-short.svg"
+                 alt="Three horizontal bands aligned to a 10 kb genomic axis. Top: reference with a 5 kb tandem duplication marked. Middle: short-read coverage — ~15 reads of 150 bp each stop at the duplication boundaries; a few 'split reads' span the boundary with two halves connected; coverage track shows subtle depth doubling inside the duplication. Bottom: long-read coverage — several 20 kb reads fully span the duplication; each single read contains both copies.">
+            <figcaption>Figure 2. Short reads can only infer the SV from indirect evidence. A single long read spans the whole event.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">SV Resolution Demo</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-11/02-sv-resolution.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-11/02-sv-resolution.html"
+                    class="artifact-frame" loading="lazy"
+                    title="SV Resolution Demo"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>Think of a structural variant as an event that is only visible if your observation window is wider than the event itself. A 100 bp short read is like a microscope that can see a single letter clearly but cannot resolve a paragraph. A 20 kb long read is the same microscope with a wide-angle lens — one molecule captures a paragraph in one frame. Short reads can sometimes <em>infer</em> an SV from pairs of reads flanking it (like triangulating from two microscope views), but the inference is statistical and often fails. Long reads just see the SV directly; no inference needed.</p>
+          </aside>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — read length as observation-window size</span>
+            <p>In signal processing, detectability of a transient event scales with the observation window relative to the event's duration. Events shorter than your window are detectable by matched-filter correlation; events longer than your window are partially observable at best. The genomics analogue: SVs shorter than the read length are resolved by direct alignment (one read sees the whole event); SVs longer than the read length are visible only through indirect inference on fragment geometry — split reads, discordant pair orientations, coverage anomalies. The 50 bp – 10 kb SV regime, essentially invisible at 100 bp read length, becomes trivially visible at 20 kb read length. This is the same observation-window argument from radar (chirp pulse compression) and GPS (integration time).</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 Spanning repeats</h3>
+
+          <p><strong>Tandem repeats</strong> — short motifs (2–50 bp) repeated many times (sometimes thousands) — include the pathogenic <strong>trinucleotide expansions</strong> behind Huntington's disease (CAG repeats in HTT), fragile X syndrome (CGG in FMR1), myotonic dystrophy (CTG in DMPK), and dozens of other disorders. The repeat length determines disease penetrance.</p>
+
+          <p>Short reads cannot directly count the number of repeat units if the expansion spans more than one read length. Clinical labs used PCR-based fragment-sizing for decades precisely because sequencing couldn't size long repeats.</p>
+
+          <p>Long reads span the repeat. Count the repeat units directly on a single read. Tools:</p>
+
+          <ul>
+            <li><strong>TRGT</strong> (Tandem Repeat Genotyping Tool, Dolzhenko et al. 2024). PacBio's canonical tool.</li>
+            <li><strong>Straglr</strong> (Chiu et al. 2021). General-purpose long-read repeat genotyper.</li>
+            <li><strong>LongTR</strong> / <strong>NanoRepeat</strong> (various). ONT-specific wrappers.</li>
+          </ul>
+
+          <p>Same principle for <strong>segmental duplications</strong> (highly similar multi-kilobase blocks duplicated across the genome) and for <strong>centromeric and pericentric satellite arrays</strong> (kilobase-scale alpha-satellite repeats). These were the regions masked out of short-read analyses because alignment was ambiguous; long reads resolve them.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-11/03-tandem-repeats.svg"
+                 alt="Three bands. Top: HTT gene model with CAG repeat region highlighted at exon 1; zoom-in shows sequence of CAG triplets, with the pathogenic threshold of 36 repeats annotated. Middle: short reads (150 bp) covering a 180 bp CAG repeat — each read contains some repeat units but cannot determine the boundaries; repeat count ambiguous. Bottom: a single 3 kb long read fully spans the repeat + flanking sequence; repeat count of 60 units is read off directly, above the 36-unit pathogenic threshold.">
+            <figcaption>Figure 3. Long reads count tandem-repeat units directly. The HTT CAG locus is the canonical clinical example — pathogenic above 36 units.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Haplotype phasing directly from reads</h3>
+
+          <p>Every diploid human carries two copies of every autosomal gene — one from each parent. A single locus might have one allele on the maternal chromosome and a different allele on the paternal. <strong>Haplotype phasing</strong> is the problem of deciding which variants sit on which chromosome.</p>
+
+          <p>Short-read phasing is indirect. A 100 bp short read typically overlaps at most 1–2 heterozygous sites; the combinations don't uniquely determine phase. Short-read-based phasing relies on <strong>linkage disequilibrium (LD) statistics</strong> across a population reference panel (1000 Genomes, HGDP) — probabilistic inference, not direct observation. Accuracy is high for common variants in large populations but drops for rare variants and underrepresented populations.</p>
+
+          <p>Long reads break phase ambiguity by spanning multiple heterozygous sites on the same molecule. If a 20 kb read covers 5 heterozygous SNPs, the phase of those 5 variants is read directly off the one molecule — deterministic, not probabilistic, no reference panel required.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-11/04-phasing-short-vs-long.svg"
+                 alt="Three bands over a 20 kb reference with 5 heterozygous SNPs. Top: the reference with all 5 het positions marked; true maternal and paternal haplotypes shown as {A,C,T,G,A} and {G,T,C,A,T}. Middle: ~12 short reads each covering 1-2 het sites; combinations do not uniquely link phase — statistical inference from an LD panel is required. Bottom: 2 long reads (20 kb each), each spanning all 5 het sites; haplotypes read directly off the molecules, no statistics needed.">
+            <figcaption>Figure 4. Long reads read haplotype phase directly from a single molecule. Short reads require statistical phasing against a reference panel, which fails for rare variants.</figcaption>
+          </figure>
+
+          <p>Long-read phasing tools:</p>
+
+          <ul>
+            <li><strong>WhatsHap</strong> (Martin et al. 2016, 2024). Long-read phasing (and short-read with long-range constraints).</li>
+            <li><strong>HapCUT2</strong> (Edge et al. 2017). General-purpose phasing with explicit long-read support.</li>
+            <li><strong>hifiasm trio mode</strong> (Cheng et al. 2021). Uses parental short reads + HiFi to produce haplotype-resolved assemblies.</li>
+          </ul>
+
+          <p>Phasing is useful for: (1) allele-specific expression analysis, (2) carrier screening for compound heterozygous disorders, (3) tracing tumour evolution via allele-specific CNV, (4) improving variant calling (heterozygous sites get resolved into two clean haplotypes rather than ambiguous mixtures).</p>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Telomere-to-telomere (T2T) assemblies</h3>
+
+          <p>The human genome assembly reported "complete" by the Human Genome Project in 2004 had known gaps — ~8% of the genome was missing, concentrated in centromeres, acrocentric short arms, and other highly repetitive regions short reads could not resolve. GRCh38 (2013) still had ~200 Mb of gaps and ~100 Mb of unplaced contigs.</p>
+
+          <p><strong>T2T-CHM13</strong> (Nurk et al. 2022) — the first actually complete human genome assembly — was built from ultra-long ONT reads + HiFi + optical-mapping data on a hydatidiform mole cell line (CHM13). "Hydatidiform mole" = a homozygous human cell line (two copies of the paternal genome), which removes the phase-resolution problem — everything is effectively haploid. The T2T team used:</p>
+
+          <ul>
+            <li><strong>Verkko</strong> (Rautiainen et al. 2023) and <strong>hifiasm</strong> as the assemblers.</li>
+            <li>Ultra-long ONT (~200× coverage, some reads &gt; 1 Mb) to span the longest satellite arrays.</li>
+            <li>HiFi (~40×) for accurate consensus inside the long-read scaffolds.</li>
+            <li>Extensive manual curation of centromeres and acrocentric arms.</li>
+          </ul>
+
+          <p>Output: the first complete human genome — no gaps. Added ~200 Mb of sequence to what GRCh38 had included, mostly in centromeric alpha-satellite arrays, ribosomal DNA clusters, and segmental duplications. Key biological gain: the new centromere sequences enabled per-chromosome analysis of centromere dynamics, and the complete rDNA arrays enabled rRNA-biology research that had been limited to gene-copy counting.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-11/05-t2t-before-after.svg"
+                 alt="Two chromosome ideograms of the same chromosome (chromosome 9). Top panel labelled 'GRCh38': the p-arm is truncated before the centromere, the centromere shown as a hatched gap, unplaced heterochromatin and 'N-masked centromere' annotated. Bottom panel labelled 'T2T-CHM13': same chromosome now complete with alpha-satellite HOR arrays filled in, acrocentric arm resolved, p-arm extending fully to the telomere. Added ~15 percent of chromosome 9 annotated; total +200 Mb genome-wide.">
+            <figcaption>Figure 5. T2T-CHM13 closed the last gaps in the human reference. Most of the added sequence is in centromeres and acrocentric short arms.</figcaption>
+          </figure>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The T2T Consortium announced the complete CHM13 assembly in a <em>Science</em> special issue on 1 April 2022 (six papers on the same day, from different subgroups covering the X chromosome, centromeres, segmental duplications, repeat analysis, evolution, and the overall assembly). This was genomics's "Apollo landing" moment for its foundational reference. The human diploid pangenome effort (HPRC v1, §6) announced the following year, extending the same approach to 47 haplotypes.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 40 min</span>
+          The Pangenome Shift
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 Why a single linear reference is a lie</h3>
+
+          <p>GRCh38, the human reference genome, is a single linear string of ~3 billion bases. It was built in 2013 from a small number of donors (~70% from one individual — Anonymous Donor A / "RP11"). Every short-read variant-calling pipeline you've seen in this course (Lectures 2, 4) aligns reads to this single reference string and reports differences relative to it.</p>
+
+          <p>The problem: humans differ from each other by roughly 0.1% at the single-nucleotide level and by 0.5–1% at the structural-variant level. A single reference represents <em>one specific combination</em> of alleles; every other human is represented as a set of differences from that one combination. This is fine for alignment when variation is small; it starts breaking down when:</p>
+
+          <ul>
+            <li>A variant is common in the population but absent in the reference donor. The reference simply lacks that sequence.</li>
+            <li>A structural variant is common in non-reference-donor populations. Reads from populations with the alternate allele map poorly or not at all; the variant goes undetected.</li>
+            <li>A region is highly polymorphic — the reference is one arbitrary draw from a distribution, not a canonical sequence.</li>
+          </ul>
+
+          <p>The issue is that <strong>variation is not noise around the reference</strong> — variation is the biological signal, and the reference is one sample from it. Treating it as noise (via "differences from GRCh38") is a categorical mistake, not just an inaccuracy.</p>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Reference bias — a concrete example</h3>
+
+          <p><strong>Reference bias</strong> is the name for systematic under-calling of variants that differ from the reference. It has real downstream consequences.</p>
+
+          <p><strong>The example worth remembering</strong>: variants common in African populations but absent in the GRCh38 reference (which has limited African ancestry representation) get called less sensitively than variants common in European populations. A 2019 study (Sherman et al., <em>Nature Genetics</em>) showed that aligning African reads to a GRCh38 augmented with ~300 Mb of African-specific sequence recovered thousands of variants previously called as "no-call" or missing genotypes.</p>
+
+          <p>Clinical impact:</p>
+
+          <ul>
+            <li><strong>Rare-disease genetics</strong>: a pathogenic variant that happens to be common in the patient's population but absent in GRCh38 can map as a false reference match — the variant is invisible at the alignment step.</li>
+            <li><strong>Polygenic risk scores</strong> (L13): PRS developed on European cohorts transfer poorly to non-European populations partly because of reference-biased variant calling.</li>
+            <li><strong>Ancestry inference</strong>: underrepresented populations appear less genetically variable than they actually are, distorting ancestry estimates.</li>
+          </ul>
+
+          <p>This is not a moral argument — it's a real measurement artefact with real clinical consequences. The field's response: extend the reference from one linear string to a <strong>graph</strong> that represents many human genomes simultaneously.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — reference bias as training/test distribution mismatch</span>
+            <p>A linear reference built from one population, applied to variant calling on another, is the genomics instance of a well-known ML pathology — training-test distribution mismatch. The "training" data is the reference donor's genome; the "test" is every clinical sample that lands in the pipeline. When the test distribution drifts from training, model performance degrades in systematic, predictable ways. The pangenome fix is the genomics analog of domain-adaptation in ML — extend the training distribution to match the target.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 The graph genome concept</h3>
+
+          <p>A <strong>graph genome</strong> or <strong>pangenome graph</strong> represents variation as branching paths in a directed graph, rather than as differences from a single linear reference.</p>
+
+          <p>The core data structure: <strong>nodes</strong> are short DNA segments, <strong>edges</strong> connect segments that co-occur in at least one known haplotype. Traversing the graph along a specific sequence of edges recovers one particular haplotype; traversing a different path recovers a different one. Both haplotypes are explicitly represented.</p>
+
+          <p>A concrete example. At a bi-allelic SNP, the graph has two nodes at that position — one for each allele — with incoming and outgoing edges that merge back into the shared sequence flanking the SNP. At an indel, the graph has a branching structure where one path contains the inserted sequence and another skips it. At a common SV, the graph has two (or more) branches representing the SV haplotypes.</p>
+
+          <p>The pangenome graph for the HPRC v1 release (47 haplotypes) encodes roughly 110 Gb of sequence in a graph that compresses to ~4 Gb of GFA text. Compressed because most of the genome is shared across haplotypes; the graph only branches where haplotypes disagree.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-11/06-reference-bias.svg"
+                 alt="Three bands. Top: a 2 kb locus with three variants labelled V1 (common in European populations, present in GRCh38), V2 (common in African populations, absent from GRCh38), V3 (common in East Asian populations, absent). Middle: three sub-panels showing reads from each population aligned to GRCh38 — European reads call V1 correctly but miss V2/V3; African reads miss V2 (flagged as no-call/false ref); East Asian reads miss V2 and V3. Bottom: same reads aligned to a pangenome graph — all three variants called correctly in every population, annotated 'pangenome includes all three variants as graph branches'.">
+            <figcaption>Figure 6. Reference bias at a concrete locus. A pangenome graph including all three variants recovers the calls missed by GRCh38 linear alignment.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-11/07-linear-vs-graph.svg"
+                 alt="Left panel: a 1 kb linear reference string with variants (a heterozygous SNP at position 200, a small indel at position 500, an SV at position 800) shown as annotations off to the side. Right panel: the same genomic region rendered as a pangenome graph with branching nodes at each variant position; two haplotypes traced as coloured paths (hap1 in cobalt, hap2 in amber). Mapping lines connect each variant in the linear panel to its corresponding graph branch.">
+            <figcaption>Figure 7. Linear reference vs graph genome. Same biological information, two data structures. The graph makes variation first-class instead of annotation-only.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — pangenome as population-as-codebook</span>
+            <p>A linear reference is analogous to transmitting one specific codeword and describing every other codeword as a diff. The pangenome graph is analogous to transmitting the full codebook and pointing at the specific codeword(s) actually present. In coding theory this is the difference between delta-encoding (one baseline + diffs) and dictionary encoding (full codebook + indices). The dictionary representation is larger but avoids the "what if the diff doesn't apply" failure mode. Pangenomes apply this reframe to genomics — make variation first-class, not a correction.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 GFA — Graphical Fragment Assembly format</h3>
+
+          <p>The standard pangenome file format is <strong>GFA (Graphical Fragment Assembly)</strong>. It's a simple text format that encodes the graph structure plus optional metadata.</p>
+
+          <p>A minimal GFA file:</p>
+
+          <pre class="sequence-block">H  VN:Z:1.0                          # header, version
+S  1  ACGTAAGTTTG                    # segment: node ID=1, sequence=ACGTAAGTTTG
+S  2  ACGCAAGAATG                    # segment: node ID=2, alternative allele
+S  3  CGATCGATCGA                    # segment: node ID=3, flanking sequence
+L  1  +  3  +  0M                    # link: node 1 forward → node 3 forward (0 bp overlap)
+L  2  +  3  +  0M                    # link: node 2 forward → node 3 forward
+P  hap1  1+,3+  *                    # path: haplotype 1 traverses nodes 1+ then 3+
+P  hap2  2+,3+  *                    # path: haplotype 2 traverses nodes 2+ then 3+
+W  sample1  1  chr1  0  22  &gt;1&gt;3     # walk: sample 1's path through chromosome 1</pre>
+
+          <p>Line types:</p>
+
+          <ul>
+            <li><code>H</code> — header with version and metadata.</li>
+            <li><code>S</code> — segment (graph node with sequence).</li>
+            <li><code>L</code> — link (directed edge between segments).</li>
+            <li><code>P</code> — path (a named haplotype through the graph).</li>
+            <li><code>W</code> — walk (a sample's haplotype path in a bandage-compatible format; GFA 1.1+).</li>
+          </ul>
+
+          <p>Tooling:</p>
+
+          <ul>
+            <li><strong>vg</strong> (Garrison et al. 2018) — the reference implementation; full graph alignment and analysis.</li>
+            <li><strong>minigraph</strong> (Li 2021) — fast graph construction and alignment; simpler graph model (no complex cycles).</li>
+            <li><strong>pggb</strong> (Pangenome Graph Builder, Garrison et al. 2024) — builds a graph from a collection of whole genomes.</li>
+            <li><strong>odgi</strong> (Guarracino et al. 2022) — graph manipulation and analysis.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-11/08-gfa-anatomy.svg"
+                 alt="Left panel: a GFA text file with about 10 lines, each line type (H, S, L, P, W) coloured distinctly. Right panel: the corresponding graph rendered — two parallel S nodes (segments 1 and 2) at top, one S node (segment 3) downstream, two L edges from nodes 1 and 2 into node 3, path hap1 traced in green from node 1 to node 3 and path hap2 traced in violet from node 2 to node 3. Dashed connecting lines from each GFA line to its graph element.">
+            <figcaption>Figure 8. GFA text format and the graph it encodes, side-by-side. H/S/L/P/W lines map one-to-one to graph headers, nodes, edges, paths, and walks.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Pangenome Graph Viewer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-11/03-pangenome-graph.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-11/03-pangenome-graph.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Pangenome Graph Viewer"></iframe>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">GFA Format Decoder</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-11/04-gfa-decoder.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-11/04-gfa-decoder.html"
+                    class="artifact-frame" loading="lazy"
+                    title="GFA Format Decoder"></iframe>
+          </figure>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>A pangenome graph is only as diverse as the haplotypes it was built from. HPRC v1 includes 47 haplotypes from a mix of populations; a variant present in no HPRC sample is still not represented in the graph, and reads carrying that variant will still mis-align or mis-call. Graph genomes reduce reference bias; they do not eliminate it. A well-built graph for a specific clinical or population-genetic study includes samples from the study's target population — generic pangenomes are a better baseline, not a universal solution.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 30 min</span>
+          Graph-Based Alignment — Seed-and-Extend
+        </h2>
+
+        <p>The genomics material in this Part is the algorithmic generalisation of Lecture 2's seed-and-extend alignment from a linear reference to an arbitrary directed acyclic graph (DAG) reference. Part 5 then zooms in on the underlying dynamic-programming structure as Viterbi on a DAG.</p>
+
+        <section id="sec-4-1">
+          <h3>4.1 Seed-and-extend generalised to DAGs</h3>
+
+          <p>Lecture 2's seed-and-extend alignment worked on a linear reference:</p>
+
+          <ol>
+            <li>Pick k-mers from the read.</li>
+            <li>Look up each k-mer in the reference's k-mer index to find candidate alignment positions.</li>
+            <li>For each candidate, extend the alignment base-by-base using dynamic programming (Smith-Waterman or banded variants).</li>
+            <li>Report the best-scoring alignment.</li>
+          </ol>
+
+          <p>On a <strong>graph reference</strong>, every step needs modification:</p>
+
+          <ol>
+            <li><strong>K-mer indexing on a graph.</strong> Each node has a sequence; k-mers that span multiple nodes (overlap edges) need to be indexed as "k-mer plus path" rather than "k-mer plus linear position." In practice, tools enumerate all k-length paths in the graph and index each one.</li>
+            <li><strong>Seed placement</strong> gives a starting node (not just a position).</li>
+            <li><strong>Extension</strong> is no longer along a linear chain — the extension has to branch whenever the graph branches. At each step, extension can continue into any out-edge of the current node.</li>
+            <li><strong>Scoring</strong> becomes the maximum over all graph paths of length matching the read: a much larger search space than the linear case.</li>
+          </ol>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-11/09-graph-seed-extend.svg"
+                 alt="Three bands. Top: a DAG graph reference with ~8 nodes, branching at two positions (nodes 4 and 6). Middle: a 30 bp read with a 6 bp k-mer seed highlighted; the seed matches a k-mer in node 3. Bottom: extension proceeds along the graph, branching at node 4 into two candidates (one through node 5, one through node 6); the better-scoring path is selected; the read's alignment is rendered as a sequence of (node, offset) pairs along the chosen path.">
+            <figcaption>Figure 9. Seed-and-extend generalised to a DAG. The seed locates a starting node; extension branches at each graph branch and picks the winning path.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Graph Seed-and-Extend Walker</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-11/05-graph-seed-extend.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-11/05-graph-seed-extend.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Graph Seed-and-Extend Walker"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>A graph alignment is a <strong>path through the reference graph</strong> — a sequence of node-plus-offset coordinates that best matches the read. The alignment doesn't have "a start and an end position on a string" — it has "a traversal, including which fork was taken at each branch." Once you start thinking of alignments as paths rather than positions, everything about graph alignment becomes the natural generalisation: seeds are starting nodes, extensions are path extensions, the best path is the best path. No new mathematical content — just a change of the underlying data structure from array to graph.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 The graph-alignment toolchain</h3>
+
+          <p>Three dominant tools with different algorithmic choices:</p>
+
+          <p><strong>vg</strong> (Garrison et al. 2018, <em>Nature Biotechnology</em>). The reference implementation. Implements full graph alignment with precise scoring. Slower than short-read aligners by ~5–10×. Ships with a complete toolchain: <code>vg construct</code> (build graph from VCF + reference), <code>vg giraffe</code> (fast short-read graph alignment), <code>vg map</code> (accurate general-purpose), <code>vg deconstruct</code> (pull variants from alignments), <code>vg surject</code> (project graph alignments onto a linear reference for short-read-tool compatibility).</p>
+
+          <p><strong>minigraph</strong> (Li 2021). Focused on speed and simplicity. Uses a simpler graph model (no nested variation) and a minimap2-derived alignment core. Much faster than vg; less expressive for graphs with complex structure. Popular for rapid pangenome construction.</p>
+
+          <p><strong>GraphAligner</strong> (Rautiainen &amp; Marschall 2020). Long-read-specific graph aligner. Uses a minimap2-like seed-chain-extend approach adapted for graphs. The standard choice for aligning HiFi or ONT reads to a pangenome graph.</p>
+
+          <p>Modern pipeline (2024):</p>
+
+          <ol>
+            <li><strong>Build graph</strong> with <code>pggb</code> or <code>minigraph cactus</code> from a collection of reference-quality whole genomes.</li>
+            <li><strong>Align reads</strong> with <code>vg giraffe</code> (short) or <code>GraphAligner</code> (long).</li>
+            <li><strong>Call variants</strong> with <code>vg call</code> or a caller adapted to graph alignments.</li>
+            <li><strong>Project to linear</strong> with <code>vg surject</code> if downstream tools expect linear BAMs.</li>
+          </ol>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-11/11-vg-toolchain.svg"
+                 alt="Left-to-right pipeline diagram. Inputs: reference FASTA plus VCF of known variants, or a collection of assembled genomes. Graph-build step: 'vg construct' or 'pggb' produces a .vg or .gfa file. Alignment step: 'vg giraffe' (short reads) or 'GraphAligner' (long reads) produces .gam. Variant-call step: 'vg call' produces a VCF. Optional projection step: 'vg surject' produces a BAM for linear-reference downstream tools.">
+            <figcaption>Figure 11. vg toolchain end-to-end. Build, align, call, optionally project to linear. File formats labelled on each arrow.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Alignment-to-path decoding and practical tradeoffs</h3>
+
+          <p>A graph alignment's output is a <strong>path</strong> through the graph — a sequence of (node, offset) tuples. Two ways to consume it:</p>
+
+          <ul>
+            <li><strong>Direct variant calling on the graph</strong>: the path implicitly encodes which alleles were traversed. <code>vg call</code> reads this out as a VCF.</li>
+            <li><strong>Projection to linear reference</strong>: for compatibility with downstream tools, the graph alignment is projected onto a chosen linear reference (e.g. GRCh38). <code>vg surject</code> does this; path choices at graph branches become variant calls.</li>
+          </ul>
+
+          <p>Practical tradeoffs of graph vs linear alignment:</p>
+
+          <ul>
+            <li><strong>Recall</strong>: 5–20% better for structural variants and for variants common in under-represented populations. The bigger the population-coverage gap, the bigger the gain.</li>
+            <li><strong>Runtime</strong>: 5–10× slower than short-read linear alignment. Still tractable; HPRC-scale alignments run in hours on a modern machine.</li>
+            <li><strong>Tooling friction</strong>: many downstream tools still expect linear BAMs; <code>vg surject</code> bridges but introduces edge cases.</li>
+            <li><strong>Graph-quality ceiling</strong>: a graph built from population-mismatched samples doesn't help samples outside the build set. Generic pangenomes are a better default; study-specific pangenomes are best for specific questions.</li>
+          </ul>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>You're designing a clinical WGS pipeline for a rare-disease program serving a Sub-Saharan African cohort. The standard pipeline uses BWA + GATK against GRCh38. Pangenome tools are mature enough to consider. What tradeoffs would you weigh, and what would you propose? (Considerations: pangenome via vg giraffe vs BWA, runtime cost, downstream compatibility, whether to use the generic HPRC pangenome or build cohort-specific, audit-trail demands for clinical validation, whether the additional recall justifies the added complexity. No single right answer.)</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 25 min</span>
+          Viterbi on a DAG
+        </h2>
+
+        <p>The cleanest genomics-to-EE translation in the whole course. Part 4's seed-and-extend was the operational recipe; this Part rebuilds graph alignment from first principles as Viterbi dynamic programming on a state graph, then generalises from the linear chain Lecture 2 used to an arbitrary DAG.</p>
+
+        <section id="sec-5-1">
+          <h3>5.1 From linear alignment to Viterbi</h3>
+
+          <p>Lecture 2 introduced dynamic programming for sequence alignment as Smith-Waterman / Needleman-Wunsch — a 2D score matrix, filled cell-by-cell, traced back to recover the alignment. A cleaner mental model for the same algorithm:</p>
+
+          <ul>
+            <li>The reference is a <strong>chain of states</strong> (each reference base is a state).</li>
+            <li>The read is observed <strong>over time</strong> (one character per time step).</li>
+            <li>The alignment is the <strong>Viterbi-optimal state path</strong> through the chain given the noisy read.</li>
+          </ul>
+
+          <p>In Viterbi-decoding terms — familiar from any communications or speech-recognition course — alignment picks the most likely state sequence given the observation sequence under a trellis-structured model. The score matrix of Smith-Waterman is exactly the Viterbi forward accumulator; the traceback is the Viterbi traceback. All of Lecture 2's alignment machinery transfers directly.</p>
+
+          <p>The elegance of this framing is that it immediately generalises: swap the chain for any other state graph, and Viterbi still applies. The genomics-specific variation — graph alignment on a pangenome DAG — is exactly this generalisation.</p>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Generalising Viterbi to a DAG</h3>
+
+          <p>When the reference is a graph (DAG), the state space changes — the states are now graph nodes, and transitions are graph edges. Viterbi still works: at each step, compute the best score for each state given the best scores at its predecessor states. The structure of the state graph determines the predecessor set per state.</p>
+
+          <p>Formally:</p>
+
+          <ul>
+            <li>For each read position $t$ and each graph state $s$, maintain $V(s, t)$ = best alignment score ending at state $s$ after consuming $t$ read bases.</li>
+            <li>Update:</li>
+          </ul>
+
+          <p>$$V(s, t) = \max_{s' \in \text{pred}(s)} \left[ V(s', t-1) + \text{match\_score}(s, \text{read}[t]) \right]$$</p>
+
+          <ul>
+            <li>At the end, trace back from $\arg\max_s V(s, T)$ to recover the aligned path.</li>
+          </ul>
+
+          <p>For a linear chain, $\text{pred}(s)$ is a single state, and the algorithm reduces to standard Smith-Waterman. For a DAG, $\text{pred}(s)$ is the set of in-edges; the algorithm naturally handles branches.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-11/10-viterbi-linear-vs-dag.svg"
+                 alt="Two side-by-side trellis panels. Left: linear-chain Viterbi — a chain of states on the y-axis, read time steps on x-axis, vertical arrows showing single-predecessor relation, one optimal path traced as a thick coloured line. Caption: single predecessor per state, O(N × T) DP. Right: graph (DAG) Viterbi — states form a DAG with branching structure, multiple incoming edges to each state where the DAG has in-edges, Viterbi path branches at the DAG branch points. Caption: multiple predecessors, O(E × T) DP, same update equation. Bottom: the Viterbi update equation written out, annotation 'only pred(s) changes between linear and graph cases'.">
+            <figcaption>Figure 10. Viterbi on a linear chain (left) vs a DAG (right). Same update equation; only the predecessor structure changes.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Viterbi-on-Graph Path Finder</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-11/06-viterbi-graph.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-11/06-viterbi-graph.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Viterbi-on-Graph Path Finder"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — graph alignment is Viterbi on a DAG</span>
+            <p>The Viterbi algorithm in any speech-recognition, channel-decoding, or sequence-labelling course is the optimal dynamic-programming path through a state graph given noisy observations. Lecture 2's linear-chain alignment was Viterbi on the simplest possible state graph — a linear chain. Graph alignment generalises the state graph to an arbitrary DAG. The update equation, the back-pointer logic, the complexity argument — all of it transfers directly. This is the single cleanest genomics-is-signal-processing translation in the whole course: alignment is Viterbi decoding; pangenomes just replaced the state graph.</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Complexity, correctness, and when graph DP beats linear</h3>
+
+          <p><strong>Computational cost</strong>. Linear-chain Viterbi is $O(N \times T)$ where $N$ is reference length, $T$ is read length. Graph Viterbi is $O(E \times T)$ where $E$ is the number of edges in the graph. For HPRC-scale graphs ($\sim 10^9$ edges), this is 5–10× slower than linear alignment on the same input — meaningful but tractable.</p>
+
+          <p><strong>Correctness</strong>. The DP is exact: Viterbi on a DAG returns the true optimal path through the graph. The optimality property that makes linear Smith-Waterman work — that the best path ending at state $s$ at time $t$ extends from the best path ending at some predecessor at time $t-1$ — holds unchanged. Graph alignment is not a heuristic approximation of linear alignment; it's a strict generalisation.</p>
+
+          <p><strong>When graph DP wins over linear DP</strong>. For a read that carries a variant not in the linear reference:</p>
+
+          <ul>
+            <li>Linear alignment accumulates a mismatch penalty at the variant site and misaligns the read (or softclips flanking sequence).</li>
+            <li>Graph alignment traverses the alternate-allele node and aligns without penalty.</li>
+          </ul>
+
+          <p>The score difference between the two is the mismatch cost of the variant(s) in the read — small for single SNPs, enormous for multi-kb SVs. Hence graph alignment's benefit concentrates at SV-rich loci and at variants specific to non-reference populations.</p>
+
+          <p><strong>When graph and linear are equivalent</strong>. For reads that carry only reference-matching sequence, the best graph path runs through the reference-identity nodes, and graph Viterbi collapses to linear Viterbi. No penalty, no gain, just additional runtime. This is why graph aligners are typically 5–10× slower on "easy" reads but much more accurate on "hard" reads — the extra work only pays off where it's needed.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 20 min</span>
+          T2T and HPRC — The State of the Art
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 T2T-CHM13 revisited</h3>
+
+          <p>Part 2.4 introduced T2T-CHM13. Expanding here: the assembly closed the last gaps in the human reference by using CHM13's homozygous (paternal-only) genome to sidestep the phasing problem. The ~200 Mb of added sequence is concentrated in:</p>
+
+          <ul>
+            <li><strong>Centromeres</strong> (~70 Mb total). Alpha-satellite arrays of 171 bp repeats, arranged into higher-order repeats (HORs). CHM13 resolved these arrays on every chromosome.</li>
+            <li><strong>Acrocentric short arms</strong> (chr 13, 14, 15, 21, 22; ~40 Mb). Contain rDNA gene clusters and satellite DNA. Previously unresolvable.</li>
+            <li><strong>Segmental duplications</strong> (~50 Mb). Multi-kb blocks duplicated across the genome at &gt;90% identity. Includes regions important for immune function (NBPF genes, olfactory receptors) and disease (SMN1/SMN2 for spinal muscular atrophy).</li>
+            <li><strong>The Y chromosome</strong> (not in CHM13 directly, but the T2T-Y assembly published 2023 used a separate donor).</li>
+          </ul>
+
+          <p>CHM13 is now the default reference for many production pipelines as "T2T-CHM13 v2.0" (incorporates the Y). Some clinical pipelines have migrated; many still on GRCh38 for compatibility.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">T2T Gap Closer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-11/08-t2t-gap-closer.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-11/08-t2t-gap-closer.html"
+                    class="artifact-frame" loading="lazy"
+                    title="T2T Gap Closer"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 HPRC v1 — 47 haplotypes</h3>
+
+          <p>The <strong>Human Pangenome Reference Consortium (HPRC)</strong> v1 release (Liao et al. 2023, <em>Nature</em>) extended the T2T approach to a pangenome. 47 haplotype-resolved human genome assemblies (from 24 individuals, most diploid), representing broad geographic diversity:</p>
+
+          <ul>
+            <li>African, European, East Asian, South Asian, Admixed American, and Oceanian ancestries.</li>
+            <li>Each assembly built with hifiasm in trio mode (both parents short-read sequenced, HiFi of the child).</li>
+            <li>Each haplotype near-complete (telomere-to-telomere for most chromosomes).</li>
+          </ul>
+
+          <p>The pangenome graph: ~110 Gb of sequence compressed into a graph with ~100M nodes and ~130M edges, built with pggb.</p>
+
+          <p>Variants captured that were absent from GRCh38:</p>
+
+          <ul>
+            <li>~50,000 structural variants (≥50 bp) common in at least one included population.</li>
+            <li>Thousands of smaller-variant haplotypes.</li>
+            <li>Copy-number variation at segmental duplications and tandem repeats — now explicit.</li>
+          </ul>
+
+          <p>Applications: variant calling with ~10% more recall on diverse samples; improved mapping for short reads from populations far from GRCh38's donor; reference-grade data for population-genetic analyses.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-11/12-hprc-pangenome.svg"
+                 alt="Left panel: a simple two-level tree summarising the 47 HPRC haplotypes by population groups — African (14), European (11), East Asian (7), South Asian (6), Admixed American (6), Oceanian (3). Right panel: a schematic of a sample locus in the HPRC pangenome graph — a GRCh38-like linear backbone with multiple alternate paths branching off at variant sites, each path labelled with which haplotype groups carry it.">
+            <figcaption>Figure 12. HPRC v1 pangenome: 47 haplotypes across six ancestry groups, compiled into a graph that captures variation absent from GRCh38.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 What's still missing</h3>
+
+          <p>Even with T2T-CHM13 and HPRC v1, the reference is incomplete: 47 haplotypes covers a fraction of human variation (HPRC v2 targets 350; early releases 2024–2025). Rare variants specific to individual families or small populations aren't in the graph and remain invisible to graph-based calling. The HPRC pangenome is human-only; pangenome graphs for model organisms are at different stages of construction. And many downstream tools don't yet natively support graph inputs — the <code>surject</code> bridge works but adds friction.</p>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The Human Pangenome Reference Consortium announced the v1 release on 10 May 2023 in a <em>Nature</em> cover story. It was widely framed as the "completion of the Human Genome Project" — slightly dramatised, but substantially accurate: for the first time, the reference explicitly represented human variation as structure rather than as annotated differences. HPRC v2 (350 haplotypes) is expected mid-2025; v3 may expand to 700+ haplotypes across a broader geographic sampling.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 20 min</span>
+          Phasing and Haplotype-Resolved Assembly
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 The phasing problem</h3>
+
+          <p>Review: a diploid genome has two copies of each autosome. The two copies are chemically identical in the lab — they're separated in space inside the nucleus but look the same once you've sequenced them. At every heterozygous site, you have two reads: one says "A" and one says "G" (say). Which one is maternal and which is paternal?</p>
+
+          <p>A single heterozygous site is unresolvable without external information. Two heterozygous sites on the same short read can be linked — the read directly shows which allele at site 1 co-occurs with which at site 2. But short reads are short; typical haplotype blocks from short-read phasing span only a few kb.</p>
+
+          <p>Long reads extend the block length dramatically. A single 20 kb HiFi read can link 5–10 heterozygous sites. An ultra-long ONT read (100 kb – 1 Mb) can phase an entire gene with flanking regulatory elements. The phasing block for long-read data is typically the read length × coverage interaction — chromosome-scale phasing is achievable.</p>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Trio binning and haplotype-resolved assembly</h3>
+
+          <p>Three tools dominate:</p>
+
+          <p><strong>hifiasm</strong> (Cheng et al. 2021, 2024). The default HiFi assembler. Produces haplotype-resolved contigs directly — the assembly output is two separate sequences per chromosome, one per parental haplotype. In <strong>trio mode</strong>, uses parental short reads to disambiguate: each parent's k-mers phase the child's HiFi reads. In <strong>Hi-C mode</strong>, uses Hi-C scaffolding to phase when trio data isn't available.</p>
+
+          <p><strong>WhatsHap</strong> (Martin et al. 2016, v2 Garg et al. 2024). A phaser, not an assembler. Takes a VCF of variant calls and a BAM of long reads; outputs a phased VCF where each heterozygous variant is annotated with its haplotype. Standard choice for phasing clinical data.</p>
+
+          <p><strong>HapCUT2</strong> (Edge et al. 2017). Alternative phaser. Uses a graph-cut optimisation rather than WhatsHap's min-cost-flow formulation. Similar performance; different implementation.</p>
+
+          <p>2024 outcome: a phased VCF for any diploid human with 30× HiFi coverage — routine. Chromosome-scale phasing blocks are now standard.</p>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 Phasing as source separation</h3>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — phasing as source separation</span>
+            <p>Phasing is the genomics instance of <strong>source separation</strong> — two signals (maternal and paternal haplotypes) are superimposed in the observed data (reads), and we want to recover each signal separately. In audio this appears as cocktail-party / blind-source separation. In communications it's joint demodulation of a multi-access channel. Long reads make phasing a <em>supervised</em> source separation problem — you can directly observe which signal a given read came from by looking at its heterozygous variants. Short-read phasing is closer to <em>unsupervised</em> source separation — statistical dependencies across reads (linkage disequilibrium) are the only cue. The ML analogy is direct: supervised is easier when labels are available; unsupervised requires structural priors (LD statistics fill that role for short-read phasing).</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Haplotype Phasing Demo</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-11/07-phasing-demo.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-11/07-phasing-demo.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Haplotype Phasing Demo"></iframe>
+          </figure>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Phasing errors <strong>cascade</strong>. If a phase switch happens at heterozygous site $k$ in a chromosome-length haplotype block, every variant downstream of $k$ inherits the error. Phase-switch error rates for modern long-read phasers are ~0.1–1% per block, which sounds small but means the downstream half of a long haplotype is often from the wrong parent. For clinical use, phase blocks should be validated against trio data or Hi-C when possible; unvalidated long-range phase should be reported with caveats.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup" class="lecture-wrapup">
+        <h2>
+          <span class="part-kicker">Wrap-up · 10 min</span>
+          Takeaways, homework, and next lecture
+        </h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Long reads in 2024 are long and accurate.</strong> PacBio HiFi (~Q30) and ONT R10.4+ (~Q20–25) both sit in the reference-grade quadrant that was empty before 2019.</li>
+          <li><strong>Long reads unlock SVs, repeats, phasing, and T2T assembly.</strong> Each of these was hard-or-impossible with short reads; all four are routine now.</li>
+          <li><strong>A single linear reference is a biological misrepresentation of populations.</strong> Reference bias has measurable clinical consequences, especially for under-represented populations.</li>
+          <li><strong>Pangenomes represent variation as graph structure.</strong> GFA format, vg / minigraph / pggb toolchain. HPRC v1 (2023) is the 47-haplotype human pangenome; v2 (350 haplotypes) in progress.</li>
+          <li><strong>Graph alignment is Viterbi on a DAG.</strong> Lecture 2's linear-chain alignment is the special case where the state graph is a single line. The general case differs only in the predecessor structure of the state graph.</li>
+          <li><strong>Phasing is source separation.</strong> Supervised with long reads (labels = which read came from which haplotype, read directly); unsupervised with short reads (must infer from LD statistics).</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Population genetics fundamentals. Allele frequencies, Hardy-Weinberg, drift, selection, the coalescent. LD as autocorrelation along the genome. Demographic inference from a single genome. Phylogenetics folds in as the coalescent / tree-inference section.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Download a PacBio HiFi dataset for HG002 (GIAB benchmark sample) from Ashkenazi Trio data releases. Run Sniffles2 for SV calling and compare the output VCF to the v4.2.1 GIAB SV truth set — report precision and recall for 50 bp – 10 kb SVs.</li>
+          <li>Pick one pathogenic tandem-repeat disease (HTT CAG, FMR1 CGG, DMPK CTG). Find public long-read data from an affected individual. Run TRGT or Straglr to count repeat units; compare to the published / clinically-reported repeat length.</li>
+          <li>Align 10 reads (simulated or real) to a small GFA graph using vg. Inspect the graph alignment (<code>.gam</code>) and project to a linear BAM via <code>vg surject</code>. Compare the projected alignments to what a linear-only BWA alignment would have produced.</li>
+          <li>Construct a minimal pangenome: 3 haplotype FASTA files, run <code>pggb</code> with default settings. Inspect the output GFA. How does node / edge count relate to the number of input haplotypes and their divergence?</li>
+          <li>Compare linear reference alignment (BWA + GRCh38) and graph alignment (<code>vg giraffe</code> + HPRC graph) on 1000 Genomes short-read data from a non-European sample. Report: variant-calling recall difference, runtime difference, and one gene locus where the two pipelines' calls disagree.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Wenger, A. M., Peluso, P., Rowell, W. J., et al. (2019). Accurate circular consensus long-read sequencing improves variant detection and assembly of a human genome. <em>Nature Biotechnology</em> 37, 1155–1162. (PacBio HiFi introduction.)</li>
+          <li>Nurk, S., Koren, S., Rhie, A., et al. (2022). The complete sequence of a human genome. <em>Science</em> 376, 44–53. (The T2T-CHM13 paper.)</li>
+          <li>Liao, W.-W., Asri, M., Ebler, J., et al. (2023). A draft human pangenome reference. <em>Nature</em> 617, 312–324. (HPRC v1.)</li>
+          <li>Garrison, E., Sirén, J., Novak, A. M., et al. (2018). Variation graph toolkit improves read mapping by representing genetic variation in the reference. <em>Nature Biotechnology</em> 36, 875–879. (The vg paper.)</li>
+          <li>Li, H. (2021). minigraph as a potential reference-free pangenome construction approach. <em>bioRxiv</em>. (minigraph.)</li>
+          <li>Garrison, E., Guarracino, A., Heumos, S., et al. (2024). Building pangenome graphs. <em>Nature Methods</em> 21, 2008–2012. (pggb.)</li>
+          <li>Cheng, H., Concepcion, G. T., Feng, X., Zhang, H., &amp; Li, H. (2021). Haplotype-resolved de novo assembly using phased assembly graphs with hifiasm. <em>Nature Methods</em> 18, 170–175.</li>
+          <li>Sherman, R. M., Forman, J., Antonescu, V., et al. (2019). Assembly of a pan-genome from deep sequencing of 910 humans of African descent. <em>Nature Genetics</em> 51, 30–35. (Reference bias example.)</li>
+          <li>Rautiainen, M., &amp; Marschall, T. (2020). GraphAligner: rapid and versatile sequence-to-graph alignment. <em>Genome Biology</em> 21, 253.</li>
+          <li>Martin, M., Patterson, M., Garg, S., et al. (2016). WhatsHap: fast and accurate read-based phasing. <em>bioRxiv</em>.</li>
+          <li>Edge, P., Bafna, V., &amp; Bansal, V. (2017). HapCUT2: robust and accurate haplotype assembly for diverse sequencing technologies. <em>Genome Research</em> 27, 801–812.</li>
+          <li>vg wiki: <a href="https://github.com/vgteam/vg/wiki" target="_blank" rel="noopener">github.com/vgteam/vg/wiki</a></li>
+          <li>pggb documentation: <a href="https://pggb.readthedocs.io/" target="_blank" rel="noopener">pggb.readthedocs.io</a></li>
+          <li>HPRC data portal: <a href="https://humanpangenome.org/" target="_blank" rel="noopener">humanpangenome.org</a></li>
+          <li>T2T Consortium: <a href="https://github.com/marbl/CHM13" target="_blank" rel="noopener">github.com/marbl/CHM13</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — Long-Read Tech in 2024</td>                        <td>25&nbsp;min</td><td>0:25</td></tr>
+            <tr><td>Part 2 — What Long Reads Unlock</td>                        <td>40&nbsp;min</td><td>1:05</td></tr>
+            <tr><td>Part 3 — The Pangenome Shift</td>                            <td>40&nbsp;min</td><td>1:45</td></tr>
+            <tr><td>Part 4 — Graph-Based Alignment — Seed-and-Extend</td>       <td>30&nbsp;min</td><td>2:15</td></tr>
+            <tr><td>Part 5 — Viterbi on a DAG</td>                                <td>25&nbsp;min</td><td>2:40</td></tr>
+            <tr><td>Part 6 — T2T and HPRC</td>                                    <td>20&nbsp;min</td><td>3:00</td></tr>
+            <tr><td>Part 7 — Phasing and Haplotype-Resolved Assembly</td>       <td>20&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                                 <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys())
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) {
+          f.style.height = d.height + 'px';
+        }
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 460" role="img" aria-labelledby="t d">
+  <title id="t">Viterbi on a linear chain vs DAG</title>
+  <desc id="d">Two trellis panels. Left: linear-chain Viterbi — a chain of states on y-axis, read time on x-axis, vertical arrows showing single-predecessor relation, one optimal path as a thick coloured line. Right: DAG Viterbi — states form a branching structure, multiple incoming edges where DAG has in-edges, Viterbi path branches to pick the correct node. Bottom: the same Viterbi update equation written out; annotation notes that only the predecessor structure changes between linear and graph cases.</desc>
+
+  <text x="540" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">VITERBI ON A LINEAR CHAIN vs A DAG · SAME ALGORITHM, DIFFERENT STATE GRAPH</text>
+
+  <!-- ── LEFT: linear-chain Viterbi ── -->
+  <g>
+    <rect x="30" y="50" width="500" height="290" rx="6" fill="#ffffff" stroke="#c4c1b6"/>
+    <text x="280" y="72" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#0a0a0a">(a) Linear-chain Viterbi</text>
+
+    <!-- Trellis: 8 time steps × 5 states -->
+    <!-- x from 80 to 480 in 8 columns = 50 px apart -->
+    <!-- y from 100 to 300 in 5 rows = 50 px apart -->
+
+    <!-- Grid lines -->
+    <g stroke="#e5e3dc" stroke-width="0.4">
+      <line x1="80" y1="100" x2="80" y2="300"/>
+      <line x1="130" y1="100" x2="130" y2="300"/>
+      <line x1="180" y1="100" x2="180" y2="300"/>
+      <line x1="230" y1="100" x2="230" y2="300"/>
+      <line x1="280" y1="100" x2="280" y2="300"/>
+      <line x1="330" y1="100" x2="330" y2="300"/>
+      <line x1="380" y1="100" x2="380" y2="300"/>
+      <line x1="430" y1="100" x2="430" y2="300"/>
+      <line x1="80" y1="100" x2="430" y2="100"/>
+      <line x1="80" y1="150" x2="430" y2="150"/>
+      <line x1="80" y1="200" x2="430" y2="200"/>
+      <line x1="80" y1="250" x2="430" y2="250"/>
+      <line x1="80" y1="300" x2="430" y2="300"/>
+    </g>
+
+    <!-- State nodes across time (5 states × 8 time steps) -->
+    <g fill="#eef2ff" stroke="#8a8a85" stroke-width="0.6">
+      <!-- For each (col x, row y), draw a small rectangle -->
+    </g>
+    <g>
+      <!-- We'll just draw dots since rectangles are repetitive -->
+      <g fill="#bfcbf6" stroke="#525252" stroke-width="0.5">
+        <circle cx="80"  cy="100" r="4"/><circle cx="130" cy="100" r="4"/><circle cx="180" cy="100" r="4"/><circle cx="230" cy="100" r="4"/><circle cx="280" cy="100" r="4"/><circle cx="330" cy="100" r="4"/><circle cx="380" cy="100" r="4"/><circle cx="430" cy="100" r="4"/>
+        <circle cx="80"  cy="150" r="4"/><circle cx="130" cy="150" r="4"/><circle cx="180" cy="150" r="4"/><circle cx="230" cy="150" r="4"/><circle cx="280" cy="150" r="4"/><circle cx="330" cy="150" r="4"/><circle cx="380" cy="150" r="4"/><circle cx="430" cy="150" r="4"/>
+        <circle cx="80"  cy="200" r="4"/><circle cx="130" cy="200" r="4"/><circle cx="180" cy="200" r="4"/><circle cx="230" cy="200" r="4"/><circle cx="280" cy="200" r="4"/><circle cx="330" cy="200" r="4"/><circle cx="380" cy="200" r="4"/><circle cx="430" cy="200" r="4"/>
+        <circle cx="80"  cy="250" r="4"/><circle cx="130" cy="250" r="4"/><circle cx="180" cy="250" r="4"/><circle cx="230" cy="250" r="4"/><circle cx="280" cy="250" r="4"/><circle cx="330" cy="250" r="4"/><circle cx="380" cy="250" r="4"/><circle cx="430" cy="250" r="4"/>
+        <circle cx="80"  cy="300" r="4"/><circle cx="130" cy="300" r="4"/><circle cx="180" cy="300" r="4"/><circle cx="230" cy="300" r="4"/><circle cx="280" cy="300" r="4"/><circle cx="330" cy="300" r="4"/><circle cx="380" cy="300" r="4"/><circle cx="430" cy="300" r="4"/>
+      </g>
+    </g>
+
+    <!-- Single-predecessor arrows (vertical column-to-column) -->
+    <g stroke="#c4c1b6" stroke-width="0.3">
+      <!-- Sample a few to show the structure -->
+      <line x1="80"  y1="100" x2="130" y2="100"/>
+      <line x1="130" y1="100" x2="180" y2="100"/>
+      <line x1="80"  y1="150" x2="130" y2="200"/>
+      <line x1="130" y1="200" x2="180" y2="200"/>
+      <!-- etc., low-density -->
+    </g>
+
+    <!-- Optimal path -->
+    <path d="M 80 200 L 130 200 L 180 150 L 230 150 L 280 200 L 330 250 L 380 200 L 430 150"
+          fill="none" stroke="#1e3a8a" stroke-width="3" opacity="0.85"/>
+    <g fill="#1e3a8a">
+      <circle cx="80"  cy="200" r="5"/>
+      <circle cx="130" cy="200" r="5"/>
+      <circle cx="180" cy="150" r="5"/>
+      <circle cx="230" cy="150" r="5"/>
+      <circle cx="280" cy="200" r="5"/>
+      <circle cx="330" cy="250" r="5"/>
+      <circle cx="380" cy="200" r="5"/>
+      <circle cx="430" cy="150" r="5"/>
+    </g>
+
+    <!-- X-axis: time -->
+    <text x="255" y="320" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#525252">time step (read position)</text>
+
+    <!-- Y-axis: state -->
+    <text x="50" y="200" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#525252" transform="rotate(-90 50 200)">reference state</text>
+
+    <!-- Caption -->
+    <text x="280" y="340" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#525252">single predecessor per state · O(N × T)</text>
+  </g>
+
+  <!-- ── RIGHT: DAG Viterbi ── -->
+  <g>
+    <rect x="550" y="50" width="500" height="290" rx="6" fill="#ffffff" stroke="#c4c1b6"/>
+    <text x="800" y="72" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#0a0a0a">(b) DAG Viterbi</text>
+
+    <!-- Simplified trellis: states form a DAG with branches -->
+    <g stroke="#e5e3dc" stroke-width="0.4">
+      <line x1="600" y1="100" x2="950" y2="100"/>
+      <line x1="600" y1="150" x2="950" y2="150"/>
+      <line x1="600" y1="200" x2="950" y2="200"/>
+      <line x1="600" y1="250" x2="950" y2="250"/>
+      <line x1="600" y1="300" x2="950" y2="300"/>
+    </g>
+
+    <!-- State nodes — some positions have branching (multiple nodes at same time step) -->
+    <g fill="#bfcbf6" stroke="#525252" stroke-width="0.5">
+      <circle cx="600" cy="200" r="4"/>
+      <circle cx="650" cy="200" r="4"/>
+      <!-- Branch A: upper -->
+      <circle cx="700" cy="150" r="4"/>
+      <circle cx="750" cy="150" r="4"/>
+      <!-- Branch B: lower -->
+      <circle cx="700" cy="250" r="4"/>
+      <circle cx="750" cy="250" r="4"/>
+      <!-- Merge -->
+      <circle cx="800" cy="200" r="4"/>
+      <!-- Final branch A: -->
+      <circle cx="850" cy="150" r="4"/>
+      <circle cx="900" cy="150" r="4"/>
+      <!-- Final branch B: -->
+      <circle cx="850" cy="250" r="4"/>
+      <circle cx="900" cy="250" r="4"/>
+      <!-- End -->
+      <circle cx="950" cy="200" r="4"/>
+    </g>
+
+    <!-- Predecessor edges: DAG structure -->
+    <g stroke="#c4c1b6" stroke-width="0.6">
+      <line x1="600" y1="200" x2="650" y2="200"/>
+      <line x1="650" y1="200" x2="700" y2="150"/>
+      <line x1="650" y1="200" x2="700" y2="250"/>
+      <line x1="700" y1="150" x2="750" y2="150"/>
+      <line x1="700" y1="250" x2="750" y2="250"/>
+      <line x1="750" y1="150" x2="800" y2="200"/>
+      <line x1="750" y1="250" x2="800" y2="200"/>
+      <line x1="800" y1="200" x2="850" y2="150"/>
+      <line x1="800" y1="200" x2="850" y2="250"/>
+      <line x1="850" y1="150" x2="900" y2="150"/>
+      <line x1="850" y1="250" x2="900" y2="250"/>
+      <line x1="900" y1="150" x2="950" y2="200"/>
+      <line x1="900" y1="250" x2="950" y2="200"/>
+    </g>
+
+    <!-- Optimal path: through upper branch A -->
+    <g>
+      <path d="M 600 200 L 650 200 L 700 150 L 750 150 L 800 200 L 850 150 L 900 150 L 950 200"
+            fill="none" stroke="#1e3a8a" stroke-width="3" opacity="0.85"/>
+      <g fill="#1e3a8a">
+        <circle cx="600" cy="200" r="5"/>
+        <circle cx="650" cy="200" r="5"/>
+        <circle cx="700" cy="150" r="5"/>
+        <circle cx="750" cy="150" r="5"/>
+        <circle cx="800" cy="200" r="5"/>
+        <circle cx="850" cy="150" r="5"/>
+        <circle cx="900" cy="150" r="5"/>
+        <circle cx="950" cy="200" r="5"/>
+      </g>
+    </g>
+
+    <text x="775" y="320" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#525252">time step (read position)</text>
+
+    <text x="570" y="200" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#525252" transform="rotate(-90 570 200)">graph state (node)</text>
+
+    <text x="800" y="340" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#525252">multiple predecessors · O(E × T)</text>
+  </g>
+
+  <!-- ── Bottom: shared equation ── -->
+  <g transform="translate(60 360)">
+    <rect x="0" y="0" width="960" height="90" rx="6" fill="#f6f4ee" stroke="#c4c1b6"/>
+    <text x="480" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#1e3a8a">Viterbi update equation · same for both</text>
+
+    <text x="480" y="56" text-anchor="middle" font-family="Source Serif 4, serif" font-size="18" font-style="italic" fill="#0a0a0a">
+      V(s, t) = max<tspan baseline-shift="-25%" font-size="11">s′ ∈ pred(s)</tspan> [ V(s′, t−1) + match_score(s, read[t]) ]
+    </text>
+
+    <text x="480" y="80" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">only pred(s) changes between linear and graph cases — linear: |pred| = 1 · DAG: |pred| = in-degree</text>
+  </g>
+</svg>

@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 440" role="img" aria-labelledby="t d">
+  <title id="t">Seed-and-extend on a DAG</title>
+  <desc id="d">Three bands. Top: a DAG graph reference with ~8 nodes branching at two positions. Middle: a read with a k-mer seed highlighted; the seed matches a k-mer in node 3. Bottom: extension proceeds along the graph, branching at node 4 into two candidates (through node 5 or node 6); the better-scoring path is selected; the read's alignment is rendered as a sequence of (node, offset) pairs along the chosen path.</desc>
+
+  <defs>
+    <marker id="arr-node" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M 0 0 L 8 4 L 0 8 z" fill="#525252"/>
+    </marker>
+    <marker id="arr-winner" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M 0 0 L 8 4 L 0 8 z" fill="#1e3a8a"/>
+    </marker>
+  </defs>
+
+  <text x="540" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">SEED-AND-EXTEND ON A DAG · BRANCH-AWARE ALIGNMENT</text>
+
+  <!-- ── Top band: graph reference ── -->
+  <g>
+    <text x="60" y="54" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">Graph reference — 8 nodes, 2 branch points</text>
+
+    <!-- Layout: N1 - N2 - N3 - (branch at N4a/N4b) - N5 - (branch at N6a/N6b) - N7 -->
+    <!-- Row 1 nodes: N1, N2, N3, N4a (top), N5, N6a (top), N7 -->
+    <!-- Row 2 branches: N4b (bottom), N6b (bottom) -->
+
+    <g>
+      <!-- N1 -->
+      <rect x="100" y="90" width="70" height="30" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <text x="135" y="109" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">N1</text>
+      <!-- N2 -->
+      <rect x="200" y="90" width="70" height="30" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <text x="235" y="109" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">N2</text>
+      <!-- N3 -->
+      <rect x="300" y="90" width="70" height="30" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <text x="335" y="109" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">N3</text>
+      <!-- Branch 1: N4a (top), N4b (bottom) -->
+      <rect x="400" y="65" width="70" height="30" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <text x="435" y="84" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">N4a</text>
+      <rect x="400" y="115" width="70" height="30" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <text x="435" y="134" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">N4b</text>
+      <!-- N5 -->
+      <rect x="500" y="90" width="70" height="30" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <text x="535" y="109" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">N5</text>
+      <!-- Branch 2: N6a, N6b -->
+      <rect x="600" y="65" width="70" height="30" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <text x="635" y="84" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">N6a</text>
+      <rect x="600" y="115" width="70" height="30" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <text x="635" y="134" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">N6b</text>
+      <!-- N7 -->
+      <rect x="700" y="90" width="70" height="30" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <text x="735" y="109" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">N7</text>
+
+      <!-- Edges -->
+      <line x1="170" y1="105" x2="200" y2="105" stroke="#525252" stroke-width="1.2" marker-end="url(#arr-node)"/>
+      <line x1="270" y1="105" x2="300" y2="105" stroke="#525252" stroke-width="1.2" marker-end="url(#arr-node)"/>
+      <line x1="370" y1="100" x2="400" y2="80" stroke="#525252" stroke-width="1.2" marker-end="url(#arr-node)"/>
+      <line x1="370" y1="110" x2="400" y2="130" stroke="#525252" stroke-width="1.2" marker-end="url(#arr-node)"/>
+      <line x1="470" y1="80" x2="500" y2="100" stroke="#525252" stroke-width="1.2" marker-end="url(#arr-node)"/>
+      <line x1="470" y1="130" x2="500" y2="110" stroke="#525252" stroke-width="1.2" marker-end="url(#arr-node)"/>
+      <line x1="570" y1="100" x2="600" y2="80" stroke="#525252" stroke-width="1.2" marker-end="url(#arr-node)"/>
+      <line x1="570" y1="110" x2="600" y2="130" stroke="#525252" stroke-width="1.2" marker-end="url(#arr-node)"/>
+      <line x1="670" y1="80" x2="700" y2="100" stroke="#525252" stroke-width="1.2" marker-end="url(#arr-node)"/>
+      <line x1="670" y1="130" x2="700" y2="110" stroke="#525252" stroke-width="1.2" marker-end="url(#arr-node)"/>
+    </g>
+  </g>
+
+  <!-- ── Middle band: read with seed ── -->
+  <g>
+    <text x="60" y="200" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">Read · 30 bp with 6-bp k-mer seed</text>
+
+    <!-- Read as a long strip -->
+    <rect x="200" y="210" width="600" height="22" fill="#c4c1b6" stroke="#525252" stroke-width="1"/>
+    <!-- K-mer seed highlighted -->
+    <rect x="290" y="210" width="120" height="22" fill="#fef3c7" stroke="#b45309" stroke-width="1.5"/>
+    <text x="350" y="226" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#b45309">k-mer seed (6 bp)</text>
+
+    <!-- Arrow from seed to N3 in graph -->
+    <path d="M 350 210 Q 350 180, 335 120" fill="none" stroke="#b45309" stroke-width="1.2" stroke-dasharray="3 2"/>
+    <text x="370" y="180" font-family="JetBrains Mono, monospace" font-size="8" fill="#b45309">matches k-mer in N3</text>
+  </g>
+
+  <!-- ── Bottom band: extension with branching ── -->
+  <g>
+    <text x="60" y="280" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">Extension · fork at N4, both paths scored</text>
+
+    <!-- Show scoring as two candidate paths -->
+    <g transform="translate(60 300)">
+      <!-- Candidate A: through N4a → N5 → N6a → N7 -->
+      <rect x="0" y="0" width="460" height="40" rx="4" fill="#ffffff" stroke="#1e3a8a" stroke-width="1.5"/>
+      <text x="12" y="18" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#1e3a8a">Candidate A</text>
+      <text x="12" y="34" font-family="JetBrains Mono, monospace" font-size="9" fill="#1e3a8a">path: N1 → N2 → N3 → N4a → N5 → N6a → N7</text>
+      <text x="380" y="25" font-family="Inter, sans-serif" font-size="11" fill="#2d7a3e" font-weight="700">score 38 ✓ WINNER</text>
+
+      <!-- Candidate B: through N4b → N5 → N6b → N7 -->
+      <rect x="0" y="50" width="460" height="40" rx="4" fill="#ffffff" stroke="#8a8a85" stroke-width="1" stroke-dasharray="3 2"/>
+      <text x="12" y="68" font-family="JetBrains Mono, monospace" font-size="10" fill="#8a8a85">Candidate B</text>
+      <text x="12" y="84" font-family="JetBrains Mono, monospace" font-size="9" fill="#8a8a85">path: N1 → N2 → N3 → N4b → N5 → N6b → N7</text>
+      <text x="380" y="75" font-family="Inter, sans-serif" font-size="11" fill="#8a8a85">score 32 · loses</text>
+    </g>
+
+    <!-- Final alignment output -->
+    <g transform="translate(560 300)">
+      <rect x="0" y="0" width="460" height="90" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <text x="230" y="18" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#1e3a8a">Alignment output</text>
+      <text x="12" y="38" font-family="JetBrains Mono, monospace" font-size="9" fill="#0a0a0a">read_aligned: [</text>
+      <text x="12" y="52" font-family="JetBrains Mono, monospace" font-size="9" fill="#1e3a8a">  (N3, +2, 5 bp), (N4a, +0, 4 bp),</text>
+      <text x="12" y="66" font-family="JetBrains Mono, monospace" font-size="9" fill="#1e3a8a">  (N5, +0, 6 bp), (N6a, +0, 5 bp),</text>
+      <text x="12" y="80" font-family="JetBrains Mono, monospace" font-size="9" fill="#0a0a0a">  (N7, +0, 10 bp) ]</text>
+    </g>
+  </g>
+
+  <!-- Re-emphasise the winning path in the top graph -->
+  <g opacity="0.7">
+    <path d="M 170 105 L 200 105" fill="none" stroke="#1e3a8a" stroke-width="3"/>
+    <path d="M 270 105 L 300 105" fill="none" stroke="#1e3a8a" stroke-width="3"/>
+    <path d="M 370 100 L 400 80" fill="none" stroke="#1e3a8a" stroke-width="3"/>
+    <path d="M 470 80 L 500 100" fill="none" stroke="#1e3a8a" stroke-width="3"/>
+    <path d="M 570 100 L 600 80" fill="none" stroke="#1e3a8a" stroke-width="3"/>
+    <path d="M 670 80 L 700 100" fill="none" stroke="#1e3a8a" stroke-width="3"/>
+  </g>
+</svg>

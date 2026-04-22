@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 400" role="img" aria-labelledby="t d">
+  <title id="t">vg toolchain workflow</title>
+  <desc id="d">Left-to-right pipeline diagram. Inputs on the left: reference FASTA plus VCF of known variants, or a collection of assembled genomes. Graph-build step: vg construct or pggb produces a .vg or .gfa file. Alignment step: vg giraffe (short reads) or GraphAligner (long reads) produces .gam alignments. Variant-call step: vg call produces a VCF. Optional projection step: vg surject produces a BAM for linear-reference downstream tools.</desc>
+
+  <defs>
+    <marker id="arr-acc" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+  </defs>
+
+  <text x="540" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">vg TOOLCHAIN · BUILD · ALIGN · CALL · (OPTIONALLY) PROJECT</text>
+
+  <!-- ── Column 1: Inputs ── -->
+  <g>
+    <text x="90" y="70" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">Inputs</text>
+
+    <!-- Option A: reference + VCF -->
+    <g transform="translate(30 90)">
+      <rect x="0" y="0" width="120" height="56" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <text x="60" y="18" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#1e3a8a">Option A</text>
+      <text x="60" y="33" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">reference.fa</text>
+      <text x="60" y="48" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">variants.vcf</text>
+    </g>
+
+    <!-- OR -->
+    <text x="90" y="170" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#8a8a85">or</text>
+
+    <!-- Option B: assembled genomes -->
+    <g transform="translate(30 185)">
+      <rect x="0" y="0" width="120" height="56" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <text x="60" y="18" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#1e3a8a">Option B</text>
+      <text x="60" y="33" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">hap1.fa, hap2.fa,</text>
+      <text x="60" y="48" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">…  hapN.fa</text>
+    </g>
+  </g>
+
+  <!-- Arrow 1 -->
+  <line x1="155" y1="165" x2="200" y2="165" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arr-acc)"/>
+
+  <!-- ── Column 2: Build graph ── -->
+  <g>
+    <rect x="205" y="100" width="140" height="130" rx="6" fill="#fef3c7" stroke="#b45309" stroke-width="1.5"/>
+    <text x="275" y="122" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#b45309">Build graph</text>
+
+    <text x="275" y="148" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a" font-weight="600">vg construct</text>
+    <text x="275" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">from VCF + ref</text>
+
+    <text x="275" y="190" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a" font-weight="600">pggb</text>
+    <text x="275" y="206" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">from assembled genomes</text>
+  </g>
+
+  <!-- Arrow 2 -->
+  <line x1="350" y1="165" x2="395" y2="165" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arr-acc)"/>
+  <text x="372" y="156" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">.vg / .gfa</text>
+
+  <!-- ── Column 3: Align reads ── -->
+  <g>
+    <rect x="400" y="100" width="180" height="130" rx="6" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5"/>
+    <text x="490" y="122" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a">Align reads</text>
+
+    <text x="490" y="148" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a" font-weight="600">vg giraffe</text>
+    <text x="490" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">short reads (fast)</text>
+
+    <text x="490" y="190" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a" font-weight="600">GraphAligner</text>
+    <text x="490" y="206" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">long reads (HiFi / ONT)</text>
+  </g>
+
+  <!-- Arrow 3 -->
+  <line x1="585" y1="165" x2="630" y2="165" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arr-acc)"/>
+  <text x="607" y="156" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">.gam</text>
+
+  <!-- ── Column 4: Variant calling ── -->
+  <g>
+    <rect x="635" y="100" width="140" height="130" rx="6" fill="#e0f2f1" stroke="#0d7377" stroke-width="1.5"/>
+    <text x="705" y="122" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#0d7377">Call variants</text>
+
+    <text x="705" y="156" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a" font-weight="600">vg call</text>
+    <text x="705" y="172" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">from graph alignment</text>
+
+    <text x="705" y="200" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">or DeepVariant</text>
+    <text x="705" y="214" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">on projected BAM</text>
+  </g>
+
+  <!-- Arrow 4 -->
+  <line x1="780" y1="165" x2="820" y2="165" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arr-acc)"/>
+  <text x="800" y="156" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">.vcf</text>
+
+  <!-- ── Column 5: Output VCF ── -->
+  <g transform="translate(825 90)">
+    <rect x="0" y="0" width="120" height="56" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.2"/>
+    <text x="60" y="18" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#1e3a8a">VCF</text>
+    <text x="60" y="36" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">variants.vcf</text>
+    <text x="60" y="50" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">graph-aware</text>
+  </g>
+
+  <!-- Optional: vg surject step below -->
+  <g transform="translate(825 185)">
+    <rect x="0" y="0" width="120" height="56" rx="4" fill="#fef3c7" stroke="#b45309" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <text x="60" y="18" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#b45309">vg surject (opt)</text>
+    <text x="60" y="36" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">project to linear BAM</text>
+    <text x="60" y="50" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">for compat tools</text>
+  </g>
+
+  <!-- Dashed arrow from .gam to surject -->
+  <line x1="700" y1="230" x2="825" y2="213" stroke="#b45309" stroke-width="1.2" stroke-dasharray="3 2" marker-end="url(#arr-acc)"/>
+  <text x="760" y="242" font-family="JetBrains Mono, monospace" font-size="8" fill="#b45309">optional · → .bam</text>
+
+  <!-- Bottom annotation -->
+  <g transform="translate(60 290)">
+    <rect x="0" y="0" width="960" height="90" rx="6" fill="#f6f4ee" stroke="#c4c1b6"/>
+    <text x="480" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a">Typical 2024 pipeline on an HPRC graph</text>
+
+    <text x="480" y="48" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">pggb  →  vg giraffe  →  vg call  →  (vg surject for linear-tool compat)</text>
+
+    <text x="480" y="72" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">5–10% more recall on diverse samples vs BWA + GATK on GRCh38; 5–10× slower</text>
+  </g>
+</svg>

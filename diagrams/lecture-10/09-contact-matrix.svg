@@ -1,0 +1,248 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 460" role="img" aria-labelledby="t d">
+  <title id="t">Raw vs normalised Hi-C contact matrix</title>
+  <desc id="d">Two contact-matrix heatmaps side by side over the same genomic window. Left 'raw': bright diagonal, smooth distance-decay off-diagonal, visible banding artefacts from bin-specific biases; log colour scale. Right 'ICE-normalised': diagonal less dominant, banding gone, triangular TAD blocks visible along the diagonal, faint off-diagonal checkerboard compartment pattern. Annotations mark 'banding = bin bias', 'TADs', and 'compartments'.</desc>
+
+  <text x="540" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">CONTACT MATRIX · RAW vs ICE-NORMALISED</text>
+
+  <!-- Matrix helper: 40×40 grid per panel, each cell 10×10 -->
+
+  <!-- ── LEFT: Raw ── -->
+  <g transform="translate(50 60)">
+    <text x="200" y="0" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#0a0a0a">(a) Raw contact counts</text>
+
+    <!-- Background for matrix -->
+    <rect x="0" y="12" width="400" height="400" fill="#ffffff" stroke="#c4c1b6"/>
+
+    <!-- Raw matrix: build from distance decay + bin biases -->
+    <!-- Procedurally draw 40×40 cells with a formula-based intensity -->
+    <g>
+      <!-- Background gradient: simulate distance decay with diagonal bright -->
+      <!-- We'll draw cells 0..39 × 0..39 with intensity based on:
+           intensity = clamp(0.95 - 0.03*|i-j|, 0, 1) + bin_bias[i] + bin_bias[j]
+           where biased bins {8, 17, 28} get +0.3 -->
+
+      <!-- Because SVG can't loop, emit a moderate subset -->
+      <!-- Diagonal band + distance decay simulated by rectangles with varying opacity -->
+
+      <!-- Draw the diagonal + near-diagonal band using nested gradients (approximate) -->
+      <!-- We'll use a series of diagonal rects approximating brightness -->
+
+      <!-- Background: light accent for full matrix -->
+      <rect x="0" y="12" width="400" height="400" fill="#eef2ff"/>
+
+      <!-- Diagonal strip -->
+      <g fill="#1e3a8a">
+        <!-- Main diagonal (d=0): full brightness -->
+        <g opacity="0.9">
+          <rect x="0" y="12" width="10" height="10"/><rect x="10" y="22" width="10" height="10"/>
+          <rect x="20" y="32" width="10" height="10"/><rect x="30" y="42" width="10" height="10"/>
+          <rect x="40" y="52" width="10" height="10"/><rect x="50" y="62" width="10" height="10"/>
+          <rect x="60" y="72" width="10" height="10"/><rect x="70" y="82" width="10" height="10"/>
+          <rect x="80" y="92" width="10" height="10"/><rect x="90" y="102" width="10" height="10"/>
+          <rect x="100" y="112" width="10" height="10"/><rect x="110" y="122" width="10" height="10"/>
+          <rect x="120" y="132" width="10" height="10"/><rect x="130" y="142" width="10" height="10"/>
+          <rect x="140" y="152" width="10" height="10"/><rect x="150" y="162" width="10" height="10"/>
+          <rect x="160" y="172" width="10" height="10"/><rect x="170" y="182" width="10" height="10"/>
+          <rect x="180" y="192" width="10" height="10"/><rect x="190" y="202" width="10" height="10"/>
+          <rect x="200" y="212" width="10" height="10"/><rect x="210" y="222" width="10" height="10"/>
+          <rect x="220" y="232" width="10" height="10"/><rect x="230" y="242" width="10" height="10"/>
+          <rect x="240" y="252" width="10" height="10"/><rect x="250" y="262" width="10" height="10"/>
+          <rect x="260" y="272" width="10" height="10"/><rect x="270" y="282" width="10" height="10"/>
+          <rect x="280" y="292" width="10" height="10"/><rect x="290" y="302" width="10" height="10"/>
+          <rect x="300" y="312" width="10" height="10"/><rect x="310" y="322" width="10" height="10"/>
+          <rect x="320" y="332" width="10" height="10"/><rect x="330" y="342" width="10" height="10"/>
+          <rect x="340" y="352" width="10" height="10"/><rect x="350" y="362" width="10" height="10"/>
+          <rect x="360" y="372" width="10" height="10"/><rect x="370" y="382" width="10" height="10"/>
+          <rect x="380" y="392" width="10" height="10"/><rect x="390" y="402" width="10" height="10"/>
+        </g>
+
+        <!-- d=1 stripe -->
+        <g opacity="0.7">
+          <rect x="10" y="12" width="10" height="10"/><rect x="20" y="22" width="10" height="10"/>
+          <rect x="30" y="32" width="10" height="10"/><rect x="40" y="42" width="10" height="10"/>
+          <rect x="50" y="52" width="10" height="10"/><rect x="60" y="62" width="10" height="10"/>
+          <rect x="70" y="72" width="10" height="10"/><rect x="80" y="82" width="10" height="10"/>
+          <rect x="90" y="92" width="10" height="10"/><rect x="100" y="102" width="10" height="10"/>
+          <rect x="110" y="112" width="10" height="10"/><rect x="120" y="122" width="10" height="10"/>
+          <rect x="130" y="132" width="10" height="10"/><rect x="140" y="142" width="10" height="10"/>
+          <rect x="150" y="152" width="10" height="10"/><rect x="160" y="162" width="10" height="10"/>
+          <rect x="170" y="172" width="10" height="10"/><rect x="180" y="182" width="10" height="10"/>
+          <rect x="190" y="192" width="10" height="10"/><rect x="200" y="202" width="10" height="10"/>
+          <rect x="210" y="212" width="10" height="10"/><rect x="220" y="222" width="10" height="10"/>
+          <rect x="230" y="232" width="10" height="10"/><rect x="240" y="242" width="10" height="10"/>
+          <rect x="250" y="252" width="10" height="10"/><rect x="260" y="262" width="10" height="10"/>
+          <rect x="270" y="272" width="10" height="10"/><rect x="280" y="282" width="10" height="10"/>
+          <rect x="290" y="292" width="10" height="10"/><rect x="300" y="302" width="10" height="10"/>
+          <rect x="310" y="312" width="10" height="10"/><rect x="320" y="322" width="10" height="10"/>
+          <rect x="330" y="332" width="10" height="10"/><rect x="340" y="342" width="10" height="10"/>
+          <rect x="350" y="352" width="10" height="10"/><rect x="360" y="362" width="10" height="10"/>
+          <rect x="370" y="372" width="10" height="10"/><rect x="380" y="382" width="10" height="10"/>
+        </g>
+
+        <!-- Symmetric d=1 stripe -->
+        <g opacity="0.7">
+          <rect x="0" y="22" width="10" height="10"/><rect x="10" y="32" width="10" height="10"/>
+          <rect x="20" y="42" width="10" height="10"/><rect x="30" y="52" width="10" height="10"/>
+          <rect x="40" y="62" width="10" height="10"/><rect x="50" y="72" width="10" height="10"/>
+          <rect x="60" y="82" width="10" height="10"/><rect x="70" y="92" width="10" height="10"/>
+          <rect x="80" y="102" width="10" height="10"/><rect x="90" y="112" width="10" height="10"/>
+          <rect x="100" y="122" width="10" height="10"/><rect x="110" y="132" width="10" height="10"/>
+          <rect x="120" y="142" width="10" height="10"/><rect x="130" y="152" width="10" height="10"/>
+          <rect x="140" y="162" width="10" height="10"/><rect x="150" y="172" width="10" height="10"/>
+          <rect x="160" y="182" width="10" height="10"/><rect x="170" y="192" width="10" height="10"/>
+          <rect x="180" y="202" width="10" height="10"/><rect x="190" y="212" width="10" height="10"/>
+          <rect x="200" y="222" width="10" height="10"/><rect x="210" y="232" width="10" height="10"/>
+          <rect x="220" y="242" width="10" height="10"/><rect x="230" y="252" width="10" height="10"/>
+          <rect x="240" y="262" width="10" height="10"/><rect x="250" y="272" width="10" height="10"/>
+          <rect x="260" y="282" width="10" height="10"/><rect x="270" y="292" width="10" height="10"/>
+          <rect x="280" y="302" width="10" height="10"/><rect x="290" y="312" width="10" height="10"/>
+          <rect x="300" y="322" width="10" height="10"/><rect x="310" y="332" width="10" height="10"/>
+          <rect x="320" y="342" width="10" height="10"/><rect x="330" y="352" width="10" height="10"/>
+          <rect x="340" y="362" width="10" height="10"/><rect x="350" y="372" width="10" height="10"/>
+          <rect x="360" y="382" width="10" height="10"/><rect x="370" y="392" width="10" height="10"/>
+        </g>
+
+        <!-- d=2 stripe -->
+        <g opacity="0.5">
+          <rect x="0" y="32" width="10" height="10"/><rect x="20" y="12" width="10" height="10"/>
+          <rect x="40" y="72" width="10" height="10"/><rect x="60" y="52" width="10" height="10"/>
+          <rect x="80" y="112" width="10" height="10"/><rect x="100" y="92" width="10" height="10"/>
+          <rect x="120" y="152" width="10" height="10"/><rect x="140" y="132" width="10" height="10"/>
+          <rect x="160" y="192" width="10" height="10"/><rect x="180" y="172" width="10" height="10"/>
+          <rect x="200" y="232" width="10" height="10"/><rect x="220" y="212" width="10" height="10"/>
+          <rect x="240" y="272" width="10" height="10"/><rect x="260" y="252" width="10" height="10"/>
+          <rect x="280" y="312" width="10" height="10"/><rect x="300" y="292" width="10" height="10"/>
+          <rect x="320" y="352" width="10" height="10"/><rect x="340" y="332" width="10" height="10"/>
+          <rect x="360" y="392" width="10" height="10"/><rect x="380" y="372" width="10" height="10"/>
+        </g>
+
+        <!-- BIN BIAS: bright horizontal + vertical stripes at bins 8, 28 (bias = high) -->
+        <!-- Bin 8 → row y=92..102, column x=80..90, brighter than neighbours -->
+        <g opacity="0.65">
+          <rect x="0" y="92" width="400" height="10"/>
+          <rect x="80" y="12" width="10" height="400"/>
+        </g>
+        <!-- Bin 28 → row y=292..302, col x=280..290 -->
+        <g opacity="0.6">
+          <rect x="0" y="292" width="400" height="10"/>
+          <rect x="280" y="12" width="10" height="400"/>
+        </g>
+      </g>
+    </g>
+
+    <!-- Annotations -->
+    <g>
+      <line x1="400" y1="97" x2="420" y2="97" stroke="#b45309" stroke-width="1"/>
+      <text x="424" y="100" font-family="Inter, sans-serif" font-size="9" fill="#b45309" font-weight="600">banding</text>
+      <text x="424" y="112" font-family="Inter, sans-serif" font-size="9" fill="#525252">= bin bias</text>
+
+      <line x1="400" y1="297" x2="420" y2="297" stroke="#b45309" stroke-width="1"/>
+      <text x="424" y="300" font-family="Inter, sans-serif" font-size="9" fill="#b45309" font-weight="600">banding</text>
+    </g>
+
+    <text x="200" y="432" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">diagonal + distance-decay + bin-specific stripes</text>
+  </g>
+
+  <!-- ── RIGHT: ICE normalised ── -->
+  <g transform="translate(600 60)">
+    <text x="200" y="0" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#0a0a0a">(b) ICE-normalised + distance-detrended</text>
+
+    <rect x="0" y="12" width="400" height="400" fill="#ffffff" stroke="#c4c1b6"/>
+
+    <!-- Light accent background -->
+    <rect x="0" y="12" width="400" height="400" fill="#eef2ff" opacity="0.4"/>
+
+    <!-- Diagonal still visible but dimmer -->
+    <g fill="#1e3a8a">
+      <g opacity="0.6">
+        <rect x="0" y="12" width="10" height="10"/><rect x="10" y="22" width="10" height="10"/>
+        <rect x="20" y="32" width="10" height="10"/><rect x="30" y="42" width="10" height="10"/>
+        <rect x="40" y="52" width="10" height="10"/><rect x="50" y="62" width="10" height="10"/>
+        <rect x="60" y="72" width="10" height="10"/><rect x="70" y="82" width="10" height="10"/>
+        <rect x="80" y="92" width="10" height="10"/><rect x="90" y="102" width="10" height="10"/>
+        <rect x="100" y="112" width="10" height="10"/><rect x="110" y="122" width="10" height="10"/>
+        <rect x="120" y="132" width="10" height="10"/><rect x="130" y="142" width="10" height="10"/>
+        <rect x="140" y="152" width="10" height="10"/><rect x="150" y="162" width="10" height="10"/>
+        <rect x="160" y="172" width="10" height="10"/><rect x="170" y="182" width="10" height="10"/>
+        <rect x="180" y="192" width="10" height="10"/><rect x="190" y="202" width="10" height="10"/>
+        <rect x="200" y="212" width="10" height="10"/><rect x="210" y="222" width="10" height="10"/>
+        <rect x="220" y="232" width="10" height="10"/><rect x="230" y="242" width="10" height="10"/>
+        <rect x="240" y="252" width="10" height="10"/><rect x="250" y="262" width="10" height="10"/>
+        <rect x="260" y="272" width="10" height="10"/><rect x="270" y="282" width="10" height="10"/>
+        <rect x="280" y="292" width="10" height="10"/><rect x="290" y="302" width="10" height="10"/>
+        <rect x="300" y="312" width="10" height="10"/><rect x="310" y="322" width="10" height="10"/>
+        <rect x="320" y="332" width="10" height="10"/><rect x="330" y="342" width="10" height="10"/>
+        <rect x="340" y="352" width="10" height="10"/><rect x="350" y="362" width="10" height="10"/>
+        <rect x="360" y="372" width="10" height="10"/><rect x="370" y="382" width="10" height="10"/>
+        <rect x="380" y="392" width="10" height="10"/><rect x="390" y="402" width="10" height="10"/>
+      </g>
+
+      <!-- TAD triangular blocks along diagonal (3 visible TADs) -->
+      <!-- TAD 1: bins 0-10 -->
+      <g opacity="0.5">
+        <rect x="10" y="12" width="10" height="10"/><rect x="20" y="22" width="10" height="10"/><rect x="30" y="32" width="10" height="10"/>
+        <rect x="40" y="42" width="10" height="10"/><rect x="50" y="52" width="10" height="10"/>
+        <rect x="20" y="12" width="10" height="10"/><rect x="30" y="22" width="10" height="10"/>
+        <rect x="40" y="12" width="10" height="10"/>
+      </g>
+      <g opacity="0.4">
+        <rect x="60" y="12" width="10" height="10"/><rect x="60" y="22" width="10" height="10"/>
+        <rect x="70" y="32" width="10" height="10"/><rect x="80" y="42" width="10" height="10"/>
+      </g>
+      <!-- TAD 2: bins 11-22 -->
+      <g opacity="0.5">
+        <rect x="120" y="112" width="10" height="10"/><rect x="130" y="122" width="10" height="10"/>
+        <rect x="140" y="132" width="10" height="10"/><rect x="150" y="142" width="10" height="10"/>
+        <rect x="160" y="152" width="10" height="10"/><rect x="170" y="162" width="10" height="10"/>
+        <rect x="180" y="172" width="10" height="10"/><rect x="190" y="182" width="10" height="10"/>
+        <rect x="200" y="192" width="10" height="10"/><rect x="210" y="202" width="10" height="10"/>
+        <rect x="140" y="112" width="10" height="10"/><rect x="150" y="122" width="10" height="10"/>
+        <rect x="160" y="132" width="10" height="10"/><rect x="170" y="142" width="10" height="10"/>
+        <rect x="180" y="152" width="10" height="10"/><rect x="190" y="162" width="10" height="10"/>
+        <rect x="200" y="172" width="10" height="10"/>
+        <rect x="160" y="112" width="10" height="10"/><rect x="170" y="122" width="10" height="10"/>
+        <rect x="180" y="132" width="10" height="10"/><rect x="190" y="142" width="10" height="10"/>
+      </g>
+      <!-- TAD 3: bins 24-39 -->
+      <g opacity="0.5">
+        <rect x="240" y="232" width="10" height="10"/><rect x="250" y="242" width="10" height="10"/>
+        <rect x="260" y="252" width="10" height="10"/><rect x="270" y="262" width="10" height="10"/>
+        <rect x="280" y="272" width="10" height="10"/><rect x="290" y="282" width="10" height="10"/>
+        <rect x="300" y="292" width="10" height="10"/><rect x="310" y="302" width="10" height="10"/>
+        <rect x="320" y="312" width="10" height="10"/><rect x="330" y="322" width="10" height="10"/>
+        <rect x="340" y="332" width="10" height="10"/><rect x="350" y="342" width="10" height="10"/>
+        <rect x="360" y="352" width="10" height="10"/><rect x="370" y="362" width="10" height="10"/>
+        <rect x="260" y="232" width="10" height="10"/><rect x="280" y="232" width="10" height="10"/><rect x="300" y="232" width="10" height="10"/>
+        <rect x="280" y="252" width="10" height="10"/><rect x="300" y="252" width="10" height="10"/><rect x="320" y="252" width="10" height="10"/>
+        <rect x="300" y="272" width="10" height="10"/><rect x="320" y="272" width="10" height="10"/><rect x="340" y="272" width="10" height="10"/>
+        <rect x="320" y="292" width="10" height="10"/><rect x="340" y="292" width="10" height="10"/>
+        <rect x="340" y="312" width="10" height="10"/><rect x="360" y="312" width="10" height="10"/>
+      </g>
+
+      <!-- Compartment checkerboard faint -->
+      <g opacity="0.2">
+        <rect x="100" y="262" width="10" height="10"/>
+        <rect x="120" y="282" width="10" height="10"/>
+        <rect x="140" y="302" width="10" height="10"/>
+        <rect x="260" y="102" width="10" height="10"/>
+        <rect x="280" y="122" width="10" height="10"/>
+        <rect x="300" y="142" width="10" height="10"/>
+      </g>
+    </g>
+
+    <!-- Annotations -->
+    <g>
+      <!-- TAD annotation -->
+      <line x1="30" y1="35" x2="430" y2="65" stroke="#b45309" stroke-width="0.8"/>
+      <text x="435" y="68" font-family="Inter, sans-serif" font-size="9" fill="#b45309" font-weight="600">TADs</text>
+      <text x="435" y="80" font-family="Inter, sans-serif" font-size="9" fill="#525252">triangular blocks</text>
+
+      <!-- Compartment annotation -->
+      <line x1="150" y1="300" x2="430" y2="220" stroke="#1e3a8a" stroke-width="0.8"/>
+      <text x="435" y="218" font-family="Inter, sans-serif" font-size="9" fill="#1e3a8a" font-weight="600">compartments</text>
+      <text x="435" y="230" font-family="Inter, sans-serif" font-size="9" fill="#525252">off-diagonal pattern</text>
+    </g>
+
+    <text x="200" y="432" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">banding gone · biological structure visible</text>
+  </g>
+</svg>

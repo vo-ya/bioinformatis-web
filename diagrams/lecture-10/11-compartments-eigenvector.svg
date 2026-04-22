@@ -1,0 +1,229 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 460" role="img" aria-labelledby="t d">
+  <title id="t">A/B compartments as the first eigenvector</title>
+  <desc id="d">Three panels left to right. (a) O/E normalised contact matrix with a checkerboard pattern, labelled 'observed/expected · distance-detrended'. (b) Correlation matrix computed from (a), sharper checkerboard with clear bipartite block structure, labelled 'correlation matrix'. (c) First eigenvector as a 1D track vs bin index, positive regions shaded cobalt (A compartment), negative shaded amber (B compartment). Arrows between panels show corr() and eigen() operators.</desc>
+
+  <defs>
+    <marker id="arr-cobalt" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+  </defs>
+
+  <text x="540" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">A/B COMPARTMENTS = PCA ON A COVARIANCE MATRIX</text>
+
+  <!-- ── (a) O/E matrix ── -->
+  <g transform="translate(30 60)">
+    <text x="150" y="0" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">(a) O/E matrix</text>
+    <text x="150" y="14" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#525252">distance-detrended</text>
+
+    <!-- 24×24 cells, each 12×12 = 288×288 → fit in 300×300 -->
+    <rect x="0" y="25" width="300" height="300" fill="#ffffff" stroke="#c4c1b6"/>
+
+    <!-- A/B pattern: A at bins 0-5, 12-17 (chrom region). B at 6-11, 18-23 -->
+    <!-- Positive (red-shift) when i,j same class; negative (blue-shift) when different -->
+
+    <g>
+      <!-- Block AA (rows 0-5, cols 0-5) -->
+      <g fill="#c4342c" opacity="0.55">
+        <rect x="0" y="25" width="72" height="72"/>
+      </g>
+      <!-- Block BB (rows 6-11, cols 6-11) -->
+      <g fill="#c4342c" opacity="0.45">
+        <rect x="72" y="97" width="72" height="72"/>
+      </g>
+      <!-- Block AA mirror (rows 12-17, cols 12-17) -->
+      <g fill="#c4342c" opacity="0.5">
+        <rect x="144" y="169" width="72" height="72"/>
+      </g>
+      <!-- Block BB mirror (rows 18-23, cols 18-23) -->
+      <g fill="#c4342c" opacity="0.45">
+        <rect x="216" y="241" width="72" height="72"/>
+      </g>
+      <!-- A-A off-diagonal (0-5 × 12-17 and symmetric) -->
+      <g fill="#c4342c" opacity="0.35">
+        <rect x="144" y="25" width="72" height="72"/>
+        <rect x="0" y="169" width="72" height="72"/>
+      </g>
+      <!-- B-B off-diagonal -->
+      <g fill="#c4342c" opacity="0.3">
+        <rect x="216" y="97" width="72" height="72"/>
+        <rect x="72" y="241" width="72" height="72"/>
+      </g>
+
+      <!-- A-B mismatched blocks (cold/blue) -->
+      <g fill="#1e3a8a" opacity="0.3">
+        <rect x="72" y="25" width="72" height="72"/>
+        <rect x="0" y="97" width="72" height="72"/>
+        <rect x="216" y="25" width="72" height="72"/>
+        <rect x="0" y="241" width="72" height="72"/>
+        <rect x="72" y="169" width="72" height="72"/>
+        <rect x="144" y="97" width="72" height="72"/>
+        <rect x="216" y="169" width="72" height="72"/>
+        <rect x="144" y="241" width="72" height="72"/>
+      </g>
+
+      <!-- Bright diagonal -->
+      <g fill="#c4342c" opacity="0.9">
+        <rect x="0" y="25" width="12" height="12"/><rect x="12" y="37" width="12" height="12"/>
+        <rect x="24" y="49" width="12" height="12"/><rect x="36" y="61" width="12" height="12"/>
+        <rect x="48" y="73" width="12" height="12"/><rect x="60" y="85" width="12" height="12"/>
+        <rect x="72" y="97" width="12" height="12"/><rect x="84" y="109" width="12" height="12"/>
+        <rect x="96" y="121" width="12" height="12"/><rect x="108" y="133" width="12" height="12"/>
+        <rect x="120" y="145" width="12" height="12"/><rect x="132" y="157" width="12" height="12"/>
+        <rect x="144" y="169" width="12" height="12"/><rect x="156" y="181" width="12" height="12"/>
+        <rect x="168" y="193" width="12" height="12"/><rect x="180" y="205" width="12" height="12"/>
+        <rect x="192" y="217" width="12" height="12"/><rect x="204" y="229" width="12" height="12"/>
+        <rect x="216" y="241" width="12" height="12"/><rect x="228" y="253" width="12" height="12"/>
+        <rect x="240" y="265" width="12" height="12"/><rect x="252" y="277" width="12" height="12"/>
+        <rect x="264" y="289" width="12" height="12"/><rect x="276" y="301" width="12" height="12"/>
+      </g>
+    </g>
+
+    <text x="150" y="338" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">checkerboard pattern visible · A/B compartments</text>
+  </g>
+
+  <!-- Arrow between (a) and (b) -->
+  <g transform="translate(340 200)">
+    <line x1="0" y1="0" x2="30" y2="0" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arr-cobalt)"/>
+    <text x="16" y="-10" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#1e3a8a" font-weight="700">corr()</text>
+    <text x="16" y="20" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#525252" font-style="italic">pearson by row</text>
+  </g>
+
+  <!-- ── (b) Correlation matrix ── -->
+  <g transform="translate(380 60)">
+    <text x="150" y="0" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">(b) Correlation matrix</text>
+    <text x="150" y="14" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#525252">rowwise correlation of (a)</text>
+
+    <rect x="0" y="25" width="300" height="300" fill="#ffffff" stroke="#c4c1b6"/>
+
+    <!-- Sharper bipartite pattern -->
+    <g>
+      <!-- AA blocks strongly red -->
+      <g fill="#c4342c" opacity="0.8">
+        <rect x="0" y="25" width="72" height="72"/>
+        <rect x="144" y="25" width="72" height="72"/>
+        <rect x="0" y="169" width="72" height="72"/>
+        <rect x="144" y="169" width="72" height="72"/>
+      </g>
+      <!-- BB blocks strongly red -->
+      <g fill="#c4342c" opacity="0.7">
+        <rect x="72" y="97" width="72" height="72"/>
+        <rect x="216" y="97" width="72" height="72"/>
+        <rect x="72" y="241" width="72" height="72"/>
+        <rect x="216" y="241" width="72" height="72"/>
+      </g>
+      <!-- A-B strongly blue -->
+      <g fill="#1e3a8a" opacity="0.6">
+        <rect x="72" y="25" width="72" height="72"/>
+        <rect x="216" y="25" width="72" height="72"/>
+        <rect x="0" y="97" width="72" height="72"/>
+        <rect x="144" y="97" width="72" height="72"/>
+        <rect x="72" y="169" width="72" height="72"/>
+        <rect x="216" y="169" width="72" height="72"/>
+        <rect x="0" y="241" width="72" height="72"/>
+        <rect x="144" y="241" width="72" height="72"/>
+      </g>
+      <!-- Diagonal full red -->
+      <g fill="#c4342c" opacity="1.0">
+        <rect x="0" y="25" width="12" height="12"/><rect x="12" y="37" width="12" height="12"/>
+        <rect x="24" y="49" width="12" height="12"/><rect x="36" y="61" width="12" height="12"/>
+        <rect x="48" y="73" width="12" height="12"/><rect x="60" y="85" width="12" height="12"/>
+        <rect x="72" y="97" width="12" height="12"/><rect x="84" y="109" width="12" height="12"/>
+        <rect x="96" y="121" width="12" height="12"/><rect x="108" y="133" width="12" height="12"/>
+        <rect x="120" y="145" width="12" height="12"/><rect x="132" y="157" width="12" height="12"/>
+        <rect x="144" y="169" width="12" height="12"/><rect x="156" y="181" width="12" height="12"/>
+        <rect x="168" y="193" width="12" height="12"/><rect x="180" y="205" width="12" height="12"/>
+        <rect x="192" y="217" width="12" height="12"/><rect x="204" y="229" width="12" height="12"/>
+        <rect x="216" y="241" width="12" height="12"/><rect x="228" y="253" width="12" height="12"/>
+        <rect x="240" y="265" width="12" height="12"/><rect x="252" y="277" width="12" height="12"/>
+        <rect x="264" y="289" width="12" height="12"/><rect x="276" y="301" width="12" height="12"/>
+      </g>
+    </g>
+
+    <text x="150" y="338" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">bipartition sharp · A rows correlate with A, B with B</text>
+  </g>
+
+  <!-- Arrow between (b) and (c) -->
+  <g transform="translate(690 200)">
+    <line x1="0" y1="0" x2="30" y2="0" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arr-cobalt)"/>
+    <text x="16" y="-10" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#1e3a8a" font-weight="700">eigen()</text>
+    <text x="16" y="20" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#525252" font-style="italic">power iteration</text>
+  </g>
+
+  <!-- ── (c) First eigenvector track ── -->
+  <g transform="translate(740 60)">
+    <text x="160" y="0" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">(c) First eigenvector</text>
+    <text x="160" y="14" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#525252">sign = compartment identity</text>
+
+    <rect x="0" y="25" width="320" height="300" fill="#ffffff" stroke="#c4c1b6"/>
+
+    <!-- Y-axis -->
+    <line x1="20" y1="25" x2="20" y2="325" stroke="#525252" stroke-width="0.8"/>
+    <line x1="20" y1="175" x2="310" y2="175" stroke="#525252" stroke-width="0.8"/>
+
+    <g font-family="JetBrains Mono, monospace" font-size="8" fill="#525252" text-anchor="end">
+      <text x="16" y="58">+0.5</text>
+      <text x="16" y="178">0</text>
+      <text x="16" y="298">−0.5</text>
+    </g>
+
+    <!-- Eigenvector values per bin (24 bins). A = +0.3, B = -0.3, with some variation -->
+    <!-- bar chart -->
+    <g>
+      <!-- Positive bars (A compartment), cobalt, above zero -->
+      <g fill="#1e3a8a" opacity="0.8">
+        <!-- bins 0-5: A -->
+        <rect x="25" y="100" width="10" height="75"/>
+        <rect x="37" y="95" width="10" height="80"/>
+        <rect x="49" y="92" width="10" height="83"/>
+        <rect x="61" y="98" width="10" height="77"/>
+        <rect x="73" y="102" width="10" height="73"/>
+        <rect x="85" y="108" width="10" height="67"/>
+        <!-- bins 12-17: A again -->
+        <rect x="169" y="105" width="10" height="70"/>
+        <rect x="181" y="98" width="10" height="77"/>
+        <rect x="193" y="92" width="10" height="83"/>
+        <rect x="205" y="95" width="10" height="80"/>
+        <rect x="217" y="100" width="10" height="75"/>
+        <rect x="229" y="110" width="10" height="65"/>
+      </g>
+      <!-- Negative bars (B), amber, below zero -->
+      <g fill="#b45309" opacity="0.8">
+        <!-- bins 6-11: B -->
+        <rect x="97" y="175" width="10" height="78"/>
+        <rect x="109" y="175" width="10" height="72"/>
+        <rect x="121" y="175" width="10" height="84"/>
+        <rect x="133" y="175" width="10" height="80"/>
+        <rect x="145" y="175" width="10" height="75"/>
+        <rect x="157" y="175" width="10" height="70"/>
+        <!-- bins 18-23: B again -->
+        <rect x="241" y="175" width="10" height="72"/>
+        <rect x="253" y="175" width="10" height="78"/>
+        <rect x="265" y="175" width="10" height="82"/>
+        <rect x="277" y="175" width="10" height="76"/>
+        <rect x="289" y="175" width="10" height="70"/>
+        <rect x="301" y="175" width="10" height="65"/>
+      </g>
+    </g>
+
+    <!-- Bottom binarised strip -->
+    <g transform="translate(0 335)">
+      <text x="-10" y="12" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="8" fill="#525252">A/B</text>
+      <!-- strip -->
+      <rect x="25" y="0" width="72" height="18" fill="#1e3a8a" opacity="0.7"/>
+      <rect x="97" y="0" width="72" height="18" fill="#b45309" opacity="0.7"/>
+      <rect x="169" y="0" width="72" height="18" fill="#1e3a8a" opacity="0.7"/>
+      <rect x="241" y="0" width="72" height="18" fill="#b45309" opacity="0.7"/>
+      <g font-family="JetBrains Mono, monospace" font-size="9" font-weight="700" fill="#ffffff" text-anchor="middle">
+        <text x="61" y="12">A</text>
+        <text x="133" y="12">B</text>
+        <text x="205" y="12">A</text>
+        <text x="277" y="12">B</text>
+      </g>
+    </g>
+
+    <text x="160" y="390" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">first PC loading = compartment assignment</text>
+  </g>
+
+  <!-- Bottom caption band -->
+  <text x="540" y="440" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">This is standard PCA on a covariance matrix. The genomics-specific framing adds no new mathematics.</text>
+</svg>

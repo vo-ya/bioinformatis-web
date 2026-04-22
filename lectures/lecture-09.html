@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 9 — ChIP-seq, ATAC-seq, and Peak Calling</title>
+  <meta name="description" content="ChIP-seq and ATAC-seq end-to-end: library chemistry, fragment-length QC, MACS2 peak calling as CFAR detection, differential binding via negative-binomial GLM (L6 callback), PWM motif scanning as matched filtering, ATAC footprinting as √N signal averaging, and Enformer-era sequence-to-regulation prediction.">
+
+  <meta property="og:title" content="Lecture 9 — ChIP-seq, ATAC-seq, Peak Calling">
+  <meta property="og:description" content="Peak calling as CFAR detection. PWM as matched filter. Footprinting as √N averaging. Enformer as learned filter bank.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — What ChIP &amp; ATAC Measure</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 The regulation question</a></li>
+          <li><a href="#sec-1-2">1.2 ChIP-seq</a></li>
+          <li><a href="#sec-1-3">1.3 ATAC-seq &amp; DNase-seq</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Library Prep &amp; Alignment</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 Crosslinking, sonication, Tn5</a></li>
+          <li><a href="#sec-2-2">2.2 Fragment lengths &amp; biases</a></li>
+          <li><a href="#sec-2-3">2.3 Alignment quirks</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Peak Calling as Detection</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 The detection problem</a></li>
+          <li><a href="#sec-3-2">3.2 MACS2 algorithm</a></li>
+          <li><a href="#sec-3-3">3.3 Local vs global background</a></li>
+          <li><a href="#sec-3-4">3.4 Narrow vs broad peaks</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Differential Binding</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 The DB / DA problem</a></li>
+          <li><a href="#sec-4-2">4.2 DiffBind &amp; csaw</a></li>
+          <li><a href="#sec-4-3">4.3 Gotchas</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Motifs &amp; Footprints</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 PWM</a></li>
+          <li><a href="#sec-5-2">5.2 Motif databases</a></li>
+          <li><a href="#sec-5-3">5.3 PWM scan as matched filter</a></li>
+          <li><a href="#sec-5-4">5.4 ATAC footprinting</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Sequence Models</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 Enformer</a></li>
+          <li><a href="#sec-6-2">6.2 Forward to L16</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 09</div>
+      <h1 class="lecture-title">ChIP-seq, ATAC-seq, and Peak Calling</h1>
+      <p class="lecture-subtitle">Detection theory on the genome — read pile-ups at regulatory sites, CFAR-style local-Poisson thresholds, negative-binomial differential binding, matched-filter motif scans, √N footprint averaging, and Enformer as a learned filter bank.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — What ChIP &amp; ATAC measure</a></li>
+        <li><a href="#part-2">Part 2 — Library prep &amp; alignment</a></li>
+        <li><a href="#part-3">Part 3 — Peak calling as detection</a></li>
+        <li><a href="#part-4">Part 4 — Differential binding</a></li>
+        <li><a href="#part-5">Part 5 — Motifs &amp; footprints</a></li>
+        <li><a href="#part-6">Part 6 — Sequence models</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Five moves:</em>
+        <span class="lecture-tagline-beat">read the pile-up</span>,
+        <span class="lecture-tagline-beat">detect above local noise</span>,
+        <span class="lecture-tagline-beat">test what changed</span>,
+        <span class="lecture-tagline-beat">match the motif</span>,
+        <span class="lecture-tagline-beat">let the CNN learn it</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Explain what ChIP-seq and ATAC-seq measure, and name the biological question each answers that DNA- and RNA-level assays cannot.</li>
+          <li>Sketch the ChIP-seq chemistry end-to-end (crosslink → sonicate → immunoprecipitate → sequence) and the ATAC-seq chemistry end-to-end (Tn5 transposition → size-selected fragments → sequence).</li>
+          <li>Read an ATAC-seq fragment-length distribution and identify the sub-, mono-, di-, and tri-nucleosomal peaks.</li>
+          <li>Describe MACS2's peak-calling algorithm as local-Poisson detection, derive the local-background lambda estimator, and relate it to CFAR detection in radar.</li>
+          <li>Distinguish narrow-peak from broad-peak calling strategies, and pick the right one for TF ChIP, histone-mark ChIP, and ATAC-seq.</li>
+          <li>Test a peakset for differentially bound or accessible regions using the L6 negative-binomial GLM toolkit.</li>
+          <li>Read a PWM, scan a DNA sequence as a matched-filter problem, and describe the JASPAR / CIS-BP databases.</li>
+          <li>Explain ATAC footprinting as an inverse problem from coverage troughs, aggregated over many TF-motif instances.</li>
+          <li>Name two ways modern deep learning predicts regulatory landscapes from DNA sequence (Enformer, Borzoi) and state one thing they do that MACS2 cannot.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 25 min</span>
+          What ChIP-seq and ATAC-seq Measure
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 The regulation question</h3>
+
+          <p>Lectures 1–4 covered DNA sequence: where the letters are, where they differ between samples, and which differences are real. Lectures 5–8 covered RNA: which parts of the genome are transcribed, how much, and in which cell types.</p>
+
+          <p>Neither answers a third question: <strong>why</strong> is a gene transcribed in one cell type and not another? The DNA sequence is identical across almost every cell in a body; the expression program is not. Something between genome and transcriptome is controlling which genes are on, and that something is <strong>regulation</strong>: transcription factors binding to DNA, chromatin opening and closing, epigenetic marks being written and erased.</p>
+
+          <p>Regulation lives in a different data modality than sequence or transcription. To see it, we need assays that measure binding and accessibility directly:</p>
+
+          <ul>
+            <li><strong>ChIP-seq</strong> (Chromatin ImmunoPrecipitation sequencing) measures where a specific protein binds DNA — any protein with a good antibody.</li>
+            <li><strong>ATAC-seq</strong> (Assay for Transposase-Accessible Chromatin sequencing) measures where DNA is accessible — unwrapped from nucleosomes, available for TFs to read.</li>
+            <li><strong>DNase-seq</strong> (older, similar spirit) measures accessibility via DNaseI digestion instead of transposition.</li>
+          </ul>
+
+          <p>Both ChIP and ATAC produce sequencing reads that <strong>pile up</strong> at regulatory sites. The analysis task: find the pile-ups, compare them across conditions, and interpret them mechanistically.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>A gene is not "on" or "off" because of its sequence alone. The sequence is the contract; the regulatory state is the enforcement. ChIP-seq asks which proteins are reading the contract at this moment; ATAC-seq asks which parts of the contract are open for reading. The combination says which regulatory elements are active in the cells you sampled — a view neither DNA sequencing nor RNA-seq provides.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 ChIP-seq — where proteins bind DNA</h3>
+
+          <p>A ChIP-seq experiment starts with a cell population and an <strong>antibody</strong> that recognises a specific protein target. The target is most commonly:</p>
+
+          <ul>
+            <li>A <strong>transcription factor</strong> (TF) — e.g. CTCF, TP53, FOXA1. The readout: TF binding locations across the genome.</li>
+            <li>A <strong>histone mark</strong> — specific chemical modifications to histone proteins, e.g. H3K4me3 (trimethylation of lysine 4 on histone H3 → active promoters), H3K27ac (active enhancers), H3K27me3 (silenced regions), H3K9me3 (heterochromatin). The readout: where that mark decorates the genome.</li>
+            <li>A <strong>chromatin remodeler</strong> or <strong>RNA polymerase II</strong> or anything else with a good antibody.</li>
+          </ul>
+
+          <p>The chemistry:</p>
+
+          <ol>
+            <li><strong>Crosslink.</strong> Treat cells with formaldehyde. This covalently locks proteins to the DNA they are currently touching — a snapshot of the protein-DNA contact map in that cell state.</li>
+            <li><strong>Fragment.</strong> Break the cross-linked chromatin into ~200–500 bp fragments by sonication (or by MNase digestion for an alternative called MNase-ChIP).</li>
+            <li><strong>Immunoprecipitate.</strong> Mix with the specific antibody; pull down antibody-protein-DNA complexes; discard everything else.</li>
+            <li><strong>Reverse crosslinks, purify DNA, sequence.</strong> The fragments that survive the pull-down came from genomic regions bound by your target protein. Sequencing them shows where.</li>
+          </ol>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-09/01-chip-vs-atac-overview.svg"
+                 alt="Side-by-side comparison. Left panel: ChIP-seq schematic showing crosslinked chromatin being fragmented and pulled down by an antibody specific to a TF or histone mark; surviving fragments are sequenced and reads pile up at bound sites. Right panel: ATAC-seq schematic showing Tn5 transposase inserting sequencing adapters preferentially into open chromatin regions; reads pile up at accessible sites. Below both, a shared cartoon genomic region with nucleosomes, TF binding sites, and open stretches, aligned to the coverage signal each assay produces.">
+            <figcaption>Figure 1. ChIP-seq and ATAC-seq measure different facets of the same chromatin. ChIP pulls down a specific target; ATAC maps global accessibility. Complementary, not competing.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-09/02-chip-seq-workflow.svg"
+                 alt="Four-step ChIP-seq workflow. Step 1: cells treated with formaldehyde, a TF covalently crosslinked to the DNA it touches. Step 2: chromatin sonicated into fragments roughly 300 bp long. Step 3: Y-shaped antibody captures fragments carrying the target TF; unbound fragments discarded. Step 4: crosslinks reversed, DNA purified, sequenced on Illumina. Output: ~30M reads that align preferentially at bound sites.">
+            <figcaption>Figure 2. ChIP-seq chemistry. The crosslink freezes the cell state; sonication randomises the fragment ends; the antibody pulls down only fragments containing the target protein; sequencing reveals where those fragments came from.</figcaption>
+          </figure>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The modern ChIP-seq era started with Barski et al. 2007 (<em>Cell</em>) and Robertson et al. 2007 (<em>Nature Methods</em>), which combined the old ChIP-chip (microarray readout) with the emerging Solexa/Illumina short-read sequencer. The ENCODE Consortium (launched 2003 as ChIP-chip; re-launched in the sequencing era 2007–2012 as "ENCODE 2") then mapped hundreds of TFs and histone marks across dozens of human cell lines. The ENCODE data release (Sept 2012, <em>Nature</em> "encyclopedia of DNA elements") remains one of the largest single genomics data releases ever — the default reference that everything downstream is aligned against.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 ATAC-seq and DNase-seq — where chromatin is open</h3>
+
+          <p>ChIP-seq needs a target and an antibody. What if you want a <em>map of all regulatory activity</em> in a tissue without knowing which TFs to ask about?</p>
+
+          <p><strong>ATAC-seq</strong> (Buenrostro et al. 2013) solved this with a clever chemistry trick. The <strong>Tn5 transposase</strong> (from the prokaryotic Tn5 transposon) cuts DNA and inserts a payload in a single step. If you load Tn5 with sequencing adapters as its payload and put it on live chromatin, it inserts adapters into wherever it can physically access the DNA — which is only the <strong>open, nucleosome-free</strong> regions.</p>
+
+          <p>The result: short library fragments come out pre-tagged with sequencing adapters, from exactly the open regions. One assay, one enzyme, no antibody needed. The protocol runs from ~50,000 cells in under 4 hours. It transformed epigenomics.</p>
+
+          <p>The older analog is <strong>DNase-seq</strong> — instead of Tn5, DNaseI endonuclease preferentially cuts open chromatin. Same output, older, more input DNA required. Most 2024 work uses ATAC.</p>
+
+          <p>What ATAC tells you:</p>
+
+          <ul>
+            <li><strong>Where open regulatory regions live</strong> — promoters, enhancers, insulator sites.</li>
+            <li><strong>Where nucleosomes are positioned</strong> — short sub-nucleosomal fragments (&lt; 100 bp) come from accessible linker DNA; mono-nucleosomal (~150 bp) from single-nucleosome-bounded fragments; di-nucleosomal (~300 bp) from two-nucleosome spans. The fragment-length distribution is its own signal (Part 2).</li>
+            <li><strong>Regulatory landscape in rare cell types</strong> — via single-cell ATAC (introduced in L8 §4.2).</li>
+          </ul>
+
+          <p>What ATAC doesn't tell you: <strong>which TF</strong> is bound in an open region. Only that the region is open. Motif analysis (Part 5) bridges the gap.</p>
+
+          <p><strong>Single-cell ATAC</strong> (callback to L8 §4.2). The same Tn5 chemistry runs at per-cell resolution in droplet scATAC-seq and 10x Multiome (RNA + ATAC on the same nucleus). The data is much sparser — roughly 10,000 fragments per cell vs. ~30 million reads per bulk sample — and dimensionality reduction uses LSI (a TF-IDF-weighted SVD borrowed from text retrieval) instead of the PCA from Lecture 7. But the peak-calling framing in Part 3 largely transfers: you aggregate per-cell fragments into a pseudo-bulk track per cluster, then call peaks as though it were bulk. Everything downstream — differential accessibility (Part 4), motif scanning (Part 5), footprinting (Part 5 with deep-enough aggregate) — runs on the pseudo-bulks.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">ChIP vs ATAC Coverage Viewer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-09/06-coverage-viewer.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-09/06-coverage-viewer.html"
+                    class="artifact-frame" loading="lazy"
+                    title="ChIP vs ATAC Coverage Viewer"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 35 min</span>
+          Library Prep, Biases, and Alignment
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 Crosslinking, sonication, Tn5 transposition</h3>
+
+          <p>The wet-lab mechanics matter because each step shapes what the analysis sees.</p>
+
+          <p><strong>Formaldehyde crosslinking (ChIP-seq).</strong> Formaldehyde (HCHO) reacts with primary amines on proteins and with N7 on adenine/guanine in DNA, forming short covalent bonds (~2 Å range). 1% formaldehyde for 10 min at room temperature is standard. Too little: crosslinks don't hold and the IP loses binding information. Too much: you crosslink everything to everything and lose specificity. The concentration and time are part of the protocol; papers report them explicitly.</p>
+
+          <p><strong>Sonication.</strong> Physical breakage of cross-linked chromatin into small fragments using ultrasound. Typical settings produce a distribution centred ~300 bp, with a long tail. Sonication is biased — it preferentially breaks at nucleosome-free regions, subtly depleting fragments from highly packaged heterochromatin. Bioanalyzer traces show the size distribution; the protocol is tuned until the mode sits at the right length.</p>
+
+          <p><strong>Tn5 transposition (ATAC-seq).</strong> Tn5 is a prokaryotic transposase. In its native role, it cleaves DNA at its recognition sequence and inserts a transposon. For ATAC-seq, Tn5 is pre-loaded with sequencing adapters and applied to a cell's chromatin. It inserts adapters wherever it can physically access the DNA.</p>
+
+          <p>Tn5 has a subtle <strong>sequence preference</strong> — it cuts slightly more often at certain ~9-bp motifs than at others. This means the raw cut-site distribution is not uniform even in fully open chromatin. Correction tools (TOBIAS — Part 5, TFBSTools, HINT-ATAC) deconvolve the Tn5 sequence bias before calling footprints.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>Crosslinking is a time-stopping trick. Without it, proteins would wander off their sites during the subsequent hours of fragmentation and pull-down, and you'd be sequencing where proteins <em>were at some point during the experiment</em>, not where they were <strong>at the moment you added the formaldehyde.</strong> The chemistry freezes the cell state. The quality of the snapshot is set at this step — a bad crosslink produces a blurry experiment no downstream software can fix.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 Fragment-length distributions and sequence biases</h3>
+
+          <p>Both assays produce libraries with characteristic fragment-length distributions. Looking at the distribution is the first QC step.</p>
+
+          <p><strong>ChIP-seq fragments</strong>: roughly log-normal around the sonication target (~300 bp), with no nucleosomal structure because sonication randomises the breakage points.</p>
+
+          <p><strong>ATAC-seq fragments</strong>: strikingly <strong>multi-modal</strong>, with peaks at:</p>
+
+          <ul>
+            <li><strong>&lt; 100 bp</strong>: sub-nucleosomal fragments from accessible linker DNA. These are the "nucleosome-free" signal.</li>
+            <li><strong>150–180 bp</strong>: mono-nucleosomal fragments — the two Tn5 cut sites span exactly one nucleosome (nucleosomes are ~147 bp of DNA wrapped around a histone octamer, plus ~20 bp linker on each side).</li>
+            <li><strong>~300 bp</strong>: di-nucleosomal — two adjacent nucleosomes.</li>
+            <li><strong>~450 bp</strong>: tri-nucleosomal, fainter.</li>
+          </ul>
+
+          <p>This laddering is a signature of well-performed ATAC-seq. Absence of the pattern = bad experiment (too much or too little Tn5, degraded cells, wrong size selection).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-09/03-atac-tn5.svg"
+                 alt="Chromatin cartoon with six beige-grey nucleosomes spaced along a DNA line; between them, short linker stretches of open DNA and one larger promoter-scale open region. Tn5 transposase enzymes drawn as teal blobs insert sequencing adapters only in the accessible linker regions, not through nucleosomes. Output fragment classes listed below: sub-nucleosomal (under 100 bp, zero nucleosomes spanned), mono-nucleosomal (150 to 180 bp, spans one nucleosome), di-nucleosomal (around 300 bp, spans two), tri-nucleosomal (around 500 bp, rare).">
+            <figcaption>Figure 3. Tn5 inserts adapters only where chromatin is open. The fragment length records how many nucleosomes sit between the two cut sites.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-09/04-fragment-length.svg"
+                 alt="Fragment-size distribution plot with log-scale x-axis. ATAC-seq curve in cobalt shows a clear multi-modal shape with peaks at 50 bp (sub-nucleosomal, tallest), 180 bp (mono-nucleosomal), 330 bp (di-nucleosomal), and 500 bp (tri-nucleosomal, faintest). Overlay: a ChIP-seq sonicated library as a dashed amber curve with a single smooth mode at 300 bp and no sub-structure. Annotations label each ATAC peak's biological origin.">
+            <figcaption>Figure 4. The ATAC nucleosome ladder is the first QC gate — its absence signals a failed experiment. ChIP's sonicated library shows no laddering because ultrasound breaks randomly.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Fragment-Size Distribution Explorer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-09/01-fragment-size.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-09/01-fragment-size.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Fragment-Size Distribution Explorer"></iframe>
+          </figure>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Tn5 has sequence preference. Its preferred insertion motif (roughly 9 bp, approximately <code>NNNYMNNHN</code> per Li et al. 2019 bias analyses) means the raw per-base cut counts are not an unbiased measure of accessibility — even in perfectly open DNA, some bases get more cuts than others because Tn5 likes them more. For peak calling the bias averages out over a 200 bp window; for footprinting (Part 5) it does not. TOBIAS, HINT-ATAC, and similar tools explicitly correct for it.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Alignment quirks</h3>
+
+          <p>Alignment is mostly a callback to Lecture 2: BWA or Bowtie2 on the paired-end reads, expecting most reads to map uniquely. Two ChIP-and-ATAC-specific wrinkles:</p>
+
+          <p><strong>ATAC-specific Tn5 offset correction.</strong> Tn5 inserts adapters as a dimer, producing a <strong>+4 / −5 staggered cut</strong> on the two strands. The 5' end of a + strand read maps 4 bp after the cut site; the 5' end of a − strand read maps 5 bp before the cut site. To recover the exact Tn5 cut position, shift forward-strand reads +4 bp and reverse-strand reads −5 bp before building the cut-site pile-up. Most ATAC pipelines (e.g. ENCODE) apply this shift routinely. Skipping it blurs footprint analyses by ~9 bp.</p>
+
+          <p><strong>Blacklist regions.</strong> Some parts of the genome produce artifactual high coverage no matter what assay you run — rRNA gene clusters, telomeric / centromeric repeats, regions with annotation errors. These regions systematically produce false-positive peaks in ChIP-seq and ATAC-seq. The <strong>ENCODE Blacklist</strong> (Amemiya et al. 2019) is a curated set of ~400 regions in GRCh38 that every analysis should exclude before peak calling.</p>
+
+          <p><strong>PCR duplicates.</strong> Illumina libraries involve PCR amplification; duplicate fragments from the same pre-amplification template should be collapsed (same as the UMI logic from L7, but for ChIP/ATAC you usually don't have UMIs — use position + fragment length as a duplicate key).</p>
+
+          <p><strong>Shifting of paired-end vs single-end reads.</strong> Some peak callers (MACS2, MACS3) expect you to report fragment length for proper peak modeling. Paired-end reads give it directly; single-end reads require either a separate fragment-size estimation step (cross-correlation analysis, e.g. from SPP) or a configured default.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>The ENCODE blacklist is version-specific. Using the GRCh37 (hg19) blacklist on a GRCh38-aligned BAM will miss real blacklist regions and fail to filter the right ones. Always match the blacklist to your reference build; nf-core's ATAC-seq and ChIP-seq pipelines pin the correct file per build.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 60 min</span>
+          Peak Calling as Detection
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 The detection problem</h3>
+
+          <p>Suppose you align a ChIP-seq experiment for CTCF. You now have ~30 million reads distributed across the 3-gigabase human genome. Some regions have a strong pile-up (dozens of reads in a 200-bp window); most of the genome has ~0 reads per window.</p>
+
+          <p>The <strong>peak-calling task</strong>: given the per-position read count across the genome, declare which windows contain a real signal (a genuine CTCF binding event) and which are background noise.</p>
+
+          <p>This is textbook <strong>detection theory</strong> — decide between two hypotheses at every location:</p>
+
+          <ul>
+            <li>$H_0$ (null): no binding; the coverage at this position is background noise.</li>
+            <li>$H_1$ (alternative): binding event present; the coverage is background + signal.</li>
+          </ul>
+
+          <p>The signal-to-noise ratio is high in ChIP-seq (a real binding site often has 5–20× the local background count), but the genome is 3 billion positions long, so even rare false alarms — 1 in 10⁵ — produce tens of thousands of spurious peaks. Multiple testing is not optional.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-09/05-read-pileup.svg"
+                 alt="Genome browser style view of a 5 kb window. Top: coordinate axis. Middle: per-base coverage track showing baseline coverage of about 3 reads per base across most of the window, a central 200 bp region with a sharp peak rising to about 25 reads per base, and a smaller secondary rise at around 2 kb reaching 8 reads per base. Callouts mark 'peak summit', 'peak boundaries', and shaded 'local background'. Bottom annotation track shows a rectangle labelled 'TSS of GENE_X' aligned under the main peak.">
+            <figcaption>Figure 5. The peak-calling detection task. A candidate window's count is tested against a null background rate estimated from its surroundings.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — peak calling as detection</span>
+            <p>The peak-calling problem is formally identical to <strong>target detection in radar</strong>: sweep the genome coordinate the way radar sweeps time-delay bins, at each position decide whether the echo amplitude is above a threshold set by the local clutter. The radar tradition distinguishes between <strong>constant-false-alarm-rate (CFAR)</strong> detectors that adapt the threshold to the local noise power, and fixed-threshold detectors that don't. MACS2 is a CFAR detector — it re-estimates the background Poisson rate from a local window around each candidate peak, then thresholds the peak count against that local-adaptive null. Same algorithm your undergraduate detection course would sketch for a phased-array radar.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 MACS2 — the algorithm</h3>
+
+          <p><strong>MACS2</strong> (Model-based Analysis of ChIP-Seq, v2 — Zhang et al. 2008, Feng et al. 2012) is the de facto standard. Its core algorithm:</p>
+
+          <ol>
+            <li><strong>Build a signal track.</strong> Extend each read by the estimated fragment length; compute per-position fragment coverage.</li>
+            <li><strong>Slide a test window.</strong> For each 200-bp window, count the fragments with summits inside it. Call this the observed count $c$.</li>
+            <li><strong>Estimate a local background rate $\lambda_{\text{local}}$.</strong> Use the <strong>maximum</strong> of several local background estimates:
+              <ul>
+                <li>$\lambda_{\text{bg}}$: genome-wide average count per 200 bp window.</li>
+                <li>$\lambda_{1000}$: average count in a surrounding 1 kb window.</li>
+                <li>$\lambda_{5000}$: 5 kb.</li>
+                <li>$\lambda_{10000}$: 10 kb.</li>
+                <li>(If input/control data is available, $\lambda_{\text{input}}$: equivalent count in matched control.)</li>
+              </ul>
+              $\lambda_{\text{local}} = \max(\lambda_{\text{bg}}, \lambda_{1000}, \lambda_{5000}, \lambda_{10000}, \lambda_{\text{input}})$.
+            </li>
+            <li><strong>Compute a Poisson p-value.</strong> Under $H_0$, the count $c$ follows $\text{Poisson}(\lambda_{\text{local}})$. P-value is $P(X \geq c \mid \lambda_{\text{local}})$.</li>
+            <li><strong>Multi-test correction.</strong> Apply Benjamini-Hochberg across all candidate peaks (callback to Lecture 6 §4) to control FDR at 5% (the default).</li>
+            <li><strong>Merge adjacent significant windows</strong> into a single peak; estimate the peak summit as the position of maximum coverage within the merged region.</li>
+          </ol>
+
+          <p>The cleverness is in step 3 — using the <strong>maximum of several local averages</strong> is robust to both local depletion (real biology) and local enrichment (artefacts like blacklisted regions). It's also implicitly CFAR-like: the threshold adapts to local conditions.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-09/06-macs2-local-poisson.svg"
+                 alt="Three-column algorithmic schematic. Column 1: a coverage track section with a candidate 200 bp window marked with observed count c = 24. Column 2: same track with nested larger windows (1 kb, 5 kb, 10 kb) around the candidate, each labelled with its per-200bp lambda estimate (0.5 genome-wide, 2.1 at 1 kb, 3.8 at 5 kb, 2.9 at 10 kb, 1.2 input control); footer text shows lambda_local equals the max of these equals 3.8. Column 3: a Poisson PMF histogram at lambda = 3.8 with the candidate count c = 24 marked on the far right tail; text 'P(X ≥ 24 | λ = 3.8) = 2.4e-14 → reject H_0'. Arrows between columns show the algorithmic flow.">
+            <figcaption>Figure 6. MACS2's local-adaptive λ. Multiple local windows are averaged; their maximum defines the background against which the candidate is tested.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">MACS2 Peak Caller</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-09/02-macs2-peak-caller.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-09/02-macs2-peak-caller.html"
+                    class="artifact-frame" loading="lazy"
+                    title="MACS2 Peak Caller"></iframe>
+          </figure>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The original MACS paper (Zhang et al., 2008, <em>Genome Biology</em>) was one of the first ChIP-seq-specific algorithms, built when the field was six papers old. It replaced naïve fold-enrichment calls that plagued ChIP-seq's first year. MACS2 refined the background model in 2012; MACS3 (2021–) adds ATAC-seq-specific modes and improved memory use. Across three versions and fifteen years, the core detection formulation — observed count vs local Poisson null — has not changed. That is unusual and correct: the detection framing is the right level of abstraction.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Local vs global background</h3>
+
+          <p>Why the local-adaptive $\lambda$? Because biology and technology both violate the uniform-background assumption.</p>
+
+          <p><strong>Biological non-uniformity.</strong> Some genomic regions have systematically higher coverage than others. Open chromatin is generally more accessible to any process, so ATAC-seq has extra reads there. Highly expressed genes are more accessible and often more bound. Without local adaptation, the global $\lambda$ under-represents the true background around real hotspots → false positive inflation near real signal.</p>
+
+          <p><strong>Technical non-uniformity.</strong> Mappability varies (regions with many repeats have fewer uniquely-mappable reads → artifactually lower coverage); GC content affects library efficiency; blacklist regions (Part 2) have pathological pile-ups.</p>
+
+          <p><strong>The CFAR solution.</strong> Re-estimate the noise floor locally. The local $\lambda$ averages 1 kb — 10 kb around each candidate, so whatever's elevating the baseline (real biology or artefact) is absorbed into the null distribution. A peak has to rise above the <em>local</em> noise, not just the global average.</p>
+
+          <p>This is the central idea. Once you see it, peak calling is no longer mysterious.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — adaptive thresholding</span>
+            <p>MACS2's <code>max</code> across several local-window sizes is conceptually a <strong>guard-cell CFAR</strong> detector. Classical radar CFAR splits the clutter estimate into a leading and lagging guard-cell window around the cell under test, averages the noise estimates from both, and thresholds against that adaptive background. MACS2's 1 kb, 5 kb, 10 kb windows serve exactly this role — they're guard cells centred on the peak candidate, averaged (via <code>max</code>, which is a conservative order-statistic choice), and the candidate count is thresholded against that. Radar CFAR has decades of analysis literature on the tradeoffs between mean-level, order-statistic (OS-CFAR), and greatest-of variants; MACS2's choice to take the <code>max</code> is a greatest-of-CFAR variant — robust to outliers on the low side, at the cost of slightly elevated miss rate near real peaks adjacent to noise.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-09/07-narrow-vs-broad.svg"
+                 alt="Three stacked coverage tracks over a shared 50 kb coordinate axis. Track (a) CTCF ChIP: five sharp peaks each about 200 bp wide, tall, labelled TFBS, mode tag 'narrow (default)'. Track (b) H3K4me3: three broader peaks each about 1 kb wide with gradual shoulders, labelled TSS, mode tag 'narrow (default)'. Track (c) H3K27me3: two wide plateaus each spanning 10 to 20 kb, not resolved into individual peaks, labelled 'silenced domain', mode tag 'broad'.">
+            <figcaption>Figure 7. Signal shape dictates the right peak-caller mode. TFs produce narrow peaks; active histone marks are broader; silenced-domain marks cover entire regions.</figcaption>
+          </figure>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>You run MACS2 in default (narrow-peak) mode on a H3K27me3 dataset. The caller finds 50,000 narrow peaks. Your collaborator says "but H3K27me3 forms broad domains of tens to hundreds of kilobases — your narrow calls are fragmenting real domains into pieces." What's the methodological fix? (Use MACS2's <code>--broad</code> flag, which merges adjacent windows under a more permissive secondary threshold. For domain-scale marks like H3K27me3, H3K9me3, and H3K36me3, broad-peak calling is the correct mode; narrow-peak output on these marks is an artefact of mismatched algorithm choice. Other callers — SICER, PePr — are designed specifically for broad marks.)</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Narrow vs broad peak modes</h3>
+
+          <p><strong>Narrow-peak mode</strong> (MACS2 default). The algorithm described above. Output: sharp, ~100–500 bp peaks. Right for:</p>
+
+          <ul>
+            <li>TF ChIP-seq (CTCF, p53, ER, most TFs).</li>
+            <li>H3K4me3 (active promoter mark — narrowish).</li>
+            <li>H3K27ac (active enhancer mark — narrowish).</li>
+            <li>ATAC-seq.</li>
+          </ul>
+
+          <p><strong>Broad-peak mode</strong> (MACS2 <code>--broad</code>). Uses two thresholds: a strict one to find core regions, a more permissive secondary one to extend/merge into larger domains. Output: domain-scale peaks, possibly tens of kilobases wide. Right for:</p>
+
+          <ul>
+            <li>H3K27me3 (Polycomb silenced — domain-scale).</li>
+            <li>H3K9me3 (heterochromatin — domain-scale).</li>
+            <li>H3K36me3 (gene-body mark — covers whole transcribed regions).</li>
+          </ul>
+
+          <p><strong>Superpeak / super-enhancer analysis</strong> (Whyte et al. 2013). A post-processing step on H3K27ac peaks — merge nearby peaks that together span &gt;10 kb of the genome and call the merged region a "super-enhancer". Marks master-regulatory enhancers of cell-type identity. Tools: ROSE (Rank Ordering of Super-Enhancers).</p>
+
+          <p>Choosing the right mode matters. Default narrow on a broad mark fragments real domains; default broad on a TF-ChIP over-merges distinct binding events into spurious megapeaks.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 30 min</span>
+          Differential Binding and Accessibility
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 The DB / DA problem</h3>
+
+          <p>You ran ChIP-seq (or ATAC-seq) on two conditions — control vs treated, wild-type vs knockout, normal vs cancer. Same antibody, same protocol, two biological conditions. You want to know <strong>which peaks changed</strong> between conditions.</p>
+
+          <p>The analysis template, identical in structure to Lecture 6's differential expression:</p>
+
+          <ol>
+            <li>Call peaks separately in each sample (MACS2 per sample), or on pooled reads across all samples.</li>
+            <li>Build a <strong>consensus peakset</strong>: the union of peaks across all samples, or peaks seen in at least N samples.</li>
+            <li>For each peak × each sample, count reads that overlap. Produces a peaks × samples count matrix — the same shape as a genes × samples matrix from L6.</li>
+            <li>Fit a negative-binomial GLM (DESeq2, edgeR). Test each peak for differential count between conditions. Apply BH correction.</li>
+          </ol>
+
+          <p>Step 4 is literally a callback to Lecture 6. The count-based DE toolkit works here because the noise model is the same: integer counts with overdispersion, per-feature, across a few dozen samples at most.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-09/08-differential-accessibility.svg"
+                 alt="MA scatter plot. X-axis: mean log2 count across samples, 0 to 16. Y-axis: log2 fold change between conditions, minus 5 to plus 5, with zero marked. A cloud of grey points sits around zero at moderate x. A cluster of red dots at positive y (gained accessibility) and a cluster of blue dots at negative y (lost accessibility) both concentrated in the x range 8 to 12. Dashed threshold lines at y equals plus or minus 1. Two peaks are highlighted with callouts: 'ENH1 near GENE_A (up 3.2×)' and 'PROM2 near GENE_B (down 2.1×)'.">
+            <figcaption>Figure 8. Differential accessibility results in the same visual language as Lecture 6's MA plot. The statistical machine is the negative-binomial GLM; only the features (peaks, not genes) have changed.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — differential accessibility as L6 again</span>
+            <p>The count matrix for peaks has the same statistical structure as the count matrix for genes. Same negative-binomial GLM. Same empirical-Bayes dispersion shrinkage. Same Benjamini-Hochberg. The <em>input features</em> have changed (genomic intervals instead of transcripts), but the estimator is unchanged. This is a feature of the field: bulk-count DE is a portable tool — once you have counts per feature per sample, the machinery works the same way no matter what the features are.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 DiffBind, csaw, and counts across conditions</h3>
+
+          <p>Two R packages dominate:</p>
+
+          <p><strong>DiffBind</strong> (Stark &amp; Brown 2011, Ross-Innes et al. 2012). Takes a set of peak files and BAM files; builds the consensus peakset; counts reads per peak per sample; hands off to DESeq2 or edgeR for the statistical test. The wrapper handles the ChIP/ATAC-specific concerns (consensus peakset construction, normalisation choice). Default choice for most labs.</p>
+
+          <p><strong>csaw</strong> (Lun &amp; Smyth 2014, 2016). Alternative approach — window-based rather than peak-based. Tile the genome into overlapping windows; count reads per window per sample; run the DE test on windows; merge significant adjacent windows into differential regions after the test. Avoids the consensus-peakset decision that DiffBind has to make. Higher resolution, more sensitive for broad marks.</p>
+
+          <p><strong>The normalisation question.</strong> Unlike RNA-seq (where you can assume most genes aren't differentially expressed, justifying median-of-ratios), ChIP/ATAC doesn't have that assumption — a whole-genome shift between conditions (e.g. global loss of H3K27ac in a knockout) is biologically real and should <em>not</em> be normalised away. DiffBind offers several options: library-size scaling (simplest), TMM (edgeR's default, assumes most peaks unchanged), or spike-in normalisation (requires an added reference species' chromatin). Choose based on whether you expect global shifts.</p>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Gotchas — peakset choice and replicates</h3>
+
+          <p><strong>Consensus peakset choice biases the test.</strong> If you define the consensus as "peaks called in ≥50% of samples," peaks specific to one treatment condition get dropped before the DE test — a severe under-power. If you define as "peaks in any sample," you include noisy single-sample calls and add false positives. Best practice: consensus = peaks called in ≥N samples where N is about half the sample count per condition; or use csaw's window approach to avoid the issue entirely.</p>
+
+          <p><strong>Replicate count.</strong> ChIP/ATAC experiments typically use 2–3 biological replicates per condition. DESeq2/edgeR work down to 2 replicates per group but with much less power than the 5–10 replicate comparisons seen in transcriptomics. Statistics cannot compensate for biology; if the effect needs 5 replicates per arm, use 5.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">Differential Accessibility Explorer</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-09/03-differential-accessibility.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-09/03-differential-accessibility.html"
+                    class="artifact-frame" loading="lazy"
+                    title="Differential Accessibility Explorer"></iframe>
+          </figure>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Differential binding with an altered consensus peakset is a silent-failure trap. If your control has 20,000 peaks and your treatment has 40,000, using "peaks in ≥50% of samples" as the consensus drops half of the treatment-specific peaks entirely — no statistical test can recover what you dropped before the test. Always report how the consensus peakset was constructed and what fraction of single-condition peaks made it in.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 35 min</span>
+          Motifs, Matched Filters, and Footprinting
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 TF binding motifs and the PWM</h3>
+
+          <p>A transcription factor binds DNA with <strong>sequence specificity</strong> — it prefers some 8–20 bp sequences over others. But real binding is not a single consensus sequence; it's a <strong>distribution</strong> over sequences. A TF that mostly likes <code>TGACTCA</code> (AP-1) will also bind <code>TGAGTCA</code> or <code>TGACTCT</code> with lower affinity. The binding specificity is fractional, not binary.</p>
+
+          <p>The standard representation is a <strong>Position Weight Matrix (PWM)</strong>:</p>
+
+          <ul>
+            <li>4 rows (A, C, G, T) × <em>L</em> columns (motif length, typically 6–20 bp).</li>
+            <li>Entry $w_{b, i}$ = log of (observed frequency of base $b$ at position $i$) / (background frequency of $b$). Typically computed from hundreds of known binding sites.</li>
+          </ul>
+
+          <p><strong>Scoring</strong> a candidate sequence $s_1 s_2 \ldots s_L$ against a PWM:</p>
+
+          <p>$$\text{score}(s) = \sum_{i=1}^{L} w_{s_i, i}$$</p>
+
+          <p>Higher score = better match to the TF's binding preference. The score is essentially a log-odds ratio — how much more likely is this sequence to be generated by the TF's binding model than by random background.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-09/09-pwm-motif.svg"
+                 alt="Left panel: a CTCF PWM as a 4-by-19 numerical grid with rows labelled A, C, G, T in base-palette colours, columns numbered 1 to 19, and cell contents showing log-odds weights (numbers roughly -2 to +3) coloured by sign. Right panel: the same motif rendered as a sequence logo with IC-height stacks of A/C/G/T letters; tall core 'CCCTC' pattern in the middle; variable flanks. An arrow between the two panels with the note 'PWM rendered as a logo — same information, two views'.">
+            <figcaption>Figure 9. The PWM and its sequence logo. Each column's conservation (information content) sets the letter-stack height; the matrix form shows the underlying log-odds weights.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Motif databases</h3>
+
+          <p>Hand-curating PWMs for every TF is expensive. Two community databases collect them:</p>
+
+          <p><strong>JASPAR</strong> (Castro-Mondragon et al. 2022, current version JASPAR 2024). ~2000 curated PWMs across hundreds of vertebrates. Each motif tagged with its TF family, validation source (ChIP-seq, PBM, SELEX), and provenance. The default first-pass database for human and mouse motif scanning.</p>
+
+          <p><strong>CIS-BP</strong> (Weirauch et al. 2014, expanded 2022). ~5000 TF motifs across 300+ species. Denser than JASPAR because it predicts motifs computationally for TFs without direct experimental data (via homology to TFs with known motifs in the same DNA-binding family). Useful when JASPAR has no motif for your TF.</p>
+
+          <p><strong>HOCOMOCO</strong> (Kulakovskiy et al. 2024). ~800 human / mouse motifs, each carefully curated from ChIP-seq data across many experiments. Higher-quality but fewer TFs than JASPAR.</p>
+
+          <p>Usage pattern: pick a database, get a PWM for the TF of interest, scan your sequence for hits.</p>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Motif scanning as a matched filter</h3>
+
+          <p>Given a PWM and a DNA sequence (say, a 10 kb region around an ATAC peak), find the positions where the motif is likely to be bound.</p>
+
+          <p><strong>Scanning algorithm</strong>:</p>
+
+          <ol>
+            <li>Slide the PWM along the sequence.</li>
+            <li>At each position $i$, compute $\text{score}(s_i s_{i+1} \ldots s_{i+L-1})$ against the PWM.</li>
+            <li>Report positions where the score exceeds a threshold (typically calibrated to a per-base p-value of $10^{-4}$).</li>
+          </ol>
+
+          <p>Scan both strands (reverse-complement the sequence, or equivalently flip and complement the PWM).</p>
+
+          <p>Typical tools: <strong>FIMO</strong> (in the MEME suite), <strong>pwm_scan</strong> (in several bioconductor packages), <strong>MOODS</strong>. They differ in threshold calibration and speed; algorithmically all do the same thing.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-09/10-matched-filter.svg"
+                 alt="Three horizontally aligned bands. Top: the 4-channel PWM template, 4 rows by L columns, each cell coloured by its weight. Middle: a DNA sequence rendered as a 4-channel one-hot signal — 4 rows by 60 columns, with exactly one cell 'hot' per column (coloured by base identity); a few positions annotated with the corresponding nucleotide letter. Bottom: the sliding-window PWM score output as a 1D track, mostly flat-low with a clear spike at one position where the sequence matches the template; annotated 'hit: score = 18.3, p &lt; 1e-4'. A dashed-box sliding window drawn at three template positions along the signal, with thin arrows from template-positions to output-values.">
+            <figcaption>Figure 10. PWM scanning as discrete correlation of a 4-channel template against a 4-channel one-hot sequence. The output track is the matched-filter response.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">PWM Motif Scanner</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-09/04-pwm-motif-scanner.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-09/04-pwm-motif-scanner.html"
+                    class="artifact-frame" loading="lazy"
+                    title="PWM Motif Scanner"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — PWM as matched filter</span>
+            <p>A PWM scan is a <strong>matched filter</strong> on a 4-channel (A/C/G/T one-hot) signal. Each column of the PWM is a vector of 4 weights; sliding it along the sequence computes, at each position, the inner product between the local 4-channel sequence vector and the template. The output is high at positions where the sequence matches the template, exactly the detection statistic a matched filter produces in any signal-processing course. The "optimal detector under additive Gaussian noise" intuition from EE 101 transfers almost verbatim: log-odds PWM scores on one-hot sequence = matched filter against a 4-channel template. Tools differ in threshold calibration, but the inner operation is this.</p>
+          </aside>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Motif hit ≠ TF binding. A PWM scan over open chromatin will return far more hits than a TF actually binds in vivo; typical ratios are 10:1 or 100:1 depending on the TF. Binding in real cells is gated by chromatin context, cooperative TF-TF interactions, post-translational modifications of the TF, and many other factors the PWM does not model. Motif hits should be read as "locations this TF <em>could</em> bind given the sequence," not "locations it is bound."</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 ATAC footprinting</h3>
+
+          <p>A TF physically bound to DNA protects a ~20 bp stretch from Tn5 insertion — the transposase can't reach the DNA because a protein is in the way. In a ChIP-seq experiment you only know the TF is somewhere in a ~200 bp peak. In an ATAC-seq experiment, if coverage is deep enough, you can see the <strong>footprint</strong>: a local drop in Tn5 cuts at the exact binding site, flanked by normal open-chromatin cuts on either side.</p>
+
+          <p>Per-individual-TF-site the footprint is usually too noisy to see. The trick: <strong>aggregate over many instances of the same motif</strong>. Pool the Tn5 cut counts at every position relative to the motif centre, across thousands of motif instances. Random noise averages out; the systematic footprint signal accumulates.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-09/11-atac-footprint.svg"
+                 alt="Central panel: a curve showing Tn5 cut density (y) vs position relative to motif centre (x, -200 to +200 bp). Clear shape with elevated flanking shoulders around 2× baseline and a prominent 20 bp-wide dip at the motif centre dropping to about 0.3× baseline. Labelled 'aggregated over 5,000 CTCF motif instances'. Side panel: 5 small stacked sub-plots showing noisy individual-instance cut-count traces; each looks essentially random with no clear dip visible. An arrow between them labelled 'sum over N sites → SNR × √N'.">
+            <figcaption>Figure 11. An ATAC-seq footprint is a coverage trough emerging from averaging many weak signals. Individual instances are too noisy; aggregation recovers the binding shadow.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">ATAC Footprint Analyser</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-09/05-atac-footprint.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-09/05-atac-footprint.html"
+                    class="artifact-frame" loading="lazy"
+                    title="ATAC Footprint Analyser"></iframe>
+          </figure>
+
+          <p>Tools: <strong>TOBIAS</strong> (Bentsen et al. 2020), <strong>HINT-ATAC</strong> (Li et al. 2019), <strong>BaGFoot</strong> (Baek et al. 2017). All implement the same aggregation idea with different bias corrections and statistical thresholds.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — footprinting as inverse problem with averaging</span>
+            <p>A single TF footprint is an inverse problem — given a noisy observation at a candidate site, infer whether a protein was bound. Signal-to-noise at a single site is usually poor. Aggregating across thousands of motif instances improves SNR by ~√N (classic signal-averaging argument from any undergraduate measurements course). The footprint only becomes visible in the ensemble, never in the individual. This is why ATAC footprinting needs deep coverage (≥50 million reads per sample) and many motif instances.</p>
+          </aside>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>The footprint is a <strong>coverage trough</strong>, not a peak. Every other analysis in this lecture detects pile-ups (regions with MORE reads); footprinting detects a local DEFICIT of reads, flanked by normal coverage. Finding something by its absence is a different task than finding it by its presence — which is why footprinting tools are separate from peak callers.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 15 min</span>
+          Sequence-to-Regulation Models
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 Enformer and its siblings</h3>
+
+          <p>Everything up to this point in Lecture 9 is <strong>measurement-driven</strong>: run an assay, observe the data, call peaks or footprints. A different paradigm has emerged: <strong>predict regulatory landscapes directly from DNA sequence</strong>, without running the experiment.</p>
+
+          <p><strong>Enformer</strong> (Avsec, Agarwal et al. 2021, DeepMind + Calico). A CNN + transformer hybrid that takes a ~100 kb DNA sequence and predicts thousands of regulatory outputs: CAGE signal at every position (proxy for TSS activity), ATAC / DNase accessibility, ChIP-seq signal for many TFs and histone marks. Trained on all publicly available ENCODE / Roadmap / FANTOM regulatory data. Performance: within ~15% of experimental replicate reproducibility for many marks — "as good as re-running the experiment" for a significant fraction of features.</p>
+
+          <p><strong>Borzoi</strong> (Linder, Srivastava, Theis, Kelley 2023). Enformer's successor. Extended context (~500 kb), trained on more data including single-cell ATAC.</p>
+
+          <p><strong>DeepSEA / ExPecto / Sei</strong> — earlier CNN-based models with the same goal but less architectural sophistication.</p>
+
+          <p>What the sequence-to-function models do that MACS2 can't:</p>
+
+          <ul>
+            <li>Predict assay output on <strong>sequences that have never been run</strong> (different species, synthetic sequences, personal genome variants).</li>
+            <li>Score <strong>variant effects</strong> — compare model output for reference vs variant sequence to estimate the regulatory impact of a mutation.</li>
+            <li>Capture <strong>long-range interactions</strong> — Enformer's 100 kb context lets it learn distal enhancer → promoter relationships from sequence alone.</li>
+          </ul>
+
+          <p>What they still can't do well: predict accurately in cell types underrepresented in training data; predict rare cell-type-specific regulation; model cooperative-binding nonlinearities beyond what the architecture captures.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-09/12-enformer-architecture.svg"
+                 alt="Left-to-right schematic of the Enformer architecture. Input: a 100 kb DNA strand shown as a 200K base by 4 channel one-hot representation with a short highlighted stretch of visible bases. CNN block: three stacked rectangles labelled 'conv + ReLU' with arrows showing downsampling from 1 bp resolution to 128 bp bins; output label 'local sequence features'. Transformer block: three stacked boxes labelled 'transformer layer (self-attention)' with arrows; output 'long-range contextualised features'. Output heads: parallel branches labelled 'CAGE (5000 tracks)', 'DNase/ATAC (~700 tracks)', 'TF ChIP (~4000 tracks)', 'histone marks (~2000 tracks)'; output representation is per 128 bp bin signal prediction.">
+            <figcaption>Figure 12. Enformer. CNN extracts local sequence features; transformer captures long-range interactions across 100 kb; many output heads predict thousands of regulatory tracks.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <span class="artifact-label">Interactive</span>
+              <span class="artifact-title">CNN Filter Bank Visualiser</span>
+              <a class="artifact-standalone"
+                 href="../artifacts/lecture-09/07-cnn-filter-bank.html"
+                 target="_blank" rel="noopener">Open standalone ↗</a>
+            </figcaption>
+            <iframe src="../artifacts/lecture-09/07-cnn-filter-bank.html"
+                    class="artifact-frame" loading="lazy"
+                    title="CNN Filter Bank Visualiser"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 Forward pointer to Lecture 16</h3>
+
+          <p>Sequence-to-function models are one example of a broader pattern that Lecture 16 will synthesize: deep learning architectures matched to genomic problem structure. The pattern so far:</p>
+
+          <ul>
+            <li>DeepVariant (L4): CNN on pileups — pileups are image-like; CNNs win.</li>
+            <li>scVI / totalVI (L8): VAE with NB likelihood — sparse counts; VAE + count-appropriate likelihood wins.</li>
+            <li>Enformer / Borzoi (L9): CNN + transformer on sequence — long-range interactions matter; transformer wins for the global structure, CNN for the local motifs.</li>
+          </ul>
+
+          <p>Each architecture is <em>matched</em> to the inductive biases of the problem. Lecture 16 pulls these patterns out explicitly.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — CNN as learned matched-filter bank</span>
+            <p>The first layer of Enformer's CNN is a set of ~256 learned 15-bp convolutional kernels operating on 4-channel one-hot DNA. Structurally this is exactly the PWM matched-filter framing from §5.3 — except the kernels are <strong>learned from data</strong> instead of being hand-curated from known binding sites. Each filter specialises during training to fire on a specific motif-like pattern; across the 256 filters, the bank effectively rediscovers a large subset of known TF motifs (and presumably some unknown ones). Subsequent convolution layers compose these into higher-order patterns — spacing between motifs, cooperative binding signatures. The architecture sits precisely at the intersection of signal processing (matched-filter banks) and learned representations (data-trained kernels), and is the cleanest example in genomics of how classical-DSP intuition survives into the deep-learning era.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup" class="lecture-wrapup">
+        <h2>
+          <span class="part-kicker">Wrap-up · 10 min</span>
+          Takeaways, homework, and next lecture
+        </h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>ChIP-seq measures protein-DNA binding.</strong> ATAC-seq measures chromatin accessibility. Both produce read pile-ups at regulatory regions; peak calling turns pile-ups into a list of regulatory intervals.</li>
+          <li><strong>Library chemistry shapes the downstream signal.</strong> ATAC's Tn5 gives you a fragment-length distribution with characteristic nucleosome laddering — your first QC gate. ChIP's sonication gives you a flat ~300 bp mode. Bias correction matters for footprinting; it matters less for peak calling.</li>
+          <li><strong>Peak calling is detection theory.</strong> MACS2 is a CFAR detector: count at candidate position vs Poisson null estimated from local windows. The local-adaptive background is what makes it work. Narrow peaks for TFs; broad peaks for H3K27me3 / H3K9me3-class marks.</li>
+          <li><strong>Differential binding is Lecture 6 on a different feature set.</strong> Same negative-binomial GLM, same dispersion shrinkage, same BH — on peaks × samples instead of genes × samples. DiffBind / csaw are the standard wrappers.</li>
+          <li><strong>Motif scanning is matched filtering.</strong> PWMs are 4-channel templates; scanning is discrete correlation of template against one-hot sequence. Thresholds trade sensitivity against false positives. Motif hit ≠ binding.</li>
+          <li><strong>ATAC footprinting is signal-averaging over many TF-motif instances.</strong> Aggregation over thousands of sites reveals the coverage trough at the protected binding centre. SNR scales as √N.</li>
+          <li><strong>Deep learning predicts regulatory output from sequence.</strong> Enformer, Borzoi — CNN + transformer architectures trained on ENCODE-scale data. Useful for variant effect prediction and cross-species transfer; less useful for uncommon cell types.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Methylation, Hi-C, and 3D genome organisation. Bisulfite sequencing as alignment-with-a-known-channel-flip; Hi-C contact maps as correlation matrices; TADs and A/B compartments as eigendecomposition + change-point detection.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Run MACS2 in narrow and broad mode on the ENCODE K562 CTCF ChIP-seq dataset. Compare the number, median width, and top-peak locations of the two outputs. Which mode fits CTCF biology?</li>
+          <li>Compute the fragment-length distribution of an ATAC-seq sample from ENCODE (e.g. GM12878). Annotate the sub / mono / di / tri nucleosomal peaks. Report the ratio of sub-nucleosomal to mono-nucleosomal fragments; this ratio varies by cell type and is informative.</li>
+          <li>Download two matched ATAC-seq conditions (e.g. control vs LPS-stimulated macrophages from GEO). Call a consensus peakset; build a counts matrix; run DiffBind or csaw; report: how many peaks change, what the top-10 gained / lost peaks are, which genes they fall near.</li>
+          <li>Pick a TF with a JASPAR motif (e.g. CTCF, MA0139.1). Scan a 100 kb region around a gene you're interested in for hits at p &lt; 10⁻⁴. How many hits in open-chromatin regions vs closed? Hit count vs actual ChIP peaks — what's the false-positive rate?</li>
+          <li>Pick a TF with a clear footprint (CTCF is the canonical example). Run TOBIAS or HINT-ATAC on an ATAC-seq sample. Verify: is there a visible footprint at the motif centre? How does footprint depth correlate with local ATAC signal?</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Barski, A., Cuddapah, S., Cui, K., et al. (2007). High-resolution profiling of histone methylations in the human genome. <em>Cell</em> 129, 823–837. (Early ChIP-seq.)</li>
+          <li>Buenrostro, J. D., Giresi, P. G., Zaba, L. C., Chang, H. Y., &amp; Greenleaf, W. J. (2013). Transposition of native chromatin for fast and sensitive epigenomic profiling of open chromatin, DNA-binding proteins and nucleosome position. <em>Nature Methods</em> 10, 1213–1218. (The ATAC-seq paper.)</li>
+          <li>Zhang, Y., Liu, T., Meyer, C. A., et al. (2008). Model-based analysis of ChIP-Seq (MACS). <em>Genome Biology</em> 9, R137.</li>
+          <li>Feng, J., Liu, T., Qin, B., Zhang, Y., &amp; Liu, X. S. (2012). Identifying ChIP-seq enrichment using MACS. <em>Nature Protocols</em> 7, 1728–1740.</li>
+          <li>ENCODE Project Consortium (2012). An integrated encyclopedia of DNA elements in the human genome. <em>Nature</em> 489, 57–74.</li>
+          <li>Amemiya, H. M., Kundaje, A., &amp; Boyle, A. P. (2019). The ENCODE blacklist: identification of problematic regions of the genome. <em>Scientific Reports</em> 9, 9354.</li>
+          <li>Ross-Innes, C. S., Stark, R., Teschendorff, A. E., et al. (2012). Differential oestrogen receptor binding is associated with clinical outcome in breast cancer. <em>Nature</em> 481, 389–393.</li>
+          <li>Lun, A. T. L., &amp; Smyth, G. K. (2016). csaw: a Bioconductor package for differential binding analysis of ChIP-seq data using sliding windows. <em>Nucleic Acids Research</em> 44, e45.</li>
+          <li>Castro-Mondragon, J. A., Riudavets-Puig, R., Rauluseviciute, I., et al. (2022). JASPAR 2022: the 9th release of the open-access database of transcription factor binding profiles. <em>Nucleic Acids Research</em> 50, D165–D173.</li>
+          <li>Bentsen, M., Goymann, P., Schultheis, H., et al. (2020). ATAC-seq footprinting unravels kinetics of transcription factor binding during zygotic genome activation. <em>Nature Communications</em> 11, 4267. (TOBIAS paper.)</li>
+          <li>Avsec, Ž., Agarwal, V., Visentin, D., et al. (2021). Effective gene expression prediction from sequence by integrating long-range interactions. <em>Nature Methods</em> 18, 1196–1203.</li>
+          <li>MACS3 documentation: <a href="https://macs3-project.github.io/MACS/" target="_blank" rel="noopener">macs3-project.github.io/MACS</a></li>
+          <li>TOBIAS tutorial: <a href="https://github.molgen.mpg.de/loosolab/TOBIAS/" target="_blank" rel="noopener">github.molgen.mpg.de/loosolab/TOBIAS</a></li>
+          <li>JASPAR database: <a href="https://jaspar.genereg.net/" target="_blank" rel="noopener">jaspar.genereg.net</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — What ChIP-seq and ATAC-seq Measure</td>      <td>25&nbsp;min</td><td>0:25</td></tr>
+            <tr><td>Part 2 — Library Prep, Biases, and Alignment</td>     <td>35&nbsp;min</td><td>1:00</td></tr>
+            <tr><td>Part 3 — Peak Calling as Detection</td>                <td>60&nbsp;min</td><td>2:00</td></tr>
+            <tr><td>Part 4 — Differential Binding and Accessibility</td>   <td>30&nbsp;min</td><td>2:30</td></tr>
+            <tr><td>Part 5 — Motifs, Matched Filters, and Footprinting</td><td>35&nbsp;min</td><td>3:05</td></tr>
+            <tr><td>Part 6 — Sequence-to-Regulation Models</td>            <td>15&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                            <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys())
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) {
+          f.style.height = d.height + 'px';
+        }
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

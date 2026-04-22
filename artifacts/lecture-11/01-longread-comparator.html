@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Long-Read vs Short-Read Comparator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem 1.5rem;
+      align-items: start;
+    }
+    @media (max-width: 720px) {
+      .controls-grid { grid-template-columns: 1fr; }
+    }
+
+    .ctrl-wrap select {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.5rem 0.7rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      width: 100%;
+    }
+    .ctrl-wrap select:focus {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: 1px;
+    }
+
+    .tech-swatch {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 2px;
+      vertical-align: middle;
+      margin-right: 0.4rem;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 0.75rem;
+    }
+    .metric-card {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      padding: 0.7rem 0.85rem;
+    }
+    .metric-card .label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin: 0 0 0.3rem;
+    }
+    .metric-card .value {
+      font-family: var(--font-mono);
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--fg);
+      line-height: 1.2;
+    }
+    .metric-card .sub {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.2rem;
+    }
+    .metric-card.accent-tech { border-left-color: var(--tech-color, var(--accent)); }
+    .metric-card.accent-good { border-left-color: var(--success); }
+    .metric-card.accent-warn { border-left-color: var(--warning); }
+    .metric-card.accent-bad  { border-left-color: var(--error); }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-relaxed);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      margin-top: 0.65rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      flex-wrap: wrap;
+    }
+    .legend-grad {
+      display: inline-block;
+      width: 160px;
+      height: 10px;
+      border-radius: 2px;
+      background: linear-gradient(to right, #f7f3eb, #c7d8c8, #4f9c61, #1e5a2d);
+      border: 1px solid var(--border);
+    }
+    .legend-ticks {
+      display: inline-flex;
+      justify-content: space-between;
+      width: 160px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--fg-subtle);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="longread-comparator">
+
+  <header class="artifact-head">
+    <h1>Long-Read vs Short-Read Comparator</h1>
+    <p>Pick a sequencing technology and a genomic feature type. The metric cards show the expected performance for that combination; the heatmap shows recall across every tech on every feature. The aha is that no platform wins everywhere — Illumina nails SNPs, PacBio HiFi owns mid-size SVs, ONT ultra-long is the only thing that crosses a centromere.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="controls-grid">
+      <div class="ctrl-wrap">
+        <label class="field-label" for="tech-select">Sequencing technology</label>
+        <select id="tech-select">
+          <option value="illumina">Illumina (150 bp PE short reads)</option>
+          <option value="hifi">PacBio HiFi (CCS, ~15 kb)</option>
+          <option value="ont_r104">ONT R10.4 (10-30 kb)</option>
+          <option value="ont_ul">ONT ultra-long (100 kb+)</option>
+        </select>
+      </div>
+
+      <div class="ctrl-wrap">
+        <label class="field-label" for="feature-select">Target genomic feature</label>
+        <select id="feature-select">
+          <option value="snp">SNP</option>
+          <option value="small_indel">small indel (&lt; 50 bp)</option>
+          <option value="sv_5kb">5 kb SV (mid-size)</option>
+          <option value="sv_100kb">100 kb SV (large)</option>
+          <option value="tandem_repeat">tandem repeat (VNTR/STR)</option>
+          <option value="centromere">centromere / satellite array</option>
+          <option value="haplotype">haplotype phasing</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Current combination</p>
+    <div class="metric-grid" id="metric-grid"></div>
+    <div class="banner" id="banner"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Recall heatmap (tech x feature)</p>
+    <div class="plot-wrap">
+      <svg id="heatmap-svg" class="plot-svg" viewBox="0 0 1000 360" preserveAspectRatio="xMidYMid meet" aria-label="Recall heatmap across four sequencing technologies and seven feature classes"></svg>
+    </div>
+    <div class="legend-row">
+      <span>recall</span>
+      <span>
+        <span class="legend-grad"></span>
+        <div class="legend-ticks"><span>0.0</span><span>0.5</span><span>1.0</span></div>
+      </span>
+      <span style="margin-left:auto">cells annotated with recall value; selected cell outlined.</span>
+    </div>
+    <p class="plot-caption">Values are rough 2024-era benchmarks (GIAB / HG002 / CHM13 truth sets, GRCh38 / T2T-CHM13). Treat absolute numbers as order-of-magnitude — the point is the pattern.</p>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Platform & feature metadata ──────────────────────────
+  //
+  // Colours follow the lecture-11 brief: PacBio HiFi cobalt, ONT green,
+  // Illumina grey. ONT UL is a slightly darker green to visually separate
+  // it from R10.4 on the heatmap legend and on the metric card border.
+  const TECHS = [
+    { key: 'illumina',  label: 'Illumina 150 PE',   color: '#8a8a85',
+      read_len: '150 bp',  accuracy: '99.9%',   coverage: '30x',
+      blurb: 'short paired-end reads; industry workhorse' },
+    { key: 'hifi',      label: 'PacBio HiFi',       color: '#1e3a8a',
+      read_len: '~15 kb',  accuracy: '99.9% (Q30+)', coverage: '20-30x',
+      blurb: 'long reads with short-read-level base quality' },
+    { key: 'ont_r104',  label: 'ONT R10.4',         color: '#2d7a3e',
+      read_len: '10-30 kb', accuracy: '~99%',    coverage: '25-40x',
+      blurb: 'long reads, native modifications, low cost / run' },
+    { key: 'ont_ul',    label: 'ONT ultra-long',    color: '#1f5a2d',
+      read_len: '100 kb+', accuracy: '~98%',    coverage: '20-30x',
+      blurb: 'the only platform that reliably traverses centromeres' },
+  ];
+  const TECH_BY_KEY = Object.fromEntries(TECHS.map(t => [t.key, t]));
+
+  const FEATURES = [
+    { key: 'snp',            label: 'SNP',             short: 'SNP' },
+    { key: 'small_indel',    label: 'small indel',     short: 'indel' },
+    { key: 'sv_5kb',         label: '5 kb SV',         short: '5 kb SV' },
+    { key: 'sv_100kb',       label: '100 kb SV',       short: '100 kb SV' },
+    { key: 'tandem_repeat',  label: 'tandem repeat',   short: 'VNTR/STR' },
+    { key: 'centromere',     label: 'centromere',      short: 'centromere' },
+    { key: 'haplotype',      label: 'haplotype phasing', short: 'phasing' },
+  ];
+  const FEAT_BY_KEY = Object.fromEntries(FEATURES.map(f => [f.key, f]));
+
+  // ── Recall matrix (tech x feature) ───────────────────────
+  //
+  // Values are rough 2024-era benchmark numbers. The exact numbers are
+  // approximations; the *pattern* is what teaches the lesson.
+  const RECALL = {
+    illumina:  { snp: 0.99, small_indel: 0.95, sv_5kb: 0.58, sv_100kb: 0.20, tandem_repeat: 0.35, centromere: 0.05, haplotype: 0.50 },
+    hifi:      { snp: 0.98, small_indel: 0.97, sv_5kb: 0.96, sv_100kb: 0.72, tandem_repeat: 0.90, centromere: 0.40, haplotype: 0.90 },
+    ont_r104:  { snp: 0.96, small_indel: 0.92, sv_5kb: 0.95, sv_100kb: 0.88, tandem_repeat: 0.93, centromere: 0.70, haplotype: 0.92 },
+    ont_ul:    { snp: 0.94, small_indel: 0.90, sv_5kb: 0.97, sv_100kb: 0.98, tandem_repeat: 0.96, centromere: 0.95, haplotype: 0.99 },
+  };
+
+  // Precision tends to be similar to recall but generally higher, especially
+  // on the hard end (platforms that can't see a feature at all have very few
+  // false positives — you just get nothing). Short-read SV calls are the
+  // notable exception: precision is better than recall but still modest.
+  const PRECISION = {
+    illumina:  { snp: 0.995, small_indel: 0.97, sv_5kb: 0.88, sv_100kb: 0.60, tandem_repeat: 0.70, centromere: 0.40, haplotype: 0.75 },
+    hifi:      { snp: 0.995, small_indel: 0.98, sv_5kb: 0.98, sv_100kb: 0.92, tandem_repeat: 0.95, centromere: 0.80, haplotype: 0.96 },
+    ont_r104:  { snp: 0.985, small_indel: 0.95, sv_5kb: 0.96, sv_100kb: 0.94, tandem_repeat: 0.94, centromere: 0.85, haplotype: 0.95 },
+    ont_ul:    { snp: 0.98,  small_indel: 0.93, sv_5kb: 0.97, sv_100kb: 0.98, tandem_repeat: 0.96, centromere: 0.96, haplotype: 0.99 },
+  };
+
+  // Minimum practical coverage for solid performance on this feature.
+  // Sits *next* to the global coverage figure on the metric cards so the
+  // student sees e.g. "need 30x short-read for SNPs vs 15x HiFi".
+  const COVERAGE_NEEDED = {
+    illumina:  { snp: '30x', small_indel: '30x', sv_5kb: '50x', sv_100kb: '60x+', tandem_repeat: '40x', centromere: 'infeasible', haplotype: '30x + trio/LD' },
+    hifi:      { snp: '15x', small_indel: '15x', sv_5kb: '15x', sv_100kb: '20x', tandem_repeat: '15x', centromere: '25-30x', haplotype: '20x' },
+    ont_r104:  { snp: '25x', small_indel: '25x', sv_5kb: '20x', sv_100kb: '25x', tandem_repeat: '20x', centromere: '30-40x', haplotype: '25x' },
+    ont_ul:    { snp: '25x', small_indel: '25x', sv_5kb: '20x', sv_100kb: '20x', tandem_repeat: '20x', centromere: '25x', haplotype: '20x' },
+  };
+
+  // ── Outcome banner copy ─────────────────────────────────
+  //
+  // A templated one-liner per combination would be 28 lines; instead we
+  // compose the banner from the numbers plus a small lookup of feature-
+  // specific context. Where one tech dominates the feature, we call it out.
+  const FEATURE_NOTES = {
+    snp: {
+      winner: 'illumina',
+      context: 'SNPs are where Illumina remains effectively unbeatable — cheap, accurate, and recall near 1.0. Long reads are competitive but not worth the cost premium if SNPs are all you need.',
+    },
+    small_indel: {
+      winner: 'hifi',
+      context: 'Small indels (< 50 bp) are well-handled by most platforms; HiFi edges ahead because long reads resolve indels inside repeat context that short reads stumble on.',
+    },
+    sv_5kb: {
+      winner: 'hifi',
+      context: 'This is the canonical long-read win. Short reads (300 bp insert spans) can detect 5 kb SVs via split / paired-end signals but recall tops out near 60%; HiFi/ONT see them directly.',
+    },
+    sv_100kb: {
+      winner: 'ont_ul',
+      context: 'Above ~30 kb SVs become hard even for 15-kb HiFi; ONT R10.4 and especially ultra-long are the natural tools. Assembly-based SV calling pulls further ahead here.',
+    },
+    tandem_repeat: {
+      winner: 'ont_ul',
+      context: 'VNTRs and long STRs defeat short reads because the read must span the repeat to size it. Long reads span; ultra-long spans the longest expansions (FMR1, C9orf72, RFC1).',
+    },
+    centromere: {
+      winner: 'ont_ul',
+      context: 'Centromeres are megabases of near-identical alpha-satellite HOR. The T2T consortium finished them with ONT ultra-long; no other platform can resolve them today.',
+    },
+    haplotype: {
+      winner: 'ont_ul',
+      context: 'Phasing needs reads that span multiple heterozygous variants. Long reads phase directly from a single read; short reads need trio data or population LD and still cap out around 50% switch-error-free blocks.',
+    },
+  };
+
+  // ── State ────────────────────────────────────────────────
+  const state = {
+    tech: 'hifi',
+    feature: 'sv_5kb',
+  };
+
+  // ── DOM refs ─────────────────────────────────────────────
+  const techSel = $('tech-select');
+  const featSel = $('feature-select');
+  const metricGrid = $('metric-grid');
+  const banner = $('banner');
+  const hmSvg = $('heatmap-svg');
+
+  // ── Colour helpers ──────────────────────────────────────
+  //
+  // Heatmap ramp: near-zero recall is the paper-cream background tint
+  // (so the "cannot resolve" cells read as dim, not alarming); high
+  // recall lands on a deep green that echoes the ONT / success palette.
+  // Linear interpolation between four stops gives a smooth ramp.
+  const HM_STOPS = [
+    { t: 0.0,  rgb: [247, 243, 235] },   // cream
+    { t: 0.45, rgb: [199, 216, 200] },   // sage
+    { t: 0.8,  rgb: [79,  156, 97 ] },   // mid green
+    { t: 1.0,  rgb: [30,  90,  45 ] },   // deep green
+  ];
+  function lerpRgb(a, b, f) {
+    return [
+      Math.round(a[0] + (b[0] - a[0]) * f),
+      Math.round(a[1] + (b[1] - a[1]) * f),
+      Math.round(a[2] + (b[2] - a[2]) * f),
+    ];
+  }
+  function recallColor(v) {
+    const t = Math.max(0, Math.min(1, v));
+    for (let i = 0; i < HM_STOPS.length - 1; i++) {
+      const a = HM_STOPS[i], b = HM_STOPS[i + 1];
+      if (t >= a.t && t <= b.t) {
+        const f = (t - a.t) / (b.t - a.t);
+        const rgb = lerpRgb(a.rgb, b.rgb, f);
+        return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+      }
+    }
+    const last = HM_STOPS[HM_STOPS.length - 1].rgb;
+    return `rgb(${last[0]},${last[1]},${last[2]})`;
+  }
+  // Pick a label colour with enough contrast against the cell fill.
+  // Light cells need dark text; dark cells need light text. Threshold
+  // picked empirically against the gradient above.
+  function labelColor(v) {
+    return v < 0.55 ? '#333' : '#fff';
+  }
+
+  // ── Rendering: SVG helpers ──────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // ── Metric cards ────────────────────────────────────────
+  function recallClass(v) {
+    if (v >= 0.85) return 'accent-good';
+    if (v >= 0.55) return 'accent-warn';
+    return 'accent-bad';
+  }
+  function fmtPct(v) { return (v * 100).toFixed(v >= 0.995 ? 1 : 0) + '%'; }
+
+  function renderMetrics() {
+    const tech = TECH_BY_KEY[state.tech];
+    const feat = FEAT_BY_KEY[state.feature];
+    const recall = RECALL[state.tech][state.feature];
+    const precision = PRECISION[state.tech][state.feature];
+    const cov = COVERAGE_NEEDED[state.tech][state.feature];
+
+    const cards = [
+      {
+        label: 'Technology',
+        value: tech.label,
+        sub: tech.blurb,
+        cls: 'accent-tech',
+        style: `--tech-color:${tech.color}`,
+      },
+      {
+        label: 'Read length',
+        value: tech.read_len,
+        sub: 'typical N50',
+      },
+      {
+        label: 'Per-base accuracy',
+        value: tech.accuracy,
+        sub: 'raw consensus',
+      },
+      {
+        label: 'Coverage needed',
+        value: cov,
+        sub: `vs ${tech.coverage} typical run`,
+      },
+      {
+        label: 'Precision',
+        value: fmtPct(precision),
+        sub: `on ${feat.label}`,
+        cls: recallClass(precision),
+      },
+      {
+        label: 'Recall',
+        value: fmtPct(recall),
+        sub: `on ${feat.label}`,
+        cls: recallClass(recall),
+      },
+    ];
+
+    metricGrid.innerHTML = '';
+    for (const c of cards) {
+      const div = document.createElement('div');
+      div.className = 'metric-card ' + (c.cls || '');
+      if (c.style) div.setAttribute('style', c.style);
+      div.innerHTML = `
+        <p class="label">${c.label}</p>
+        <div class="value">${c.value}</div>
+        <div class="sub">${c.sub}</div>`;
+      metricGrid.appendChild(div);
+    }
+  }
+
+  // ── Outcome banner ──────────────────────────────────────
+  //
+  // Compose a short story: "<tech> on <feature> hits X / Y; the best
+  // alternative is <other> at Z. <domain caveat>."
+  function renderBanner() {
+    const tech = TECH_BY_KEY[state.tech];
+    const feat = FEAT_BY_KEY[state.feature];
+    const rec = RECALL[state.tech][state.feature];
+    const prec = PRECISION[state.tech][state.feature];
+
+    // Find the best alternative (not the current tech) by recall.
+    let bestAlt = null, bestAltR = -1;
+    for (const t of TECHS) {
+      if (t.key === state.tech) continue;
+      const r = RECALL[t.key][state.feature];
+      if (r > bestAltR) { bestAltR = r; bestAlt = t; }
+    }
+
+    const note = FEATURE_NOTES[state.feature];
+    const winner = TECH_BY_KEY[note.winner];
+
+    // How we frame the headline depends on the gap between current tech
+    // and the best alternative. Big gap upward → "switch would help";
+    // current is winner → "you've already picked the right tool";
+    // otherwise just present the numbers.
+    let headline;
+    const gap = bestAltR - rec;
+    if (state.tech === note.winner) {
+      headline = `<b>${tech.label}</b> is the right tool for <b>${feat.label}</b> — recall ${fmtPct(rec)}, precision ${fmtPct(prec)}.`;
+    } else if (gap >= 0.25) {
+      headline = `<b>${tech.label}</b> struggles on <b>${feat.label}</b>: recall ${fmtPct(rec)} vs <b>${bestAlt.label}</b> at ${fmtPct(bestAltR)}. Switching platforms gains <b>${fmtPct(gap)}</b> of recall.`;
+    } else if (gap >= 0.05) {
+      headline = `<b>${tech.label}</b> on <b>${feat.label}</b>: recall ${fmtPct(rec)}. <b>${bestAlt.label}</b> is modestly better at ${fmtPct(bestAltR)}.`;
+    } else {
+      headline = `<b>${tech.label}</b> on <b>${feat.label}</b>: recall ${fmtPct(rec)} — on par with the best alternative (<b>${bestAlt.label}</b> at ${fmtPct(bestAltR)}).`;
+    }
+
+    let context = note.context;
+    // Extra nudge: if current tech is the global winner, mention it by name.
+    if (state.tech !== note.winner) {
+      context += ` Globally the sweet spot for ${feat.label} is ${winner.label} (recall ${fmtPct(RECALL[note.winner][state.feature])}).`;
+    }
+
+    banner.innerHTML = `${headline}<br>${context}`;
+  }
+
+  // ── Heatmap ─────────────────────────────────────────────
+  const HM_W = 1000, HM_H = 360;
+  const HM_PAD_L = 170, HM_PAD_R = 20, HM_PAD_T = 56, HM_PAD_B = 28;
+  const HM_PLOT_W = HM_W - HM_PAD_L - HM_PAD_R;
+  const HM_PLOT_H = HM_H - HM_PAD_T - HM_PAD_B;
+
+  function renderHeatmap() {
+    clear(hmSvg);
+
+    const nRows = TECHS.length;
+    const nCols = FEATURES.length;
+    const cellW = HM_PLOT_W / nCols;
+    const cellH = HM_PLOT_H / nRows;
+
+    // Column headers (feature names). Rotate slightly so long labels fit.
+    for (let c = 0; c < nCols; c++) {
+      const f = FEATURES[c];
+      const cx = HM_PAD_L + (c + 0.5) * cellW;
+      const cy = HM_PAD_T - 10;
+      const label = el('text', {
+        x: cx, y: cy,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-sans)',
+        'font-size': 11,
+        'font-weight': 600,
+        fill: 'var(--fg)',
+      }, f.short);
+      // highlight selected feature column header
+      if (f.key === state.feature) {
+        label.setAttribute('fill', 'var(--accent)');
+      }
+      hmSvg.appendChild(label);
+    }
+
+    // Row headers (tech labels with colour chip).
+    for (let r = 0; r < nRows; r++) {
+      const t = TECHS[r];
+      const rowY = HM_PAD_T + (r + 0.5) * cellH;
+      // colour chip
+      hmSvg.appendChild(el('rect', {
+        x: 10, y: rowY - 6, width: 12, height: 12,
+        fill: t.color, rx: 2,
+        stroke: 'var(--border-strong)', 'stroke-width': 0.5,
+      }));
+      // label
+      const lbl = el('text', {
+        x: 28, y: rowY + 4,
+        'font-family': 'var(--font-sans)',
+        'font-size': 12,
+        'font-weight': t.key === state.tech ? 700 : 500,
+        fill: t.key === state.tech ? 'var(--accent)' : 'var(--fg)',
+      }, t.label);
+      hmSvg.appendChild(lbl);
+    }
+
+    // Cells.
+    for (let r = 0; r < nRows; r++) {
+      const t = TECHS[r];
+      for (let c = 0; c < nCols; c++) {
+        const f = FEATURES[c];
+        const v = RECALL[t.key][f.key];
+        const x = HM_PAD_L + c * cellW;
+        const y = HM_PAD_T + r * cellH;
+        const selected = t.key === state.tech && f.key === state.feature;
+
+        hmSvg.appendChild(el('rect', {
+          x: x + 2, y: y + 2,
+          width: cellW - 4, height: cellH - 4,
+          fill: recallColor(v),
+          stroke: selected ? 'var(--accent)' : 'var(--border-strong)',
+          'stroke-width': selected ? 2.5 : 0.5,
+          rx: 3,
+        }));
+
+        hmSvg.appendChild(el('text', {
+          x: x + cellW / 2,
+          y: y + cellH / 2 + 4,
+          'text-anchor': 'middle',
+          'font-family': 'var(--font-mono)',
+          'font-size': 13,
+          'font-weight': 600,
+          fill: labelColor(v),
+        }, v.toFixed(2)));
+      }
+    }
+
+    // Subtle caption below.
+    hmSvg.appendChild(el('text', {
+      x: HM_PAD_L + HM_PLOT_W / 2,
+      y: HM_H - 6,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)',
+      'font-size': 10,
+      fill: 'var(--fg-subtle)',
+      'letter-spacing': '0.08em',
+    }, 'recall; higher is better; selected cell outlined'));
+  }
+
+  // ── Update orchestration ────────────────────────────────
+  function render() {
+    renderMetrics();
+    renderBanner();
+    renderHeatmap();
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  techSel.addEventListener('change', () => {
+    state.tech = techSel.value;
+    render();
+  });
+  featSel.addEventListener('change', () => {
+    state.feature = featSel.value;
+    render();
+  });
+
+  // ── Boot ────────────────────────────────────────────────
+  techSel.value = state.tech;
+  featSel.value = state.feature;
+  render();
+})();
+</script>
+
+</body>
+</html>

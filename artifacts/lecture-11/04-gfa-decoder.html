@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GFA Format Decoder</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 78ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      margin-bottom: 0.85rem;
+    }
+    .controls-row .ctrl {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      min-width: 200px;
+    }
+
+    select, textarea {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      padding: 0.4rem 0.55rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--fg);
+    }
+    select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      line-height: 1.5;
+      resize: vertical;
+      tab-size: 4;
+      white-space: pre;
+    }
+    textarea[readonly] {
+      background: var(--bg-muted);
+      color: var(--fg);
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .tally-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-bottom: 0.75rem;
+    }
+    .tally-strip b { color: var(--fg); font-weight: 600; }
+    .tally-strip .sep { color: var(--fg-subtle); }
+    .tally-strip .err b { color: var(--error); }
+    .tally-strip .ok b { color: var(--success); }
+
+    /* ── Line-type legend ───────────────────────────────── */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.6rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-bottom: 0.75rem;
+    }
+    .legend .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.12rem 0.45rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-muted);
+    }
+    .legend .swatch {
+      width: 10px; height: 10px;
+      border-radius: 2px;
+      border: 1px solid rgba(0,0,0,0.15);
+    }
+
+    /* ── Graph SVG ──────────────────────────────────────── */
+    .graph-wrap {
+      width: 100%;
+      overflow: auto;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem;
+    }
+    svg.graph {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    svg.graph .node-rect {
+      fill: #e0f2fe;
+      stroke: #0369a1;
+      stroke-width: 1.5;
+      cursor: pointer;
+      transition: fill 0.12s, stroke 0.12s;
+    }
+    svg.graph .node-rect.dim {
+      fill: #f1f5f9;
+      stroke: #cbd5e1;
+    }
+    svg.graph .node-rect.hl {
+      fill: #fef3c7;
+      stroke: #b45309;
+      stroke-width: 2.2;
+    }
+    svg.graph .node-label {
+      fill: #0c4a6e;
+      font-weight: 600;
+      pointer-events: none;
+    }
+    svg.graph .node-rect.hl + .node-label,
+    svg.graph .node-label.hl {
+      fill: #78350f;
+    }
+    svg.graph .edge-line {
+      stroke: #64748b;
+      stroke-width: 1.4;
+      fill: none;
+      opacity: 0.75;
+    }
+    svg.graph .edge-line.dim { opacity: 0.25; }
+    svg.graph .path-trace {
+      fill: none;
+      stroke-width: 3;
+      opacity: 0.45;
+      pointer-events: stroke;
+      cursor: pointer;
+    }
+    svg.graph .path-trace:hover,
+    svg.graph .path-trace.hl { opacity: 0.95; }
+
+    /* ── Error list ─────────────────────────────────────── */
+    .err-list {
+      margin: 0.5rem 0 0;
+      padding: 0;
+      list-style: none;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+    .err-list li {
+      padding: 0.25rem 0.5rem;
+      border-left: 3px solid var(--error);
+      background: #fef2f2;
+      color: var(--fg);
+      margin-bottom: 0.25rem;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+    .err-list li .ln {
+      display: inline-block;
+      min-width: 3.5em;
+      font-weight: 600;
+      color: var(--error);
+    }
+
+    /* ── Path legend / picker ───────────────────────────── */
+    .path-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.35rem;
+    }
+    .path-chip {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      padding: 0.25rem 0.55rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .path-chip .pswatch {
+      width: 10px; height: 10px;
+      border-radius: 2px;
+      border: 1px solid rgba(0,0,0,0.15);
+    }
+    .path-chip.active {
+      background: #fef3c7;
+      border-color: #b45309;
+      color: #78350f;
+      font-weight: 600;
+    }
+
+    /* ── Banner / outcome ───────────────────────────────── */
+    .banner {
+      background: #f0fdf4;
+      border: 1px solid var(--success);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.95rem 1.1rem;
+      margin-top: 1rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-relaxed);
+    }
+    .banner.bad {
+      background: #fef2f2;
+      border-color: var(--error);
+    }
+    .banner .check {
+      color: var(--success);
+      font-weight: 700;
+      margin-right: 0.35rem;
+    }
+    .banner.bad .check { color: var(--error); }
+    .banner-row {
+      display: block;
+      margin-bottom: 0.3rem;
+    }
+    .banner-row:last-child { margin-bottom: 0; }
+    .banner .num {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--success);
+    }
+    .banner.bad .num { color: var(--error); }
+    .banner code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      background: rgba(0,0,0,0.05);
+      padding: 0.05rem 0.25rem;
+      border-radius: 3px;
+    }
+
+    /* ── Segment tooltip ────────────────────────────────── */
+    .seg-tip {
+      position: fixed;
+      pointer-events: none;
+      background: #111827;
+      color: #f9fafb;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 0.35rem 0.55rem;
+      border-radius: var(--radius-sm);
+      max-width: 360px;
+      word-break: break-all;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      z-index: 50;
+      display: none;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+    }
+    .seg-tip .tip-id {
+      color: #93c5fd;
+      font-weight: 600;
+      margin-right: 0.35rem;
+    }
+    .seg-tip .tip-len {
+      color: #9ca3af;
+      margin-left: 0.35rem;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="gfa-decoder">
+
+  <header class="artifact-head">
+    <h1>GFA Format Decoder</h1>
+    <p>GFA (Graphical Fragment Assembly) is a tab-separated text serialisation of a sequence graph. Every line is a record — <code>H</code> header, <code>S</code> segment (a node with a DNA sequence), <code>L</code> link (a directed edge joining two segment ends), <code>P</code> path (an ordered walk of oriented segments), <code>W</code> walk (the GFA 1.1 haplotype form). Paste or pick a preset below, and watch the text become a graph. Remove an <code>L</code> line, break the paths. Drop a field from an <code>S</code> line, get a line-numbered error.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">GFA input</p>
+
+    <div class="controls-row">
+      <div class="ctrl">
+        <label class="field-label" for="preset-select">Preset</label>
+        <select id="preset-select">
+          <option value="hap2">2-hap small</option>
+          <option value="hap3">3-hap with SV</option>
+          <option value="hap4">4-hap diverse</option>
+          <option value="custom">custom paste</option>
+        </select>
+      </div>
+      <div class="ctrl" style="flex: 1; min-width: 260px;">
+        <span class="field-label">Line-type colour key</span>
+        <div class="legend">
+          <span class="chip"><span class="swatch" style="background:#64748b"></span>H header</span>
+          <span class="chip"><span class="swatch" style="background:#0ea5e9"></span>S segment</span>
+          <span class="chip"><span class="swatch" style="background:#16a34a"></span>L link</span>
+          <span class="chip"><span class="swatch" style="background:#dc2626"></span>P path</span>
+          <span class="chip"><span class="swatch" style="background:#9333ea"></span>W walk</span>
+        </div>
+      </div>
+      <button class="btn btn--primary" id="parse-btn" type="button">Parse now</button>
+    </div>
+
+    <label class="field-label" for="gfa-input">GFA text (tab-separated)</label>
+    <textarea id="gfa-input" spellcheck="false" readonly></textarea>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Parsed graph</p>
+
+    <div class="tally-strip" id="tally-strip"></div>
+
+    <div class="graph-wrap">
+      <svg class="graph" id="graph-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <div style="margin-top: 0.85rem;">
+      <span class="field-label">Paths &middot; hover or click to highlight</span>
+      <div class="path-list" id="path-list"></div>
+    </div>
+
+    <div class="banner" id="banner">
+      <span class="banner-row" id="banner-line1"></span>
+      <span class="banner-row" id="banner-line2"></span>
+    </div>
+
+    <ul class="err-list" id="err-list"></ul>
+  </section>
+</main>
+
+<div class="seg-tip" id="seg-tip"></div>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  // ─────────────────────────────────────────────────────────
+  //  Preset GFAs
+  // ─────────────────────────────────────────────────────────
+  // Tabs are hard TAB characters as required by the GFA spec.
+  const T = '\t';
+  const PRESETS = {
+    hap2: [
+      'H' + T + 'VN:Z:1.0',
+      'S' + T + 's1' + T + 'ACGTACGT',
+      'S' + T + 's2' + T + 'GGGA',
+      'S' + T + 's3' + T + 'TTTC',
+      'S' + T + 's4' + T + 'CCGGAATT',
+      'L' + T + 's1' + T + '+' + T + 's2' + T + '+' + T + '0M',
+      'L' + T + 's1' + T + '+' + T + 's3' + T + '+' + T + '0M',
+      'L' + T + 's2' + T + '+' + T + 's4' + T + '+' + T + '0M',
+      'L' + T + 's3' + T + '+' + T + 's4' + T + '+' + T + '0M',
+      'P' + T + 'hapA' + T + 's1+,s2+,s4+' + T + '*',
+      'P' + T + 'hapB' + T + 's1+,s3+,s4+' + T + '*',
+    ].join('\n'),
+
+    hap3: [
+      'H' + T + 'VN:Z:1.0',
+      'S' + T + 'a' + T + 'ATGCATGCATGC',
+      'S' + T + 'b' + T + 'GGGTTT',
+      'S' + T + 'c' + T + 'CCCAAA',
+      'S' + T + 'd' + T + 'AAGGTTCC',
+      'S' + T + 'e' + T + 'GCATGCATGCATGCATGCAT',
+      'S' + T + 'f' + T + 'TTAACCGG',
+      'L' + T + 'a' + T + '+' + T + 'b' + T + '+' + T + '0M',
+      'L' + T + 'a' + T + '+' + T + 'c' + T + '+' + T + '0M',
+      'L' + T + 'a' + T + '+' + T + 'e' + T + '+' + T + '0M',
+      'L' + T + 'b' + T + '+' + T + 'd' + T + '+' + T + '0M',
+      'L' + T + 'c' + T + '+' + T + 'd' + T + '+' + T + '0M',
+      'L' + T + 'd' + T + '+' + T + 'f' + T + '+' + T + '0M',
+      'L' + T + 'e' + T + '+' + T + 'f' + T + '+' + T + '0M',
+      'P' + T + 'hap1' + T + 'a+,b+,d+,f+' + T + '*',
+      'P' + T + 'hap2' + T + 'a+,c+,d+,f+' + T + '*',
+      'P' + T + 'hap3_SV' + T + 'a+,e+,f+' + T + '*',
+    ].join('\n'),
+
+    hap4: [
+      'H' + T + 'VN:Z:1.1',
+      'S' + T + 'n1' + T + 'ATCGATCG',
+      'S' + T + 'n2' + T + 'GGGG',
+      'S' + T + 'n3' + T + 'AAAA',
+      'S' + T + 'n4' + T + 'CGCGAT',
+      'S' + T + 'n5' + T + 'TATATACG',
+      'S' + T + 'n6' + T + 'GGTT',
+      'S' + T + 'n7' + T + 'CCAA',
+      'S' + T + 'n8' + T + 'AACCGGTT',
+      'S' + T + 'n9' + T + 'TTTTAAAA',
+      'S' + T + 'n10' + T + 'GCGCATAT',
+      'L' + T + 'n1' + T + '+' + T + 'n2' + T + '+' + T + '0M',
+      'L' + T + 'n1' + T + '+' + T + 'n3' + T + '+' + T + '0M',
+      'L' + T + 'n2' + T + '+' + T + 'n4' + T + '+' + T + '0M',
+      'L' + T + 'n3' + T + '+' + T + 'n4' + T + '+' + T + '0M',
+      'L' + T + 'n4' + T + '+' + T + 'n5' + T + '+' + T + '0M',
+      'L' + T + 'n4' + T + '+' + T + 'n9' + T + '+' + T + '0M',
+      'L' + T + 'n5' + T + '+' + T + 'n6' + T + '+' + T + '0M',
+      'L' + T + 'n5' + T + '+' + T + 'n7' + T + '+' + T + '0M',
+      'L' + T + 'n9' + T + '+' + T + 'n8' + T + '+' + T + '0M',
+      'L' + T + 'n6' + T + '+' + T + 'n8' + T + '+' + T + '0M',
+      'L' + T + 'n7' + T + '+' + T + 'n8' + T + '+' + T + '0M',
+      'L' + T + 'n8' + T + '+' + T + 'n10' + T + '+' + T + '0M',
+      'P' + T + 'hap_A' + T + 'n1+,n2+,n4+,n5+,n6+,n8+,n10+' + T + '*',
+      'P' + T + 'hap_B' + T + 'n1+,n3+,n4+,n5+,n7+,n8+,n10+' + T + '*',
+      'P' + T + 'hap_C' + T + 'n1+,n2+,n4+,n9+,n8+,n10+' + T + '*',
+      'P' + T + 'hap_D' + T + 'n1+,n3+,n4+,n5+,n6+,n8+,n10+' + T + '*',
+      'W' + T + 'sampleX' + T + '1' + T + 'chr1' + T + '0' + T + '30' + T + '>n1>n2>n4>n5>n6>n8>n10',
+    ].join('\n'),
+  };
+
+  // ─────────────────────────────────────────────────────────
+  //  Parser
+  // ─────────────────────────────────────────────────────────
+  // Returns { header, segments, links, paths, walks, errors }
+  // Errors carry line numbers (1-based) so we can report them.
+  function parseGFA(text) {
+    const lines = text.split('\n');
+    const out = {
+      header: [],
+      segments: new Map(),   // id -> { id, seq, line }
+      links: [],             // { from, fromOrient, to, toOrient, overlap, line }
+      paths: [],             // { name, steps:[{id,orient}], line, broken:[] }
+      walks: [],             // { sample, hap, chr, start, end, steps:[{id,orient}], line }
+      errors: [],            // { line, msg }
+    };
+    const seenSegments = new Set();
+
+    for (let i = 0; i < lines.length; i++) {
+      const raw = lines[i];
+      const lineNo = i + 1;
+      if (!raw || !raw.trim()) continue;           // blank line: skip
+      if (raw.startsWith('#')) continue;           // comment
+      const fields = raw.split('\t');
+      const tag = fields[0];
+
+      switch (tag) {
+        case 'H': {
+          out.header.push({ fields: fields.slice(1), line: lineNo });
+          break;
+        }
+        case 'S': {
+          if (fields.length < 3) {
+            out.errors.push({ line: lineNo, msg: 'S line missing fields (need: S<TAB>id<TAB>seq): ' + JSON.stringify(raw) });
+            break;
+          }
+          const id = fields[1];
+          const seq = fields[2];
+          if (!id) {
+            out.errors.push({ line: lineNo, msg: 'S line has empty segment ID' });
+            break;
+          }
+          if (!seq || seq === '*') {
+            // '*' means seq unspecified; we accept but note it has no sequence.
+          }
+          if (seenSegments.has(id)) {
+            out.errors.push({ line: lineNo, msg: 'duplicate segment ID "' + id + '"' });
+          } else {
+            seenSegments.add(id);
+            out.segments.set(id, { id, seq: seq === '*' ? '' : seq, line: lineNo });
+          }
+          break;
+        }
+        case 'L': {
+          if (fields.length < 5) {
+            out.errors.push({ line: lineNo, msg: 'L line missing fields (need: L<TAB>from<TAB>±<TAB>to<TAB>±<TAB>overlap)' });
+            break;
+          }
+          const from = fields[1], fromOrient = fields[2];
+          const to = fields[3], toOrient = fields[4];
+          const overlap = fields[5] || '0M';
+          if (fromOrient !== '+' && fromOrient !== '-') {
+            out.errors.push({ line: lineNo, msg: 'L line invalid from-orientation "' + fromOrient + '" (must be + or -)' });
+            break;
+          }
+          if (toOrient !== '+' && toOrient !== '-') {
+            out.errors.push({ line: lineNo, msg: 'L line invalid to-orientation "' + toOrient + '" (must be + or -)' });
+            break;
+          }
+          out.links.push({ from, fromOrient, to, toOrient, overlap, line: lineNo });
+          break;
+        }
+        case 'P': {
+          if (fields.length < 3) {
+            out.errors.push({ line: lineNo, msg: 'P line missing fields (need: P<TAB>name<TAB>path_string)' });
+            break;
+          }
+          const name = fields[1];
+          const pathStr = fields[2];
+          const stepsRaw = pathStr.split(',');
+          const steps = [];
+          let ok = true;
+          for (const s of stepsRaw) {
+            const m = s.match(/^([^+\-]+)([+\-])$/);
+            if (!m) {
+              out.errors.push({ line: lineNo, msg: 'P path step "' + s + '" must end with + or -' });
+              ok = false;
+              break;
+            }
+            steps.push({ id: m[1], orient: m[2] });
+          }
+          if (ok) out.paths.push({ name, steps, line: lineNo, broken: [] });
+          break;
+        }
+        case 'W': {
+          if (fields.length < 7) {
+            out.errors.push({ line: lineNo, msg: 'W line missing fields (need: W<TAB>sample<TAB>hap<TAB>chr<TAB>start<TAB>end<TAB>walk)' });
+            break;
+          }
+          const sample = fields[1], hap = fields[2], chr = fields[3];
+          const start = fields[4], end = fields[5], walkStr = fields[6];
+          // walk = sequence of (>|<)segId tokens
+          const steps = [];
+          const re = /([<>])([^<>]+)/g;
+          let m;
+          let consumed = 0;
+          while ((m = re.exec(walkStr)) !== null) {
+            steps.push({ id: m[2], orient: m[1] === '>' ? '+' : '-' });
+            consumed = re.lastIndex;
+          }
+          if (consumed !== walkStr.length) {
+            out.errors.push({ line: lineNo, msg: 'W walk string malformed (expected >seg1>seg2 or <seg1<seg2 tokens): ' + walkStr });
+            break;
+          }
+          out.walks.push({ sample, hap, chr, start, end, steps, line: lineNo });
+          break;
+        }
+        default: {
+          out.errors.push({ line: lineNo, msg: 'unknown line type "' + tag + '" (expected H/S/L/P/W)' });
+        }
+      }
+    }
+
+    // ── Validation pass ─────────────────────────────────
+    // Each link must reference existing segments.
+    for (const l of out.links) {
+      if (!out.segments.has(l.from)) {
+        out.errors.push({ line: l.line, msg: 'L link references unknown segment "' + l.from + '"' });
+      }
+      if (!out.segments.has(l.to)) {
+        out.errors.push({ line: l.line, msg: 'L link references unknown segment "' + l.to + '"' });
+      }
+    }
+    // Each path must traverse only existing segments, and successive steps need a
+    // corresponding L link (or we flag the path as broken at that step).
+    const linkSet = new Set(
+      out.links.map(l => l.from + l.fromOrient + '->' + l.to + l.toOrient)
+    );
+    for (const p of out.paths) {
+      for (let i = 0; i < p.steps.length; i++) {
+        const st = p.steps[i];
+        if (!out.segments.has(st.id)) {
+          out.errors.push({ line: p.line, msg: 'P path "' + p.name + '" step ' + (i+1) + ' references unknown segment "' + st.id + '"' });
+        }
+      }
+      for (let i = 0; i < p.steps.length - 1; i++) {
+        const a = p.steps[i], b = p.steps[i+1];
+        const key = a.id + a.orient + '->' + b.id + b.orient;
+        if (!linkSet.has(key)) {
+          p.broken.push({ fromIdx: i, a, b });
+        }
+      }
+    }
+    for (const w of out.walks) {
+      for (let i = 0; i < w.steps.length; i++) {
+        const st = w.steps[i];
+        if (!out.segments.has(st.id)) {
+          out.errors.push({ line: w.line, msg: 'W walk "' + w.sample + '#' + w.hap + '" step ' + (i+1) + ' references unknown segment "' + st.id + '"' });
+        }
+      }
+    }
+
+    return out;
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Layout
+  // ─────────────────────────────────────────────────────────
+  // Assign each segment an (x, y). x is the max step-index across all paths that
+  // use the segment; y spreads out segments that share the same x.
+  function layoutGraph(parsed) {
+    const segs = Array.from(parsed.segments.values());
+    if (!segs.length) return { nodes: [], width: 200, height: 120 };
+
+    // 1. x = longest position across any path containing the segment.
+    const xOf = new Map();
+    for (const s of segs) xOf.set(s.id, 0);
+
+    for (const p of parsed.paths) {
+      p.steps.forEach((st, idx) => {
+        if (parsed.segments.has(st.id)) {
+          xOf.set(st.id, Math.max(xOf.get(st.id) ?? 0, idx));
+        }
+      });
+    }
+    for (const w of parsed.walks) {
+      w.steps.forEach((st, idx) => {
+        if (parsed.segments.has(st.id)) {
+          xOf.set(st.id, Math.max(xOf.get(st.id) ?? 0, idx));
+        }
+      });
+    }
+
+    // 2. If a segment is still at x=0 and is not a known start, fall back to a
+    //    topological-ish ordering: its x = 1 + max(x of predecessors).
+    //    Iterate a few times to settle.
+    const preds = new Map();
+    for (const s of segs) preds.set(s.id, []);
+    for (const l of parsed.links) {
+      if (parsed.segments.has(l.from) && parsed.segments.has(l.to)) {
+        preds.get(l.to).push(l.from);
+      }
+    }
+    for (let iter = 0; iter < segs.length + 2; iter++) {
+      let changed = false;
+      for (const s of segs) {
+        const ps = preds.get(s.id) || [];
+        if (!ps.length) continue;
+        const mx = Math.max(...ps.map(p => xOf.get(p) ?? 0));
+        const want = mx + 1;
+        if (want > (xOf.get(s.id) ?? 0)) {
+          xOf.set(s.id, want);
+          changed = true;
+        }
+      }
+      if (!changed) break;
+    }
+
+    // 3. Bucket by x, assign y by order within bucket (centred vertically).
+    const buckets = new Map();
+    for (const s of segs) {
+      const x = xOf.get(s.id) ?? 0;
+      if (!buckets.has(x)) buckets.set(x, []);
+      buckets.get(x).push(s);
+    }
+    const xs = Array.from(buckets.keys()).sort((a, b) => a - b);
+
+    const COL_W = 150;
+    const ROW_H = 62;
+    const NODE_W = 96;
+    const NODE_H = 36;
+    const MARGIN_X = 40;
+    const MARGIN_Y = 40;
+
+    const nodes = [];
+    let maxBucket = 0;
+    for (const xi of xs) maxBucket = Math.max(maxBucket, buckets.get(xi).length);
+
+    xs.forEach((xVal, colIdx) => {
+      const bucket = buckets.get(xVal);
+      // Sort bucket for stable layout (by ID).
+      bucket.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+      const n = bucket.length;
+      const totalH = (maxBucket - 1) * ROW_H;
+      const startY = MARGIN_Y + (totalH - (n - 1) * ROW_H) / 2;
+      bucket.forEach((s, rowIdx) => {
+        nodes.push({
+          id: s.id,
+          seq: s.seq,
+          x: MARGIN_X + colIdx * COL_W,
+          y: startY + rowIdx * ROW_H,
+          w: NODE_W,
+          h: NODE_H,
+        });
+      });
+    });
+
+    const width = MARGIN_X * 2 + Math.max(1, xs.length) * COL_W;
+    const height = MARGIN_Y * 2 + Math.max(1, maxBucket) * ROW_H;
+    return { nodes, width, height, nodeW: NODE_W, nodeH: NODE_H };
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Rendering
+  // ─────────────────────────────────────────────────────────
+  const PATH_COLORS = [
+    '#dc2626', '#7c3aed', '#0891b2', '#ca8a04',
+    '#16a34a', '#ea580c', '#be185d', '#4338ca',
+  ];
+
+  const state = {
+    parsed: null,
+    layout: null,
+    highlightedPath: null,       // path name
+    nodeMap: new Map(),          // id -> node {x,y,w,h}
+  };
+
+  function svgEl(name, attrs) {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', name);
+    if (attrs) {
+      for (const k in attrs) el.setAttribute(k, attrs[k]);
+    }
+    return el;
+  }
+
+  function renderGraph() {
+    const svg = $('graph-svg');
+    // Clear
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const p = state.parsed;
+    const lo = state.layout;
+    if (!p || !lo || !lo.nodes.length) {
+      svg.setAttribute('viewBox', '0 0 600 120');
+      svg.setAttribute('width', 600);
+      svg.setAttribute('height', 120);
+      const txt = svgEl('text', { x: 20, y: 60, fill: '#64748b' });
+      txt.textContent = 'No segments to render.';
+      svg.appendChild(txt);
+      return;
+    }
+
+    svg.setAttribute('viewBox', `0 0 ${lo.width} ${lo.height}`);
+    svg.setAttribute('width', lo.width);
+    svg.setAttribute('height', lo.height);
+
+    // Arrow marker
+    const defs = svgEl('defs');
+    const marker = svgEl('marker', {
+      id: 'arrowhead',
+      viewBox: '0 0 10 10',
+      refX: '9', refY: '5',
+      markerWidth: '6', markerHeight: '6',
+      orient: 'auto-start-reverse',
+    });
+    const mpath = svgEl('path', { d: 'M0,0 L10,5 L0,10 z', fill: '#64748b' });
+    marker.appendChild(mpath);
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+
+    // Build node lookup
+    state.nodeMap = new Map();
+    lo.nodes.forEach(n => state.nodeMap.set(n.id, n));
+
+    // ── Edges ─────────────────────────────────────────
+    const edgesGroup = svgEl('g', { class: 'edges' });
+    svg.appendChild(edgesGroup);
+    for (const l of p.links) {
+      const a = state.nodeMap.get(l.from);
+      const b = state.nodeMap.get(l.to);
+      if (!a || !b) continue;
+      const ax = a.x + a.w; // right side
+      const ay = a.y + a.h / 2;
+      const bx = b.x;       // left side
+      const by = b.y + b.h / 2;
+      // Cubic bezier so edges curve around
+      const dx = Math.max(30, (bx - ax) * 0.55);
+      const d = `M ${ax},${ay} C ${ax + dx},${ay} ${bx - dx},${by} ${bx},${by}`;
+      const path = svgEl('path', {
+        class: 'edge-line',
+        d,
+        'marker-end': 'url(#arrowhead)',
+      });
+      path.dataset.from = l.from;
+      path.dataset.to = l.to;
+      edgesGroup.appendChild(path);
+    }
+
+    // ── Path overlays ─────────────────────────────────
+    const pathsGroup = svgEl('g', { class: 'path-traces' });
+    svg.appendChild(pathsGroup);
+    p.paths.forEach((pathObj, idx) => {
+      const color = PATH_COLORS[idx % PATH_COLORS.length];
+      pathObj.color = color;
+      let d = '';
+      for (let i = 0; i < pathObj.steps.length; i++) {
+        const st = pathObj.steps[i];
+        const n = state.nodeMap.get(st.id);
+        if (!n) continue;
+        const cx = n.x + n.w / 2;
+        const cy = n.y + n.h / 2;
+        if (!d) d = 'M ' + cx + ',' + cy;
+        else d += ' L ' + cx + ',' + cy;
+      }
+      if (!d) return;
+      const traceOffset = (idx - (p.paths.length - 1) / 2) * 4;
+      const trace = svgEl('path', {
+        class: 'path-trace',
+        d,
+        stroke: color,
+        transform: `translate(0 ${traceOffset})`,
+      });
+      trace.dataset.path = pathObj.name;
+      trace.addEventListener('mouseenter', () => highlightPath(pathObj.name));
+      trace.addEventListener('mouseleave', () => highlightPath(null));
+      trace.addEventListener('click', (e) => {
+        e.stopPropagation();
+        highlightPath(state.highlightedPath === pathObj.name ? null : pathObj.name);
+      });
+      pathsGroup.appendChild(trace);
+    });
+
+    // ── Nodes ─────────────────────────────────────────
+    const nodesGroup = svgEl('g', { class: 'nodes' });
+    svg.appendChild(nodesGroup);
+    for (const n of lo.nodes) {
+      const g = svgEl('g', { class: 'node' });
+      const rect = svgEl('rect', {
+        class: 'node-rect',
+        x: n.x, y: n.y, width: n.w, height: n.h,
+        rx: 8, ry: 8,
+      });
+      rect.dataset.id = n.id;
+      const title = svgEl('title');
+      title.textContent = n.id + ' · ' + (n.seq ? n.seq : '(no sequence)') + ' · len=' + (n.seq ? n.seq.length : 0);
+      rect.appendChild(title);
+      const label = svgEl('text', {
+        class: 'node-label',
+        x: n.x + n.w / 2,
+        y: n.y + n.h / 2 + 4,
+        'text-anchor': 'middle',
+      });
+      label.textContent = n.id;
+      g.appendChild(rect);
+      g.appendChild(label);
+
+      // Hover: show sequence tooltip.
+      rect.addEventListener('mousemove', (e) => showSegTip(e, n));
+      rect.addEventListener('mouseleave', hideSegTip);
+      nodesGroup.appendChild(g);
+    }
+
+    applyHighlight();
+  }
+
+  function showSegTip(e, n) {
+    const tip = $('seg-tip');
+    const seq = n.seq || '(no sequence / *)';
+    tip.innerHTML = '<span class="tip-id">' + escapeHtml(n.id) + '</span>' +
+      escapeHtml(seq) +
+      '<span class="tip-len"> len=' + (n.seq ? n.seq.length : 0) + '</span>';
+    tip.style.display = 'block';
+    // Position near cursor, clamp to viewport.
+    const pad = 14;
+    let x = e.clientX + pad;
+    let y = e.clientY + pad;
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    if (x + w > window.innerWidth - 4) x = e.clientX - w - pad;
+    if (y + h > window.innerHeight - 4) y = e.clientY - h - pad;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  }
+  function hideSegTip() {
+    $('seg-tip').style.display = 'none';
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+
+  function highlightPath(name) {
+    state.highlightedPath = name;
+    applyHighlight();
+    renderPathList();
+    renderBanner();
+  }
+
+  function applyHighlight() {
+    const p = state.parsed;
+    if (!p) return;
+    const svg = $('graph-svg');
+    const activePath = p.paths.find(pp => pp.name === state.highlightedPath);
+    const activeNodes = activePath ? new Set(activePath.steps.map(s => s.id)) : null;
+    const activeEdges = activePath
+      ? new Set(activePath.steps.slice(0, -1).map((s, i) => s.id + '->' + activePath.steps[i+1].id))
+      : null;
+
+    svg.querySelectorAll('.node-rect').forEach(r => {
+      const id = r.dataset.id;
+      r.classList.remove('hl', 'dim');
+      if (activeNodes) {
+        if (activeNodes.has(id)) r.classList.add('hl');
+        else r.classList.add('dim');
+      }
+    });
+    svg.querySelectorAll('.edge-line').forEach(e => {
+      e.classList.remove('dim');
+      if (activeEdges) {
+        const key = e.dataset.from + '->' + e.dataset.to;
+        if (!activeEdges.has(key)) e.classList.add('dim');
+      }
+    });
+    svg.querySelectorAll('.path-trace').forEach(t => {
+      t.classList.toggle('hl', t.dataset.path === state.highlightedPath);
+    });
+  }
+
+  function renderTally() {
+    const p = state.parsed;
+    const strip = $('tally-strip');
+    while (strip.firstChild) strip.removeChild(strip.firstChild);
+    if (!p) return;
+    const parts = [];
+    if (p.errors.length) {
+      parts.push({ html: '<span class="err"><b>' + p.errors.length + '</b></span> errors' });
+    } else {
+      parts.push({ html: '<span class="ok"><b>0</b></span> errors' });
+    }
+    parts.push({ html: '<b>' + p.segments.size + '</b> segments' });
+    parts.push({ html: '<b>' + p.links.length + '</b> links' });
+    parts.push({ html: '<b>' + p.paths.length + '</b> paths' });
+    parts.push({ html: '<b>' + p.walks.length + '</b> walks' });
+    parts.push({ html: '<b>' + p.header.length + '</b> header' });
+    parts.forEach((pp, i) => {
+      const span = document.createElement('span');
+      span.innerHTML = pp.html;
+      strip.appendChild(span);
+      if (i < parts.length - 1) {
+        const sep = document.createElement('span');
+        sep.className = 'sep';
+        sep.textContent = '·';
+        strip.appendChild(sep);
+      }
+    });
+  }
+
+  function renderPathList() {
+    const p = state.parsed;
+    const host = $('path-list');
+    while (host.firstChild) host.removeChild(host.firstChild);
+    if (!p || !p.paths.length) {
+      const empty = document.createElement('span');
+      empty.style.color = 'var(--fg-subtle)';
+      empty.style.fontFamily = 'var(--font-mono)';
+      empty.style.fontSize = 'var(--text-xs)';
+      empty.textContent = '(no P lines)';
+      host.appendChild(empty);
+      return;
+    }
+    p.paths.forEach((pathObj, idx) => {
+      const chip = document.createElement('span');
+      chip.className = 'path-chip';
+      if (pathObj.name === state.highlightedPath) chip.classList.add('active');
+      const sw = document.createElement('span');
+      sw.className = 'pswatch';
+      sw.style.background = pathObj.color || PATH_COLORS[idx % PATH_COLORS.length];
+      chip.appendChild(sw);
+      const txt = document.createElement('span');
+      txt.textContent = pathObj.name + ' (' + pathObj.steps.length + ' steps' +
+        (pathObj.broken.length ? ', ' + pathObj.broken.length + ' broken' : '') + ')';
+      chip.appendChild(txt);
+      chip.addEventListener('mouseenter', () => highlightPath(pathObj.name));
+      chip.addEventListener('click', () => {
+        highlightPath(state.highlightedPath === pathObj.name ? null : pathObj.name);
+      });
+      host.appendChild(chip);
+    });
+  }
+
+  function renderBanner() {
+    const p = state.parsed;
+    const banner = $('banner');
+    const l1 = $('banner-line1');
+    const l2 = $('banner-line2');
+    banner.classList.remove('bad');
+
+    if (!p) {
+      banner.classList.add('bad');
+      l1.innerHTML = '<span class="check">!</span>No input parsed yet.';
+      l2.innerHTML = '';
+      return;
+    }
+
+    if (p.errors.length) {
+      banner.classList.add('bad');
+      l1.innerHTML = '<span class="check">!</span>Parse failed with <span class="num">' + p.errors.length + '</span> error' +
+        (p.errors.length === 1 ? '' : 's') + ' — see the list below for line numbers.';
+      l2.innerHTML = '';
+      return;
+    }
+
+    if (state.highlightedPath) {
+      const path = p.paths.find(pp => pp.name === state.highlightedPath);
+      if (path) {
+        const seqTotal = path.steps.reduce((acc, s) => {
+          const seg = p.segments.get(s.id);
+          return acc + (seg && seg.seq ? seg.seq.length : 0);
+        }, 0);
+        const stepStr = path.steps.map(s => s.id + s.orient).join(' → ');
+        l1.innerHTML = '<span class="check">✓</span>Path <code>' + escapeHtml(path.name) + '</code> · ' +
+          '<span class="num">' + path.steps.length + '</span> steps · reconstructed sequence length ' +
+          '<span class="num">' + seqTotal + '</span> bp.';
+        if (path.broken.length) {
+          banner.classList.add('bad');
+          const b = path.broken[0];
+          l2.innerHTML = '<span class="check">!</span>Broken at step ' + (b.fromIdx + 1) + ': no link ' +
+            '<code>' + escapeHtml(b.a.id + b.a.orient) + ' → ' + escapeHtml(b.b.id + b.b.orient) + '</code> ' +
+            '(the L line needed to join them is missing).';
+        } else {
+          l2.innerHTML = '<span class="check">✓</span>Walk: <code>' + escapeHtml(stepStr) + '</code>';
+        }
+        return;
+      }
+    }
+
+    // Default: summary
+    const brokenPaths = p.paths.filter(pp => pp.broken.length);
+    if (brokenPaths.length) {
+      banner.classList.add('bad');
+      l1.innerHTML = '<span class="check">!</span>Parsed with <span class="num">0</span> syntax errors, but ' +
+        '<span class="num">' + brokenPaths.length + '</span> path' + (brokenPaths.length === 1 ? '' : 's') +
+        ' depend on missing L links.';
+      l2.innerHTML = 'Hover a path chip above to see the broken step. Delete an L line on purpose and the path that used it will break here.';
+      return;
+    }
+
+    l1.innerHTML = '<span class="check">✓</span>GFA parsed cleanly · <span class="num">' + p.segments.size +
+      '</span> segments · <span class="num">' + p.links.length + '</span> links · <span class="num">' +
+      p.paths.length + '</span> paths.';
+    l2.innerHTML = 'Hover a path chip (or a coloured trace on the graph) to spotlight its segments. Hover a node to see its sequence.';
+  }
+
+  function renderErrors() {
+    const host = $('err-list');
+    while (host.firstChild) host.removeChild(host.firstChild);
+    const p = state.parsed;
+    if (!p) return;
+    p.errors.forEach(err => {
+      const li = document.createElement('li');
+      const ln = document.createElement('span');
+      ln.className = 'ln';
+      ln.textContent = 'line ' + err.line;
+      li.appendChild(ln);
+      li.appendChild(document.createTextNode(' ' + err.msg));
+      host.appendChild(li);
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Boot + wiring
+  // ─────────────────────────────────────────────────────────
+  function runParse() {
+    const text = $('gfa-input').value;
+    state.parsed = parseGFA(text);
+    state.layout = layoutGraph(state.parsed);
+    // If currently highlighted path no longer exists, clear.
+    if (state.highlightedPath &&
+        !state.parsed.paths.some(p => p.name === state.highlightedPath)) {
+      state.highlightedPath = null;
+    }
+    renderGraph();
+    renderTally();
+    renderPathList();
+    renderBanner();
+    renderErrors();
+  }
+
+  function loadPreset(key) {
+    const ta = $('gfa-input');
+    if (key === 'custom') {
+      ta.readOnly = false;
+      ta.focus();
+      // keep current text (lets student edit whatever they last saw)
+    } else {
+      ta.readOnly = true;
+      ta.value = PRESETS[key];
+      runParse();
+    }
+  }
+
+  $('preset-select').addEventListener('change', (e) => {
+    loadPreset(e.target.value);
+  });
+  $('parse-btn').addEventListener('click', runParse);
+  $('gfa-input').addEventListener('input', () => {
+    // Only auto-reparse for custom mode; presets are read-only.
+    if (!$('gfa-input').readOnly) {
+      // Throttle a tiny bit via rAF so we don't re-layout every keystroke frame.
+      if (!state._rafId) {
+        state._rafId = requestAnimationFrame(() => {
+          state._rafId = 0;
+          runParse();
+        });
+      }
+    }
+  });
+
+  // Boot with default preset (2-hap small)
+  loadPreset('hap2');
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SV Resolution &middot; Short vs Long Reads</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg); cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .select-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem 1.25rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+    .select-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .select-row select {
+      font-family: var(--font-sans); font-size: var(--text-sm);
+      padding: 0.45rem 0.6rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg); cursor: pointer;
+    }
+    .select-row select:hover { border-color: var(--border-strong); }
+
+    .controls-row {
+      display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+      margin-top: 1rem; padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+    .plot-caption {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-subtle); margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 0.9rem;
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-muted); margin-top: 0.5rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw { display: inline-block; width: 14px; height: 10px; border-radius: 2px; }
+    .legend-swatch .sw.ilmn { background: #8a8a85; opacity: 0.85; }
+    .legend-swatch .sw.ilmn-split { background: #d97706; }
+    .legend-swatch .sw.hifi { background: #1e3a8a; opacity: 0.85; }
+    .legend-swatch .sw.hifi-span { background: #2d7a3e; }
+    .legend-swatch .sw.sv-del { background: #dc2626; }
+    .legend-swatch .sw.sv-ins { background: #9333ea; }
+    .legend-swatch .sw.sv-dup { background: #0891b2; }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+
+    .compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .compare .cell {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+    .compare .cell .hdr {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin-bottom: 0.45rem;
+    }
+    .compare .cell.ilmn .hdr { color: #4b5560; }
+    .compare .cell.ilmn { border-left: 3px solid #8a8a85; }
+    .compare .cell.hifi .hdr { color: #1e3a8a; }
+    .compare .cell.hifi { border-left: 3px solid #1e3a8a; }
+    .compare .cell.disabled { opacity: 0.4; }
+    .compare .cell b { color: var(--fg); font-weight: 600; }
+    .compare .cell .row { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.15rem 0; }
+    .compare .cell .row .k { color: var(--fg-subtle); }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 820px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .compare { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="sv-resolution">
+
+  <header class="artifact-head">
+    <h1>SV Resolution &middot; Short vs Long Reads</h1>
+    <p>Plant a structural variant of your choice inside a 100 kb window, then drop Illumina paired-end (150 bp) and PacBio HiFi (~18 kb) reads on it. A read that <em>fully spans</em> the breakpoints resolves the SV directly; a short read that straddles only one breakpoint leaves <em>split/discordant</em> evidence that still works but is indirect. Watch how HiFi saturates recall for mid-size SVs while Illumina collapses once the event outruns its insert size.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Structural variant</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="svsize-input">SV size</label>
+          <span class="slider-value" id="svsize-value">5,000 bp</span>
+        </div>
+        <input id="svsize-input" type="range" min="0" max="1000" step="1" value="670">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="svloc-input">SV locus (centre)</label>
+          <span class="slider-value" id="svloc-value">50,000 bp</span>
+        </div>
+        <input id="svloc-input" type="range" min="10000" max="90000" step="500" value="50000">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="cov-input">Coverage</label>
+          <span class="slider-value" id="cov-value">30&times;</span>
+        </div>
+        <input id="cov-input" type="range" min="5" max="60" step="1" value="30">
+      </div>
+    </div>
+
+    <div class="select-grid">
+      <div class="select-row">
+        <label class="field-label" for="svtype-select">SV type</label>
+        <select id="svtype-select">
+          <option value="deletion" selected>Deletion</option>
+          <option value="insertion">Insertion</option>
+          <option value="duplication">Tandem duplication</option>
+        </select>
+      </div>
+      <div class="select-row">
+        <label class="field-label" for="tech-select">Technology</label>
+        <select id="tech-select">
+          <option value="both" selected>Both (Illumina + HiFi)</option>
+          <option value="illumina">Illumina only</option>
+          <option value="hifi">PacBio HiFi only</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <button id="resim-btn" class="btn btn--primary" type="button">Re-simulate</button>
+      <button id="reset-btn" class="btn" type="button">Reset defaults</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Genomic track &middot; 100 kb window</p>
+    <div class="plot-wrap">
+      <svg id="track-svg" class="plot-svg" viewBox="0 0 1100 640" preserveAspectRatio="xMidYMid meet" aria-label="Reference track with Illumina and HiFi reads on a planted SV"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw sv-del"></span> deletion</span>
+      <span class="legend-swatch"><span class="sw sv-ins"></span> insertion</span>
+      <span class="legend-swatch"><span class="sw sv-dup"></span> duplication</span>
+      <span class="legend-swatch"><span class="sw ilmn"></span> Illumina 150 bp</span>
+      <span class="legend-swatch"><span class="sw ilmn-split"></span> Illumina split/discordant</span>
+      <span class="legend-swatch"><span class="sw hifi"></span> HiFi long read</span>
+      <span class="legend-swatch"><span class="sw hifi-span"></span> HiFi fully spanning SV</span>
+    </div>
+    <p class="plot-caption">Reference axis at top. Short-read track below, with coverage curve. Long-read track at the bottom. Reads drawn at their alignment positions on the reference; split-read mates are connected by a dashed arc.</p>
+
+    <div class="banner" id="banner">
+      SV: <b id="banner-svtype">deletion</b> of <b id="banner-svsize">5,000 bp</b>
+      <span class="sep">&middot;</span>
+      Illumina spans <b id="banner-ilmn-span">0</b> / splits <b id="banner-ilmn-split">0</b>
+      <span class="sep">&middot;</span>
+      HiFi spans <b id="banner-hifi-span">0</b>
+      <span class="sep">&middot;</span>
+      recall Illumina <b id="banner-ilmn-rec">&mdash;</b> &middot; HiFi <b id="banner-hifi-rec">&mdash;</b>
+    </div>
+
+    <div class="compare">
+      <div class="cell ilmn" id="card-ilmn">
+        <div class="hdr">Illumina &middot; 150 bp paired-end</div>
+        <div class="row"><span class="k">reads sampled</span><b id="ilmn-reads">&mdash;</b></div>
+        <div class="row"><span class="k">fully spanning SV</span><b id="ilmn-span">&mdash;</b></div>
+        <div class="row"><span class="k">split / discordant</span><b id="ilmn-split">&mdash;</b></div>
+        <div class="row"><span class="k">evidence (span + split)</span><b id="ilmn-evidence">&mdash;</b></div>
+        <div class="row"><span class="k">recall estimate</span><b id="ilmn-recall">&mdash;</b></div>
+      </div>
+      <div class="cell hifi" id="card-hifi">
+        <div class="hdr">PacBio HiFi &middot; ~18 kb</div>
+        <div class="row"><span class="k">reads sampled</span><b id="hifi-reads">&mdash;</b></div>
+        <div class="row"><span class="k">fully spanning SV</span><b id="hifi-span">&mdash;</b></div>
+        <div class="row"><span class="k">partial / clipped</span><b id="hifi-clip">&mdash;</b></div>
+        <div class="row"><span class="k">mean read length</span><b id="hifi-meanlen">&mdash;</b></div>
+        <div class="row"><span class="k">recall estimate</span><b id="hifi-recall">&mdash;</b></div>
+      </div>
+    </div>
+
+    <p class="hint">
+      Default preset (5 kb deletion, 30&times;): many HiFi reads blow straight through both breakpoints, while Illumina contributes a handful of split reads and almost no direct spans &mdash; the 300&ndash;500 bp insert can only bracket, not bridge, a 5 kb event. Push SV size to 25 kb and even HiFi thins out; you would now want ONT ultra-long. Shrink SV size below 300 bp and Illumina catches up via split-read evidence.
+    </p>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // DOM refs
+  const svSizeEl = $('svsize-input');
+  const svLocEl  = $('svloc-input');
+  const covEl    = $('cov-input');
+  const svTypeEl = $('svtype-select');
+  const techEl   = $('tech-select');
+  const resimBtn = $('resim-btn');
+  const resetBtn = $('reset-btn');
+  const svg      = $('track-svg');
+
+  const svSizeVal = $('svsize-value');
+  const svLocVal  = $('svloc-value');
+  const covVal    = $('cov-value');
+
+  const bSvType     = $('banner-svtype');
+  const bSvSize     = $('banner-svsize');
+  const bIlmnSpan   = $('banner-ilmn-span');
+  const bIlmnSplit  = $('banner-ilmn-split');
+  const bHifiSpan   = $('banner-hifi-span');
+  const bIlmnRec    = $('banner-ilmn-rec');
+  const bHifiRec    = $('banner-hifi-rec');
+
+  const cardIlmn = $('card-ilmn');
+  const cardHifi = $('card-hifi');
+  const ilmnReads    = $('ilmn-reads');
+  const ilmnSpan     = $('ilmn-span');
+  const ilmnSplit    = $('ilmn-split');
+  const ilmnEvidence = $('ilmn-evidence');
+  const ilmnRecall   = $('ilmn-recall');
+  const hifiReads    = $('hifi-reads');
+  const hifiSpan     = $('hifi-span');
+  const hifiClip     = $('hifi-clip');
+  const hifiMeanLen  = $('hifi-meanlen');
+  const hifiRecall   = $('hifi-recall');
+
+  // Constants
+  const GENOME_BP = 100000;
+  const ILMN_READ = 150;        // bp per mate
+  const ILMN_FRAG_MIN = 300;    // fragment (outer) size
+  const ILMN_FRAG_MAX = 500;
+  const HIFI_MEAN_LN = Math.log(18000);
+  const HIFI_SIGMA_LN = 0.3;
+  const HIFI_MIN = 6000;
+  const HIFI_MAX = 40000;
+  const SPAN_FLANK = 100;       // bp of flanking on each side required to be a "span"
+
+  // Defaults
+  const DEFAULTS = {
+    svType: 'deletion',
+    svSize: 5000,
+    svLoc:  50000,
+    tech:   'both',
+    cov:    30,
+  };
+
+  // State
+  const state = {
+    svType: DEFAULTS.svType,
+    svSize: DEFAULTS.svSize,
+    svLoc:  DEFAULTS.svLoc,
+    tech:   DEFAULTS.tech,
+    cov:    DEFAULTS.cov,
+    seed:   20260421,
+
+    // Derived per simulation
+    ilmnReads: [],     // array of paired-end fragments
+    hifiReadsArr: [],  // array of long-read objects
+    stats: null,
+  };
+
+  // PRNG
+  function mulberry32(seedVal) {
+    let t = seedVal >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function makeRandn(rnd) {
+    return function () {
+      let u = 0, v = 0;
+      while (u === 0) u = rnd();
+      while (v === 0) v = rnd();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    };
+  }
+
+  // SV size slider: log-ish from 50 bp to 50000 bp
+  function sizeFromSlider(s) {
+    const lo = Math.log(50), hi = Math.log(50000);
+    const t = s / 1000;
+    const val = Math.exp(lo + t * (hi - lo));
+    // Snap to a readable step
+    if (val < 200) return Math.round(val / 10) * 10;
+    if (val < 2000) return Math.round(val / 50) * 50;
+    if (val < 10000) return Math.round(val / 100) * 100;
+    return Math.round(val / 500) * 500;
+  }
+  function sliderFromSize(bp) {
+    const lo = Math.log(50), hi = Math.log(50000);
+    const t = (Math.log(bp) - lo) / (hi - lo);
+    return Math.round(t * 1000);
+  }
+
+  // ── Simulation ─────────────────────────────────────────
+  //
+  // Read start is uniform in [0, GENOME_BP - readLen]. For Illumina we
+  // sample a fragment outer size in [300, 500] bp and place the two
+  // 150 bp mates at the fragment ends. For HiFi we draw a log-normal
+  // length (μ=ln(18 kb), σ=0.3) and clamp to [6 kb, 40 kb].
+  //
+  // Coverage target C gives N reads = C * GENOME_BP / readLen. We round
+  // up and clip to a minimum so coverage=5× still has a visible count.
+
+  function simulate() {
+    const rnd = mulberry32(state.seed);
+    const randn = makeRandn(rnd);
+
+    const svStart = state.svLoc - state.svSize / 2;
+    const svEnd   = state.svLoc + state.svSize / 2;
+
+    // Illumina: N = cov * G / 150 (but since paired-end, we count fragments as
+    // 2 mates worth of coverage → fragments = cov * G / 300). We sample the
+    // fragment count so total Illumina coverage = cov.
+    const ilmnFragments = Math.max(40, Math.round(state.cov * GENOME_BP / 300));
+    const ilmn = [];
+    for (let i = 0; i < ilmnFragments; i++) {
+      const fragLen = ILMN_FRAG_MIN + rnd() * (ILMN_FRAG_MAX - ILMN_FRAG_MIN);
+      const start = rnd() * (GENOME_BP - fragLen);
+      const end = start + fragLen;
+      const m1Start = start;
+      const m1End = start + ILMN_READ;
+      const m2Start = end - ILMN_READ;
+      const m2End = end;
+      // Classify
+      // Fully spanning: fragment outer covers the entire SV with flank
+      const spans = (start < svStart - SPAN_FLANK) && (end > svEnd + SPAN_FLANK);
+      // Split: one mate on each side of the SV (fragment straddles)
+      // i.e. m1 ends before svStart and m2 starts after svEnd — but only
+      // if fragment is compatible with a short SV. We mark any fragment
+      // where m1End <= svStart and m2Start >= svEnd as "split/discordant".
+      // Further, for a *single* mate to be a split read, the mate itself
+      // has to cross the breakpoint — i.e. mate overlaps svStart or svEnd
+      // with the break falling inside the mate.
+      let splitLike = false;
+      const m1Cross = (m1Start < svStart && m1End > svStart) ||
+                      (m1Start < svEnd   && m1End > svEnd);
+      const m2Cross = (m2Start < svStart && m2End > svStart) ||
+                      (m2Start < svEnd   && m2End > svEnd);
+      const discordant = (m1End <= svStart && m2Start >= svEnd) && !spans;
+      if (m1Cross || m2Cross || discordant) splitLike = true;
+      // Fully-contained reads inside the SV are "unmappable" for
+      // deletion (wouldn't align uniquely); we still draw them but
+      // exclude from metric calcs.
+      const insideSv = (m1Start >= svStart && m2End <= svEnd);
+
+      ilmn.push({
+        start, end, fragLen,
+        m1Start, m1End, m2Start, m2End,
+        spans, splitLike, discordant,
+        m1Cross, m2Cross,
+        insideSv,
+      });
+    }
+
+    // HiFi: N = cov * G / mean_read_length. But each read's actual length
+    // determines contribution — approximate N by target coverage / 18 kb.
+    const hifiN = Math.max(8, Math.round(state.cov * GENOME_BP / 18000));
+    const hifi = [];
+    let lenSum = 0;
+    for (let i = 0; i < hifiN; i++) {
+      let len;
+      // Log-normal draw, clamp to [HIFI_MIN, HIFI_MAX]
+      for (let t = 0; t < 8; t++) {
+        len = Math.exp(HIFI_MEAN_LN + HIFI_SIGMA_LN * randn());
+        if (len >= HIFI_MIN && len <= HIFI_MAX) break;
+      }
+      len = Math.max(HIFI_MIN, Math.min(HIFI_MAX, len));
+      const start = rnd() * Math.max(1, GENOME_BP - len);
+      const end = start + len;
+      const spans = (start < svStart - SPAN_FLANK) && (end > svEnd + SPAN_FLANK);
+      // "clipped": the read overlaps the SV but does not fully span
+      const overlaps = (end > svStart) && (start < svEnd);
+      const clipped = overlaps && !spans;
+      hifi.push({ start, end, len, spans, clipped });
+      lenSum += len;
+    }
+    const hifiMeanLen = hifiN > 0 ? lenSum / hifiN : 0;
+
+    // Stats
+    const ilmnSpanCount = ilmn.filter(r => r.spans).length;
+    const ilmnSplitCount = ilmn.filter(r => !r.spans && r.splitLike).length;
+    const hifiSpanCount = hifi.filter(r => r.spans).length;
+    const hifiClipCount = hifi.filter(r => r.clipped).length;
+
+    // ── Recall model ────────────────────────────────────
+    //
+    // Recall here is not "did we detect the event at all" (any tech with
+    // enough coverage detects *something*) but "did we resolve the
+    // breakpoints well enough to genotype a sample". That matters more
+    // pedagogically: an SV with only split-read evidence has imprecise
+    // breakpoints and is often filtered by downstream pipelines.
+    //
+    // We model per-technology recall as a weighted blend of two terms:
+    //   • spanning fraction (weight 1.0) — a read that fully spans the
+    //     SV gives both breakpoints unambiguously
+    //   • split/discordant fraction (weight 0.3 for Illumina, irrelevant
+    //     for HiFi) — partial evidence, lower resolution
+    //
+    // We normalise by a per-coverage *target* so that recall saturates
+    // around 3–4 spanning supports (a realistic SV-caller threshold). This
+    // keeps Illumina <= 0.7 for the 5 kb default (very few spans) while
+    // letting HiFi saturate to >= 0.9 at 30× coverage.
+    function spanningRate(readLen) {
+      const effective = readLen - state.svSize - 2 * SPAN_FLANK;
+      if (effective <= 0) return 0;
+      const denom = Math.max(1, GENOME_BP - readLen);
+      return effective / denom;
+    }
+
+    // Support threshold: want ≥ SUPPORT_K high-quality supporters for
+    // confident call. Translates observed count → recall via a soft
+    // saturating curve: recall = 1 - exp(-obs / SUPPORT_K).
+    const SUPPORT_K = 3;
+
+    // Illumina: weight split evidence at 30% (imprecise breakpoints).
+    const ilmnEffectiveObs = ilmnSpanCount + 0.3 * ilmnSplitCount;
+    let ilmnRecallVal = 1 - Math.exp(-ilmnEffectiveObs / SUPPORT_K);
+    // Cap Illumina recall harder: for mid-size SVs (>1 kb) no direct
+    // spans are physically possible, so split-only support maxes out
+    // around 0.7 regardless of coverage — breakpoint precision is poor.
+    if (ilmnSpanCount === 0) ilmnRecallVal = Math.min(ilmnRecallVal, 0.7);
+    // For very small SVs (<300 bp) Illumina can pick up via split reads,
+    // so we let recall climb freely there (the 0.7 cap still applies if
+    // no spans, but splits are dense).
+
+    // HiFi: only count direct spans; clipped reads typically align to
+    // one side and contribute partial evidence but HiFi callers (pbsv,
+    // Sniffles) rely on spans for confident calls.
+    const hifiRecallVal = 1 - Math.exp(-hifiSpanCount / SUPPORT_K);
+
+    // Stash expected counts for display (not strictly needed)
+    const expIlmnSpan = spanningRate(ILMN_FRAG_MIN) * ilmn.length;
+    const expIlmnSplit = ilmn.length * (2 * (ILMN_READ - 20)) / GENOME_BP * 2;
+    const expHifiSpan = spanningRate(hifiMeanLen) * hifi.length;
+
+    state.ilmnReads = ilmn;
+    state.hifiReadsArr = hifi;
+    state.stats = {
+      svStart, svEnd,
+      ilmnN: ilmn.length,
+      hifiN: hifi.length,
+      ilmnSpanCount, ilmnSplitCount,
+      hifiSpanCount, hifiClipCount,
+      hifiMeanLen,
+      ilmnRecall: ilmnRecallVal,
+      hifiRecall: hifiRecallVal,
+      expIlmnSpan, expIlmnSplit, expHifiSpan,
+    };
+  }
+
+  // ── Rendering ──────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  // Plot geometry
+  const W = 1100, H = 640;
+  const PAD_L = 60, PAD_R = 22;
+  // Three bands: reference strip, Illumina block, HiFi block.
+  // Reference: y = 40..70
+  // Illumina reads: y = 130..290
+  // Illumina coverage curve: y = 300..360
+  // HiFi reads: y = 410..590
+  const REF_Y_TOP = 44, REF_Y_BOT = 74;
+  const ILMN_READ_Y0 = 130, ILMN_READ_Y1 = 290;
+  const ILMN_COV_Y0  = 300, ILMN_COV_Y1  = 360;
+  const HIFI_READ_Y0 = 410, HIFI_READ_Y1 = 590;
+
+  // Colours
+  const COL_ILMN = '#8a8a85';
+  const COL_ILMN_SPLIT = '#d97706';
+  const COL_HIFI = '#1e3a8a';
+  const COL_HIFI_SPAN = '#2d7a3e';
+  const COL_SV_DEL = '#dc2626';
+  const COL_SV_INS = '#9333ea';
+  const COL_SV_DUP = '#0891b2';
+  const COL_UNMAP = '#cbd1d6';
+
+  function svColour() {
+    return state.svType === 'deletion'   ? COL_SV_DEL :
+           state.svType === 'insertion'  ? COL_SV_INS :
+                                           COL_SV_DUP;
+  }
+
+  function render() {
+    clear(svg);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const stats = state.stats;
+    if (!stats) return;
+
+    const x0 = PAD_L, x1 = W - PAD_R;
+    const plotW = x1 - x0;
+    const xOf = (bp) => x0 + (bp / GENOME_BP) * plotW;
+
+    const showIlmn = state.tech === 'both' || state.tech === 'illumina';
+    const showHifi = state.tech === 'both' || state.tech === 'hifi';
+
+    const svStart = stats.svStart, svEnd = stats.svEnd;
+    const svCol = svColour();
+
+    // ── SV band spanning full plot height (behind everything) ──
+    const svBandY0 = REF_Y_TOP - 8;
+    const svBandY1 = HIFI_READ_Y1 + 10;
+    svg.appendChild(el('rect', {
+      x: xOf(svStart), y: svBandY0,
+      width: Math.max(1, xOf(svEnd) - xOf(svStart)),
+      height: svBandY1 - svBandY0,
+      fill: svCol, opacity: 0.08,
+    }));
+    // Breakpoint dashed verticals
+    [svStart, svEnd].forEach(bp => {
+      svg.appendChild(el('line', {
+        x1: xOf(bp), x2: xOf(bp),
+        y1: svBandY0, y2: svBandY1,
+        stroke: svCol, 'stroke-width': 1,
+        'stroke-dasharray': '3 4', opacity: 0.7,
+      }));
+    });
+
+    // ── Reference track ──
+    svg.appendChild(el('rect', {
+      x: x0, y: REF_Y_TOP,
+      width: plotW, height: REF_Y_BOT - REF_Y_TOP,
+      fill: '#e7e9ec', stroke: '#c8ccd1', 'stroke-width': 1,
+    }));
+    // SV mark on reference
+    if (state.svType === 'deletion') {
+      // Dropped region: hollow red box with hatch
+      svg.appendChild(el('rect', {
+        x: xOf(svStart), y: REF_Y_TOP,
+        width: Math.max(1, xOf(svEnd) - xOf(svStart)),
+        height: REF_Y_BOT - REF_Y_TOP,
+        fill: '#fee2e2', stroke: svCol, 'stroke-width': 1.5,
+      }));
+    } else if (state.svType === 'insertion') {
+      // Insertion shows as a thick purple caret at the locus
+      const cx = xOf(state.svLoc);
+      svg.appendChild(el('polygon', {
+        points: `${cx-7},${REF_Y_BOT} ${cx+7},${REF_Y_BOT} ${cx},${REF_Y_TOP - 6}`,
+        fill: svCol, opacity: 0.9,
+      }));
+      svg.appendChild(el('line', {
+        x1: cx, x2: cx, y1: REF_Y_TOP, y2: REF_Y_BOT,
+        stroke: svCol, 'stroke-width': 2,
+      }));
+    } else {
+      // Duplication: striped cyan box
+      svg.appendChild(el('rect', {
+        x: xOf(svStart), y: REF_Y_TOP,
+        width: Math.max(1, xOf(svEnd) - xOf(svStart)),
+        height: REF_Y_BOT - REF_Y_TOP,
+        fill: '#cffafe', stroke: svCol, 'stroke-width': 1.5,
+      }));
+    }
+    // SV label above reference
+    const svLabel = state.svType.toUpperCase() + ' \u00B7 ' + fmtBp(state.svSize);
+    svg.appendChild(el('text', {
+      x: xOf(state.svLoc), y: REF_Y_TOP - 10,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 10,
+      fill: svCol, 'font-weight': 600, 'letter-spacing': '0.08em',
+    }, svLabel));
+
+    // Reference label on left
+    svg.appendChild(el('text', {
+      x: x0 - 8, y: REF_Y_TOP + 18,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-sans)', 'font-size': 10,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.1em', 'font-weight': 600,
+    }, 'REF'));
+
+    // Coordinate axis (above reference)
+    for (let bp = 0; bp <= GENOME_BP; bp += 10000) {
+      const xp = xOf(bp);
+      svg.appendChild(el('line', {
+        x1: xp, x2: xp, y1: REF_Y_TOP - 4, y2: REF_Y_TOP,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x: xp, y: REF_Y_TOP - 24,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, (bp / 1000) + ' kb'));
+    }
+
+    // Ribbon between read bands: section dividers
+    function bandHeader(label, col, y, spanInfo) {
+      svg.appendChild(el('line', {
+        x1: x0, x2: x1, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x: x0, y: y - 6,
+        'text-anchor': 'start',
+        'font-family': 'var(--font-sans)', 'font-size': 10,
+        fill: col, 'font-weight': 600, 'letter-spacing': '0.12em',
+      }, label));
+      if (spanInfo) {
+        svg.appendChild(el('text', {
+          x: x1, y: y - 6,
+          'text-anchor': 'end',
+          'font-family': 'var(--font-mono)', 'font-size': 10,
+          fill: 'var(--fg-subtle)',
+        }, spanInfo));
+      }
+    }
+
+    // ── Illumina reads ──
+    if (showIlmn) {
+      bandHeader(
+        'ILLUMINA \u00b7 150 bp PAIRED-END',
+        COL_ILMN,
+        ILMN_READ_Y0 - 10,
+        `${stats.ilmnN} fragments \u00b7 ${stats.ilmnSpanCount} span \u00b7 ${stats.ilmnSplitCount} split`
+      );
+
+      // Sort reads by startBp for a neat visual; assign vertical slots
+      // using a simple greedy packing (up to ~16 lanes).
+      //
+      // At 30× coverage we draw ~10 000 fragments — way too many SVG
+      // elements. We render a representative sub-sample (600) drawn
+      // uniformly from the full set, but we also force-include every
+      // spanning or split read so the student sees *all* the interesting
+      // evidence. Stats stay based on the full simulation.
+      const lanes = [];
+      const nLanes = 16;
+      for (let i = 0; i < nLanes; i++) lanes.push(-Infinity);
+      const laneH = (ILMN_READ_Y1 - ILMN_READ_Y0) / nLanes;
+
+      const RENDER_CAP = 600;
+      const allReads = state.ilmnReads;
+      let renderSet;
+      if (allReads.length <= RENDER_CAP) {
+        renderSet = allReads.slice();
+      } else {
+        const interesting = [];
+        const boring = [];
+        for (let i = 0; i < allReads.length; i++) {
+          const r = allReads[i];
+          if (r.spans || r.splitLike) interesting.push(r);
+          else boring.push(r);
+        }
+        const remaining = Math.max(0, RENDER_CAP - interesting.length);
+        // Uniform stride through boring
+        const stride = boring.length > remaining ? boring.length / remaining : 1;
+        const subsample = [];
+        for (let i = 0; i < remaining; i++) {
+          subsample.push(boring[Math.floor(i * stride)]);
+        }
+        renderSet = interesting.concat(subsample);
+      }
+      const sorted = renderSet.sort((a, b) => a.start - b.start);
+      for (let i = 0; i < sorted.length; i++) {
+        const r = sorted[i];
+        let laneIdx = -1;
+        for (let L = 0; L < nLanes; L++) {
+          if (lanes[L] <= r.start) { laneIdx = L; break; }
+        }
+        if (laneIdx < 0) laneIdx = (i * 7) % nLanes; // overflow → cycle
+        lanes[laneIdx] = r.end + 40; // min gap between mates
+        const y = ILMN_READ_Y0 + laneIdx * laneH + 2;
+        const h = Math.max(3, laneH - 3);
+
+        const isSplit = !r.spans && r.splitLike;
+        const isSpan = r.spans;
+        // Mate 1
+        // Split mate crossing breakpoint: amber. Otherwise grey.
+        const m1Col = (isSpan) ? COL_ILMN :
+                      (r.m1Cross ? COL_ILMN_SPLIT : COL_ILMN);
+        const m2Col = (isSpan) ? COL_ILMN :
+                      (r.m2Cross ? COL_ILMN_SPLIT : COL_ILMN);
+        // If the read is "inside SV" for deletion, draw ghostly:
+        const opacityBase = r.insideSv && state.svType === 'deletion' ? 0.3 : 0.85;
+
+        // Mate 1 rect
+        svg.appendChild(el('rect', {
+          x: xOf(r.m1Start), y,
+          width: Math.max(1, xOf(r.m1End) - xOf(r.m1Start)),
+          height: h,
+          fill: m1Col, opacity: opacityBase, rx: 0.5, ry: 0.5,
+        }));
+        // Mate 2 rect
+        svg.appendChild(el('rect', {
+          x: xOf(r.m2Start), y,
+          width: Math.max(1, xOf(r.m2End) - xOf(r.m2Start)),
+          height: h,
+          fill: m2Col, opacity: opacityBase, rx: 0.5, ry: 0.5,
+        }));
+        // Fragment connector: dashed line between m1End and m2Start.
+        // If the pair spans or is split across SV, bold the connector.
+        const connY = y + h / 2;
+        const connCol = (isSpan) ? COL_ILMN :
+                         (isSplit) ? COL_ILMN_SPLIT : '#b4b7bc';
+        svg.appendChild(el('line', {
+          x1: xOf(r.m1End), x2: xOf(r.m2Start),
+          y1: connY, y2: connY,
+          stroke: connCol, 'stroke-width': isSplit || isSpan ? 1.2 : 0.6,
+          'stroke-dasharray': '2 2', opacity: isSplit || isSpan ? 0.9 : 0.55,
+        }));
+      }
+
+      // ── Illumina coverage curve ──
+      // Compute per-bp depth. For deletion, reads inside are ghosted and
+      // don't contribute → coverage drop inside SV. For duplication we
+      // add expected doubling inside SV. For insertion, coverage is
+      // roughly unaffected on the reference.
+      const BIN = 200; // 200 bp bins for a smooth curve
+      const nBins = Math.ceil(GENOME_BP / BIN);
+      const cov = new Float64Array(nBins);
+      for (let i = 0; i < state.ilmnReads.length; i++) {
+        const r = state.ilmnReads[i];
+        if (r.insideSv && state.svType === 'deletion') continue;
+        // Each mate contributes ILMN_READ of coverage
+        function addRange(s, e) {
+          const bi = Math.max(0, Math.floor(s / BIN));
+          const be = Math.min(nBins - 1, Math.floor(e / BIN));
+          for (let b = bi; b <= be; b++) cov[b] += ILMN_READ / BIN;
+        }
+        addRange(r.m1Start, r.m1End);
+        addRange(r.m2Start, r.m2End);
+      }
+      // Apply SV effect: for deletion, zero the SV interval on ref.
+      // For duplication, double.
+      for (let b = 0; b < nBins; b++) {
+        const bpStart = b * BIN;
+        const bpEnd   = bpStart + BIN;
+        // Overlap with SV
+        const oLo = Math.max(bpStart, svStart);
+        const oHi = Math.min(bpEnd, svEnd);
+        if (oHi <= oLo) continue;
+        const frac = (oHi - oLo) / BIN;
+        if (state.svType === 'deletion') {
+          cov[b] *= (1 - frac); // remove depth within SV
+        } else if (state.svType === 'duplication') {
+          cov[b] += cov[b] * frac; // double within SV
+        }
+      }
+      let covMax = 0;
+      for (let b = 0; b < nBins; b++) if (cov[b] > covMax) covMax = cov[b];
+      covMax = Math.max(covMax, state.cov * 0.3);
+      const yOfCov = v => ILMN_COV_Y1 - (Math.min(v, covMax * 1.1) / (covMax * 1.1)) * (ILMN_COV_Y1 - ILMN_COV_Y0);
+
+      // Coverage axis label
+      svg.appendChild(el('text', {
+        x: x0, y: ILMN_COV_Y0 - 4,
+        'text-anchor': 'start',
+        'font-family': 'var(--font-sans)', 'font-size': 10,
+        fill: 'var(--fg-muted)', 'font-weight': 600, 'letter-spacing': '0.12em',
+      }, 'SHORT-READ DEPTH'));
+      svg.appendChild(el('text', {
+        x: x1, y: ILMN_COV_Y0 - 4,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, `max ${covMax.toFixed(1)}\u00d7`));
+
+      // Baseline frame
+      svg.appendChild(el('rect', {
+        x: x0, y: ILMN_COV_Y0,
+        width: plotW, height: ILMN_COV_Y1 - ILMN_COV_Y0,
+        fill: '#f4f5f7', stroke: 'var(--border)', 'stroke-width': 1,
+      }));
+      // Expected coverage line (at state.cov)
+      svg.appendChild(el('line', {
+        x1: x0, x2: x1,
+        y1: yOfCov(state.cov), y2: yOfCov(state.cov),
+        stroke: '#b4b7bc', 'stroke-width': 1,
+        'stroke-dasharray': '4 3',
+      }));
+      svg.appendChild(el('text', {
+        x: x0 - 6, y: yOfCov(state.cov) + 3,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 9,
+        fill: 'var(--fg-subtle)',
+      }, state.cov + '\u00d7'));
+
+      // Coverage path
+      let d = `M ${xOf(0).toFixed(2)} ${ILMN_COV_Y1.toFixed(2)}`;
+      for (let b = 0; b < nBins; b++) {
+        const bp = b * BIN + BIN / 2;
+        d += ` L ${xOf(bp).toFixed(2)} ${yOfCov(cov[b]).toFixed(2)}`;
+      }
+      d += ` L ${xOf(GENOME_BP).toFixed(2)} ${ILMN_COV_Y1.toFixed(2)} Z`;
+      svg.appendChild(el('path', {
+        d,
+        fill: COL_ILMN, 'fill-opacity': 0.25,
+        stroke: COL_ILMN, 'stroke-width': 0.9,
+        'stroke-opacity': 0.85,
+      }));
+    } else {
+      // Grey placeholder
+      svg.appendChild(el('text', {
+        x: (x0 + x1) / 2, y: (ILMN_READ_Y0 + ILMN_COV_Y1) / 2,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-sans)', 'font-size': 12,
+        fill: 'var(--fg-subtle)', 'letter-spacing': '0.1em',
+      }, 'ILLUMINA TRACK DISABLED'));
+    }
+
+    // ── HiFi reads ──
+    if (showHifi) {
+      bandHeader(
+        'PACBIO HiFi \u00b7 ~18 kb',
+        COL_HIFI,
+        HIFI_READ_Y0 - 10,
+        `${stats.hifiN} reads \u00b7 ${stats.hifiSpanCount} span \u00b7 ${stats.hifiClipCount} clipped`
+      );
+
+      // Lane-pack long reads
+      const lanes2 = [];
+      const nLanes2 = 12;
+      for (let i = 0; i < nLanes2; i++) lanes2.push(-Infinity);
+      const laneH2 = (HIFI_READ_Y1 - HIFI_READ_Y0) / nLanes2;
+      const sorted2 = state.hifiReadsArr.slice().sort((a, b) => a.start - b.start);
+      for (let i = 0; i < sorted2.length; i++) {
+        const r = sorted2[i];
+        let laneIdx = -1;
+        for (let L = 0; L < nLanes2; L++) {
+          if (lanes2[L] <= r.start) { laneIdx = L; break; }
+        }
+        if (laneIdx < 0) laneIdx = (i * 5) % nLanes2;
+        lanes2[laneIdx] = r.end + 500;
+        const y = HIFI_READ_Y0 + laneIdx * laneH2 + 2;
+        const h = Math.max(4, laneH2 - 3);
+        const col = r.spans ? COL_HIFI_SPAN : (r.clipped ? COL_UNMAP : COL_HIFI);
+        const strokeCol = r.spans ? COL_HIFI_SPAN : COL_HIFI;
+        svg.appendChild(el('rect', {
+          x: xOf(r.start), y,
+          width: Math.max(2, xOf(r.end) - xOf(r.start)),
+          height: h,
+          fill: col, opacity: r.spans ? 0.92 : 0.75,
+          stroke: strokeCol, 'stroke-width': r.spans ? 1 : 0.4,
+          rx: 1.5, ry: 1.5,
+        }));
+        // Spanning mark: green diamond at each breakpoint
+        if (r.spans) {
+          [svStart, svEnd].forEach(bp => {
+            const cx = xOf(bp), cy = y + h / 2;
+            svg.appendChild(el('polygon', {
+              points: `${cx-3},${cy} ${cx},${cy-3} ${cx+3},${cy} ${cx},${cy+3}`,
+              fill: '#fff', stroke: COL_HIFI_SPAN, 'stroke-width': 1.2,
+            }));
+          });
+        }
+      }
+    } else {
+      svg.appendChild(el('text', {
+        x: (x0 + x1) / 2, y: (HIFI_READ_Y0 + HIFI_READ_Y1) / 2,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-sans)', 'font-size': 12,
+        fill: 'var(--fg-subtle)', 'letter-spacing': '0.1em',
+      }, 'HiFi TRACK DISABLED'));
+    }
+
+    // ── Bottom coordinate axis (mirror) ──
+    for (let bp = 0; bp <= GENOME_BP; bp += 10000) {
+      const xp = xOf(bp);
+      svg.appendChild(el('line', {
+        x1: xp, x2: xp, y1: H - 30, y2: H - 26,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x: xp, y: H - 14,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, (bp / 1000) + ' kb'));
+    }
+  }
+
+  // ── Formatting helpers ────────────────────────────────
+  function fmtBp(n) {
+    if (n >= 1000) return (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1) + ' kb';
+    return Math.round(n) + ' bp';
+  }
+  function fmtInt(n) { return Math.round(n).toLocaleString(); }
+  function fmtPct(p) {
+    if (!isFinite(p)) return '\u2014';
+    return (p * 100).toFixed(1) + '%';
+  }
+
+  // ── Update UI ─────────────────────────────────────────
+  function updateReadouts() {
+    svSizeVal.textContent = fmtBp(state.svSize);
+    svLocVal.textContent  = state.svLoc.toLocaleString() + ' bp';
+    covVal.textContent    = state.cov + '\u00d7';
+
+    const s = state.stats;
+    if (!s) return;
+
+    bSvType.textContent = state.svType;
+    bSvSize.textContent = fmtBp(state.svSize);
+    bIlmnSpan.textContent  = fmtInt(s.ilmnSpanCount);
+    bIlmnSplit.textContent = fmtInt(s.ilmnSplitCount);
+    bHifiSpan.textContent  = fmtInt(s.hifiSpanCount);
+    bIlmnRec.textContent   = fmtPct(s.ilmnRecall);
+    bHifiRec.textContent   = fmtPct(s.hifiRecall);
+
+    const showIlmn = state.tech === 'both' || state.tech === 'illumina';
+    const showHifi = state.tech === 'both' || state.tech === 'hifi';
+
+    cardIlmn.classList.toggle('disabled', !showIlmn);
+    cardHifi.classList.toggle('disabled', !showHifi);
+
+    ilmnReads.textContent    = fmtInt(s.ilmnN);
+    ilmnSpan.textContent     = fmtInt(s.ilmnSpanCount);
+    ilmnSplit.textContent    = fmtInt(s.ilmnSplitCount);
+    ilmnEvidence.textContent = fmtInt(s.ilmnSpanCount + s.ilmnSplitCount);
+    ilmnRecall.textContent   = fmtPct(s.ilmnRecall);
+
+    hifiReads.textContent   = fmtInt(s.hifiN);
+    hifiSpan.textContent    = fmtInt(s.hifiSpanCount);
+    hifiClip.textContent    = fmtInt(s.hifiClipCount);
+    hifiMeanLen.textContent = fmtBp(s.hifiMeanLen);
+    hifiRecall.textContent  = fmtPct(s.hifiRecall);
+  }
+
+  function readControls() {
+    state.svSize = sizeFromSlider(+svSizeEl.value);
+    state.svLoc  = +svLocEl.value;
+    state.cov    = +covEl.value;
+    state.svType = svTypeEl.value;
+    state.tech   = techEl.value;
+    // Clamp SV so it fits inside window with 5 kb margin
+    const maxHalf = Math.min(state.svLoc - 5000, GENOME_BP - state.svLoc - 5000);
+    const halfSv  = state.svSize / 2;
+    if (halfSv > maxHalf) {
+      state.svSize = Math.max(50, 2 * maxHalf);
+    }
+  }
+
+  function simAndRender() {
+    simulate();
+    updateReadouts();
+    render();
+  }
+
+  // ── Wire controls ─────────────────────────────────────
+  [svSizeEl, svLocEl, covEl].forEach(el => {
+    el.addEventListener('input', () => {
+      readControls();
+      simAndRender();
+    });
+  });
+  [svTypeEl, techEl].forEach(el => {
+    el.addEventListener('change', () => {
+      readControls();
+      simAndRender();
+    });
+  });
+  resimBtn.addEventListener('click', () => {
+    state.seed = (Math.floor(Math.random() * 0x7fffffff) || 1) >>> 0;
+    readControls();
+    simAndRender();
+  });
+  resetBtn.addEventListener('click', () => {
+    state.seed = 20260421;
+    svSizeEl.value = sliderFromSize(DEFAULTS.svSize).toString();
+    svLocEl.value  = DEFAULTS.svLoc.toString();
+    covEl.value    = DEFAULTS.cov.toString();
+    svTypeEl.value = DEFAULTS.svType;
+    techEl.value   = DEFAULTS.tech;
+    readControls();
+    simAndRender();
+  });
+
+  // ── Boot ──────────────────────────────────────────────
+  // Initialise size slider to default via its default HTML value (670 ≈ 5 kb).
+  readControls();
+  simAndRender();
+})();
+</script>
+
+</body>
+</html>

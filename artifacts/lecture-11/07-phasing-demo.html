@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Haplotype Phasing Demo</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 68ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1rem 1.25rem;
+      align-items: end;
+    }
+    @media (max-width: 900px) {
+      .controls-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 520px) {
+      .controls-grid { grid-template-columns: 1fr; }
+    }
+
+    .ctrl-wrap select,
+    .ctrl-wrap input[type="range"] {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      width: 100%;
+    }
+    .ctrl-wrap select {
+      padding: 0.5rem 0.7rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+    }
+    .ctrl-wrap select:focus,
+    .ctrl-wrap input[type="range"]:focus {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: 1px;
+    }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .slider-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+    .slider-val {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--fg);
+      min-width: 3.4rem;
+      text-align: right;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .action-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .twin-panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 900px) {
+      .twin-panels { grid-template-columns: 1fr; }
+    }
+    .twin-panels .panel { margin-bottom: 0; }
+    .twin-panels .panel.hidden { display: none; }
+
+    .tech-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .tech-head h3 {
+      font-family: var(--font-serif);
+      font-size: var(--text-xl);
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+    .tech-tag {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: 3px;
+      background: var(--bg-muted);
+      color: var(--fg-muted);
+      border: 1px solid var(--border);
+    }
+    .tech-tag.short { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    .tech-tag.long  { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.55rem;
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.55rem;
+      margin-top: 0.8rem;
+    }
+    .metric-card {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.7rem;
+    }
+    .metric-card .lbl {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+    }
+    .metric-card .val {
+      font-family: var(--font-mono);
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--fg);
+      margin-top: 0.15rem;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-relaxed);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 12px; height: 10px;
+      border-radius: 2px;
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="phasing-demo">
+
+  <header class="artifact-head">
+    <h1>Haplotype Phasing Demo</h1>
+    <p>Plant a diploid region with heterozygous SNPs, simulate short (150 bp) and long (15–25 kb) reads over it, and watch each technology attempt to phase the variants. Short reads connect hets only when a single fragment spans both — phase blocks stay small and break at gaps. Long reads span most of the region in one go and resolve phase directly, producing one chromosome-scale block.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="controls-grid">
+      <div class="ctrl-wrap">
+        <label class="field-label" for="hets-slider"># heterozygous variants</label>
+        <div class="slider-row">
+          <input type="range" id="hets-slider" min="3" max="15" step="1" value="8">
+          <span class="slider-val" id="hets-val">8</span>
+        </div>
+      </div>
+      <div class="ctrl-wrap">
+        <label class="field-label" for="region-slider">Region length (kb)</label>
+        <div class="slider-row">
+          <input type="range" id="region-slider" min="5" max="50" step="1" value="30">
+          <span class="slider-val" id="region-val">30 kb</span>
+        </div>
+      </div>
+      <div class="ctrl-wrap">
+        <label class="field-label" for="cov-slider">Coverage (×)</label>
+        <div class="slider-row">
+          <input type="range" id="cov-slider" min="10" max="60" step="1" value="30">
+          <span class="slider-val" id="cov-val">30×</span>
+        </div>
+      </div>
+      <div class="ctrl-wrap">
+        <label class="field-label" for="tech-select">Tech mode</label>
+        <select id="tech-select">
+          <option value="both">compare both</option>
+          <option value="short">short only</option>
+          <option value="long">long only</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="action-row" style="margin-top: 0.9rem;">
+      <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate</button>
+    </div>
+
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw" style="background:#1e3a8a"></span> maternal haplotype</span>
+      <span class="legend-swatch"><span class="sw" style="background:#b45309"></span> paternal haplotype</span>
+      <span class="legend-swatch"><span class="sw" style="background:#8a8a85"></span> unphased / ambiguous</span>
+      <span class="legend-swatch"><span class="sw" style="background:#0a0a0a;width:2px;height:12px"></span> het SNP tick</span>
+    </div>
+  </section>
+
+  <div class="twin-panels">
+    <section class="panel" id="short-panel">
+      <div class="tech-head">
+        <h3>Short reads</h3>
+        <span class="tech-tag short">150 bp fragments</span>
+      </div>
+      <div class="plot-wrap">
+        <svg id="short-svg" class="plot-svg" viewBox="0 0 560 360" preserveAspectRatio="xMidYMid meet" aria-label="Short-read phasing view"></svg>
+      </div>
+      <div class="metric-row">
+        <div class="metric-card"><div class="lbl">Phase blocks</div><div class="val" id="short-blocks">–</div></div>
+        <div class="metric-card"><div class="lbl">Pairwise accuracy</div><div class="val" id="short-acc">–</div></div>
+      </div>
+    </section>
+
+    <section class="panel" id="long-panel">
+      <div class="tech-head">
+        <h3>Long reads</h3>
+        <span class="tech-tag long">15–25 kb fragments</span>
+      </div>
+      <div class="plot-wrap">
+        <svg id="long-svg" class="plot-svg" viewBox="0 0 560 360" preserveAspectRatio="xMidYMid meet" aria-label="Long-read phasing view"></svg>
+      </div>
+      <div class="metric-row">
+        <div class="metric-card"><div class="lbl">Phase blocks</div><div class="val" id="long-blocks">–</div></div>
+        <div class="metric-card"><div class="lbl">Pairwise accuracy</div><div class="val" id="long-acc">–</div></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="banner" id="banner"></div>
+  <p class="hint">Pairwise accuracy = fraction of adjacent het-SNP pairs whose inferred phase matches the planted truth. A switch at a block boundary is essentially a coin-flip, so each break costs ~½ of one pair. Long reads almost never need to break a block; short reads break whenever no fragment bridges two neighbouring hets.</p>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Deterministic RNG (mulberry32) ───────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ── Colours (tied to theme tokens, but inlined for SVG fills) ──
+  const COL_MAT     = '#1e3a8a'; // maternal cobalt
+  const COL_PAT     = '#b45309'; // paternal amber
+  const COL_AMBIG   = '#8a8a85';
+  const COL_REF     = '#0a0a0a';
+  const COL_GRID    = '#e5e3dc';
+  const COL_BORDER  = '#c4c1b6';
+  const COL_MUTED   = '#525252';
+  const COL_SUBTLE  = '#8a8a85';
+
+  // ── State ────────────────────────────────────────────────
+  const state = {
+    nHets: 8,
+    regionKb: 30,
+    coverage: 30,
+    tech: 'both',
+    seed: 20260421,
+  };
+
+  // ── Genome / read simulation ─────────────────────────────
+  //
+  // Plant a diploid region: K het positions, at each het choose an A/B allele
+  // assignment per haplotype. Haplotype 0 ("maternal") gets the "A" allele
+  // at some hets and "B" at others — encoded by truePhase[k] ∈ {0,1}.
+  // truePhase[k] = 0 means maternal has allele-0 at het k; = 1 means
+  // maternal has allele-1. This is our ground truth.
+  function plantRegion(rng) {
+    const L = state.regionKb * 1000;
+    const K = state.nHets;
+
+    // Het positions: a mix of clustered and isolated hets so short reads
+    // can phase some adjacent pairs (those within ~500 bp) but not all.
+    // Strategy: roughly one cluster per ~2 hets on average — pick cluster
+    // anchor points uniformly on [0, L), then place each het at an anchor
+    // with a small gaussian offset (~250 bp). This creates natural gaps
+    // that short reads cannot bridge, while still leaving some adjacent
+    // het pairs close enough to link.
+    const nAnchors = Math.max(1, Math.ceil(K / 2));
+    const anchors = [];
+    for (let a = 0; a < nAnchors; a++) {
+      anchors.push(Math.floor(rng() * L));
+    }
+    const pos = [];
+    for (let k = 0; k < K; k++) {
+      const anchor = anchors[k % nAnchors];
+      // Small offset: ±250 bp gaussian-ish (box-muller-lite).
+      const u1 = Math.max(1e-6, rng());
+      const u2 = rng();
+      const off = 250 * Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+      let p = Math.round(anchor + off);
+      if (p < 50) p = 50;
+      if (p > L - 50) p = L - 50;
+      pos.push(p);
+    }
+    pos.sort((a, b) => a - b);
+    // Dedup: if any two hets land on the same base, nudge them apart.
+    for (let i = 1; i < pos.length; i++) {
+      if (pos[i] <= pos[i - 1]) pos[i] = pos[i - 1] + 1;
+    }
+
+    // Ground truth phase: random 0/1 at each het for the maternal hap.
+    const truePhase = new Array(K);
+    for (let k = 0; k < K; k++) truePhase[k] = rng() < 0.5 ? 0 : 1;
+
+    return { L, K, pos, truePhase };
+  }
+
+  // Simulate reads from a tech.
+  //   short: paired-end Illumina fragments of ~400 bp (150 bp R1 + insert
+  //          + 150 bp R2). A fragment "covers" a het if the het lies within
+  //          either end-read of the fragment OR anywhere within the full
+  //          fragment span for the purposes of phase linkage — the real
+  //          phasing software (HapCUT2, WhatsHap) links hets that co-occur
+  //          on the same sequenced fragment through its paired ends. Here
+  //          we approximate by saying a het is "called" if it lies within
+  //          either 150 bp end-read; pairs of hets on the same fragment
+  //          that each land inside one of the two end-reads produce a
+  //          linkage.
+  //   long:  15–25 kb single fragments covering every het in their span.
+  //
+  // Coverage is per-technology: nFragments ≈ cov · L / mean-read-length,
+  // where mean-read-length for short = 2·150 = 300 (sequenced bases per
+  // fragment) and for long = ~20 kb.
+  function simulateReads(region, tech, rng) {
+    const { L, K, pos, truePhase } = region;
+    const cov = state.coverage;
+
+    const reads = [];
+
+    if (tech === 'short') {
+      // Illumina-style: fragment length ~ 350 to 550 bp (typical insert),
+      // with 150 bp reads at each end. We compute coverage from sequenced
+      // bases (2 · 150 per fragment = 300 sequenced bp).
+      const seqPerFrag = 300;
+      const nFrags = Math.max(1, Math.round((cov * L) / seqPerFrag));
+      for (let r = 0; r < nFrags; r++) {
+        const fragLen = 350 + Math.floor(rng() * 201); // 350–550 bp
+        const start = Math.floor(rng() * L) - Math.floor(fragLen / 2);
+        const end = start + fragLen;
+        // Two 150 bp end-reads:
+        const r1Start = start, r1End = start + 150;
+        const r2Start = end - 150, r2End = end;
+
+        // Which het sites does either end-read cover?
+        const covered = [];
+        for (let k = 0; k < K; k++) {
+          const p = pos[k];
+          if ((p >= r1Start && p < r1End) || (p >= r2Start && p < r2End)) {
+            covered.push(k);
+          }
+        }
+        if (covered.length === 0) continue;
+        const hap = rng() < 0.5 ? 0 : 1;
+        const calls = covered.map(k => ({
+          k,
+          allele: (hap === 0) ? truePhase[k] : (1 - truePhase[k]),
+        }));
+        reads.push({ start, end, len: fragLen, hap, calls });
+      }
+    } else {
+      // Long reads: 15–25 kb uniform, single continuous fragment.
+      const meanLen = 20000;
+      const nReads = Math.max(1, Math.round((cov * L) / meanLen));
+      for (let r = 0; r < nReads; r++) {
+        const len = 15000 + Math.floor(rng() * 10001);
+        const start = Math.floor(rng() * L) - Math.floor(len / 2);
+        const end = start + len;
+        const covered = [];
+        for (let k = 0; k < K; k++) {
+          if (pos[k] >= start && pos[k] < end) covered.push(k);
+        }
+        if (covered.length === 0) continue;
+        const hap = rng() < 0.5 ? 0 : 1;
+        const calls = covered.map(k => ({
+          k,
+          allele: (hap === 0) ? truePhase[k] : (1 - truePhase[k]),
+        }));
+        reads.push({ start, end, len, hap, calls });
+      }
+    }
+    return reads;
+  }
+
+  // ── Phasing passes ──────────────────────────────────────
+  //
+  // Both passes build: inferred[k] ∈ {0,1} — which allele we call "maternal"
+  // at het k in the inferred phasing — and a block assignment blockId[k].
+  // Phase accuracy at a pair (k, k+1) compares (inferred[k] vs inferred[k+1])
+  // against (truePhase[k] vs truePhase[k+1]). If both are in the same block
+  // and their relative orientation matches truth, the pair is correct.
+  //
+  // Greedy connected-component short-read phasing:
+  //   For each pair of hets (i, j) that co-occur on ≥ 1 read, the reads
+  //   vote on whether they share the same orientation (allele[i] == allele[j])
+  //   or opposite (allele[i] != allele[j]). Union-find merges (i, j) if the
+  //   majority vote is ≥ threshold. Within a block, we propagate from the
+  //   smallest-index het: block's phase call at the root is fixed to 0, and
+  //   each downstream het is flipped if the cumulative "same vs opposite"
+  //   parity says so. Hets that are not connected to anything form their
+  //   own singleton blocks.
+  //
+  // Long-read phasing is identical in form but fragments usually cover
+  // most hets at once, so the graph is dense and collapses to ≤ 1-2 blocks.
+  function phaseReads(region, reads) {
+    const { K } = region;
+
+    // Pair evidence: pairEvidence[i][j] = { same, diff } counts (i < j).
+    // Use a sparse map keyed by (i * K + j).
+    const ev = new Map();
+    function addEv(i, j, same) {
+      if (i > j) { const t = i; i = j; j = t; same = same; }
+      const key = i * K + j;
+      let e = ev.get(key);
+      if (!e) { e = { i, j, same: 0, diff: 0 }; ev.set(key, e); }
+      if (same) e.same++; else e.diff++;
+    }
+
+    for (const r of reads) {
+      const c = r.calls;
+      for (let a = 0; a < c.length; a++) {
+        for (let b = a + 1; b < c.length; b++) {
+          const same = c[a].allele === c[b].allele;
+          addEv(c[a].k, c[b].k, same);
+        }
+      }
+    }
+
+    // Union-find over hets. Connect i-j only if supported by ≥ 1 read
+    // (which we have by construction — they're in ev). The relationship
+    // (same vs diff) is taken as majority vote.
+    const parent = new Array(K).fill(0).map((_, k) => k);
+    const rel = new Array(K).fill(0); // orientation relative to root
+    function find(x) {
+      let r = x;
+      while (parent[r] !== r) r = parent[r];
+      // Compute rel along the chain with path compression.
+      let cur = x, acc = 0;
+      while (parent[cur] !== cur) {
+        acc ^= rel[cur];
+        const next = parent[cur];
+        // We'll do a second pass to update parents after we know the root.
+        cur = next;
+      }
+      // Second pass: compress.
+      cur = x;
+      let acc2 = 0;
+      while (parent[cur] !== cur) {
+        const next = parent[cur];
+        const nextRel = rel[cur];
+        parent[cur] = r;
+        rel[cur] = acc2 ^ nextRel ^ (acc2);  // keep absolute rel-to-root
+        // Equivalent but simpler: recompute from scratch:
+        cur = next;
+      }
+      // Simpler: recompute rel[x] from scratch by walking original parents.
+      return r;
+    }
+
+    // The above is fiddly; do a cleaner union-find with orientation.
+    // Reset and use an explicit walk-to-root that returns {root, rel}.
+    function pfind(x) {
+      let cur = x, acc = 0;
+      while (parent[cur] !== cur) {
+        acc ^= rel[cur];
+        cur = parent[cur];
+      }
+      return { root: cur, rel: acc };
+    }
+    function punion(i, j, sameOrient) {
+      const A = pfind(i), B = pfind(j);
+      if (A.root === B.root) return;
+      // We want rel[i]-to-root = A.rel, rel[j]-to-root = B.rel, and the
+      // constraint (i, j) sameOrient means rel[i] vs rel[j] should equal 0
+      // if sameOrient else 1. Merge B.root under A.root with an edge that
+      // makes the math work:
+      //   new rel[B.root] = A.rel XOR B.rel XOR (sameOrient ? 0 : 1)
+      parent[B.root] = A.root;
+      rel[B.root] = A.rel ^ B.rel ^ (sameOrient ? 0 : 1);
+    }
+
+    // Sort edges by strength so confident pairs merge first. Tie-breaker: |i - j|
+    // smaller first (nearby hets are a priori more trustworthy).
+    const edges = Array.from(ev.values());
+    edges.sort((a, b) => {
+      const ta = a.same + a.diff, tb = b.same + b.diff;
+      if (tb !== ta) return tb - ta;
+      return (a.j - a.i) - (b.j - b.i);
+    });
+
+    for (const e of edges) {
+      const sameVotes = e.same, diffVotes = e.diff;
+      const total = sameVotes + diffVotes;
+      // Require at least one supporting read, and a clear majority (≥ 60%)
+      // to avoid wiring blocks together on ambiguous ties.
+      if (total < 1) continue;
+      const sameOrient = sameVotes >= diffVotes;
+      const major = Math.max(sameVotes, diffVotes);
+      if (major / total < 0.6 && total >= 3) continue;
+      punion(e.i, e.j, sameOrient);
+    }
+
+    // Assemble block assignment and inferred phase.
+    const blockId = new Array(K);
+    const inferred = new Array(K);
+    const rootToBlock = new Map();
+    for (let k = 0; k < K; k++) {
+      const f = pfind(k);
+      let bid = rootToBlock.get(f.root);
+      if (bid == null) {
+        bid = rootToBlock.size;
+        rootToBlock.set(f.root, bid);
+      }
+      blockId[k] = bid;
+      // Inferred phase at k: f.rel. (0 means same as root; 1 means flipped.)
+      inferred[k] = f.rel;
+    }
+
+    // Count block sizes; singleton-het blocks (no evidence) are their own.
+    const blockSizes = new Map();
+    for (const b of blockId) blockSizes.set(b, (blockSizes.get(b) || 0) + 1);
+
+    return { blockId, inferred, blockSizes };
+  }
+
+  // Phase accuracy: fraction of adjacent het pairs (k, k+1) whose relative
+  // inferred phase matches truth, given they're in the same block. Pairs
+  // that cross block boundaries are scored as 0.5 (coin flip).
+  function phaseAccuracy(region, phasing) {
+    const { K, truePhase } = region;
+    const { blockId, inferred } = phasing;
+    if (K < 2) return 1.0;
+    let score = 0;
+    for (let k = 0; k < K - 1; k++) {
+      if (blockId[k] === blockId[k + 1]) {
+        const dT = truePhase[k] ^ truePhase[k + 1];
+        const dI = inferred[k] ^ inferred[k + 1];
+        if (dT === dI) score += 1;
+      } else {
+        score += 0.5; // cross-boundary: effectively random
+      }
+    }
+    return score / (K - 1);
+  }
+
+  // ── Rendering ────────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // Plot geometry (shared between both tech panels).
+  const W = 560, H = 360;
+  const PAD_L = 10, PAD_R = 10, PAD_T = 28, PAD_B = 32;
+  const plotW = W - PAD_L - PAD_R;
+  const REF_H = 26;
+  const BLOCK_H = 18;
+  const READ_ROW_H = 5; // slim read bars so many stack
+  const READ_TOP_PAD = 6;
+
+  function renderPanel(svg, region, reads, phasing, tech) {
+    clear(svg);
+    const { L, K, pos } = region;
+
+    const xOfBp = (bp) => PAD_L + (bp / L) * plotW;
+
+    // ── Reference track ────────────────────────────────────
+    const refY = PAD_T;
+    svg.appendChild(el('rect', {
+      x: PAD_L, y: refY, width: plotW, height: REF_H,
+      fill: '#fafafa', stroke: COL_BORDER, 'stroke-width': 1, rx: 2,
+    }));
+    svg.appendChild(el('text', {
+      x: PAD_L + 4, y: refY + 10,
+      'font-family': 'var(--font-mono)', 'font-size': 9,
+      fill: COL_SUBTLE,
+    }, `reference · ${state.regionKb} kb · ${K} het sites`));
+    // SNP ticks
+    for (let k = 0; k < K; k++) {
+      const x = xOfBp(pos[k]);
+      svg.appendChild(el('line', {
+        x1: x, x2: x,
+        y1: refY + 13, y2: refY + REF_H - 2,
+        stroke: COL_REF, 'stroke-width': 1.4,
+      }));
+    }
+
+    // ── Read lane area ─────────────────────────────────────
+    // Fragment stacking: greedy lane packing. For long reads we cap the
+    // number of lanes drawn (reads mostly span the region, so showing too
+    // many is redundant); for short reads we show more because they're
+    // short and tiled.
+    const laneCap = tech === 'short' ? 32 : 20;
+    const lanes = []; // each lane: endBp of last placed read
+
+    // Sort reads by start for packing.
+    const sorted = reads.slice().sort((a, b) => a.start - b.start);
+    const placed = [];
+    for (const r of sorted) {
+      let laneIdx = -1;
+      for (let li = 0; li < lanes.length; li++) {
+        if (r.start >= lanes[li] + 20) { laneIdx = li; break; }
+      }
+      if (laneIdx === -1) {
+        if (lanes.length >= laneCap) continue;
+        laneIdx = lanes.length;
+        lanes.push(r.end);
+      } else {
+        lanes[laneIdx] = r.end;
+      }
+      placed.push({ r, lane: laneIdx });
+    }
+
+    const readsTop = refY + REF_H + READ_TOP_PAD;
+    const readsArea = H - PAD_B - BLOCK_H - 12 - readsTop;
+    const actualLanes = Math.max(1, lanes.length);
+    const laneH = Math.min(READ_ROW_H + 1, readsArea / actualLanes);
+
+    // Draw each placed read as a thin bar, coloured by its inferred haplotype
+    // (via the block assignment + inferred-flip at the first het it covers).
+    for (const p of placed) {
+      const r = p.r;
+      const y = readsTop + p.lane * laneH;
+      // Colour: if the read covers ≥ 1 het, take the majority inferred
+      // haplotype across its hets (maternal if inferred == true-phase-maternal-side).
+      // Simpler: use the first het's inferred allele-as-maternal decision.
+      // inferred[k] == 0 means "this allele at het k is called maternal";
+      // the read carries allele r.calls[0].allele at that het, so:
+      //   read-hap-maternal if (r.calls[0].allele == inferred[k_first]).
+      let col = COL_AMBIG;
+      if (r.calls.length > 0 && phasing) {
+        const first = r.calls[0];
+        const inf = phasing.inferred[first.k];
+        // If inferred[k] == 0: allele 0 is maternal, allele 1 is paternal.
+        // If inferred[k] == 1: allele 1 is maternal, allele 0 is paternal.
+        const isMaternal = (first.allele === 0) ? (inf === 0) : (inf === 1);
+        col = isMaternal ? COL_MAT : COL_PAT;
+      }
+      const x0 = Math.max(PAD_L, xOfBp(Math.max(0, r.start)));
+      const x1 = Math.min(PAD_L + plotW, xOfBp(Math.min(L, r.end)));
+      svg.appendChild(el('rect', {
+        x: x0, y, width: Math.max(1, x1 - x0), height: Math.max(2, laneH - 1),
+        fill: col, 'fill-opacity': 0.85, stroke: 'none', rx: 1,
+      }));
+      // Dots at het-call positions on the read
+      for (const c of r.calls) {
+        const cx = xOfBp(pos[c.k]);
+        svg.appendChild(el('circle', {
+          cx, cy: y + Math.max(2, laneH - 1) / 2,
+          r: 1.4, fill: '#fff', stroke: col, 'stroke-width': 0.6,
+        }));
+      }
+    }
+
+    // Note if we had to drop reads
+    const dropped = reads.length - placed.length;
+    if (dropped > 0) {
+      svg.appendChild(el('text', {
+        x: PAD_L + plotW - 4, y: readsTop + actualLanes * laneH + 9,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 8,
+        fill: COL_SUBTLE,
+      }, `+${dropped} reads not drawn`));
+    }
+
+    // ── Phase-block strip ─────────────────────────────────
+    // Draw one horizontal bar per contiguous run of hets in the same block,
+    // spanning from the midpoint between the previous block's last het and
+    // this block's first het to the midpoint between this block's last het
+    // and the next block's first het.
+    const blockStripY = H - PAD_B - BLOCK_H - 2;
+    svg.appendChild(el('rect', {
+      x: PAD_L, y: blockStripY, width: plotW, height: BLOCK_H,
+      fill: '#fafafa', stroke: COL_BORDER, 'stroke-width': 1, rx: 2,
+    }));
+    svg.appendChild(el('text', {
+      x: PAD_L + 4, y: blockStripY + 10,
+      'font-family': 'var(--font-mono)', 'font-size': 9,
+      fill: COL_SUBTLE,
+    }, 'inferred phase blocks'));
+
+    if (phasing && K > 0) {
+      // Find contiguous runs.
+      let runStart = 0;
+      for (let k = 1; k <= K; k++) {
+        if (k === K || phasing.blockId[k] !== phasing.blockId[runStart]) {
+          // Run: [runStart, k-1]
+          const b = phasing.blockId[runStart];
+          const lastK = k - 1;
+          let bpL, bpR;
+          if (runStart === 0) bpL = 0;
+          else bpL = Math.round((pos[runStart - 1] + pos[runStart]) / 2);
+          if (k === K) bpR = L;
+          else bpR = Math.round((pos[lastK] + pos[lastK + 1]) / 2);
+
+          const x0 = xOfBp(bpL);
+          const x1 = xOfBp(bpR);
+          const runLen = lastK - runStart + 1;
+          // Singleton, isolated blocks render as thin grey; larger blocks
+          // alternate between cobalt and amber based on block id parity.
+          let col;
+          if (runLen === 1) col = COL_AMBIG;
+          else col = (b % 2 === 0) ? COL_MAT : COL_PAT;
+          svg.appendChild(el('rect', {
+            x: x0 + 1, y: blockStripY + 4,
+            width: Math.max(1, x1 - x0 - 2), height: BLOCK_H - 7,
+            fill: col, 'fill-opacity': 0.85, rx: 1,
+          }));
+          // Label block size if wide enough
+          if (x1 - x0 > 30) {
+            svg.appendChild(el('text', {
+              x: (x0 + x1) / 2, y: blockStripY + BLOCK_H - 6,
+              'text-anchor': 'middle',
+              'font-family': 'var(--font-mono)', 'font-size': 8,
+              fill: '#fff', 'font-weight': 600,
+            }, runLen === 1 ? '•' : `${runLen} hets`));
+          }
+          runStart = k;
+        }
+      }
+    }
+
+    // ── Coordinate axis ────────────────────────────────────
+    const axisY = H - 14;
+    svg.appendChild(el('line', {
+      x1: PAD_L, x2: PAD_L + plotW, y1: axisY, y2: axisY,
+      stroke: COL_BORDER, 'stroke-width': 1,
+    }));
+    const nTicks = Math.min(6, Math.max(2, Math.round(state.regionKb / 5)));
+    for (let t = 0; t <= nTicks; t++) {
+      const bp = (t / nTicks) * L;
+      const x = xOfBp(bp);
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: axisY, y2: axisY + 3,
+        stroke: COL_BORDER, 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x, y: axisY + 11,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 8.5,
+        fill: COL_SUBTLE,
+      }, (bp / 1000).toFixed(0) + ' kb'));
+    }
+  }
+
+  // ── Simulation driver ───────────────────────────────────
+  function runSim() {
+    const seed = state.seed;
+
+    // Shared planted region so both tech panels operate on the same
+    // underlying truth. Use one RNG for the region, then branch a separate
+    // RNG for each tech so that short/long read sets are independent but
+    // reproducible from the same seed.
+    const rngR = mulberry32(seed);
+    const region = plantRegion(rngR);
+
+    const rngS = mulberry32((seed ^ 0xA5A5A5A5) >>> 0);
+    const rngL = mulberry32((seed ^ 0x5A5A5A5A) >>> 0);
+
+    const shortReads = simulateReads(region, 'short', rngS);
+    const longReads  = simulateReads(region, 'long',  rngL);
+
+    const shortPhase = phaseReads(region, shortReads);
+    const longPhase  = phaseReads(region, longReads);
+
+    const shortAcc = phaseAccuracy(region, shortPhase);
+    const longAcc  = phaseAccuracy(region, longPhase);
+
+    // ── Render ────────────────────────────────────────────
+    const shortSvg = $('short-svg');
+    const longSvg  = $('long-svg');
+    const shortPanel = $('short-panel');
+    const longPanel  = $('long-panel');
+
+    if (state.tech === 'short') {
+      shortPanel.classList.remove('hidden');
+      longPanel.classList.add('hidden');
+    } else if (state.tech === 'long') {
+      shortPanel.classList.add('hidden');
+      longPanel.classList.remove('hidden');
+    } else {
+      shortPanel.classList.remove('hidden');
+      longPanel.classList.remove('hidden');
+    }
+
+    renderPanel(shortSvg, region, shortReads, shortPhase, 'short');
+    renderPanel(longSvg,  region, longReads,  longPhase,  'long');
+
+    // Metric cards
+    const shortNBlocks = shortPhase.blockSizes.size;
+    const longNBlocks  = longPhase.blockSizes.size;
+    $('short-blocks').textContent = shortNBlocks.toString();
+    $('long-blocks').textContent  = longNBlocks.toString();
+    $('short-acc').textContent = (shortAcc * 100).toFixed(1) + '%';
+    $('long-acc').textContent  = (longAcc  * 100).toFixed(1) + '%';
+
+    // Banner
+    const banner = $('banner');
+    const deltaBlocks = shortNBlocks - longNBlocks;
+    const deltaAcc = (longAcc - shortAcc) * 100;
+    let verdict;
+    if (state.tech === 'short') {
+      verdict = `Short reads alone: <b>${shortNBlocks} block(s)</b>, <b>${(shortAcc * 100).toFixed(1)}%</b> pairwise accuracy. Phase breaks wherever no 150 bp fragment bridges two neighbouring hets.`;
+    } else if (state.tech === 'long') {
+      verdict = `Long reads alone: <b>${longNBlocks} block(s)</b>, <b>${(longAcc * 100).toFixed(1)}%</b> pairwise accuracy. A single 15–25 kb fragment spans most hets and resolves phase directly.`;
+    } else {
+      verdict = `Short reads produced <b>${shortNBlocks} block(s)</b> at <b>${(shortAcc * 100).toFixed(1)}%</b>; long reads produced <b>${longNBlocks} block(s)</b> at <b>${(longAcc * 100).toFixed(1)}%</b>. ` +
+        (deltaBlocks > 0
+          ? `Long reads collapse ${deltaBlocks} extra short-read block(s) into one, recovering <b>${deltaAcc >= 0 ? '+' : ''}${deltaAcc.toFixed(1)} pp</b> of phase accuracy — they read phase <b>directly</b>, short reads infer it statistically.`
+          : `At this coverage and region size, both technologies reach a single block — but in general, long reads win as the region grows beyond ~10 kb.`);
+    }
+    banner.innerHTML = verdict;
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  const hetsSlider   = $('hets-slider');
+  const regionSlider = $('region-slider');
+  const covSlider    = $('cov-slider');
+  const techSelect   = $('tech-select');
+  const resimBtn     = $('resim-btn');
+
+  function wireSlider(slider, valNode, suffix, stateKey) {
+    slider.addEventListener('input', () => {
+      const v = parseInt(slider.value, 10);
+      state[stateKey] = v;
+      valNode.textContent = suffix ? `${v}${suffix}` : v.toString();
+      runSim();
+    });
+  }
+  wireSlider(hetsSlider,   $('hets-val'),   '',    'nHets');
+  wireSlider(regionSlider, $('region-val'), ' kb', 'regionKb');
+  wireSlider(covSlider,    $('cov-val'),    '×',   'coverage');
+
+  techSelect.addEventListener('change', () => {
+    state.tech = techSelect.value;
+    runSim();
+  });
+
+  resimBtn.addEventListener('click', () => {
+    state.seed = (Math.random() * 0xffffffff) >>> 0;
+    runSim();
+  });
+
+  // ── Boot ────────────────────────────────────────────────
+  $('hets-val').textContent   = state.nHets.toString();
+  $('region-val').textContent = `${state.regionKb} kb`;
+  $('cov-val').textContent    = `${state.coverage}×`;
+  techSelect.value = state.tech;
+  runSim();
+})();
+</script>
+
+</body>
+</html>

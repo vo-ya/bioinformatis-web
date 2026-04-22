@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Graph Seed-and-Extend Walker</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 68ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .control-row { display: flex; flex-direction: column; gap: 0.35rem; }
+
+    select, textarea {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.45rem 0.6rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+    }
+    select:focus, textarea:focus {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: 1px;
+      background: var(--bg-elevated);
+    }
+
+    .paste-wrap {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.6rem;
+      margin-top: 0.85rem;
+      padding-top: 0.9rem;
+      border-top: 1px dashed var(--border);
+    }
+    .paste-wrap.hidden { display: none; }
+    .paste-wrap textarea {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: 1.45;
+      min-height: 64px;
+      resize: vertical;
+      width: 100%;
+      letter-spacing: 0.02em;
+    }
+    .paste-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .paste-actions .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0 0 0 auto;
+    }
+    .paste-error {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--error);
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.75rem;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .paste-error.show { display: block; }
+
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.85rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .stage-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
+      gap: 1.1rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .stage-grid { grid-template-columns: 1fr; }
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .side-panel {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 0.95rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+    }
+    .side-panel h3 {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 0 0 0.6rem;
+    }
+    .side-panel + .side-panel { margin-top: 0.8rem; }
+
+    .cand-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.5rem;
+      align-items: center;
+      padding: 0.4rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-elevated);
+      margin-bottom: 0.35rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+    .cand-row.winner {
+      border-left: 3px solid var(--success);
+    }
+    .cand-row.loser {
+      border-left: 3px solid var(--fg-subtle);
+      opacity: 0.8;
+    }
+    .cand-row.pruned {
+      border-left: 3px solid var(--error);
+      opacity: 0.55;
+      text-decoration: line-through;
+    }
+    .cand-row.active {
+      border-left: 3px solid var(--accent-bright);
+      background: var(--accent-bg);
+    }
+    .cand-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .cand-label { color: var(--fg); }
+    .cand-score { color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.55rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 3px;
+      border: 1px solid var(--border-strong);
+    }
+    .legend-swatch .sw.seed { background: var(--warning); border-color: var(--warning); }
+    .legend-swatch .sw.win  { background: var(--success); border-color: var(--success); }
+    .legend-swatch .sw.lose {
+      background: transparent; border: 1px dashed var(--fg-subtle);
+    }
+    .legend-swatch .sw.front { background: var(--accent-bright); border-color: var(--accent-bright); }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner .tuple-list {
+      margin: 0.35rem 0 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .banner .tuple-list li {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.2rem 0.45rem;
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+    .banner .tuple-list li b { color: var(--fg); }
+
+    .read-display {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.45rem 0.55rem;
+      letter-spacing: 0.04em;
+      overflow-wrap: anywhere;
+      line-height: 1.5;
+    }
+    .read-display .consumed { color: var(--accent); font-weight: 600; }
+    .read-display .cursor {
+      background: var(--accent-bright);
+      color: #fff; padding: 0 2px; border-radius: 2px;
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+    .stat-grid .stat {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.35rem 0.45rem;
+    }
+    .stat .k {
+      display: block;
+      font-family: var(--font-sans);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin-bottom: 0.12rem;
+    }
+    .stat .v { color: var(--fg); font-variant-numeric: tabular-nums; }
+
+    #tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: var(--fg);
+      color: var(--bg-elevated);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      padding: 0.35rem 0.55rem;
+      border-radius: var(--radius-sm);
+      opacity: 0;
+      transition: opacity 0.1s ease;
+      white-space: nowrap;
+      z-index: 10;
+    }
+    #tooltip.show { opacity: 0.95; }
+
+    .phase-pill {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      color: var(--fg-muted);
+      margin-left: 0.5rem;
+    }
+    .phase-pill.seed { background: #fef3c7; border-color: var(--warning); color: var(--warning); }
+    .phase-pill.extend { background: var(--accent-bg); border-color: var(--accent-bright); color: var(--accent); }
+    .phase-pill.done { background: #dcfce7; border-color: var(--success); color: var(--success); }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="graph-seed-extend">
+
+  <header class="artifact-head">
+    <h1>Graph Seed-and-Extend Walker</h1>
+    <p>Align a read to a small DAG reference by placing k-mer seeds on matching nodes, then extending base-by-base along outgoing edges. At every branch the algorithm forks into parallel candidate paths and tracks running scores; the winner solidifies while losers dim. Graph alignment is linear alignment plus branching decisions.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Inputs</p>
+
+    <div class="control-grid">
+      <div class="control-row">
+        <label class="field-label" for="graph-preset">Graph</label>
+        <select id="graph-preset">
+          <option value="small">small (8 nodes, 2 branches)</option>
+          <option value="medium">medium (15 nodes, 3 branches)</option>
+          <option value="large">large (25 nodes, 4 branches)</option>
+        </select>
+      </div>
+
+      <div class="control-row">
+        <label class="field-label" for="read-preset">Read</label>
+        <select id="read-preset">
+          <option value="span">spanning 2 branches</option>
+          <option value="upper">favours upper path</option>
+          <option value="lower">favours lower path</option>
+          <option value="custom">custom paste</option>
+        </select>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="k-input">Seed k-mer length</label>
+          <span class="slider-value" id="k-value">6</span>
+        </div>
+        <input id="k-input" type="range" min="4" max="10" step="1" value="6">
+      </div>
+    </div>
+
+    <div class="paste-wrap hidden" id="paste-wrap">
+      <label class="field-label" for="paste-input">Custom read (ACGTN only)</label>
+      <textarea id="paste-input" spellcheck="false" placeholder="ACGTACGTACGT..."></textarea>
+      <div class="paste-actions">
+        <button class="btn btn--primary" type="button" id="paste-btn">Load read</button>
+        <button class="btn" type="button" id="paste-clear">Clear</button>
+        <span class="hint">Whitespace stripped · case-insensitive</span>
+      </div>
+      <div class="paste-error" id="paste-error"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn--primary" id="btn-seeds" type="button">Place Seeds</button>
+      <button class="btn" id="btn-step" type="button">Step Extension</button>
+      <button class="btn" id="btn-run" type="button">Run to End</button>
+      <button class="btn" id="btn-reset" type="button">Reset</button>
+      <span class="phase-pill" id="phase-pill">idle</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Read <span id="read-len-tag" style="color:var(--fg-subtle);font-weight:500;letter-spacing:0;text-transform:none;"></span></p>
+    <div class="read-display" id="read-display"></div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Graph alignment</p>
+    <div class="stage-grid">
+      <div>
+        <div class="plot-wrap">
+          <svg id="graph-svg" class="plot-svg" viewBox="0 0 1000 440" preserveAspectRatio="xMidYMid meet" aria-label="Graph canvas"></svg>
+        </div>
+        <div class="legend">
+          <span class="legend-swatch"><span class="sw seed"></span> seed match</span>
+          <span class="legend-swatch"><span class="sw front"></span> frontier</span>
+          <span class="legend-swatch"><span class="sw win"></span> winning path</span>
+          <span class="legend-swatch"><span class="sw lose"></span> losing candidate (dashed)</span>
+        </div>
+      </div>
+
+      <aside>
+        <div class="side-panel">
+          <h3>Candidate paths</h3>
+          <div id="candidates"></div>
+        </div>
+
+        <div class="side-panel">
+          <h3>Run state</h3>
+          <div class="stat-grid">
+            <div class="stat"><span class="k">phase</span><span class="v" id="stat-phase">idle</span></div>
+            <div class="stat"><span class="k">step</span><span class="v" id="stat-step">0</span></div>
+            <div class="stat"><span class="k">seeds</span><span class="v" id="stat-seeds">0</span></div>
+            <div class="stat"><span class="k">candidates</span><span class="v" id="stat-cands">0</span></div>
+          </div>
+          <p class="hint" style="margin-top:0.6rem;">Step advances every live candidate by one base. Candidates more than 5 points below the best are pruned.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <div class="banner" id="banner">
+    <div>
+      best alignment score <b id="banner-score">—</b>
+      <span class="sep">·</span>
+      margin over runner-up <b id="banner-margin">—</b>
+      <span class="sep">·</span>
+      candidates explored <b id="banner-explored">0</b>
+    </div>
+    <ul class="tuple-list" id="banner-tuples"></ul>
+  </div>
+</main>
+
+<div id="tooltip"></div>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── SVG helpers ────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  // ── Graph presets ──────────────────────────────────────
+  //
+  // Each preset is a DAG expressed as nodes (id, sequence) and directed edges.
+  // `layout` gives per-node grid (col, row); node positions are derived from
+  // that grid at render time. Sequences are chosen so the "default" read's
+  // seed places on node 3 (index 2), and extension immediately hits the branch
+  // at node 4 (index 3). One branch matches the read better than the other.
+  //
+  // The "small" preset is the intended default and drives the target aha:
+  //
+  //   n0 ─ n1 ─ n2 ─ n3 ┬─ n4u ─ n5u ─┬─ n6 ─ n7
+  //                      └─ n4l ─ n5l ─┘
+  //
+  // with upper/lower branches differing on a few key bases.
+  const GRAPH_PRESETS = {
+    small: {
+      nodes: [
+        { id: 0, sequence: 'ACGT',   col: 0, row: 1 },
+        { id: 1, sequence: 'GCTA',   col: 1, row: 1 },
+        { id: 2, sequence: 'TACCGA', col: 2, row: 1 }, // node 3 — primary seed landing spot
+        { id: 3, sequence: 'GCAT',   col: 3, row: 1 }, // branch node (diverges after)
+        { id: 4, sequence: 'TTGACA', col: 4, row: 0 }, // upper
+        { id: 5, sequence: 'CCAGTA', col: 4, row: 2 }, // lower
+        { id: 6, sequence: 'GGAC',   col: 5, row: 1 },
+        { id: 7, sequence: 'TTGA',   col: 6, row: 1 },
+      ],
+      edges: [
+        { from: 0, to: 1 }, { from: 1, to: 2 }, { from: 2, to: 3 },
+        { from: 3, to: 4 }, { from: 3, to: 5 },
+        { from: 4, to: 6 }, { from: 5, to: 6 },
+        { from: 6, to: 7 },
+      ],
+    },
+
+    medium: {
+      // 15 nodes, 3 branches along a spine.
+      nodes: [
+        { id:  0, sequence: 'AACG',   col: 0, row: 2 },
+        { id:  1, sequence: 'TTGC',   col: 1, row: 2 },
+        { id:  2, sequence: 'GATA',   col: 2, row: 1 }, // branch 1 upper
+        { id:  3, sequence: 'CACA',   col: 2, row: 3 }, // branch 1 lower
+        { id:  4, sequence: 'ACGTAC', col: 3, row: 2 },
+        { id:  5, sequence: 'CCGA',   col: 4, row: 2 },
+        { id:  6, sequence: 'TTGAC',  col: 5, row: 1 }, // branch 2 upper
+        { id:  7, sequence: 'AACAG',  col: 5, row: 3 }, // branch 2 lower
+        { id:  8, sequence: 'GGCT',   col: 6, row: 2 },
+        { id:  9, sequence: 'TAGA',   col: 7, row: 2 },
+        { id: 10, sequence: 'CTGA',   col: 8, row: 1 }, // branch 3 upper
+        { id: 11, sequence: 'AAGA',   col: 8, row: 3 }, // branch 3 lower
+        { id: 12, sequence: 'TGCC',   col: 9, row: 2 },
+        { id: 13, sequence: 'AGGT',   col: 10, row: 2 },
+        { id: 14, sequence: 'TTAC',   col: 11, row: 2 },
+      ],
+      edges: [
+        { from: 0, to: 1 }, { from: 1, to: 2 }, { from: 1, to: 3 },
+        { from: 2, to: 4 }, { from: 3, to: 4 },
+        { from: 4, to: 5 },
+        { from: 5, to: 6 }, { from: 5, to: 7 },
+        { from: 6, to: 8 }, { from: 7, to: 8 },
+        { from: 8, to: 9 },
+        { from: 9, to: 10 }, { from: 9, to: 11 },
+        { from: 10, to: 12 }, { from: 11, to: 12 },
+        { from: 12, to: 13 }, { from: 13, to: 14 },
+      ],
+    },
+
+    large: {
+      // 25 nodes, 4 branches along a spine.
+      nodes: [
+        { id:  0, sequence: 'AACG',   col: 0, row: 2 },
+        { id:  1, sequence: 'TTGC',   col: 1, row: 2 },
+        { id:  2, sequence: 'GATA',   col: 2, row: 1 },
+        { id:  3, sequence: 'CACA',   col: 2, row: 3 },
+        { id:  4, sequence: 'ACGTAC', col: 3, row: 2 },
+        { id:  5, sequence: 'CCGA',   col: 4, row: 2 },
+        { id:  6, sequence: 'TTGAC',  col: 5, row: 1 },
+        { id:  7, sequence: 'AACAG',  col: 5, row: 3 },
+        { id:  8, sequence: 'GGCT',   col: 6, row: 2 },
+        { id:  9, sequence: 'TAGA',   col: 7, row: 2 },
+        { id: 10, sequence: 'CTGA',   col: 8, row: 1 },
+        { id: 11, sequence: 'AAGA',   col: 8, row: 3 },
+        { id: 12, sequence: 'TGCC',   col: 9, row: 2 },
+        { id: 13, sequence: 'AGGT',   col: 10, row: 2 },
+        { id: 14, sequence: 'TTAC',   col: 11, row: 2 },
+        { id: 15, sequence: 'GCAT',   col: 12, row: 2 },
+        { id: 16, sequence: 'CCAG',   col: 13, row: 1 },
+        { id: 17, sequence: 'TTAG',   col: 13, row: 3 },
+        { id: 18, sequence: 'GAGA',   col: 14, row: 2 },
+        { id: 19, sequence: 'AAGC',   col: 15, row: 2 },
+        { id: 20, sequence: 'TCAG',   col: 16, row: 2 },
+        { id: 21, sequence: 'GTAC',   col: 17, row: 2 },
+        { id: 22, sequence: 'ATCG',   col: 18, row: 2 },
+        { id: 23, sequence: 'CTTG',   col: 19, row: 2 },
+        { id: 24, sequence: 'ACGT',   col: 20, row: 2 },
+      ],
+      edges: [
+        { from: 0, to: 1 }, { from: 1, to: 2 }, { from: 1, to: 3 },
+        { from: 2, to: 4 }, { from: 3, to: 4 },
+        { from: 4, to: 5 },
+        { from: 5, to: 6 }, { from: 5, to: 7 },
+        { from: 6, to: 8 }, { from: 7, to: 8 },
+        { from: 8, to: 9 },
+        { from: 9, to: 10 }, { from: 9, to: 11 },
+        { from: 10, to: 12 }, { from: 11, to: 12 },
+        { from: 12, to: 13 }, { from: 13, to: 14 }, { from: 14, to: 15 },
+        { from: 15, to: 16 }, { from: 15, to: 17 },
+        { from: 16, to: 18 }, { from: 17, to: 18 },
+        { from: 18, to: 19 }, { from: 19, to: 20 }, { from: 20, to: 21 },
+        { from: 21, to: 22 }, { from: 22, to: 23 }, { from: 23, to: 24 },
+      ],
+    },
+  };
+
+  // ── Read presets ───────────────────────────────────────
+  //
+  // Each read preset maps to a specific graph preset. For the "small" graph
+  // we design reads that land a seed on node 2 (id=2, "TACCGA") and extend
+  // through the branch at node 3. Upper branch favours the upper sequence
+  // TTGACA; lower favours CCAGTA.
+  //
+  // "span"  → roughly n2 + n3 + upper(n4) + n6 (spanning the branch)
+  //           picks UPPER because the upper branch bases match exactly.
+  // "upper" → strongly upper-favoured
+  // "lower" → strongly lower-favoured
+  //
+  // For medium/large, we cheat lightly: the same read presets are used, but
+  // scored against the same first two graph nodes; students still get the
+  // branching behaviour even if the full read doesn't reach the end.
+  const READ_PRESETS = {
+    small: {
+      span:  'TACCGAGCATTTGACAGGACTT', // n2 + n3 + n4u + n6 + n7 prefix → upper wins
+      upper: 'CGAGCATTTGACAGGAC',      // clearly upper (TTGACA)
+      lower: 'CGAGCATCCAGTAGGAC',      // clearly lower (CCAGTA)
+    },
+    medium: {
+      span:  'ACGTACCCGATTGACGGCTTAGA',  // n4 + n5 + n6u + n8 + n9
+      upper: 'CCGATTGACGGCTTAGACTGATGCC',
+      lower: 'CCGAAACAGGGCTTAGAAAGATGCC',
+    },
+    large: {
+      span:  'ACGTACCCGATTGACGGCTTAGA',
+      upper: 'CCGATTGACGGCTTAGACTGATGCCAGGT',
+      lower: 'CCGAAACAGGGCTTAGAAAGATGCCAGGT',
+    },
+  };
+
+  // ── State ──────────────────────────────────────────────
+  const state = {
+    graphKey: 'small',
+    readKey: 'span',
+    k: 6,
+    read: '',
+    customRead: '',
+    graph: null, // resolved nodes + edges
+
+    // Pre-computed graph helpers.
+    outEdges: null, // id → [to, ...]
+    nodeById: null, // id → node
+
+    phase: 'idle',      // 'idle' | 'seeded' | 'extending' | 'done'
+    seeds: [],          // [{node, nodeOffset, readOffset, k}]
+    candidates: [],     // live + finished extension candidates
+    step: 0,
+    explored: 0,
+    best: null,
+  };
+
+  // ── Graph helpers ──────────────────────────────────────
+  function loadGraph(key) {
+    const def = GRAPH_PRESETS[key];
+    // Deep-copy to avoid mutating the library definitions.
+    const nodes = def.nodes.map(n => ({ ...n }));
+    const edges = def.edges.map(e => ({ ...e }));
+    const outEdges = new Map();
+    const nodeById = new Map();
+    for (const n of nodes) { outEdges.set(n.id, []); nodeById.set(n.id, n); }
+    for (const e of edges) { outEdges.get(e.from).push(e.to); }
+    return { nodes, edges, outEdges, nodeById };
+  }
+
+  // Enumerate every k-mer reachable by walking the graph starting at every
+  // node/offset pair. For small graphs this is cheap. Return a map
+  // kmer → [{node, offset} starting positions].
+  //
+  // We walk through node sequences, crossing edges when we hit the end of a
+  // node. Because extension crosses branches, each k-mer can have multiple
+  // starting positions (one per path through the graph that spells it).
+  function buildKmerIndex(graph, k) {
+    const idx = new Map();
+    const { nodes, outEdges } = graph;
+    for (const start of nodes) {
+      for (let o = 0; o < start.sequence.length; o++) {
+        // BFS enumeration of all k-mers beginning at (start, o)
+        const stack = [{ node: start, localOff: o, collected: '' }];
+        while (stack.length) {
+          const cur = stack.pop();
+          const remain = k - cur.collected.length;
+          const avail = cur.node.sequence.length - cur.localOff;
+          if (remain <= avail) {
+            // Close out this k-mer
+            const kmer = cur.collected + cur.node.sequence.slice(cur.localOff, cur.localOff + remain);
+            if (!idx.has(kmer)) idx.set(kmer, []);
+            idx.get(kmer).push({ node: start.id, offset: o });
+            continue;
+          }
+          const grown = cur.collected + cur.node.sequence.slice(cur.localOff);
+          for (const nextId of outEdges.get(cur.node.id)) {
+            stack.push({ node: graph.nodeById.get(nextId), localOff: 0, collected: grown });
+          }
+        }
+      }
+    }
+    return idx;
+  }
+
+  // Find seeds by looking up every k-length window of the read.
+  // Deduplicate identical (node, nodeOff, readOff) starting positions.
+  function placeSeeds(graph, read, k) {
+    if (read.length < k) return [];
+    const idx = buildKmerIndex(graph, k);
+    const seen = new Set();
+    const out = [];
+    for (let i = 0; i + k <= read.length; i++) {
+      const kmer = read.slice(i, i + k);
+      const hits = idx.get(kmer);
+      if (!hits) continue;
+      for (const h of hits) {
+        const key = `${h.node}:${h.offset}:${i}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ node: h.node, nodeOffset: h.offset, readOffset: i, k });
+      }
+    }
+    return out;
+  }
+
+  // ── Candidate (extension state) ────────────────────────
+  //
+  // A candidate represents one active extension path. It tracks:
+  //   - trace: ordered list of (node, startOff, length) tuples covering the
+  //     portion of the read aligned so far.
+  //   - score: running match/mismatch score.
+  //   - readPos: next read base to consume.
+  //   - node / nodeOff: cursor on reference graph.
+  //   - alive: true while still extending; false when finished/pruned.
+  //   - won: set true for the best finishing candidate at run end.
+  //
+  // Forking: at the end of a node we spawn one child per outgoing edge.
+  function newCandidateFromSeed(seed, graph) {
+    const node = graph.nodeById.get(seed.node);
+    // Start the candidate at the seed match position; the seed bases count
+    // toward the score as matches, and the read cursor advances past them.
+    const seedEnd = Math.min(seed.nodeOffset + seed.k, node.sequence.length);
+    const length = seedEnd - seed.nodeOffset;
+    return {
+      id: nextCandId(),
+      trace: [{ node: seed.node, startOff: seed.nodeOffset, length }],
+      score: length, // every seed base is a +1 match
+      readPos: seed.readOffset + length,
+      node: seed.node,
+      nodeOff: seedEnd, // cursor sits right after the last consumed base
+      alive: true,
+      pruned: false,
+      won: false,
+      parent: null,
+      seedId: seed.id,
+      history: [], // per-step score trail
+    };
+  }
+
+  let _candId = 0;
+  function nextCandId() { _candId += 1; return _candId; }
+
+  // Extend one candidate by exactly one base. If the candidate sits at the
+  // end of its current node, it forks: one child per outgoing edge (the
+  // original candidate is replaced by its children). Returns an array of
+  // successors (may be empty if the candidate died).
+  function stepCandidate(cand, graph, read, runCtx) {
+    if (!cand.alive) return [cand];
+    if (cand.readPos >= read.length) {
+      cand.alive = false;
+      return [cand];
+    }
+
+    // If at end of current node, fork into children along outgoing edges.
+    const curNode = graph.nodeById.get(cand.node);
+    if (cand.nodeOff >= curNode.sequence.length) {
+      const outs = graph.outEdges.get(cand.node);
+      if (!outs || outs.length === 0) {
+        cand.alive = false;
+        return [cand];
+      }
+      const children = [];
+      for (const nextId of outs) {
+        const child = {
+          ...cand,
+          id: nextCandId(),
+          trace: cand.trace.map(t => ({ ...t })),
+          history: cand.history.slice(),
+          parent: cand.id,
+          node: nextId,
+          nodeOff: 0,
+          alive: true,
+        };
+        // Add a fresh trace segment starting at offset 0 of the new node.
+        child.trace.push({ node: nextId, startOff: 0, length: 0 });
+        children.push(child);
+        runCtx.explored += 1;
+      }
+      cand.alive = false; // parent becomes inactive, children continue
+      // Recurse: each child still needs to consume one base.
+      const out = [cand];
+      for (const child of children) {
+        const next = stepCandidate(child, graph, read, runCtx);
+        out.push(...next);
+      }
+      return out;
+    }
+
+    // Otherwise, consume one base against the current node.
+    const refBase = curNode.sequence[cand.nodeOff];
+    const readBase = read[cand.readPos];
+    const isMatch = refBase === readBase;
+    cand.score += isMatch ? 1 : -2;
+    cand.readPos += 1;
+    cand.nodeOff += 1;
+    // Extend current trace segment length.
+    const lastSeg = cand.trace[cand.trace.length - 1];
+    if (lastSeg.node === cand.node) {
+      lastSeg.length += 1;
+    } else {
+      // Shouldn't happen post-fork, but guard anyway.
+      cand.trace.push({ node: cand.node, startOff: cand.nodeOff - 1, length: 1 });
+    }
+    cand.history.push(cand.score);
+    return [cand];
+  }
+
+  // Advance every alive candidate by one step. After the step we prune
+  // anything more than 5 points below the best alive score.
+  function stepAllCandidates() {
+    const next = [];
+    let any = false;
+    const ctx = { explored: state.explored };
+    for (const c of state.candidates) {
+      if (!c.alive) { next.push(c); continue; }
+      any = true;
+      const succ = stepCandidate(c, state.graph, state.read, ctx);
+      next.push(...succ);
+    }
+    state.explored = ctx.explored;
+
+    // Prune
+    let bestAlive = -Infinity;
+    for (const c of next) if (c.alive && c.score > bestAlive) bestAlive = c.score;
+    if (isFinite(bestAlive)) {
+      for (const c of next) {
+        if (c.alive && c.score < bestAlive - 5) { c.alive = false; c.pruned = true; }
+      }
+    }
+    state.candidates = next;
+    state.step += 1;
+
+    // Are we done?
+    const anyStillAlive = state.candidates.some(c => c.alive);
+    if (!anyStillAlive || !any) {
+      finishRun();
+    }
+  }
+
+  function finishRun() {
+    // Pick best finished candidate by score; ties broken by trace length.
+    let best = null;
+    for (const c of state.candidates) {
+      if (c.pruned) continue;
+      const len = traceLength(c);
+      if (!best
+          || c.score > best.score
+          || (c.score === best.score && len > traceLength(best))) {
+        best = c;
+      }
+    }
+    if (best) best.won = true;
+    state.best = best;
+    state.phase = 'done';
+  }
+
+  function traceLength(c) {
+    let L = 0;
+    for (const seg of c.trace) L += seg.length;
+    return L;
+  }
+
+  // ── Rendering: graph canvas ────────────────────────────
+  const svg = $('graph-svg');
+
+  function layoutGraph() {
+    const nodes = state.graph.nodes;
+    // Determine grid extent.
+    let maxCol = 0, maxRow = 0;
+    for (const n of nodes) {
+      if (n.col > maxCol) maxCol = n.col;
+      if (n.row > maxRow) maxRow = n.row;
+    }
+    // Compute SVG dimensions.
+    const W = 1000;
+    const colW = W / (maxCol + 1);
+    const rowH = 90;
+    const H = (maxRow + 1) * rowH + 60;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    // Node box sizes scaled to column width.
+    const boxW = Math.min(colW * 0.78, 120);
+    const boxH = 44;
+    return { W, H, colW, rowH, boxW, boxH };
+  }
+
+  function nodeBox(node, layout) {
+    const cx = (node.col + 0.5) * layout.colW;
+    const cy = 40 + node.row * layout.rowH;
+    return {
+      x: cx - layout.boxW / 2,
+      y: cy - layout.boxH / 2,
+      w: layout.boxW,
+      h: layout.boxH,
+      cx, cy,
+    };
+  }
+
+  function render() {
+    clear(svg);
+    if (!state.graph) return;
+    const layout = layoutGraph();
+
+    // ── Arrowhead marker ──
+    const defs = el('defs');
+    const marker = el('marker', {
+      id: 'arrow',
+      viewBox: '0 0 10 10',
+      refX: 9, refY: 5,
+      markerWidth: 7, markerHeight: 7,
+      orient: 'auto-start-reverse',
+    });
+    marker.appendChild(el('path', { d: 'M 0 0 L 10 5 L 0 10 z', fill: 'var(--border-strong)' }));
+    defs.appendChild(marker);
+
+    const markerWin = el('marker', {
+      id: 'arrow-win',
+      viewBox: '0 0 10 10',
+      refX: 9, refY: 5,
+      markerWidth: 7, markerHeight: 7,
+      orient: 'auto-start-reverse',
+    });
+    markerWin.appendChild(el('path', { d: 'M 0 0 L 10 5 L 0 10 z', fill: 'var(--success)' }));
+    defs.appendChild(markerWin);
+
+    svg.appendChild(defs);
+
+    // ── Build edge → winner/loser map from candidates ──
+    const winnerEdges = new Set();
+    const loserEdges  = new Set();
+    const activeEdges = new Set();
+
+    const encodeEdge = (from, to) => `${from}->${to}`;
+
+    for (const c of state.candidates) {
+      if (c.pruned) continue;
+      // Walk trace — for each consecutive pair of segments, mark the edge.
+      for (let i = 1; i < c.trace.length; i++) {
+        const key = encodeEdge(c.trace[i-1].node, c.trace[i].node);
+        if (c.won) winnerEdges.add(key);
+        else if (c.alive && state.phase === 'extending') activeEdges.add(key);
+        else if (!c.won && state.phase === 'done') loserEdges.add(key);
+      }
+    }
+
+    // ── Draw edges ──
+    for (const e of state.graph.edges) {
+      const a = state.graph.nodeById.get(e.from);
+      const b = state.graph.nodeById.get(e.to);
+      const ba = nodeBox(a, layout);
+      const bb = nodeBox(b, layout);
+      const x1 = ba.x + ba.w;
+      const y1 = ba.cy;
+      const x2 = bb.x;
+      const y2 = bb.cy;
+      const key = encodeEdge(e.from, e.to);
+      const isWin = winnerEdges.has(key);
+      const isActive = activeEdges.has(key);
+      const isLose = loserEdges.has(key) && !isWin;
+
+      const stroke = isWin ? 'var(--success)'
+                   : isActive ? 'var(--accent-bright)'
+                   : 'var(--border-strong)';
+      const width  = isWin ? 3 : isActive ? 2.4 : 1.6;
+      const dasharray = isLose ? '5 4' : null;
+      const attrs = {
+        x1, y1, x2, y2,
+        stroke,
+        'stroke-width': width,
+        'marker-end': isWin ? 'url(#arrow-win)' : 'url(#arrow)',
+      };
+      if (dasharray) attrs['stroke-dasharray'] = dasharray;
+      const line = el('line', attrs);
+      svg.appendChild(line);
+    }
+
+    // ── Seed-matched nodes set ──
+    const seedNodes = new Set();
+    for (const s of state.seeds) seedNodes.add(s.node);
+
+    // Frontier nodes: alive candidates' current node.
+    const frontierNodes = new Set();
+    for (const c of state.candidates) {
+      if (c.alive) frontierNodes.add(c.node);
+    }
+
+    // Winner nodes (only set when done).
+    const winnerNodes = new Set();
+    if (state.best) {
+      for (const seg of state.best.trace) winnerNodes.add(seg.node);
+    }
+
+    // ── Draw nodes ──
+    for (const n of state.graph.nodes) {
+      const b = nodeBox(n, layout);
+
+      let fill = 'var(--bg-elevated)';
+      let stroke = 'var(--border-strong)';
+      let strokeWidth = 1.2;
+
+      if (winnerNodes.has(n.id)) {
+        fill = '#dcfce7';
+        stroke = 'var(--success)';
+        strokeWidth = 2;
+      } else if (frontierNodes.has(n.id) && state.phase === 'extending') {
+        fill = 'var(--accent-bg)';
+        stroke = 'var(--accent-bright)';
+        strokeWidth = 2;
+      } else if (seedNodes.has(n.id) && (state.phase === 'seeded' || state.phase === 'idle')) {
+        fill = '#fef3c7';
+        stroke = 'var(--warning)';
+        strokeWidth = 2;
+      } else if (seedNodes.has(n.id)) {
+        // During extension, keep the seed highlight subtle.
+        fill = '#fefce8';
+        stroke = 'var(--warning)';
+        strokeWidth = 1.5;
+      }
+
+      const rect = el('rect', {
+        x: b.x.toFixed(2), y: b.y.toFixed(2),
+        width: b.w.toFixed(2), height: b.h.toFixed(2),
+        rx: 4,
+        fill, stroke,
+        'stroke-width': strokeWidth,
+      });
+      rect.addEventListener('mouseenter', (ev) => showNodeTip(ev, n));
+      rect.addEventListener('mousemove', (ev) => showNodeTip(ev, n));
+      rect.addEventListener('mouseleave', hideTip);
+      svg.appendChild(rect);
+
+      // Node id label above.
+      svg.appendChild(el('text', {
+        x: b.cx.toFixed(2), y: (b.y - 6).toFixed(2),
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-sans)',
+        'font-size': 10,
+        'font-weight': 600,
+        fill: 'var(--fg-subtle)',
+      }, `n${n.id}`));
+
+      // Sequence label inside box.
+      const seq = n.sequence;
+      const fontSize = Math.max(9, Math.min(14, b.w / seq.length * 1.2));
+      const tx = b.cx;
+      const ty = b.cy + fontSize * 0.35;
+      const tnode = el('text', {
+        x: tx.toFixed(2), y: ty.toFixed(2),
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)',
+        'font-size': fontSize.toFixed(1),
+        'font-weight': 500,
+        fill: 'var(--fg)',
+      }, seq);
+      svg.appendChild(tnode);
+    }
+
+    // ── Frontier markers (cursor triangle at current offset) ──
+    if (state.phase === 'extending') {
+      for (const c of state.candidates) {
+        if (!c.alive) continue;
+        const node = state.graph.nodeById.get(c.node);
+        const b = nodeBox(node, layout);
+        const seqLen = node.sequence.length || 1;
+        const frac = Math.min(1, c.nodeOff / seqLen);
+        const x = b.x + frac * b.w;
+        const y = b.y + b.h + 4;
+        const tri = el('path', {
+          d: `M ${x.toFixed(2)} ${y.toFixed(2)} l -4 6 l 8 0 z`,
+          fill: 'var(--accent-bright)',
+          'fill-opacity': 0.85,
+        });
+        svg.appendChild(tri);
+      }
+    }
+
+    renderCandidates();
+    renderReadDisplay();
+    renderBanner();
+    updateStats();
+  }
+
+  // ── Candidate list (side panel) ────────────────────────
+  function renderCandidates() {
+    const host = $('candidates');
+    host.innerHTML = '';
+    if (state.candidates.length === 0) {
+      host.innerHTML = '<p class="hint" style="margin:0;">No extension yet. Click <b>Place Seeds</b> to start.</p>';
+      return;
+    }
+
+    // Sort: alive first (by score desc), then finished, then pruned.
+    const sorted = state.candidates.slice().sort((a, b) => {
+      if (a.pruned !== b.pruned) return a.pruned ? 1 : -1;
+      if (a.alive !== b.alive) return a.alive ? -1 : 1;
+      if (a.won !== b.won) return a.won ? -1 : 1;
+      return b.score - a.score;
+    });
+
+    // Limit display to top 8 for visual sanity.
+    const toShow = sorted.slice(0, 8);
+
+    for (const c of toShow) {
+      const row = document.createElement('div');
+      row.className = 'cand-row';
+      if (c.pruned) row.classList.add('pruned');
+      else if (c.won) row.classList.add('winner');
+      else if (c.alive) row.classList.add('active');
+      else row.classList.add('loser');
+
+      const dot = document.createElement('span');
+      dot.className = 'cand-dot';
+      dot.style.background = c.pruned ? 'var(--error)'
+                          : c.won ? 'var(--success)'
+                          : c.alive ? 'var(--accent-bright)'
+                          : 'var(--fg-subtle)';
+
+      const label = document.createElement('span');
+      label.className = 'cand-label';
+      const nodesStr = c.trace.map(s => `n${s.node}`).join('→');
+      label.textContent = nodesStr;
+
+      const score = document.createElement('span');
+      score.className = 'cand-score';
+      score.textContent = (c.score >= 0 ? '+' : '') + c.score;
+
+      row.appendChild(dot);
+      row.appendChild(label);
+      row.appendChild(score);
+      host.appendChild(row);
+    }
+
+    if (sorted.length > toShow.length) {
+      const more = document.createElement('p');
+      more.className = 'hint';
+      more.style.margin = '0.35rem 0 0';
+      more.textContent = `+ ${sorted.length - toShow.length} more…`;
+      host.appendChild(more);
+    }
+  }
+
+  // ── Read display ───────────────────────────────────────
+  function renderReadDisplay() {
+    const host = $('read-display');
+    const read = state.read || '';
+    $('read-len-tag').textContent = read ? `· ${read.length} bp` : '';
+
+    // Active candidates may be at different readPos; for display, use the
+    // best-scoring alive candidate's position, else the best finished one.
+    let marker = null;
+    if (state.phase === 'extending') {
+      let best = null;
+      for (const c of state.candidates) {
+        if (c.alive && (!best || c.score > best.score)) best = c;
+      }
+      if (best) marker = best.readPos;
+    } else if (state.phase === 'done' && state.best) {
+      marker = state.best.readPos;
+    } else if (state.phase === 'seeded' && state.seeds.length) {
+      marker = state.seeds[0].readOffset + state.seeds[0].k;
+    }
+
+    if (marker == null) {
+      host.textContent = read || '(no read loaded)';
+      return;
+    }
+
+    host.innerHTML = '';
+    if (marker > 0) {
+      const pre = document.createElement('span');
+      pre.className = 'consumed';
+      pre.textContent = read.slice(0, marker);
+      host.appendChild(pre);
+    }
+    if (marker < read.length) {
+      const cur = document.createElement('span');
+      cur.className = 'cursor';
+      cur.textContent = read[marker] || '';
+      host.appendChild(cur);
+      const rest = document.createElement('span');
+      rest.textContent = read.slice(marker + 1);
+      host.appendChild(rest);
+    }
+  }
+
+  // ── Banner ────────────────────────────────────────────
+  function renderBanner() {
+    const scoreEl = $('banner-score');
+    const marginEl = $('banner-margin');
+    const exploredEl = $('banner-explored');
+    const tuplesEl = $('banner-tuples');
+    tuplesEl.innerHTML = '';
+
+    exploredEl.textContent = String(state.explored);
+
+    if (!state.best || state.phase !== 'done') {
+      scoreEl.textContent = '—';
+      marginEl.textContent = '—';
+      return;
+    }
+
+    scoreEl.textContent = (state.best.score >= 0 ? '+' : '') + state.best.score;
+
+    // Runner-up: best non-winner in candidate pool.
+    let runner = null;
+    for (const c of state.candidates) {
+      if (c === state.best) continue;
+      if (c.pruned) continue;
+      if (!runner || c.score > runner.score) runner = c;
+    }
+    if (runner) {
+      const diff = state.best.score - runner.score;
+      marginEl.textContent = (diff >= 0 ? '+' : '') + diff;
+    } else {
+      marginEl.textContent = '—';
+    }
+
+    for (const seg of state.best.trace) {
+      const li = document.createElement('li');
+      li.innerHTML = `<b>n${seg.node}</b>, off ${seg.startOff}, len ${seg.length}`;
+      tuplesEl.appendChild(li);
+    }
+  }
+
+  function updateStats() {
+    $('stat-phase').textContent = state.phase;
+    $('stat-step').textContent = String(state.step);
+    $('stat-seeds').textContent = String(state.seeds.length);
+    $('stat-cands').textContent = String(state.candidates.length);
+    const pill = $('phase-pill');
+    pill.textContent = state.phase;
+    pill.className = 'phase-pill';
+    if (state.phase === 'seeded' || state.phase === 'idle') pill.classList.add('seed');
+    else if (state.phase === 'extending') pill.classList.add('extend');
+    else if (state.phase === 'done') pill.classList.add('done');
+  }
+
+  // ── Tooltip ───────────────────────────────────────────
+  const tooltipEl = $('tooltip');
+  function showNodeTip(ev, n) {
+    tooltipEl.textContent = `n${n.id} · ${n.sequence} · ${n.sequence.length} bp`;
+    tooltipEl.classList.add('show');
+    tooltipEl.style.left = (ev.clientX + window.scrollX + 10) + 'px';
+    tooltipEl.style.top  = (ev.clientY + window.scrollY - 26) + 'px';
+  }
+  function hideTip() { tooltipEl.classList.remove('show'); }
+
+  // ── Read resolution ────────────────────────────────────
+  function resolveRead() {
+    if (state.readKey === 'custom') {
+      return state.customRead || '';
+    }
+    const presets = READ_PRESETS[state.graphKey] || READ_PRESETS.small;
+    return presets[state.readKey] || presets.span;
+  }
+
+  // ── Pipeline stages ────────────────────────────────────
+  function doPlaceSeeds() {
+    // Fresh state but keep graph + read.
+    state.candidates = [];
+    state.step = 0;
+    state.explored = 0;
+    state.best = null;
+
+    state.seeds = placeSeeds(state.graph, state.read, state.k);
+    state.seeds.forEach((s, i) => s.id = i);
+
+    // Create one candidate per seed.
+    state.candidates = state.seeds.map(s => newCandidateFromSeed(s, state.graph));
+
+    // If any candidate already consumed the entire read during seeding,
+    // finish immediately.
+    const anyAlive = state.candidates.some(c => c.alive && c.readPos < state.read.length);
+    state.phase = state.seeds.length === 0 ? 'idle'
+                 : anyAlive ? 'seeded'
+                 : 'done';
+    if (state.phase === 'done') finishRun();
+    render();
+  }
+
+  function doStep() {
+    if (state.phase === 'idle') doPlaceSeeds();
+    if (state.phase === 'done') return;
+    state.phase = 'extending';
+    stepAllCandidates();
+    render();
+  }
+
+  function doRunToEnd() {
+    if (state.phase === 'idle') doPlaceSeeds();
+    if (state.phase === 'done') { render(); return; }
+    state.phase = 'extending';
+    // Bound the loop generously to prevent runaway in case of bugs.
+    const MAX_STEPS = state.read.length * 4 + 200;
+    let guard = 0;
+    while (state.phase === 'extending' && guard < MAX_STEPS) {
+      stepAllCandidates();
+      guard += 1;
+    }
+    render();
+  }
+
+  function doReset() {
+    state.phase = 'idle';
+    state.seeds = [];
+    state.candidates = [];
+    state.step = 0;
+    state.explored = 0;
+    state.best = null;
+    render();
+  }
+
+  // ── Wiring ─────────────────────────────────────────────
+  const graphEl = $('graph-preset');
+  const readEl  = $('read-preset');
+  const kEl     = $('k-input');
+  const kVal    = $('k-value');
+  const pasteWrap = $('paste-wrap');
+  const pasteInput = $('paste-input');
+  const pasteErr = $('paste-error');
+
+  function reloadGraphAndRead(initial) {
+    state.graph = loadGraph(state.graphKey);
+    state.read = resolveRead();
+    // Reset run state on any structural change.
+    state.phase = 'idle';
+    state.seeds = [];
+    state.candidates = [];
+    state.step = 0;
+    state.explored = 0;
+    state.best = null;
+    if (!initial) {
+      // Auto-place seeds so the canvas is always meaningful.
+      doPlaceSeeds();
+    }
+  }
+
+  graphEl.addEventListener('change', () => {
+    state.graphKey = graphEl.value;
+    reloadGraphAndRead(false);
+    render();
+  });
+
+  readEl.addEventListener('change', () => {
+    state.readKey = readEl.value;
+    if (state.readKey === 'custom') {
+      pasteWrap.classList.remove('hidden');
+      if (!state.customRead) {
+        // Seed the paste box with the current preset so students can tweak.
+        pasteInput.value = state.read || '';
+      }
+    } else {
+      pasteWrap.classList.add('hidden');
+    }
+    reloadGraphAndRead(false);
+    render();
+  });
+
+  kEl.addEventListener('input', () => {
+    state.k = +kEl.value;
+    kVal.textContent = String(state.k);
+    // Reseed with new k.
+    doReset();
+    doPlaceSeeds();
+  });
+
+  $('paste-btn').addEventListener('click', () => {
+    const raw = (pasteInput.value || '').replace(/\s+/g, '').toUpperCase();
+    if (!raw) {
+      pasteErr.textContent = 'Paste box is empty.';
+      pasteErr.classList.add('show');
+      return;
+    }
+    const bad = raw.match(/[^ACGTN]/g);
+    if (bad) {
+      pasteErr.textContent = `Invalid characters: ${Array.from(new Set(bad)).slice(0,6).join(', ')}`;
+      pasteErr.classList.add('show');
+      return;
+    }
+    if (raw.length < state.k) {
+      pasteErr.textContent = `Read length ${raw.length} < k=${state.k}. Increase length or decrease k.`;
+      pasteErr.classList.add('show');
+      return;
+    }
+    pasteErr.classList.remove('show');
+    state.customRead = raw;
+    state.readKey = 'custom';
+    readEl.value = 'custom';
+    reloadGraphAndRead(false);
+    render();
+  });
+
+  $('paste-clear').addEventListener('click', () => {
+    pasteInput.value = '';
+    pasteErr.classList.remove('show');
+  });
+
+  $('btn-seeds').addEventListener('click', () => { doReset(); doPlaceSeeds(); });
+  $('btn-step').addEventListener('click',  doStep);
+  $('btn-run').addEventListener('click',   doRunToEnd);
+  $('btn-reset').addEventListener('click', doReset);
+
+  // ── Boot ───────────────────────────────────────────────
+  state.graphKey = graphEl.value;
+  state.readKey  = readEl.value;
+  state.k        = +kEl.value;
+  kVal.textContent = String(state.k);
+  state.graph    = loadGraph(state.graphKey);
+  state.read     = resolveRead();
+  // Pre-compute seeds so the canvas opens meaningful.
+  doPlaceSeeds();
+  render();
+})();
+</script>
+
+</body>
+</html>

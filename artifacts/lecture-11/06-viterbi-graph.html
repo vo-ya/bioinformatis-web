@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Viterbi on a Graph · Path Finder</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1240px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 76ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+
+    .control-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .control-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .control-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .control-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+    select, .control-row select {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.4rem 0.55rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.9rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+      align-items: center;
+    }
+    .action-row .hint-right {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-left: auto;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    .status-dot.working { background: var(--warning); animation: pulse 1s infinite ease-in-out; }
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 0 0 0.4rem;
+    }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 960px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.9rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .row { display: block; }
+    .banner .row + .row { margin-top: 0.25rem; }
+    .banner.positive { background: #ecfdf5; border-color: var(--success); }
+    .banner.positive b { color: var(--success); }
+    .banner.neutral { background: var(--bg-muted); border-color: var(--border-strong); }
+    .banner.neutral b { color: var(--fg); }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 2px;
+    }
+
+    .read-strip {
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      letter-spacing: 0.18em;
+      color: var(--fg);
+      background: var(--bg-muted);
+      padding: 0.45rem 0.7rem;
+      border-radius: var(--radius-sm);
+      display: inline-block;
+      margin-top: 0.15rem;
+      border: 1px solid var(--border);
+    }
+    .read-strip .pos {
+      display: inline-block;
+      padding: 0 2px;
+    }
+    .read-strip .pos.active {
+      background: var(--accent);
+      color: #fff;
+      border-radius: 2px;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="viterbi-graph">
+
+  <header class="artifact-head">
+    <h1>Viterbi on a Graph · Path Finder</h1>
+    <p>A reference graph carries a bubble — a single alternate node that lets the graph encode both the reference allele and a common variant. Align a read by Viterbi DP across <em>graph states × read positions</em>: at each cell <code>V(s, t)</code> take the max over graph predecessors. Traceback recovers the best path. Compare against Viterbi on a linearised reference where the alternate is inaccessible: variant-bearing reads pay an unavoidable mismatch. This is the heart of "genomics is Viterbi on a DAG".</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Controls</p>
+
+    <div class="control-grid">
+      <div class="control-row">
+        <label class="field-label" for="preset-input">Graph &amp; read preset</label>
+        <select id="preset-input">
+          <option value="small-with-variant" selected>small-with-variant · read carries the alt</option>
+          <option value="diverged">diverged · two very different branches</option>
+          <option value="all-identical">all-identical · bubble has same base</option>
+        </select>
+      </div>
+
+      <div class="control-row">
+        <label class="field-label" for="mode-input">Display mode</label>
+        <select id="mode-input">
+          <option value="fill" selected>show DP fill</option>
+          <option value="traceback">show traceback only</option>
+        </select>
+      </div>
+
+      <div class="control-row">
+        <div class="slider-head">
+          <label class="field-label" for="t-input">Time step t</label>
+          <span class="slider-value" id="t-value">0</span>
+        </div>
+        <input id="t-input" type="range" min="0" max="8" step="1" value="0">
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="step-btn">Step →</button>
+      <button class="btn" type="button" id="run-btn">Run to T</button>
+      <button class="btn" type="button" id="reset-btn">Reset</button>
+      <span class="hint-right"><span class="status-dot" id="status-dot"></span><span id="status-text">idle</span></span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Read &amp; graph</p>
+    <div>
+      <span class="field-label" style="display:inline-block; margin-right:0.75rem;">Read</span>
+      <span class="read-strip" id="read-strip"></span>
+      <span class="field-label" style="display:inline-block; margin: 0 0.75rem 0 1.25rem;">Reference path</span>
+      <span class="read-strip" id="refpath-strip"></span>
+    </div>
+    <p class="plot-caption" id="preset-caption" style="margin-top:0.6rem;"></p>
+  </section>
+
+  <section>
+    <div class="two-col">
+
+      <div class="panel" style="margin-bottom:0;">
+        <p class="panel-label">Graph Viterbi · V(s, t) over states × read positions</p>
+        <div class="plot-wrap">
+          <svg id="trellis-svg" class="plot-svg" viewBox="0 0 920 520" preserveAspectRatio="xMidYMid meet" aria-label="Graph Viterbi trellis"></svg>
+        </div>
+        <p class="plot-caption">Rows are graph states (DAG layout on the left). Columns are read positions t = 1..T. Each cell shows V(s, t). The optimal path — recovered by traceback from argmax V(s, T) — is overlaid in cobalt. Current column t is highlighted.</p>
+
+        <div class="legend">
+          <span class="legend-swatch"><span class="sw" style="background:var(--accent)"></span> optimal Viterbi path</span>
+          <span class="legend-swatch"><span class="sw" style="background:#9ca3af"></span> unfilled cell (−∞)</span>
+          <span class="legend-swatch"><span class="sw" style="background:#ecfdf5; border:1px solid var(--success)"></span> match contribution</span>
+          <span class="legend-swatch"><span class="sw" style="background:#fef2f2; border:1px solid var(--error)"></span> mismatch contribution</span>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:0;">
+        <p class="panel-label">Linear-flattened baseline</p>
+        <div class="plot-wrap">
+          <svg id="linear-svg" class="plot-svg" viewBox="0 0 480 520" preserveAspectRatio="xMidYMid meet" aria-label="Linear Viterbi baseline"></svg>
+        </div>
+        <p class="plot-caption">The reference path picked as the <em>upper</em> branch. Linear Viterbi has no access to the alternate node. If the read carries the variant, linear must pay an unavoidable mismatch at that position.</p>
+        <div class="legend">
+          <span class="legend-swatch"><span class="sw" style="background:var(--warning)"></span> linear Viterbi path</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="banner" id="banner">
+      <span class="row"><b>Graph best path:</b> <span id="graph-path-text">—</span></span>
+      <span class="row"><b>Graph score:</b>   <span id="graph-score-text">—</span></span>
+      <span class="row"><b>Linear best path:</b> <span id="linear-path-text">—</span></span>
+      <span class="row"><b>Linear score:</b>  <span id="linear-score-text">—</span></span>
+      <span class="row"><b>Δ (graph − linear):</b> <span id="delta-text">—</span></span>
+      <span class="row"><b>Interpretation:</b> <span id="interp-text">—</span></span>
+    </div>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ─── Scoring ─────────────────────────────────────────────
+  // match +5, mismatch -3. Integer scoring keeps cell values readable.
+  const S_MATCH = 5;
+  const S_MISMATCH = -3;
+  const NEG_INF = -1e9;
+
+  const emit = (stateBase, readBase) =>
+    stateBase === readBase ? S_MATCH : S_MISMATCH;
+
+  // ─── Graph presets ───────────────────────────────────────
+  //
+  // Each preset defines a small DAG:
+  //   nodes: [{ id, base, row, col, label }]
+  //   edges: directed (parent → child)
+  //   refPath: node ids following the "upper" reference branch
+  //   read: the observed read string
+  //   caption: teaching hint
+  //
+  // Layout: row controls vertical position in the trellis; col is the
+  // topological rank (x position in the graph diagram).
+  //
+  // The "Figure 9" layout: 8 nodes, 1 bubble between positions 3 and 5.
+  //   0 → 1 → 2 → {3a, 3b} → 4 → 5 → 6 → 7
+  // The read carries the alternate allele at bubble position.
+
+  const PRESETS = {
+    'small-with-variant': {
+      label: 'small-with-variant',
+      caption: 'The read carries the alternate allele (C) where the reference has T at position 4. Graph Viterbi takes the alt node (N3b) through the bubble; linear must mismatch.',
+      nodes: [
+        { id: 'N0', base: 'A', row: 1, col: 0, label: 'N0' },
+        { id: 'N1', base: 'G', row: 1, col: 1, label: 'N1' },
+        { id: 'N2', base: 'T', row: 1, col: 2, label: 'N2' },
+        { id: 'N3a', base: 'T', row: 0, col: 3, label: 'N3a (ref)' },
+        { id: 'N3b', base: 'C', row: 2, col: 3, label: 'N3b (alt)' },
+        { id: 'N4', base: 'G', row: 1, col: 4, label: 'N4' },
+        { id: 'N5', base: 'A', row: 1, col: 5, label: 'N5' },
+        { id: 'N6', base: 'C', row: 1, col: 6, label: 'N6' },
+        { id: 'N7', base: 'A', row: 1, col: 7, label: 'N7' },
+      ],
+      edges: [
+        ['N0','N1'],['N1','N2'],
+        ['N2','N3a'],['N2','N3b'],
+        ['N3a','N4'],['N3b','N4'],
+        ['N4','N5'],['N5','N6'],['N6','N7'],
+      ],
+      refPath: ['N0','N1','N2','N3a','N4','N5','N6','N7'],
+      read: 'AGTCGACA',   // matches the alt path through N3b (C), length 8
+    },
+
+    'diverged': {
+      label: 'diverged',
+      caption: 'Two genuinely different branches (TGC vs CAG) after position 1. The read aligns cleanly to the lower branch — graph Viterbi finds it, linear (locked to the upper) pays three mismatches in a row.',
+      nodes: [
+        { id: 'N0', base: 'A', row: 1, col: 0, label: 'N0' },
+        { id: 'N1', base: 'G', row: 1, col: 1, label: 'N1' },
+        { id: 'B0a', base: 'T', row: 0, col: 2, label: 'B0a' },
+        { id: 'B0b', base: 'C', row: 2, col: 2, label: 'B0b' },
+        { id: 'B1a', base: 'G', row: 0, col: 3, label: 'B1a' },
+        { id: 'B1b', base: 'A', row: 2, col: 3, label: 'B1b' },
+        { id: 'B2a', base: 'C', row: 0, col: 4, label: 'B2a' },
+        { id: 'B2b', base: 'G', row: 2, col: 4, label: 'B2b' },
+        { id: 'N5', base: 'A', row: 1, col: 5, label: 'N5' },
+        { id: 'N6', base: 'T', row: 1, col: 6, label: 'N6' },
+      ],
+      edges: [
+        ['N0','N1'],
+        ['N1','B0a'],['N1','B0b'],
+        ['B0a','B1a'],['B0b','B1b'],
+        ['B1a','B2a'],['B1b','B2b'],
+        ['B2a','N5'],['B2b','N5'],
+        ['N5','N6'],
+      ],
+      refPath: ['N0','N1','B0a','B1a','B2a','N5','N6'],  // upper branch
+      read: 'AGCAGAT',    // length 7 — follows the lower branch
+    },
+
+    'all-identical': {
+      label: 'all-identical',
+      caption: 'The bubble sites carry the same base on both branches, so the graph collapses to its linear reference. Graph and linear Viterbi score the same — the graph costs nothing but gains nothing here.',
+      nodes: [
+        { id: 'N0', base: 'A', row: 1, col: 0, label: 'N0' },
+        { id: 'N1', base: 'C', row: 1, col: 1, label: 'N1' },
+        { id: 'N2', base: 'G', row: 1, col: 2, label: 'N2' },
+        { id: 'N3a', base: 'T', row: 0, col: 3, label: 'N3a' },
+        { id: 'N3b', base: 'T', row: 2, col: 3, label: 'N3b' },
+        { id: 'N4', base: 'A', row: 1, col: 4, label: 'N4' },
+        { id: 'N5', base: 'G', row: 1, col: 5, label: 'N5' },
+        { id: 'N6', base: 'C', row: 1, col: 6, label: 'N6' },
+      ],
+      edges: [
+        ['N0','N1'],['N1','N2'],
+        ['N2','N3a'],['N2','N3b'],
+        ['N3a','N4'],['N3b','N4'],
+        ['N4','N5'],['N5','N6'],
+      ],
+      refPath: ['N0','N1','N2','N3a','N4','N5','N6'],
+      read: 'ACGTAGC',
+    },
+  };
+
+  // ─── Colour palette ──────────────────────────────────────
+  const COLOR_PATH = '#1e3a8a';          // graph best path
+  const COLOR_PATH_LINEAR = '#b45309';   // linear baseline path
+  const COLOR_MATCH_BG = '#ecfdf5';
+  const COLOR_MATCH_BORDER = '#15803d';
+  const COLOR_MISMATCH_BG = '#fef2f2';
+  const COLOR_MISMATCH_BORDER = '#b91c1c';
+  const COLOR_UNFILLED = '#f4f3ee';
+  const COLOR_UNFILLED_TEXT = '#8a8a85';
+
+  // ─── SVG helpers ─────────────────────────────────────────
+  function elSVG(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // ─── DP: Viterbi on a DAG ────────────────────────────────
+  //
+  // States are graph nodes. Read positions t = 1..T.
+  //
+  //   V(s, 1)  = emit(s, r[0])                         for every start state
+  //   V(s, t)  = max over s' in pred(s) of V(s', t-1)  +  emit(s, r[t-1])
+  //
+  // back[s, t] = argmax predecessor (or null at t=1 if s is a start).
+  //
+  // Start states: nodes with no incoming edges (typically just N0).
+  // We allow any node to be the start if it has no predecessors.
+  //
+  // Returns:
+  //   V[sIdx][t]       :  score (NEG_INF if unreachable)
+  //   back[sIdx][t]    :  predecessor sIdx (−1 if this is the source column)
+  //   bestEndSIdx      :  argmax sIdx of V[sIdx][T]
+  //   path             :  list of node ids from start to best end
+  //   pathSIdxByT      :  state index at each column 1..T along the traced path
+  function runViterbi(graph, read) {
+    const T = read.length;
+    const nodes = graph.nodes;
+    const N = nodes.length;
+
+    // id → index
+    const idx = new Map();
+    nodes.forEach((n, i) => idx.set(n.id, i));
+
+    // adjacency — predecessors of each node
+    const preds = Array.from({ length: N }, () => []);
+    for (const [u, v] of graph.edges) {
+      preds[idx.get(v)].push(idx.get(u));
+    }
+
+    // Topological order by column, stable by row
+    const order = Array.from({ length: N }, (_, i) => i)
+      .sort((a, b) => {
+        const A = nodes[a], B = nodes[b];
+        return A.col - B.col || A.row - B.row;
+      });
+
+    // DP tables: V[s][t] for t in 0..T, column 0 is unused (we emit at t=1).
+    // For cleanliness we store V[s][t] for t in 1..T only and also keep an
+    // `initScore[s]` for t=1.
+    const V = Array.from({ length: N }, () => new Float64Array(T + 1).fill(NEG_INF));
+    const back = Array.from({ length: N }, () => new Int32Array(T + 1).fill(-2));
+
+    // t = 1: each node s can be a starting emitter iff it has no predecessors.
+    // Otherwise V(s,1) = -inf (the read must start somewhere at the source).
+    for (const s of order) {
+      if (preds[s].length === 0) {
+        V[s][1] = emit(nodes[s].base, read[0]);
+        back[s][1] = -1;
+      }
+    }
+
+    // t = 2..T
+    for (let t = 2; t <= T; t++) {
+      for (const s of order) {
+        const pps = preds[s];
+        if (pps.length === 0) continue;
+        let bestScore = NEG_INF;
+        let bestP = -2;
+        for (const p of pps) {
+          const prev = V[p][t - 1];
+          if (prev === NEG_INF) continue;
+          if (prev > bestScore) { bestScore = prev; bestP = p; }
+        }
+        if (bestScore === NEG_INF) continue;
+        V[s][t] = bestScore + emit(nodes[s].base, read[t - 1]);
+        back[s][t] = bestP;
+      }
+    }
+
+    // argmax over V[s][T] restricted to sinks (no outgoing edges) for a
+    // full read-to-end alignment. A node is a sink if it has no successor.
+    const hasSuccessor = new Uint8Array(N);
+    for (const [u] of graph.edges) hasSuccessor[idx.get(u)] = 1;
+
+    let bestEnd = -1;
+    let bestEndScore = NEG_INF;
+    for (let s = 0; s < N; s++) {
+      if (hasSuccessor[s]) continue;
+      if (V[s][T] > bestEndScore) {
+        bestEndScore = V[s][T];
+        bestEnd = s;
+      }
+    }
+    // Fallback: if no sink reached (can happen if T < graph length), allow any
+    // node — pick the global max.
+    if (bestEnd === -1) {
+      for (let s = 0; s < N; s++) {
+        if (V[s][T] > bestEndScore) {
+          bestEndScore = V[s][T];
+          bestEnd = s;
+        }
+      }
+    }
+
+    // Traceback
+    const pathSIdxByT = new Array(T + 1).fill(-1);
+    {
+      let cur = bestEnd;
+      for (let t = T; t >= 1 && cur !== -1 && cur !== -2; t--) {
+        pathSIdxByT[t] = cur;
+        cur = back[cur][t];
+      }
+    }
+    const path = [];
+    for (let t = 1; t <= T; t++) {
+      if (pathSIdxByT[t] >= 0) path.push(nodes[pathSIdxByT[t]].id);
+    }
+
+    return {
+      V, back, order, idx, T, preds,
+      bestEnd, bestEndScore,
+      path, pathSIdxByT,
+    };
+  }
+
+  // ─── Linear baseline: collapse the graph to the reference path ─
+  //
+  // Build a chain of nodes using graph.refPath. Run Viterbi on that chain.
+  // Score is simply sum of emissions.
+  function runLinearViterbi(graph, read) {
+    const T = read.length;
+    const nodes = graph.nodes;
+    const idx = new Map();
+    nodes.forEach((n, i) => idx.set(n.id, i));
+
+    // Construct a fake graph: one chain, same nodes as graph.refPath
+    const chain = graph.refPath.map((id) => idx.get(id));
+    const L = chain.length;
+
+    // The linear DP only advances down the chain: state at column t is
+    // chain[t-1] if t <= L, else undefined.
+    // If T > L, remaining positions can't be aligned — pad with mismatch at
+    // the final node (equivalent to the last node "emitting" repeatedly).
+    // Practically we require T <= L for the presets we ship; if not, we
+    // still report a score by repeating the final node.
+    const scores = new Float64Array(T + 1);
+    let total = 0;
+    const pathIds = [];
+    for (let t = 1; t <= T; t++) {
+      const chainIdx = Math.min(t - 1, L - 1);
+      const s = nodes[chain[chainIdx]];
+      const e = emit(s.base, read[t - 1]);
+      total += e;
+      scores[t] = total;
+      pathIds.push(s.id);
+    }
+    return { total, scores, path: pathIds };
+  }
+
+  // ─── Rendering ───────────────────────────────────────────
+  //
+  // The trellis: x-axis is time step t (columns 0..T), y-axis is graph
+  // state. States arranged in topological order (by col, then row).
+  //
+  // We draw, beside the trellis on the left, a small DAG "backbone" so the
+  // student can see which state is which node.
+
+  function renderTrellis(graph, viterbi, read, currentT, mode) {
+    const svg = $('trellis-svg');
+    clearNode(svg);
+
+    const W = 920, H = 520;
+    const PAD_T = 42, PAD_B = 44, PAD_L = 16, PAD_R = 16;
+    const DAG_W = 220;                 // graph DAG column on the left
+    const trellisX0 = PAD_L + DAG_W + 8;
+    const trellisY0 = PAD_T;
+    const trellisW = W - trellisX0 - PAD_R;
+    const trellisH = H - PAD_T - PAD_B;
+
+    const T = viterbi.T;
+    const cols = T;                    // columns 1..T
+    const cellW = trellisW / cols;
+    const N = graph.nodes.length;
+    const stateOrder = viterbi.order;
+    const rowH = trellisH / N;
+
+    // Map state index → y
+    const sToY = new Map();
+    stateOrder.forEach((s, i) => sToY.set(s, trellisY0 + i * rowH));
+
+    // ─── Background for trellis area ──────────────────────
+    svg.appendChild(elSVG('rect', {
+      x: trellisX0, y: trellisY0, width: trellisW, height: trellisH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // ─── Highlight current column ────────────────────────
+    if (currentT >= 1 && currentT <= T) {
+      svg.appendChild(elSVG('rect', {
+        x: trellisX0 + (currentT - 1) * cellW,
+        y: trellisY0 - 6,
+        width: cellW, height: trellisH + 12,
+        fill: 'rgba(37,99,235,0.07)',
+        stroke: 'rgba(37,99,235,0.45)', 'stroke-width': 1,
+        'stroke-dasharray': '4 3',
+      }));
+    }
+
+    // ─── Column headers (read bases + indices) ───────────
+    for (let t = 1; t <= T; t++) {
+      const cx = trellisX0 + (t - 0.5) * cellW;
+      svg.appendChild(elSVG('text', {
+        x: cx, y: trellisY0 - 22,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-sans)', 'font-size': 10,
+        fill: 'var(--fg-subtle)', 'letter-spacing': '0.08em',
+      }, `t=${t}`));
+      svg.appendChild(elSVG('text', {
+        x: cx, y: trellisY0 - 8,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 13,
+        'font-weight': 600,
+        fill: 'var(--fg)',
+      }, read[t - 1]));
+    }
+
+    // ─── Row labels (state names, to the left of the DAG area) ─
+    //     Also draw a compact DAG layout so students see which nodes
+    //     are adjacent. We use (col, row) from preset for DAG x/y.
+    const minCol = Math.min(...graph.nodes.map(n => n.col));
+    const maxCol = Math.max(...graph.nodes.map(n => n.col));
+    const minRow = Math.min(...graph.nodes.map(n => n.row));
+    const maxRow = Math.max(...graph.nodes.map(n => n.row));
+    const dagColSpan = Math.max(1, maxCol - minCol);
+    const dagRowSpan = Math.max(1, maxRow - minRow);
+
+    const dagX0 = PAD_L + 8;
+    const dagW = DAG_W - 16;
+    const nodeR = 12;
+
+    // Edges first
+    for (const [u, v] of graph.edges) {
+      const un = graph.nodes.find(n => n.id === u);
+      const vn = graph.nodes.find(n => n.id === v);
+      const uIdx = viterbi.idx.get(u);
+      const vIdx = viterbi.idx.get(v);
+      const uy = sToY.get(uIdx) + rowH / 2;
+      const vy = sToY.get(vIdx) + rowH / 2;
+      // x from (col - minCol) / span mapping
+      const ux = dagX0 + (un.col - minCol) / dagColSpan * dagW;
+      const vx = dagX0 + (vn.col - minCol) / dagColSpan * dagW;
+      svg.appendChild(elSVG('line', {
+        x1: ux, y1: uy, x2: vx, y2: vy,
+        stroke: 'var(--border-strong)', 'stroke-width': 1.2,
+      }));
+    }
+
+    // Nodes
+    for (const n of graph.nodes) {
+      const sIdx = viterbi.idx.get(n.id);
+      const cy = sToY.get(sIdx) + rowH / 2;
+      const cx = dagX0 + (n.col - minCol) / dagColSpan * dagW;
+      svg.appendChild(elSVG('circle', {
+        cx, cy, r: nodeR,
+        fill: 'var(--bg-elevated)',
+        stroke: 'var(--accent)', 'stroke-width': 1.3,
+      }));
+      svg.appendChild(elSVG('text', {
+        x: cx, y: cy + 4,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        'font-weight': 600, fill: 'var(--accent)',
+      }, n.base));
+      // Small label above
+      svg.appendChild(elSVG('text', {
+        x: cx, y: cy - nodeR - 3,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-sans)', 'font-size': 9,
+        fill: 'var(--fg-subtle)', 'letter-spacing': '0.04em',
+      }, n.label));
+    }
+
+    // Horizontal grid lines for rows
+    for (let i = 0; i <= N; i++) {
+      const y = trellisY0 + i * rowH;
+      svg.appendChild(elSVG('line', {
+        x1: trellisX0, x2: trellisX0 + trellisW, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 0.6,
+      }));
+    }
+    for (let t = 0; t <= T; t++) {
+      const x = trellisX0 + t * cellW;
+      svg.appendChild(elSVG('line', {
+        x1: x, x2: x, y1: trellisY0, y2: trellisY0 + trellisH,
+        stroke: 'var(--border)', 'stroke-width': 0.6,
+      }));
+    }
+
+    // ─── Cells: V(s, t) ──────────────────────────────────
+    //
+    // In "fill" mode, we render all cells up to currentT with their
+    // scores. Cells beyond currentT are drawn as "−∞" placeholders.
+    // In "traceback" mode we draw the full DP (t=1..T) dimmed and only
+    // highlight the path.
+    const fillMax = (mode === 'fill') ? currentT : T;
+
+    for (let i = 0; i < N; i++) {
+      const s = stateOrder[i];
+      const y = trellisY0 + i * rowH;
+      for (let t = 1; t <= T; t++) {
+        const cx = trellisX0 + (t - 1) * cellW;
+        const cy = y;
+        const inRange = t <= fillMax;
+        const v = viterbi.V[s][t];
+        const reachable = inRange && v !== NEG_INF;
+
+        // Background shading: match / mismatch contribution at this cell
+        // only when a predecessor is reachable (or this is an initial cell
+        // with no predecessor).
+        if (reachable) {
+          const base = graph.nodes[s].base;
+          const r = read[t - 1];
+          const isMatch = base === r;
+          const bg = isMatch ? COLOR_MATCH_BG : COLOR_MISMATCH_BG;
+          const br = isMatch ? COLOR_MATCH_BORDER : COLOR_MISMATCH_BORDER;
+          svg.appendChild(elSVG('rect', {
+            x: cx + 1, y: cy + 1, width: cellW - 2, height: rowH - 2,
+            fill: bg, stroke: br, 'stroke-width': 0.6, 'stroke-dasharray': '2 2',
+            opacity: 0.55,
+          }));
+        } else if (inRange) {
+          // Reachable cell slot but score is -inf (no predecessor): leave blank
+        }
+
+        // Text
+        const txt = reachable ? formatScore(v)
+                              : (inRange ? '−∞' : '·');
+        svg.appendChild(elSVG('text', {
+          x: cx + cellW / 2,
+          y: cy + rowH / 2 + 4,
+          'text-anchor': 'middle',
+          'font-family': 'var(--font-mono)',
+          'font-size': Math.min(13, Math.max(9, rowH * 0.38)),
+          fill: reachable ? 'var(--fg)' : COLOR_UNFILLED_TEXT,
+          'font-weight': reachable ? 600 : 400,
+        }, txt));
+      }
+    }
+
+    // ─── Optimal path overlay ────────────────────────────
+    //
+    // We draw a polyline through (trellisX0 + (t-0.5)*cellW, yOfPathState).
+    // And a big filled circle at each node on the path.
+    const path = viterbi.pathSIdxByT;
+    // In fill mode, only draw up to currentT; in traceback mode, full path.
+    const pathMax = (mode === 'fill') ? currentT : T;
+
+    if (pathMax >= 1) {
+      const pts = [];
+      for (let t = 1; t <= pathMax; t++) {
+        const sIdx = path[t];
+        if (sIdx < 0) continue;
+        const cx = trellisX0 + (t - 0.5) * cellW;
+        const cy = sToY.get(sIdx) + rowH / 2;
+        pts.push([cx, cy]);
+      }
+      if (pts.length >= 2) {
+        svg.appendChild(elSVG('polyline', {
+          points: pts.map(p => p.join(',')).join(' '),
+          fill: 'none',
+          stroke: COLOR_PATH, 'stroke-width': 2.4,
+          opacity: 0.9,
+        }));
+      }
+      for (const [x, y] of pts) {
+        svg.appendChild(elSVG('circle', {
+          cx: x, cy: y, r: 5,
+          fill: COLOR_PATH, stroke: '#fff', 'stroke-width': 1.2,
+        }));
+      }
+    }
+
+    // ─── Bottom axis label ───────────────────────────────
+    svg.appendChild(elSVG('text', {
+      x: trellisX0 + trellisW / 2, y: H - 12,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.08em',
+    }, 'read position t →'));
+    svg.appendChild(elSVG('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.08em',
+      transform: `translate(${PAD_L - 2}, ${trellisY0 + trellisH / 2}) rotate(-90)`,
+    }, 'graph state (DAG)'));
+  }
+
+  function renderLinear(graph, linear, read, currentT, mode) {
+    const svg = $('linear-svg');
+    clearNode(svg);
+
+    const W = 480, H = 520;
+    const PAD_T = 42, PAD_B = 44, PAD_L = 30, PAD_R = 12;
+    const x0 = PAD_L, y0 = PAD_T;
+    const plotW = W - PAD_L - PAD_R;
+    const plotH = H - PAD_T - PAD_B;
+
+    const refPath = graph.refPath;
+    const N = refPath.length;
+    const T = read.length;
+
+    // columns = t = 1..T
+    const cellW = plotW / T;
+    const rowH = plotH / N;
+
+    // Frame
+    svg.appendChild(elSVG('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Column headers
+    for (let t = 1; t <= T; t++) {
+      const cx = x0 + (t - 0.5) * cellW;
+      svg.appendChild(elSVG('text', {
+        x: cx, y: y0 - 22,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-sans)', 'font-size': 10,
+        fill: 'var(--fg-subtle)', 'letter-spacing': '0.08em',
+      }, `t=${t}`));
+      svg.appendChild(elSVG('text', {
+        x: cx, y: y0 - 8,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 12,
+        'font-weight': 600, fill: 'var(--fg)',
+      }, read[t - 1]));
+    }
+
+    // Row labels (refPath node bases)
+    for (let i = 0; i < N; i++) {
+      const cy = y0 + i * rowH + rowH / 2;
+      const id = refPath[i];
+      const node = graph.nodes.find(n => n.id === id);
+      svg.appendChild(elSVG('text', {
+        x: x0 - 6, y: cy + 4,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        'font-weight': 600, fill: 'var(--warning)',
+      }, `${id}:${node.base}`));
+    }
+
+    // Grid
+    for (let i = 0; i <= N; i++) {
+      const y = y0 + i * rowH;
+      svg.appendChild(elSVG('line', {
+        x1: x0, x2: x0 + plotW, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 0.6,
+      }));
+    }
+    for (let t = 0; t <= T; t++) {
+      const x = x0 + t * cellW;
+      svg.appendChild(elSVG('line', {
+        x1: x, x2: x, y1: y0, y2: y0 + plotH,
+        stroke: 'var(--border)', 'stroke-width': 0.6,
+      }));
+    }
+
+    // Current column highlight
+    if (currentT >= 1 && currentT <= T) {
+      svg.appendChild(elSVG('rect', {
+        x: x0 + (currentT - 1) * cellW, y: y0 - 6,
+        width: cellW, height: plotH + 12,
+        fill: 'rgba(180,83,9,0.07)',
+        stroke: 'rgba(180,83,9,0.45)', 'stroke-width': 1,
+        'stroke-dasharray': '4 3',
+      }));
+    }
+
+    // Cells: linear DP is deterministic — at column t the state is
+    // refPath[t-1]. We draw every cell, marking match/mismatch, and put
+    // the running score in the cell on the linear-path row.
+    const fillMax = (mode === 'fill') ? currentT : T;
+
+    for (let t = 1; t <= T; t++) {
+      const cx = x0 + (t - 1) * cellW;
+      const pathI = Math.min(t - 1, N - 1);
+      for (let i = 0; i < N; i++) {
+        const cy = y0 + i * rowH;
+        const node = graph.nodes.find(n => n.id === refPath[i]);
+        const base = node.base;
+        const r = read[t - 1];
+        const isMatch = base === r;
+        const onPath = (i === pathI);
+        const inRange = t <= fillMax;
+
+        if (onPath && inRange) {
+          svg.appendChild(elSVG('rect', {
+            x: cx + 1, y: cy + 1, width: cellW - 2, height: rowH - 2,
+            fill: isMatch ? COLOR_MATCH_BG : COLOR_MISMATCH_BG,
+            stroke: isMatch ? COLOR_MATCH_BORDER : COLOR_MISMATCH_BORDER,
+            'stroke-width': 0.6, 'stroke-dasharray': '2 2',
+            opacity: 0.7,
+          }));
+          const txt = formatScore(linear.scores[t]);
+          svg.appendChild(elSVG('text', {
+            x: cx + cellW / 2, y: cy + rowH / 2 + 4,
+            'text-anchor': 'middle',
+            'font-family': 'var(--font-mono)',
+            'font-size': Math.min(12, Math.max(9, rowH * 0.38)),
+            fill: 'var(--fg)', 'font-weight': 600,
+          }, txt));
+        } else {
+          // Off-path cells are unreachable for the linear baseline.
+          svg.appendChild(elSVG('text', {
+            x: cx + cellW / 2, y: cy + rowH / 2 + 4,
+            'text-anchor': 'middle',
+            'font-family': 'var(--font-mono)',
+            'font-size': Math.min(11, Math.max(8, rowH * 0.32)),
+            fill: COLOR_UNFILLED_TEXT,
+          }, '·'));
+        }
+      }
+    }
+
+    // Linear path overlay
+    if (fillMax >= 1) {
+      const pts = [];
+      for (let t = 1; t <= fillMax; t++) {
+        const i = Math.min(t - 1, N - 1);
+        const cx = x0 + (t - 0.5) * cellW;
+        const cy = y0 + i * rowH + rowH / 2;
+        pts.push([cx, cy]);
+      }
+      if (pts.length >= 2) {
+        svg.appendChild(elSVG('polyline', {
+          points: pts.map(p => p.join(',')).join(' '),
+          fill: 'none',
+          stroke: COLOR_PATH_LINEAR, 'stroke-width': 2.4, opacity: 0.9,
+        }));
+      }
+      for (const [x, y] of pts) {
+        svg.appendChild(elSVG('circle', {
+          cx: x, cy: y, r: 5,
+          fill: COLOR_PATH_LINEAR, stroke: '#fff', 'stroke-width': 1.2,
+        }));
+      }
+    }
+
+    // Axis labels
+    svg.appendChild(elSVG('text', {
+      x: x0 + plotW / 2, y: H - 12,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.08em',
+    }, 'read position t →'));
+    svg.appendChild(elSVG('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.08em',
+      transform: `translate(12, ${y0 + plotH / 2}) rotate(-90)`,
+    }, 'reference node'));
+  }
+
+  function formatScore(v) {
+    if (v === NEG_INF) return '−∞';
+    return (v >= 0 ? '+' : '') + v.toFixed(0);
+  }
+
+  // ─── Read strip rendering ────────────────────────────────
+  function renderReadStrip(read, currentT) {
+    const el = $('read-strip');
+    el.innerHTML = '';
+    for (let i = 0; i < read.length; i++) {
+      const span = document.createElement('span');
+      span.className = 'pos' + ((i + 1) === currentT ? ' active' : '');
+      span.textContent = read[i];
+      el.appendChild(span);
+    }
+  }
+  function renderRefPathStrip(graph) {
+    const el = $('refpath-strip');
+    el.innerHTML = '';
+    for (const id of graph.refPath) {
+      const node = graph.nodes.find(n => n.id === id);
+      const span = document.createElement('span');
+      span.className = 'pos';
+      span.textContent = node.base;
+      el.appendChild(span);
+    }
+  }
+
+  // ─── Banner ──────────────────────────────────────────────
+  function renderBanner(graph, viterbi, linear) {
+    $('graph-path-text').textContent =
+      viterbi.path.join(' → ');
+    $('graph-score-text').textContent =
+      `${formatScore(viterbi.bestEndScore)}  ` +
+      `(match = +${S_MATCH}, mismatch = ${S_MISMATCH})`;
+    $('linear-path-text').textContent =
+      linear.path.join(' → ');
+    $('linear-score-text').textContent =
+      `${formatScore(linear.total)}  (reference path only)`;
+
+    const delta = viterbi.bestEndScore - linear.total;
+    $('delta-text').textContent = (delta >= 0 ? '+' : '') + delta.toFixed(0);
+
+    const banner = $('banner');
+    banner.classList.remove('positive', 'neutral');
+    let interp;
+    if (delta >= 5) {
+      banner.classList.add('positive');
+      interp = 'Graph Viterbi strictly beats linear: the read carries a variant and the DAG exposed an alt-allele branch that the flattened reference could not. This is the graph-genome dividend.';
+    } else if (delta > 0) {
+      banner.classList.add('positive');
+      interp = 'Graph edges out linear by a small margin — a partial gain from the alt branch.';
+    } else {
+      banner.classList.add('neutral');
+      interp = 'Graph and linear converge: when the bubble carries the same base on every branch (or the read hugs the reference), the graph degenerates and offers no gain. It is still never worse.';
+    }
+    $('interp-text').textContent = interp;
+  }
+
+  // ─── State ───────────────────────────────────────────────
+  const state = {
+    presetKey: 'small-with-variant',
+    mode: 'fill',
+    t: 0,
+    running: false,
+    runAnim: null,
+    viterbi: null,
+    linear: null,
+  };
+
+  // ─── Controls ────────────────────────────────────────────
+  const presetEl = $('preset-input');
+  const modeEl   = $('mode-input');
+  const tEl      = $('t-input');
+  const stepBtn  = $('step-btn');
+  const runBtn   = $('run-btn');
+  const resetBtn = $('reset-btn');
+  const statusDot = $('status-dot');
+  const statusText = $('status-text');
+
+  function setStatus(text, working) {
+    statusText.textContent = text;
+    statusDot.classList.toggle('working', !!working);
+  }
+
+  // ─── Pipeline ───────────────────────────────────────────
+  function computeAll() {
+    const graph = PRESETS[state.presetKey];
+    state.graph = graph;
+    state.viterbi = runViterbi(graph, graph.read);
+    state.linear  = runLinearViterbi(graph, graph.read);
+    // Slider range
+    tEl.max = String(graph.read.length);
+    if (state.t > graph.read.length) state.t = graph.read.length;
+    tEl.value = String(state.t);
+    $('t-value').textContent = String(state.t);
+    $('preset-caption').textContent = graph.caption;
+  }
+
+  function renderAll() {
+    const graph = state.graph;
+    const displayT = state.mode === 'traceback' ? graph.read.length : state.t;
+    renderReadStrip(graph.read, displayT);
+    renderRefPathStrip(graph);
+    renderTrellis(graph, state.viterbi, graph.read, displayT, state.mode);
+    renderLinear(graph, state.linear, graph.read, displayT, state.mode);
+    renderBanner(graph, state.viterbi, state.linear);
+  }
+
+  // ─── Interactions ────────────────────────────────────────
+  function stopRun() {
+    if (state.runAnim != null) {
+      cancelAnimationFrame(state.runAnim);
+      state.runAnim = null;
+    }
+    state.running = false;
+    runBtn.textContent = 'Run to T';
+    setStatus('idle', false);
+  }
+
+  function startRun() {
+    if (state.running) { stopRun(); return; }
+    const T = state.graph.read.length;
+    if (state.t >= T) {
+      state.t = 0;
+      tEl.value = '0';
+      $('t-value').textContent = '0';
+      renderAll();
+    }
+    state.running = true;
+    runBtn.textContent = 'Pause';
+    setStatus('filling DP…', true);
+
+    let lastTs = 0;
+    const stepMs = 320;
+    const tick = (ts) => {
+      if (!state.running) return;
+      if (!lastTs) lastTs = ts;
+      if (ts - lastTs >= stepMs) {
+        lastTs = ts;
+        if (state.t < T) {
+          state.t += 1;
+          tEl.value = String(state.t);
+          $('t-value').textContent = String(state.t);
+          renderAll();
+        } else {
+          stopRun();
+          return;
+        }
+      }
+      state.runAnim = requestAnimationFrame(tick);
+    };
+    state.runAnim = requestAnimationFrame(tick);
+  }
+
+  // ─── Wiring ──────────────────────────────────────────────
+  presetEl.addEventListener('change', () => {
+    stopRun();
+    state.presetKey = presetEl.value;
+    // Reset t to 0 on preset swap so students see the fresh fill
+    state.t = 0;
+    computeAll();
+    renderAll();
+  });
+  modeEl.addEventListener('change', () => {
+    stopRun();
+    state.mode = modeEl.value;
+    renderAll();
+  });
+  tEl.addEventListener('input', () => {
+    stopRun();
+    state.t = +tEl.value;
+    $('t-value').textContent = String(state.t);
+    renderAll();
+  });
+  stepBtn.addEventListener('click', () => {
+    stopRun();
+    const T = state.graph.read.length;
+    if (state.t < T) {
+      state.t += 1;
+      tEl.value = String(state.t);
+      $('t-value').textContent = String(state.t);
+      renderAll();
+    }
+  });
+  runBtn.addEventListener('click', () => {
+    startRun();
+  });
+  resetBtn.addEventListener('click', () => {
+    stopRun();
+    state.t = 0;
+    tEl.value = '0';
+    $('t-value').textContent = '0';
+    renderAll();
+  });
+
+  // ─── Boot ────────────────────────────────────────────────
+  // Open pre-computed with the DP fully filled and traceback visible,
+  // so the aha moment is present without any interaction.
+  computeAll();
+  state.t = state.graph.read.length;
+  tEl.value = String(state.t);
+  $('t-value').textContent = String(state.t);
+  renderAll();
+  setStatus('idle', false);
+})();
+</script>
+
+</body>
+</html>

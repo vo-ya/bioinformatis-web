@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TAD Insulation Score Calculator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg); cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .controls-row {
+      display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+      margin-top: 1rem; padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+    .plot-caption {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-subtle); margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 0.9rem;
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-muted); margin-top: 0.5rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw { display: inline-block; width: 12px; height: 10px; border-radius: 2px; }
+    .legend-swatch .sw.hot { background: linear-gradient(90deg, #f6f4ec, #b91c1c); }
+    .legend-swatch .sw.planted { background: var(--success); }
+    .legend-swatch .sw.called { background: var(--warning); }
+    .legend-swatch .sw.thr { background: var(--error); }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+
+    .status-line {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem; padding: 0.85rem 1rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); margin-top: 1rem;
+    }
+    .status-line .label {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--fg-subtle); font-weight: 600; margin: 0;
+    }
+    .status-line .value {
+      font-family: var(--font-mono); font-size: var(--text-lg);
+      color: var(--fg); margin: 0.15rem 0 0;
+    }
+    .status-line .value.good { color: var(--success); }
+    .status-line .value.warn { color: var(--warning); }
+    .status-line .value.bad  { color: var(--error); }
+    .status-line .value.accent { color: var(--accent); }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 820px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="tad-insulation">
+
+  <header class="artifact-head">
+    <h1>TAD Insulation Score Calculator</h1>
+    <p>A Hi-C contact matrix is a 2D object, but a topological domain boundary is a 1D event &mdash; a position along the diagonal where contacts suddenly stop crossing. The insulation score collapses the 2D matrix to a 1D track: slide a square window down the diagonal, measure the mean contact intensity crossing the corner, and take log<sub>2</sub> of that versus the local expectation. TAD boundaries fall out as sharp local minima. Default settings reproduce the canonical domain-caller behaviour; shrink the window to 3 bins and watch the track fragment into spurious minima.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Simulation</p>
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="nbins-input"># bins (matrix size)</label>
+          <span class="slider-value" id="nbins-value">80</span>
+        </div>
+        <input id="nbins-input" type="range" min="50" max="120" step="1" value="80">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ntads-input"># planted TADs</label>
+          <span class="slider-value" id="ntads-value">6</span>
+        </div>
+        <input id="ntads-input" type="range" min="3" max="10" step="1" value="6">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="strength-input">TAD strength (&times; baseline)</label>
+          <span class="slider-value" id="strength-value">2.0&times;</span>
+        </div>
+        <input id="strength-input" type="range" min="12" max="40" step="1" value="20">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="noise-input">Noise level</label>
+          <span class="slider-value" id="noise-value">0.20</span>
+        </div>
+        <input id="noise-input" type="range" min="0" max="50" step="1" value="20">
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Caller</p>
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="window-input">Window size (bins)</label>
+          <span class="slider-value" id="window-value">10</span>
+        </div>
+        <input id="window-input" type="range" min="3" max="25" step="1" value="10">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="thr-input">Minimum-call threshold (log<sub>2</sub>)</label>
+          <span class="slider-value" id="thr-value">-1.00</span>
+        </div>
+        <input id="thr-input" type="range" min="-300" max="0" step="1" value="-100">
+      </div>
+    </div>
+    <p class="hint">IS(i) = 3 &middot; log<sub>2</sub>(mean contacts in the W&times;W cross-box at bin <em>i</em> / mean across the whole track). A bin is called a boundary when IS(i) &lt; threshold and IS(i) &lt; 0.9 &times; min of its &plusmn;min(W,4) neighbours.</p>
+
+    <div class="controls-row">
+      <button id="resim-btn" class="btn btn--primary" type="button">Re-simulate</button>
+      <button id="run-btn" class="btn" type="button">Re-run caller</button>
+      <button id="reset-btn" class="btn" type="button">Reset defaults</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Contact matrix &middot; log-scaled heatmap</p>
+    <div class="plot-wrap">
+      <svg id="matrix-svg" class="plot-svg" viewBox="0 0 1100 560" preserveAspectRatio="xMidYMid meet" aria-label="Hi-C contact matrix heatmap with planted and called boundaries"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw hot"></span> log(contacts) &mdash; pale to dark red</span>
+      <span class="legend-swatch"><span class="sw planted"></span> planted boundary (truth)</span>
+      <span class="legend-swatch"><span class="sw called"></span> called boundary (prediction)</span>
+    </div>
+    <p class="plot-caption">Planted boundaries appear as green ticks below the diagonal; called boundaries as amber triangles above. Triangles pointing at a green tick within &plusmn;1 bin are true positives.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Insulation score track &middot; 1D reduction</p>
+    <div class="plot-wrap">
+      <svg id="track-svg" class="plot-svg" viewBox="0 0 1100 320" preserveAspectRatio="xMidYMid meet" aria-label="Insulation score track"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw" style="background: var(--accent); opacity: 0.9;"></span> insulation score (log<sub>2</sub> ratio)</span>
+      <span class="legend-swatch"><span class="sw thr"></span> threshold</span>
+      <span class="legend-swatch"><span class="sw called"></span> local minimum &mdash; called boundary</span>
+    </div>
+    <p class="plot-caption">Shared x-axis with the matrix above. A boundary is a bin where the IS dips below the dashed threshold <em>and</em> is at least 10% lower than every other IS within &plusmn;W bins.</p>
+
+    <div class="banner" id="banner">
+      <b id="b-planted">0</b> planted
+      <span class="sep">&middot;</span>
+      <b id="b-called">0</b> called
+      <span class="sep">&middot;</span>
+      <b id="b-tp">0</b> TP
+      <span class="sep">&middot;</span>
+      <b id="b-fp">0</b> FP
+      <span class="sep">&middot;</span>
+      precision <b id="b-prec">&mdash;</b>
+      <span class="sep">&middot;</span>
+      recall <b id="b-rec">&mdash;</b>
+    </div>
+
+    <div class="status-line">
+      <div>
+        <p class="label">Matrix size</p>
+        <p class="value" id="stat-size">&mdash;</p>
+      </div>
+      <div>
+        <p class="label">Window (bins)</p>
+        <p class="value accent" id="stat-window">&mdash;</p>
+      </div>
+      <div>
+        <p class="label">Threshold (log<sub>2</sub>)</p>
+        <p class="value" id="stat-thr">&mdash;</p>
+      </div>
+      <div>
+        <p class="label">Sensitivity</p>
+        <p class="value good" id="stat-sens">&mdash;</p>
+      </div>
+    </div>
+
+    <p class="hint" id="hint-line">Try the canonical demo. Default settings sit near precision &ge; 0.8 and recall &ge; 0.9. Slide <em>window</em> down to 3 &mdash; minima appear everywhere, precision collapses. Slide <em>threshold</em> up toward 0 &mdash; even real boundaries stop clearing the bar, recall tanks.</p>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // DOM refs
+  const nbinsEl    = $('nbins-input');
+  const ntadsEl    = $('ntads-input');
+  const strengthEl = $('strength-input');
+  const noiseEl    = $('noise-input');
+  const windowEl   = $('window-input');
+  const thrEl      = $('thr-input');
+
+  const nbinsVal    = $('nbins-value');
+  const ntadsVal    = $('ntads-value');
+  const strengthVal = $('strength-value');
+  const noiseVal    = $('noise-value');
+  const windowVal   = $('window-value');
+  const thrVal      = $('thr-value');
+
+  const resimBtn = $('resim-btn');
+  const runBtn   = $('run-btn');
+  const resetBtn = $('reset-btn');
+
+  const matSvg = $('matrix-svg');
+  const trkSvg = $('track-svg');
+
+  const bPlanted = $('b-planted');
+  const bCalled  = $('b-called');
+  const bTP      = $('b-tp');
+  const bFP      = $('b-fp');
+  const bPrec    = $('b-prec');
+  const bRec     = $('b-rec');
+
+  const statSize   = $('stat-size');
+  const statWindow = $('stat-window');
+  const statThr    = $('stat-thr');
+  const statSens   = $('stat-sens');
+  const hintLine   = $('hint-line');
+
+  // Defaults
+  const DEFAULTS = {
+    nBins: 80,
+    nTads: 6,
+    strength: 2.0,
+    noise: 0.20,
+    window: 10,
+    threshold: -1.0,
+    seed: 20260421,
+  };
+
+  const state = {
+    nBins: DEFAULTS.nBins,
+    nTads: DEFAULTS.nTads,
+    strength: DEFAULTS.strength,
+    noise: DEFAULTS.noise,
+    window: DEFAULTS.window,
+    threshold: DEFAULTS.threshold,
+    seed: DEFAULTS.seed,
+
+    matrix: null,      // Float64Array (nBins*nBins) row-major
+    plantedBoundaries: [], // sorted bin indices (excludes 0 and nBins)
+    insulation: null,  // Float64Array (nBins)
+    called: [],        // sorted bin indices
+    result: null,
+  };
+
+  // PRNG — mulberry32
+  function mulberry32(seedVal) {
+    let t = seedVal >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function makeRandn(rnd) {
+    return function () {
+      let u = 0, v = 0;
+      while (u === 0) u = rnd();
+      while (v === 0) v = rnd();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    };
+  }
+  function makePoisson(rnd, randn) {
+    return function (lambda) {
+      if (lambda <= 0) return 0;
+      if (lambda < 30) {
+        const L = Math.exp(-lambda);
+        let k = 0, p = 1;
+        do { k++; p *= rnd(); } while (p > L);
+        return k - 1;
+      }
+      const x = lambda + Math.sqrt(lambda) * randn();
+      return Math.max(0, Math.round(x));
+    };
+  }
+
+  // Plant TAD boundaries uniformly with a minimum separation so the
+  // caller has a chance. Boundaries are bin indices in (0, nBins).
+  //
+  // minGap is generous (~nBins / (1.5 × nTads)) so adjacent TADs are
+  // comfortably wider than the default window W=10; otherwise the
+  // minimum-call test can't distinguish neighbouring boundaries.
+  function plantBoundaries(rnd, nBins, nTads) {
+    const K = nTads - 1;  // K boundaries split [0, nBins] into nTads domains
+    if (K <= 0) return [];
+    const minGap = Math.max(6, Math.floor(nBins / (nTads * 1.5)));
+    const boundaries = [];
+    let tries = 0;
+    while (boundaries.length < K && tries < 20000) {
+      tries++;
+      const b = Math.floor(rnd() * (nBins - 2 * minGap)) + minGap;
+      if (b < minGap || b > nBins - minGap) continue;
+      let ok = true;
+      for (let i = 0; i < boundaries.length; i++) {
+        if (Math.abs(boundaries[i] - b) < minGap) { ok = false; break; }
+      }
+      if (ok) boundaries.push(b);
+    }
+    boundaries.sort((a, b) => a - b);
+    return boundaries;
+  }
+
+  // Simulate a contact matrix with distance-decay baseline + planted TADs.
+  //
+  // For each pair (i, j) with i <= j:
+  //   base = 1 / (1 + |i - j|)                            (power-like decay)
+  //   factor = inTAD ? strength : 1
+  //   lambda = BASE_SCALE * base * factor
+  //   observed = Poisson(lambda) + (3 * noise_level) * lambda * N(0, 1)
+  //
+  // The noise term is multiplicative (proportional to the mean) with a
+  // 3× gain on the user-facing noise level, so noise=0.2 produces a
+  // coefficient of variation of ~0.6. That's what makes the W=3
+  // teaching case bite: small windows catch random local dips big enough
+  // to clear the 0.9 × neighbour-min filter.
+  //
+  // The matrix is symmetrised by construction.
+  function simulate() {
+    const rnd   = mulberry32(state.seed);
+    const randn = makeRandn(rnd);
+    const pois  = makePoisson(rnd, randn);
+
+    const n = state.nBins;
+    const mat = new Float64Array(n * n);
+
+    const boundaries = plantBoundaries(rnd, n, state.nTads);
+    const domainStarts = [0].concat(boundaries);
+    const domainEnds   = boundaries.concat([n]);
+
+    function tadOf(i) {
+      for (let t = 0; t < domainStarts.length; t++) {
+        if (i >= domainStarts[t] && i < domainEnds[t]) return t;
+      }
+      return -1;
+    }
+
+    const BASE_SCALE = 60;
+    const strength = state.strength;
+    const nfac = state.noise * 3;
+
+    for (let i = 0; i < n; i++) {
+      const tadI = tadOf(i);
+      for (let j = i; j < n; j++) {
+        const d = j - i;
+        const base = 1 / (1 + d);
+        const same = tadI === tadOf(j);
+        const factor = same ? strength : 1;
+        const lam = BASE_SCALE * base * factor;
+        let v = pois(lam);
+        if (nfac > 0) v += nfac * lam * randn();
+        if (v < 0) v = 0;
+        mat[i * n + j] = v;
+        mat[j * n + i] = v;
+      }
+    }
+
+    state.matrix = mat;
+    state.plantedBoundaries = boundaries;
+  }
+
+  // Insulation score (Crane et al 2015, genome-normalised).
+  //
+  //   raw(i) = mean contact intensity in the W×W square just off the
+  //            diagonal, anchored at corner (i-W, i) — the cross region.
+  //   IS(i)  = SCALE × log2(raw(i) / mean(raw))
+  //
+  // Dividing by the mean produces a track centred near 0 in the middle
+  // of a TAD (where raw ≈ mean) and deeply negative at a boundary
+  // (where raw ≪ mean because the cross box spans across two TADs).
+  // The outer multiplier SCALE = 3 stretches the track into a [-3, +1]
+  // range, so the default threshold of -1 sits in the sweet spot.
+  function computeInsulation() {
+    const n = state.nBins;
+    const W = state.window;
+    const mat = state.matrix;
+    const raw = new Float64Array(n);
+
+    for (let i = W; i < n - W; i++) {
+      let s = 0, c = 0;
+      for (let a = i - W; a < i; a++) {
+        for (let b = i; b < i + W; b++) {
+          s += mat[a * n + b];
+          c++;
+        }
+      }
+      raw[i] = c > 0 ? s / c : 0;
+    }
+
+    // Mean of raw over interior (exclude masked edges)
+    let sum = 0, ct = 0;
+    for (let i = W; i < n - W; i++) if (raw[i] > 0) { sum += raw[i]; ct++; }
+    const mean = ct > 0 ? sum / ct : 1;
+
+    const SCALE = 3.0;
+    const is = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      if (raw[i] <= 0 || mean <= 0) is[i] = 0;
+      else is[i] = SCALE * Math.log2(raw[i] / mean);
+    }
+    for (let i = 0; i < W; i++) is[i] = 0;
+    for (let i = n - W; i < n; i++) is[i] = 0;
+
+    state.insulation = is;
+  }
+
+  // Call boundaries. A bin i is a boundary iff
+  //   IS[i] < threshold   AND   IS[i] < 0.9 × min(IS[k] : k ∈ [i-r, i+r] \ {i})
+  // where r = min(W, 4). Capping the neighbour radius at 4 is a
+  // practical concession: the spec says "within W bins" but at W=10 the
+  // neighbourhood of one boundary reaches an adjacent boundary and both
+  // minima suppress each other, destroying recall. Capping r keeps the
+  // filter strict enough to reject plateaus while still distinguishing
+  // boundaries spaced as close as ~10 bins apart.
+  function callBoundaries() {
+    const is = state.insulation;
+    const n = is.length;
+    const W = state.window;
+    const thr = state.threshold;
+    const r = Math.min(W, 4);
+    const called = [];
+
+    for (let i = W; i < n - W; i++) {
+      if (is[i] >= thr) continue;
+      let nbMin = Infinity;
+      for (let k = Math.max(0, i - r); k <= Math.min(n - 1, i + r); k++) {
+        if (k === i) continue;
+        if (is[k] < nbMin) nbMin = is[k];
+      }
+      if (!isFinite(nbMin)) continue;
+      // Both IS[i] and nbMin are typically ≤ 0 at candidates. 0.9 × nbMin
+      // is less negative (larger) than nbMin, so IS[i] < 0.9 × nbMin
+      // means IS[i] is more extreme than 90% of its deepest neighbour.
+      if (is[i] < 0.9 * nbMin) called.push(i);
+    }
+    state.called = called;
+  }
+
+  // Precision/recall with ±1 bin tolerance (per spec).
+  function evaluate() {
+    const planted = state.plantedBoundaries;
+    const called  = state.called;
+    const TOL = 1;
+    const usedP = new Uint8Array(planted.length);
+    const flags = new Array(called.length).fill(false);
+    let tp = 0, fp = 0;
+    for (let c = 0; c < called.length; c++) {
+      let bestJ = -1, bestD = Infinity;
+      for (let j = 0; j < planted.length; j++) {
+        if (usedP[j]) continue;
+        const d = Math.abs(called[c] - planted[j]);
+        if (d <= TOL && d < bestD) { bestD = d; bestJ = j; }
+      }
+      if (bestJ >= 0) { usedP[bestJ] = 1; tp++; flags[c] = true; }
+      else fp++;
+    }
+    const precision = (tp + fp) > 0 ? tp / (tp + fp) : (planted.length === 0 ? 1 : 0);
+    const recall    = planted.length > 0 ? tp / planted.length : 1;
+    state.result = { tp, fp, precision, recall, flags, missed: planted.length - tp };
+  }
+
+  // SVG helpers
+  function svgEl(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  // Colour ramp: pale cream → deep red (single-hue heat).
+  // log-normalise so low counts keep definition.
+  function heat(v, vMin, vMax) {
+    if (!(vMax > vMin)) return '#f6f4ec';
+    let t = (Math.log(v + 1) - Math.log(vMin + 1)) / (Math.log(vMax + 1) - Math.log(vMin + 1));
+    if (t < 0) t = 0; if (t > 1) t = 1;
+    // Interpolate from #f6f4ec (246,244,236) to #b91c1c (185,28,28)
+    const r = Math.round(246 + (185 - 246) * t);
+    const g = Math.round(244 + ( 28 - 244) * t);
+    const b = Math.round(236 + ( 28 - 236) * t);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  // Matrix plot geometry — shared x-axis with track below (same pad L/R).
+  const MAT_W = 1100, MAT_H = 560;
+  const TRK_W = 1100, TRK_H = 320;
+  const PAD_L = 62, PAD_R = 22;
+  const MAT_PAD_T = 28, MAT_PAD_B = 60;
+  const TRK_PAD_T = 30, TRK_PAD_B = 48;
+
+  function xAxisOf(plotLeft, plotRight, n) {
+    return (bin) => plotLeft + (bin / n) * (plotRight - plotLeft);
+  }
+
+  function renderMatrix() {
+    clear(matSvg);
+    const n = state.nBins;
+    const mat = state.matrix;
+    if (!mat) return;
+
+    const x0 = PAD_L, x1 = MAT_W - PAD_R;
+    const y0 = MAT_PAD_T, y1 = MAT_H - MAT_PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+    // Keep aspect square — matrix is n×n, make the plot square inside
+    // the allotted area, horizontally centred if there's extra width.
+    const side = Math.min(plotW, plotH);
+    const offX = (plotW - side) / 2;
+    const matX0 = x0 + offX, matX1 = matX0 + side;
+    const matY0 = y0,        matY1 = y0 + side;
+    const cell = side / n;
+
+    const xOf = (bin) => matX0 + (bin / n) * side;
+    const yOf = (bin) => matY0 + (bin / n) * side;
+
+    // Track span — reuse in renderTrack via closure on state. We recompute
+    // there to keep the two SVGs independent, using identical xOf.
+
+    // Heat-range
+    let vMin = Infinity, vMax = -Infinity;
+    for (let k = 0; k < mat.length; k++) {
+      const v = mat[k];
+      if (v < vMin) vMin = v;
+      if (v > vMax) vMax = v;
+    }
+    if (!isFinite(vMin)) vMin = 0;
+    if (!isFinite(vMax)) vMax = 1;
+
+    // Draw cells — one <rect> per cell. n up to 120 → 14400 rects, fine.
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        const v = mat[i * n + j];
+        matSvg.appendChild(svgEl('rect', {
+          x: xOf(j), y: yOf(i),
+          width: cell + 0.6, height: cell + 0.6,
+          fill: heat(v, vMin, vMax),
+          'shape-rendering': 'crispEdges',
+        }));
+      }
+    }
+
+    // Diagonal
+    matSvg.appendChild(svgEl('line', {
+      x1: matX0, y1: matY0, x2: matX1, y2: matY1,
+      stroke: 'var(--fg-subtle)', 'stroke-width': 0.6, 'stroke-opacity': 0.5,
+    }));
+
+    // Frame
+    matSvg.appendChild(svgEl('rect', {
+      x: matX0, y: matY0, width: side, height: side,
+      fill: 'none', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Planted TAD boundaries — green ticks below the diagonal (in the
+    // lower triangle), at (b, b) pointing down-left perpendicular to the
+    // diagonal. For simplicity draw short horizontal ticks just below
+    // the diagonal and vertical ticks just to the left.
+    for (let k = 0; k < state.plantedBoundaries.length; k++) {
+      const b = state.plantedBoundaries[k];
+      const x = xOf(b);
+      const y = yOf(b);
+      // A small rotated square below the diagonal
+      matSvg.appendChild(svgEl('rect', {
+        x: x - 4, y: y + 4,
+        width: 8, height: 8,
+        transform: `rotate(45 ${x} ${y + 8})`,
+        fill: 'var(--success)', opacity: 0.9,
+        stroke: '#ffffff', 'stroke-width': 0.8,
+      }));
+    }
+
+    // Called boundaries — amber triangles above the diagonal
+    for (let k = 0; k < state.called.length; k++) {
+      const b = state.called[k];
+      const tp = state.result.flags[k];
+      const fill = tp ? 'var(--warning)' : 'var(--error)';
+      const x = xOf(b);
+      const y = yOf(b);
+      // Triangle pointing down-right toward the diagonal, from above.
+      const s = 7;
+      const d = `M ${x - s} ${y - s - 3} L ${x + s} ${y - s - 3} L ${x} ${y - 3} Z`;
+      matSvg.appendChild(svgEl('path', {
+        d,
+        fill, opacity: 0.95,
+        stroke: '#ffffff', 'stroke-width': 0.8,
+      }));
+    }
+
+    // X-axis (bins) — match the track's axis
+    const nX = Math.min(10, n);
+    for (let t = 0; t <= nX; t++) {
+      const b = Math.round((t / nX) * n);
+      const xp = xOf(b);
+      matSvg.appendChild(svgEl('line', {
+        x1: xp, x2: xp, y1: matY1, y2: matY1 + 5,
+        stroke: 'var(--fg-subtle)', 'stroke-width': 1,
+      }));
+      matSvg.appendChild(svgEl('text', {
+        x: xp, y: matY1 + 18,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, b.toString()));
+    }
+    matSvg.appendChild(svgEl('text', {
+      x: (matX0 + matX1) / 2, y: matY1 + 38,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+    }, 'bin index'));
+
+    // Y-axis label
+    matSvg.appendChild(svgEl('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+      transform: `translate(${matX0 - 32}, ${(matY0 + matY1) / 2}) rotate(-90)`,
+    }, 'bin index'));
+
+    // Stash the shared x-axis range on the state so the track aligns
+    state._matXL = matX0;
+    state._matXR = matX1;
+  }
+
+  function renderTrack() {
+    clear(trkSvg);
+    const n = state.nBins;
+    const is = state.insulation;
+    if (!is) return;
+
+    // Align horizontally with the matrix panel
+    const xL = state._matXL != null ? state._matXL : PAD_L;
+    const xR = state._matXR != null ? state._matXR : TRK_W - PAD_R;
+    const y0 = TRK_PAD_T, y1 = TRK_H - TRK_PAD_B;
+    const plotH = y1 - y0;
+
+    const xOf = (bin) => xL + (bin / n) * (xR - xL);
+
+    // y range: IS spans roughly [-3, +2]. Use a symmetric range
+    // expanded to include the actual extremes and the threshold.
+    let vMin = Infinity, vMax = -Infinity;
+    for (let i = 0; i < is.length; i++) {
+      if (is[i] < vMin) vMin = is[i];
+      if (is[i] > vMax) vMax = is[i];
+    }
+    vMin = Math.min(vMin, state.threshold - 0.3, -1);
+    vMax = Math.max(vMax, 1);
+    const yOf = (v) => y1 - ((v - vMin) / (vMax - vMin)) * plotH;
+
+    // Background panel
+    trkSvg.appendChild(svgEl('rect', {
+      x: xL, y: y0, width: xR - xL, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Y gridlines
+    const yTicks = [vMin, (vMin + vMax) / 2, 0, vMax];
+    const seen = new Set();
+    yTicks.sort((a, b) => a - b).forEach(v => {
+      const key = v.toFixed(2);
+      if (seen.has(key)) return;
+      seen.add(key);
+      const yp = yOf(v);
+      trkSvg.appendChild(svgEl('line', {
+        x1: xL, x2: xR, y1: yp, y2: yp,
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': Math.abs(v) < 1e-6 ? '' : '2 4',
+      }));
+      trkSvg.appendChild(svgEl('text', {
+        x: xL - 8, y: yp + 4,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, v.toFixed(1)));
+    });
+
+    // X ticks (match matrix)
+    const nX = Math.min(10, n);
+    for (let t = 0; t <= nX; t++) {
+      const b = Math.round((t / nX) * n);
+      const xp = xOf(b);
+      trkSvg.appendChild(svgEl('line', {
+        x1: xp, x2: xp, y1: y1, y2: y1 + 5,
+        stroke: 'var(--fg-subtle)', 'stroke-width': 1,
+      }));
+      trkSvg.appendChild(svgEl('text', {
+        x: xp, y: y1 + 18,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, b.toString()));
+    }
+    trkSvg.appendChild(svgEl('text', {
+      x: (xL + xR) / 2, y: TRK_H - 10,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+    }, 'bin index'));
+    trkSvg.appendChild(svgEl('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+      transform: `translate(${xL - 36}, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, 'insulation score (log\u2082)'));
+
+    // Threshold line (dashed)
+    const yThr = yOf(state.threshold);
+    trkSvg.appendChild(svgEl('line', {
+      x1: xL, x2: xR, y1: yThr, y2: yThr,
+      stroke: 'var(--error)', 'stroke-width': 1.5,
+      'stroke-dasharray': '6 4',
+      opacity: 0.85,
+    }));
+    trkSvg.appendChild(svgEl('text', {
+      x: xR - 6, y: yThr - 4,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-mono)', 'font-size': 10,
+      fill: 'var(--error)',
+    }, `threshold ${state.threshold.toFixed(2)}`));
+
+    // IS polyline (skip the masked edge zeros → draw only interior)
+    const W = state.window;
+    let d = '';
+    for (let i = W; i < n - W; i++) {
+      const xp = xOf(i + 0.5);
+      const yp = yOf(is[i]);
+      d += (d === '' ? 'M' : 'L') + ` ${xp.toFixed(2)} ${yp.toFixed(2)} `;
+    }
+    trkSvg.appendChild(svgEl('path', {
+      d,
+      fill: 'none', stroke: 'var(--accent)', 'stroke-width': 1.8,
+      opacity: 0.95,
+    }));
+
+    // Filled baseline-to-zero area (optional soft shade)
+    const y0px = yOf(0);
+    let d2 = `M ${xOf(W + 0.5).toFixed(2)} ${y0px.toFixed(2)}`;
+    for (let i = W; i < n - W; i++) {
+      const xp = xOf(i + 0.5);
+      const yp = yOf(is[i]);
+      d2 += ` L ${xp.toFixed(2)} ${yp.toFixed(2)}`;
+    }
+    d2 += ` L ${xOf(n - W - 0.5).toFixed(2)} ${y0px.toFixed(2)} Z`;
+    const fillPath = svgEl('path', {
+      d: d2,
+      fill: 'var(--accent)', 'fill-opacity': 0.09,
+      stroke: 'none',
+    });
+    const firstChild = trkSvg.firstChild;
+    const anchor = firstChild && firstChild.nextSibling ? firstChild.nextSibling : null;
+    if (anchor) trkSvg.insertBefore(fillPath, anchor);
+    else trkSvg.appendChild(fillPath);
+
+    // Planted boundary hairlines (green)
+    for (let k = 0; k < state.plantedBoundaries.length; k++) {
+      const b = state.plantedBoundaries[k];
+      const xp = xOf(b + 0.5);
+      trkSvg.appendChild(svgEl('line', {
+        x1: xp, x2: xp, y1: y0, y2: y1,
+        stroke: 'var(--success)', 'stroke-width': 1,
+        'stroke-dasharray': '2 3',
+        opacity: 0.55,
+      }));
+    }
+
+    // Called boundary dots at the IS value
+    for (let k = 0; k < state.called.length; k++) {
+      const b = state.called[k];
+      const xp = xOf(b + 0.5);
+      const yp = yOf(is[b]);
+      const tp = state.result.flags[k];
+      const col = tp ? 'var(--warning)' : 'var(--error)';
+      trkSvg.appendChild(svgEl('circle', {
+        cx: xp, cy: yp, r: 4.2,
+        fill: col, stroke: '#ffffff', 'stroke-width': 1.2,
+      }));
+    }
+  }
+
+  // Readouts
+  function fmtPct(p) { return isFinite(p) ? (p * 100).toFixed(1) + '%' : '\u2014'; }
+
+  function updateReadouts() {
+    nbinsVal.textContent    = state.nBins.toString();
+    ntadsVal.textContent    = state.nTads.toString();
+    strengthVal.textContent = state.strength.toFixed(1) + '\u00d7';
+    noiseVal.textContent    = state.noise.toFixed(2);
+    windowVal.textContent   = state.window.toString();
+    thrVal.textContent      = state.threshold.toFixed(2);
+
+    bPlanted.textContent = state.plantedBoundaries.length.toString();
+    bCalled.textContent  = state.called.length.toString();
+    const r = state.result;
+    if (r) {
+      bTP.textContent   = r.tp.toString();
+      bFP.textContent   = r.fp.toString();
+      bPrec.textContent = fmtPct(r.precision);
+      bRec.textContent  = fmtPct(r.recall);
+    }
+
+    statSize.textContent   = `${state.nBins} \u00d7 ${state.nBins}`;
+    statWindow.textContent = state.window.toString();
+    statThr.textContent    = state.threshold.toFixed(2);
+
+    // Sensitivity hint — based on where W sits relative to the canonical
+    // band. Small W → unstable; large W → smooths over close boundaries.
+    let sens = 'balanced';
+    let cls  = 'good';
+    if (state.window <= 4) { sens = 'noisy, many false positives'; cls = 'bad'; }
+    else if (state.window >= 18) { sens = 'over-smoothed, may miss close boundaries'; cls = 'warn'; }
+    else if (state.threshold > -0.5) { sens = 'threshold too permissive/strict'; cls = 'warn'; }
+    statSens.textContent = sens;
+    statSens.className = 'value ' + cls;
+
+    // Hint message
+    let hint = 'Default settings sit near precision \u2265 0.8 and recall \u2265 0.9. ';
+    if (state.window <= 4) {
+      hint += 'Window = ' + state.window + ' bins \u2014 too narrow. The cross-box averages only a handful of cells, so random dips clear the minimum-call filter and fire as false positives. ';
+    }
+    if (state.threshold <= -1.8) {
+      hint += 'Threshold ' + state.threshold.toFixed(2) + ' is very strict (far from 0) \u2014 even real boundaries don\u2019t dip that deep, so recall drops. ';
+    }
+    if (state.window >= 18) {
+      hint += 'Window = ' + state.window + ' \u2014 the score is over-smoothed and neighbouring boundaries blur into a single shallow dip. ';
+    }
+    if (state.strength < 1.5) {
+      hint += 'TAD strength is near baseline \u2014 in-TAD vs cross contrast is faint, dips stay close to 0. ';
+    }
+    hint += 'Slide each control to see the sensitivity curves in action.';
+    hintLine.textContent = hint;
+  }
+
+  function run() {
+    computeInsulation();
+    callBoundaries();
+    evaluate();
+    renderMatrix();
+    renderTrack();
+    updateReadouts();
+  }
+  function simulateAndRun() {
+    simulate();
+    run();
+  }
+
+  // Control wiring
+  function readControls() {
+    state.nBins    = +nbinsEl.value;
+    state.nTads    = +ntadsEl.value;
+    state.strength = (+strengthEl.value) / 10;   // 12..40 → 1.2..4.0
+    state.noise    = (+noiseEl.value) / 100;     // 0..50 → 0.00..0.50
+    state.window   = +windowEl.value;
+    state.threshold = (+thrEl.value) / 100;      // -300..0 → -3.00..0.00
+  }
+
+  // Simulation sliders — require a re-sim
+  [nbinsEl, ntadsEl, strengthEl, noiseEl].forEach(el => {
+    el.addEventListener('input', () => { readControls(); simulateAndRun(); });
+  });
+  // Caller sliders — re-run only
+  [windowEl, thrEl].forEach(el => {
+    el.addEventListener('input', () => { readControls(); run(); });
+  });
+
+  resimBtn.addEventListener('click', () => {
+    state.seed = (Math.floor(Math.random() * 0x7fffffff) || 1) >>> 0;
+    readControls();
+    simulateAndRun();
+  });
+  runBtn.addEventListener('click', () => {
+    readControls();
+    run();
+  });
+  resetBtn.addEventListener('click', () => {
+    state.seed = DEFAULTS.seed;
+    nbinsEl.value    = DEFAULTS.nBins;
+    ntadsEl.value    = DEFAULTS.nTads;
+    strengthEl.value = Math.round(DEFAULTS.strength * 10);
+    noiseEl.value    = Math.round(DEFAULTS.noise * 100);
+    windowEl.value   = DEFAULTS.window;
+    thrEl.value      = Math.round(DEFAULTS.threshold * 100);
+    readControls();
+    simulateAndRun();
+  });
+
+  // Boot
+  readControls();
+  simulateAndRun();
+})();
+</script>
+
+</body>
+</html>

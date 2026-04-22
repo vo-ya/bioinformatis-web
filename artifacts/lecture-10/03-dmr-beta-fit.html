@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DMR Beta Fit Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1150px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 0.9rem 1.15rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+      align-items: center;
+    }
+    .action-row .hint-inline {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-left: auto;
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 0.95rem 0.7rem;
+    }
+    .plot-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 0 0 0.4rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .legend {
+      display: flex; gap: 1.1rem; flex-wrap: wrap;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.55rem;
+    }
+    .legend .swatch {
+      display: inline-block;
+      width: 14px; height: 3px;
+      vertical-align: middle;
+      margin-right: 0.4rem;
+      border-radius: 1px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 1.25rem;
+    }
+    @media (max-width: 880px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      column-gap: 1rem;
+      row-gap: 0.45rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      align-items: baseline;
+    }
+    .kv-grid .k {
+      color: var(--fg-subtle);
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .kv-grid .v {
+      color: var(--fg);
+      font-variant-numeric: tabular-nums;
+    }
+    .kv-grid .v-a { color: var(--accent); font-weight: 600; }
+    .kv-grid .v-b { color: #d97706; font-weight: 600; }
+
+    .stat-card {
+      padding: 0.9rem 1rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .stat-card h4 {
+      margin: 0 0 0.55rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+    }
+
+    .banner {
+      margin-top: 0.5rem;
+      padding: 1rem 1.2rem;
+      border-radius: var(--radius);
+      font-family: var(--font-sans);
+      line-height: var(--leading-relaxed);
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+    }
+    .banner.banner--strong {
+      background: color-mix(in srgb, var(--success) 9%, var(--bg-elevated));
+      border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+    }
+    .banner.banner--weak {
+      background: color-mix(in srgb, var(--warning) 9%, var(--bg-elevated));
+      border-color: color-mix(in srgb, var(--warning) 40%, var(--border));
+    }
+    .banner.banner--null {
+      background: var(--bg-muted);
+      border-color: var(--border-strong);
+      color: var(--fg-muted);
+    }
+    .banner .banner-head {
+      font-size: var(--text-base);
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+      font-family: var(--font-sans);
+    }
+    .banner .banner-body {
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .banner code {
+      font-family: var(--font-mono);
+      background: var(--bg-muted);
+      padding: 0.05rem 0.3rem;
+      border-radius: 2px;
+      color: var(--fg);
+      font-size: 0.92em;
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+    .hint code {
+      font-family: var(--font-mono);
+      background: var(--bg-muted);
+      padding: 0.05rem 0.3rem;
+      border-radius: 2px;
+      color: var(--fg);
+    }
+
+    .num { font-variant-numeric: tabular-nums; }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="dmr-beta-fit">
+
+  <header class="artifact-head">
+    <h1>DMR Beta Fit Explorer</h1>
+    <p>A single CpG, two groups, Beta-Binomial conjugate updating. Simulate reads per replicate, pool <code>m</code>/<code>n</code> per group, then fit <code>Beta(α + Σm, β + Σ(n−m))</code> to each arm. The plot overlays the two posterior densities, shades the 95% credible intervals, and reports <code>P(μ_A &gt; μ_B | data)</code> from 20,000 paired Monte-Carlo draws. Crank the reads down: the curves fatten, the intervals overlap, and posterior certainty evaporates even though the true means haven't moved.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Simulation controls</p>
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <span class="slider-label">True μ<sub>A</sub></span>
+          <span class="slider-value" id="muA-val">0.70</span>
+        </div>
+        <input id="muA" type="range" min="0" max="1" step="0.01" value="0.70">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <span class="slider-label">True μ<sub>B</sub></span>
+          <span class="slider-value" id="muB-val">0.30</span>
+        </div>
+        <input id="muB" type="range" min="0" max="1" step="0.01" value="0.30">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <span class="slider-label">Reads / sample</span>
+          <span class="slider-value" id="reads-val">30</span>
+        </div>
+        <input id="reads" type="range" min="5" max="200" step="1" value="30">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <span class="slider-label">Replicates / group</span>
+          <span class="slider-value" id="reps-val">3</span>
+        </div>
+        <input id="reps" type="range" min="1" max="5" step="1" value="3">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <span class="slider-label">Prior α</span>
+          <span class="slider-value" id="priA-val">1.0</span>
+        </div>
+        <input id="priA" type="range" min="0.5" max="20" step="0.1" value="1.0">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <span class="slider-label">Prior β</span>
+          <span class="slider-value" id="priB-val">1.0</span>
+        </div>
+        <input id="priB" type="range" min="0.5" max="20" step="0.1" value="1.0">
+      </div>
+    </div>
+    <div class="action-row">
+      <button id="sim-btn" class="btn btn--primary" type="button">&#x21bb; Re-simulate</button>
+      <button id="reset-btn" class="btn" type="button">Reset defaults</button>
+      <span class="hint-inline">seed <span id="seed-val">42</span></span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Posterior densities (Beta)</p>
+    <div class="plot-wrap">
+      <p class="plot-title">p(μ | data) — one curve per group, shaded 95% credible interval</p>
+      <svg id="plot" class="plot-svg" viewBox="0 0 900 360" preserveAspectRatio="xMidYMid meet" aria-label="Beta posterior densities"></svg>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--accent)"></span>Group A posterior</span>
+        <span><span class="swatch" style="background:#d97706"></span>Group B posterior</span>
+        <span><span class="swatch" style="background:var(--fg-muted)"></span>observed sample means (ticks)</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Posterior summary</p>
+    <div class="two-col">
+      <div class="stat-card">
+        <h4>Pooled counts &amp; posteriors</h4>
+        <div class="kv-grid" id="counts-grid"></div>
+      </div>
+      <div class="stat-card">
+        <h4>Group comparison</h4>
+        <div class="kv-grid" id="compare-grid"></div>
+      </div>
+    </div>
+    <p class="hint">Conjugate update: prior <code>Beta(α, β)</code> + observed <code>Σm</code> methylated out of <code>Σn</code> reads gives posterior <code>Beta(α + Σm, β + Σ(n−m))</code>. The 95% CI is the central-mass quantile interval. <code>P(A&gt;B)</code> is the Monte-Carlo fraction of paired draws where the A sample exceeds the B sample.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Verdict</p>
+    <div id="outcome-banner"></div>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  /* ─── DOM ─────────────────────────────────────────────── */
+  const muAEl   = $('muA');
+  const muBEl   = $('muB');
+  const readsEl = $('reads');
+  const repsEl  = $('reps');
+  const priAEl  = $('priA');
+  const priBEl  = $('priB');
+  const muAVal  = $('muA-val');
+  const muBVal  = $('muB-val');
+  const readsVal= $('reads-val');
+  const repsVal = $('reps-val');
+  const priAVal = $('priA-val');
+  const priBVal = $('priB-val');
+  const seedVal = $('seed-val');
+  const simBtn  = $('sim-btn');
+  const resetBtn= $('reset-btn');
+  const plotSvg = $('plot');
+  const countsGrid  = $('counts-grid');
+  const compareGrid = $('compare-grid');
+  const outcomeBanner = $('outcome-banner');
+
+  const DEFAULTS = {
+    muA: 0.70, muB: 0.30,
+    reads: 30, reps: 3,
+    priA: 1.0, priB: 1.0,
+    seed: 42,
+  };
+
+  const state = { ...DEFAULTS };
+
+  /* ─── RNG: mulberry32 ─────────────────────────────────── */
+  function mulberry32(seed) {
+    let s = seed >>> 0;
+    return function () {
+      s |= 0; s = (s + 0x6D2B79F5) | 0;
+      let t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Simple coin-toss binomial: sum of m Bernoulli(p) trials.
+  function sampleBinomial(rng, n, p) {
+    if (p <= 0) return 0;
+    if (p >= 1) return n;
+    let k = 0;
+    for (let i = 0; i < n; i++) if (rng() < p) k++;
+    return k;
+  }
+
+  /* ─── Special functions ───────────────────────────────── */
+  // Lanczos log-gamma.
+  const LG_G = 7;
+  const LG_C = [
+    0.99999999999980993,
+     676.5203681218851,
+    -1259.1392167224028,
+     771.32342877765313,
+    -176.61502916214059,
+      12.507343278686905,
+      -0.13857109526572012,
+       9.9843695780195716e-6,
+       1.5056327351493116e-7,
+  ];
+  function lgamma(x) {
+    if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - lgamma(1 - x);
+    x -= 1;
+    let a = LG_C[0];
+    const t = x + LG_G + 0.5;
+    for (let i = 1; i < LG_C.length; i++) a += LG_C[i] / (x + i);
+    return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+  }
+  function logBeta(a, b) { return lgamma(a) + lgamma(b) - lgamma(a + b); }
+
+  // Beta density at x in (0,1) with log-gamma guard against overflow.
+  function betaPdf(x, a, b) {
+    if (x <= 0 || x >= 1) {
+      // Handle edge values gracefully; Beta(a,b) is 0 at 0/1 for a,b>1.
+      if (x <= 0) return (a > 1) ? 0 : (a === 1 ? b : Infinity);
+      if (x >= 1) return (b > 1) ? 0 : (b === 1 ? a : Infinity);
+    }
+    const logp = (a - 1) * Math.log(x) + (b - 1) * Math.log(1 - x) - logBeta(a, b);
+    return Math.exp(logp);
+  }
+
+  // Regularised incomplete beta I_x(a,b) via continued fraction.
+  // NR-style; symmetric under x ↔ 1-x swap.
+  function betacf(x, a, b) {
+    const MAXIT = 250;
+    const EPS = 1e-14;
+    const FPMIN = 1e-300;
+    const qab = a + b, qap = a + 1, qam = a - 1;
+    let c = 1;
+    let d = 1 - qab * x / qap;
+    if (Math.abs(d) < FPMIN) d = FPMIN;
+    d = 1 / d;
+    let h = d;
+    for (let m = 1; m <= MAXIT; m++) {
+      const m2 = 2 * m;
+      let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+      d = 1 + aa * d;
+      if (Math.abs(d) < FPMIN) d = FPMIN;
+      c = 1 + aa / c;
+      if (Math.abs(c) < FPMIN) c = FPMIN;
+      d = 1 / d;
+      h *= d * c;
+      aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+      d = 1 + aa * d;
+      if (Math.abs(d) < FPMIN) d = FPMIN;
+      c = 1 + aa / c;
+      if (Math.abs(c) < FPMIN) c = FPMIN;
+      d = 1 / d;
+      const del = d * c;
+      h *= del;
+      if (Math.abs(del - 1) < EPS) break;
+    }
+    return h;
+  }
+  function ibeta(x, a, b) {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    const bt = Math.exp(lgamma(a + b) - lgamma(a) - lgamma(b)
+               + a * Math.log(x) + b * Math.log(1 - x));
+    if (x < (a + 1) / (a + b + 2)) return bt * betacf(x, a, b) / a;
+    return 1 - bt * betacf(1 - x, b, a) / b;
+  }
+
+  // Inverse CDF via bisection for Beta(a,b).
+  function betaQuantile(q, a, b) {
+    if (q <= 0) return 0;
+    if (q >= 1) return 1;
+    let lo = 0, hi = 1;
+    for (let i = 0; i < 80; i++) {
+      const m = 0.5 * (lo + hi);
+      const F = ibeta(m, a, b);
+      if (F < q) lo = m; else hi = m;
+      if (hi - lo < 1e-7) break;
+    }
+    return 0.5 * (lo + hi);
+  }
+
+  // Marsaglia-Tsang gamma(shape) sampler (shape >= 1 recommended; use shift trick for <1).
+  function sampleGamma(rng, shape) {
+    if (shape < 1) {
+      // Johnk via exponential trick: use shape+1 then multiply by U^(1/shape).
+      const g = sampleGamma(rng, shape + 1);
+      const u = Math.max(rng(), 1e-300);
+      return g * Math.pow(u, 1 / shape);
+    }
+    const d = shape - 1 / 3;
+    const c = 1 / Math.sqrt(9 * d);
+    while (true) {
+      let x, v;
+      do {
+        // Box-Muller standard normal from two uniforms.
+        const u1 = Math.max(rng(), 1e-300);
+        const u2 = rng();
+        x = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        v = 1 + c * x;
+      } while (v <= 0);
+      v = v * v * v;
+      const u = rng();
+      if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+      if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+    }
+  }
+  function sampleBeta(rng, a, b) {
+    const x = sampleGamma(rng, a);
+    const y = sampleGamma(rng, b);
+    return x / (x + y);
+  }
+
+  /* ─── Simulation + fit ────────────────────────────────── */
+  function simulate() {
+    const rng = mulberry32(state.seed);
+    const { muA, muB, reads, reps, priA, priB } = state;
+
+    const repsA = [];
+    const repsB = [];
+    let sumMA = 0, sumNA = 0, sumMB = 0, sumNB = 0;
+    for (let i = 0; i < reps; i++) {
+      const mA = sampleBinomial(rng, reads, muA);
+      const mB = sampleBinomial(rng, reads, muB);
+      repsA.push({ m: mA, n: reads });
+      repsB.push({ m: mB, n: reads });
+      sumMA += mA; sumNA += reads;
+      sumMB += mB; sumNB += reads;
+    }
+
+    const postA = { a: priA + sumMA, b: priB + (sumNA - sumMA) };
+    const postB = { a: priA + sumMB, b: priB + (sumNB - sumMB) };
+
+    // 95% CI via Beta quantiles.
+    const ciA = [betaQuantile(0.025, postA.a, postA.b), betaQuantile(0.975, postA.a, postA.b)];
+    const ciB = [betaQuantile(0.025, postB.a, postB.b), betaQuantile(0.975, postB.a, postB.b)];
+    const meanA = postA.a / (postA.a + postA.b);
+    const meanB = postB.a / (postB.a + postB.b);
+
+    // P(A > B) by Monte-Carlo paired draws from each posterior.
+    const NMC = 20000;
+    let winA = 0;
+    for (let i = 0; i < NMC; i++) {
+      const sA = sampleBeta(rng, postA.a, postA.b);
+      const sB = sampleBeta(rng, postB.a, postB.b);
+      if (sA > sB) winA++;
+    }
+    const pAGtB = winA / NMC;
+
+    // Observed sample proportions for ticks (per replicate).
+    const obsA = repsA.map(r => r.n > 0 ? r.m / r.n : 0);
+    const obsB = repsB.map(r => r.n > 0 ? r.m / r.n : 0);
+
+    return {
+      repsA, repsB,
+      sumMA, sumNA, sumMB, sumNB,
+      postA, postB,
+      ciA, ciB,
+      meanA, meanB,
+      obsA, obsB,
+      pAGtB,
+    };
+  }
+
+  /* ─── Plotting ────────────────────────────────────────── */
+  const PLOT = {
+    W: 900, H: 360,
+    mL: 60, mR: 20, mT: 20, mB: 50,
+  };
+  const COLOR_A = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2563eb';
+  const COLOR_B = '#d97706';
+
+  function linspace(lo, hi, n) {
+    const out = new Array(n);
+    const step = (hi - lo) / (n - 1);
+    for (let i = 0; i < n; i++) out[i] = lo + step * i;
+    return out;
+  }
+
+  function renderPlot(sim) {
+    const xs = linspace(0.001, 0.999, 200);
+    const densA = xs.map(x => betaPdf(x, sim.postA.a, sim.postA.b));
+    const densB = xs.map(x => betaPdf(x, sim.postB.a, sim.postB.b));
+    const yMax = Math.max(1e-6, Math.max(...densA, ...densB));
+    const yUpper = yMax * 1.1;
+
+    const innerW = PLOT.W - PLOT.mL - PLOT.mR;
+    const innerH = PLOT.H - PLOT.mT - PLOT.mB;
+
+    const xPix = (x) => PLOT.mL + x * innerW;
+    const yPix = (y) => PLOT.mT + innerH - (y / yUpper) * innerH;
+
+    const pathFromPoints = (xArr, yArr) => {
+      let d = '';
+      for (let i = 0; i < xArr.length; i++) {
+        const cmd = (i === 0) ? 'M' : 'L';
+        d += `${cmd}${xPix(xArr[i]).toFixed(2)},${yPix(yArr[i]).toFixed(2)} `;
+      }
+      return d.trim();
+    };
+
+    // Build a filled path between CI bounds.
+    const shadedRegion = (lo, hi, xArr, yArr) => {
+      const ptsX = [];
+      const ptsY = [];
+      // Top edge: forward through curve
+      for (let i = 0; i < xArr.length; i++) {
+        if (xArr[i] < lo) continue;
+        if (xArr[i] > hi) break;
+        ptsX.push(xArr[i]);
+        ptsY.push(yArr[i]);
+      }
+      if (ptsX.length === 0) return '';
+      // Close along baseline back to start.
+      let d = `M${xPix(ptsX[0]).toFixed(2)},${yPix(0).toFixed(2)} `;
+      for (let i = 0; i < ptsX.length; i++) {
+        d += `L${xPix(ptsX[i]).toFixed(2)},${yPix(ptsY[i]).toFixed(2)} `;
+      }
+      d += `L${xPix(ptsX[ptsX.length - 1]).toFixed(2)},${yPix(0).toFixed(2)} Z`;
+      return d;
+    };
+
+    const xTicks = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
+    const yTickCount = 5;
+    const yTicks = [];
+    for (let i = 0; i <= yTickCount; i++) yTicks.push((yUpper * i) / yTickCount);
+
+    const axisColor = 'var(--fg-subtle)';
+    const gridColor = 'var(--border)';
+    const labelColor = 'var(--fg-muted)';
+
+    let svg = '';
+    // Grid x
+    for (const xt of xTicks) {
+      svg += `<line x1="${xPix(xt).toFixed(1)}" y1="${PLOT.mT}" x2="${xPix(xt).toFixed(1)}" y2="${PLOT.mT + innerH}" stroke="${gridColor}" stroke-width="1" stroke-dasharray="2 3" opacity="0.4"/>`;
+    }
+    // Grid y
+    for (const yt of yTicks) {
+      svg += `<line x1="${PLOT.mL}" y1="${yPix(yt).toFixed(1)}" x2="${PLOT.mL + innerW}" y2="${yPix(yt).toFixed(1)}" stroke="${gridColor}" stroke-width="1" stroke-dasharray="2 3" opacity="0.4"/>`;
+    }
+
+    // Axes
+    svg += `<line x1="${PLOT.mL}" y1="${PLOT.mT + innerH}" x2="${PLOT.mL + innerW}" y2="${PLOT.mT + innerH}" stroke="${axisColor}" stroke-width="1.2"/>`;
+    svg += `<line x1="${PLOT.mL}" y1="${PLOT.mT}" x2="${PLOT.mL}" y2="${PLOT.mT + innerH}" stroke="${axisColor}" stroke-width="1.2"/>`;
+
+    // X tick labels
+    for (const xt of xTicks) {
+      svg += `<text x="${xPix(xt).toFixed(1)}" y="${PLOT.mT + innerH + 16}" text-anchor="middle" fill="${labelColor}" font-family="var(--font-mono)" font-size="11">${xt.toFixed(1)}</text>`;
+    }
+    // Y tick labels
+    for (const yt of yTicks) {
+      svg += `<text x="${PLOT.mL - 8}" y="${(yPix(yt) + 4).toFixed(1)}" text-anchor="end" fill="${labelColor}" font-family="var(--font-mono)" font-size="11">${yt.toFixed(1)}</text>`;
+    }
+
+    // Axis labels
+    svg += `<text x="${(PLOT.mL + innerW / 2).toFixed(1)}" y="${PLOT.H - 10}" text-anchor="middle" fill="${labelColor}" font-family="var(--font-sans)" font-size="12">p — methylation proportion</text>`;
+    svg += `<text x="${18}" y="${(PLOT.mT + innerH / 2).toFixed(1)}" text-anchor="middle" fill="${labelColor}" font-family="var(--font-sans)" font-size="12" transform="rotate(-90 18 ${(PLOT.mT + innerH / 2).toFixed(1)})">posterior density</text>`;
+
+    // Shaded CI regions
+    const shadeA = shadedRegion(sim.ciA[0], sim.ciA[1], xs, densA);
+    const shadeB = shadedRegion(sim.ciB[0], sim.ciB[1], xs, densB);
+    svg += `<path d="${shadeA}" fill="${COLOR_A}" opacity="0.18"/>`;
+    svg += `<path d="${shadeB}" fill="${COLOR_B}" opacity="0.18"/>`;
+
+    // Curves
+    svg += `<path d="${pathFromPoints(xs, densA)}" fill="none" stroke="${COLOR_A}" stroke-width="2.2" stroke-linejoin="round"/>`;
+    svg += `<path d="${pathFromPoints(xs, densB)}" fill="none" stroke="${COLOR_B}" stroke-width="2.2" stroke-linejoin="round"/>`;
+
+    // Posterior mean markers
+    const muAPost = sim.meanA, muBPost = sim.meanB;
+    const hAtA = betaPdf(muAPost, sim.postA.a, sim.postA.b);
+    const hAtB = betaPdf(muBPost, sim.postB.a, sim.postB.b);
+    svg += `<line x1="${xPix(muAPost).toFixed(1)}" y1="${yPix(0).toFixed(1)}" x2="${xPix(muAPost).toFixed(1)}" y2="${yPix(hAtA).toFixed(1)}" stroke="${COLOR_A}" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.8"/>`;
+    svg += `<line x1="${xPix(muBPost).toFixed(1)}" y1="${yPix(0).toFixed(1)}" x2="${xPix(muBPost).toFixed(1)}" y2="${yPix(hAtB).toFixed(1)}" stroke="${COLOR_B}" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.8"/>`;
+
+    // Observed replicate proportion ticks (on the x-axis).
+    const tickY1 = PLOT.mT + innerH;
+    const tickY2 = PLOT.mT + innerH + 7;
+    for (const p of sim.obsA) {
+      svg += `<line x1="${xPix(p).toFixed(1)}" y1="${tickY1}" x2="${xPix(p).toFixed(1)}" y2="${tickY2}" stroke="${COLOR_A}" stroke-width="1.8"/>`;
+    }
+    for (const p of sim.obsB) {
+      svg += `<line x1="${xPix(p).toFixed(1)}" y1="${tickY1}" x2="${xPix(p).toFixed(1)}" y2="${tickY2 + 5}" stroke="${COLOR_B}" stroke-width="1.8"/>`;
+    }
+
+    plotSvg.innerHTML = svg;
+  }
+
+  /* ─── Summary rendering ───────────────────────────────── */
+  function fmt(x, d = 3) {
+    if (!Number.isFinite(x)) return '—';
+    return x.toFixed(d);
+  }
+  function fmtP(p) {
+    if (!Number.isFinite(p)) return '—';
+    if (p > 0.9999) return '> 0.9999';
+    if (p < 0.0001) return '< 0.0001';
+    return p.toFixed(4);
+  }
+
+  function renderSummary(sim) {
+    countsGrid.innerHTML =
+      `<div class="k">Group A Σm / Σn</div><div class="v v-a">${sim.sumMA} / ${sim.sumNA}</div>` +
+      `<div class="k">Group B Σm / Σn</div><div class="v v-b">${sim.sumMB} / ${sim.sumNB}</div>` +
+      `<div class="k">Posterior A</div><div class="v v-a">Beta(${fmt(sim.postA.a, 2)}, ${fmt(sim.postA.b, 2)})</div>` +
+      `<div class="k">Posterior B</div><div class="v v-b">Beta(${fmt(sim.postB.a, 2)}, ${fmt(sim.postB.b, 2)})</div>`;
+
+    const deltaMean = sim.meanA - sim.meanB;
+    const ciWidthA = sim.ciA[1] - sim.ciA[0];
+    const ciWidthB = sim.ciB[1] - sim.ciB[0];
+
+    compareGrid.innerHTML =
+      `<div class="k">Post. mean A</div><div class="v v-a">${fmt(sim.meanA, 3)} <span style="color:var(--fg-subtle);font-size:var(--text-xs)">[${fmt(sim.ciA[0], 3)}, ${fmt(sim.ciA[1], 3)}]</span></div>` +
+      `<div class="k">Post. mean B</div><div class="v v-b">${fmt(sim.meanB, 3)} <span style="color:var(--fg-subtle);font-size:var(--text-xs)">[${fmt(sim.ciB[0], 3)}, ${fmt(sim.ciB[1], 3)}]</span></div>` +
+      `<div class="k">Δ (A − B)</div><div class="v">${fmt(deltaMean, 3)}</div>` +
+      `<div class="k">CI widths</div><div class="v">A: ${fmt(ciWidthA, 3)}, B: ${fmt(ciWidthB, 3)}</div>` +
+      `<div class="k">P(μ<sub>A</sub> &gt; μ<sub>B</sub>)</div><div class="v" style="font-weight:600">${fmtP(sim.pAGtB)}</div>`;
+  }
+
+  function renderBanner(sim) {
+    outcomeBanner.innerHTML = '';
+    const banner = document.createElement('div');
+    banner.className = 'banner';
+
+    const p = sim.pAGtB;
+    const delta = sim.meanA - sim.meanB;
+    const meanCIWidth = 0.5 * ((sim.ciA[1] - sim.ciA[0]) + (sim.ciB[1] - sim.ciB[0]));
+
+    let head, body;
+    if (p >= 0.95 || p <= 0.05) {
+      banner.classList.add('banner--strong');
+      const dir = p >= 0.95 ? 'A &gt; B' : 'B &gt; A';
+      head = `&#10003; Strong posterior evidence: ${dir} &middot; P(μ<sub>A</sub> &gt; μ<sub>B</sub>) = <code>${fmtP(p)}</code>`;
+      body = `Posterior means differ by <strong>Δ = ${fmt(delta, 3)}</strong>; average 95% CI half-width ≈ <code>${fmt(meanCIWidth / 2, 3)}</code>. ` +
+             `With <strong>${state.reads}</strong> reads × <strong>${state.reps}</strong> reps per group (Σn = ${sim.sumNA}), the data dominate the prior and the curves separate cleanly.`;
+    } else if (p >= 0.80 || p <= 0.20) {
+      banner.classList.add('banner--weak');
+      const dir = p >= 0.5 ? 'A likely &gt; B' : 'B likely &gt; A';
+      head = `~ Suggestive but not conclusive: ${dir} &middot; P(μ<sub>A</sub> &gt; μ<sub>B</sub>) = <code>${fmtP(p)}</code>`;
+      body = `Δ = ${fmt(delta, 3)} but the posteriors still overlap &mdash; average 95% CI half-width ≈ <code>${fmt(meanCIWidth / 2, 3)}</code>. ` +
+             `Try raising reads/sample or replicates: each doubling of Σn shrinks the CI by roughly √2.`;
+    } else {
+      banner.classList.add('banner--null');
+      head = `&#9675; Inconclusive &middot; P(μ<sub>A</sub> &gt; μ<sub>B</sub>) = <code>${fmtP(p)}</code>`;
+      body = `Δ = ${fmt(delta, 3)}. The posterior barely prefers either direction; with Σn = ${sim.sumNA} per group, the prior Beta(${fmt(state.priA, 1)}, ${fmt(state.priB, 1)}) still leaves too much mass on both sides.`;
+    }
+
+    banner.innerHTML = `<div class="banner-head">${head}</div><div class="banner-body">${body}</div>`;
+    outcomeBanner.appendChild(banner);
+  }
+
+  /* ─── Update pipeline ─────────────────────────────────── */
+  function update() {
+    const sim = simulate();
+    renderPlot(sim);
+    renderSummary(sim);
+    renderBanner(sim);
+  }
+
+  function readControls() {
+    state.muA   = parseFloat(muAEl.value);
+    state.muB   = parseFloat(muBEl.value);
+    state.reads = parseInt(readsEl.value, 10);
+    state.reps  = parseInt(repsEl.value, 10);
+    state.priA  = parseFloat(priAEl.value);
+    state.priB  = parseFloat(priBEl.value);
+    muAVal.textContent   = state.muA.toFixed(2);
+    muBVal.textContent   = state.muB.toFixed(2);
+    readsVal.textContent = String(state.reads);
+    repsVal.textContent  = String(state.reps);
+    priAVal.textContent  = state.priA.toFixed(1);
+    priBVal.textContent  = state.priB.toFixed(1);
+  }
+
+  /* ─── Wiring ──────────────────────────────────────────── */
+  [muAEl, muBEl, readsEl, repsEl, priAEl, priBEl].forEach(el => {
+    el.addEventListener('input', () => { readControls(); update(); });
+  });
+
+  simBtn.addEventListener('click', () => {
+    // Advance the seed so re-simulate gives a fresh draw under current params.
+    state.seed = (state.seed + 1) | 0;
+    seedVal.textContent = String(state.seed);
+    update();
+  });
+
+  resetBtn.addEventListener('click', () => {
+    Object.assign(state, DEFAULTS);
+    muAEl.value   = DEFAULTS.muA;
+    muBEl.value   = DEFAULTS.muB;
+    readsEl.value = DEFAULTS.reads;
+    repsEl.value  = DEFAULTS.reps;
+    priAEl.value  = DEFAULTS.priA;
+    priBEl.value  = DEFAULTS.priB;
+    seedVal.textContent = String(state.seed);
+    readControls();
+    update();
+  });
+
+  /* ─── Init ────────────────────────────────────────────── */
+  readControls();
+  seedVal.textContent = String(state.seed);
+  update();
+
+})();
+</script>
+
+</body>
+</html>

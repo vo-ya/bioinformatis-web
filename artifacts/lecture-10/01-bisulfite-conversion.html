@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bisulfite Conversion Simulator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .control-row { display: flex; flex-direction: column; gap: 0.35rem; }
+
+    select, textarea {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.45rem 0.6rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+    }
+    select:focus, textarea:focus {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: 1px;
+      background: var(--bg-elevated);
+    }
+
+    .paste-wrap {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.6rem;
+      margin-top: 0.85rem;
+      padding-top: 0.9rem;
+      border-top: 1px dashed var(--border);
+    }
+    .paste-wrap.hidden { display: none; }
+    .paste-wrap textarea {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: 1.45;
+      min-height: 72px;
+      resize: vertical;
+      width: 100%;
+      letter-spacing: 0.02em;
+    }
+    .paste-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .paste-actions .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0 0 0 auto;
+    }
+    .paste-error {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--error);
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.75rem;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .paste-error.show { display: block; }
+
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 0.85rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+    }
+    .action-row .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0 0 0 auto;
+    }
+
+    .stage-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 0.95rem;
+      margin-bottom: 0.95rem;
+    }
+    .stage-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 0 0 0.5rem;
+    }
+    .stage-title .stage-note {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: 0.02em;
+      text-transform: none;
+      color: var(--fg-subtle);
+      font-weight: 500;
+      margin-left: 0.6rem;
+    }
+    .stage-svg { display: block; width: 100%; height: auto; }
+
+    .replicates-wrap { display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin-top: 0.6rem; }
+    .replicates-wrap .rep-card {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.7rem 0.85rem;
+    }
+    .rep-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+    }
+    .rep-head .rep-meta {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: 0.02em;
+      text-transform: none;
+      color: var(--fg-subtle);
+      font-weight: 500;
+    }
+    .rep-head .ok { color: var(--success); }
+    .rep-head .bad { color: var(--error); }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner .warn { color: var(--warning); font-weight: 600; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 2px;
+      border: 1px solid rgba(0,0,0,0.08);
+    }
+    .legend-swatch .sw.meth { background: #dbeafe; border-color: #1e3a8a; }
+    .legend-swatch .sw.unmeth { background: #fef3c7; border-color: #b45309; }
+    .legend-swatch .sw.cpg-meth { background: #1e3a8a; }
+    .legend-swatch .sw.cpg-unmeth { background: #ffffff; border: 1px solid #8a8a85; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .cpg-toggle { cursor: pointer; }
+    .cpg-toggle:hover circle { stroke-width: 2; }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="bisulfite-conversion">
+
+  <header class="artifact-head">
+    <h1>Bisulfite Conversion Simulator</h1>
+    <p>Toggle each CpG's methylation state on a reference, then watch bisulfite treatment + PCR produce the sequencing read. Methylated C survives; unmethylated C deaminates to U, and the PCR amplicon reads T. The aha: drop conversion efficiency below 100% and watch unmethylated cytosines spuriously stay as C — indistinguishable from real methylation in the final read.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Inputs</p>
+
+    <div class="control-grid">
+      <div class="control-row">
+        <label class="field-label" for="seq-preset">Reference sequence</label>
+        <select id="seq-preset">
+          <option value="cgi">exon + CpG island (~78 bp, CpG-rich)</option>
+          <option value="repeat">repeat region (~72 bp, CpG-poor)</option>
+          <option value="random">random DNA (~72 bp)</option>
+          <option value="paste">paste custom DNA</option>
+        </select>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="eff-input">Conversion efficiency</label>
+          <span class="slider-value" id="eff-value">99.0%</span>
+        </div>
+        <input id="eff-input" type="range" min="900" max="1000" step="1" value="990">
+      </div>
+    </div>
+
+    <div class="paste-wrap hidden" id="paste-wrap">
+      <label class="field-label" for="paste-input">Paste DNA (ACGTN only, 40–200 bp, ≥ 3 CpGs)</label>
+      <textarea id="paste-input" spellcheck="false" placeholder="ACGTACGTCGACGTACGTACGTCGCGTACGTACG..."></textarea>
+      <div class="paste-actions">
+        <button class="btn btn--primary" type="button" id="paste-btn">Load pasted DNA</button>
+        <button class="btn" type="button" id="paste-clear">Clear paste</button>
+        <span class="hint">Whitespace stripped · case-insensitive</span>
+      </div>
+      <div class="paste-error" id="paste-error"></div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="sim-btn">Simulate 3 reads</button>
+      <button class="btn" type="button" id="all-meth-btn">All methylated</button>
+      <button class="btn" type="button" id="all-unmeth-btn">All unmethylated</button>
+      <span class="hint">Click CpG circles above the reference to toggle methylation state</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Conversion pipeline</p>
+
+    <div class="stage-wrap">
+      <p class="stage-title">(1) Reference DNA <span class="stage-note">click circles above to toggle methylation per CpG — filled = methylated, open = unmethylated</span></p>
+      <svg id="stage-ref" class="stage-svg" viewBox="0 0 1000 120" preserveAspectRatio="xMidYMid meet" aria-label="Reference DNA with CpG toggles"></svg>
+    </div>
+
+    <div class="stage-wrap">
+      <p class="stage-title">(2) After bisulfite treatment <span class="stage-note">unmethylated C deaminates to U (probability = conversion efficiency); methylated C resists</span></p>
+      <svg id="stage-bs" class="stage-svg" viewBox="0 0 1000 90" preserveAspectRatio="xMidYMid meet" aria-label="Post-bisulfite strand"></svg>
+    </div>
+
+    <div class="stage-wrap">
+      <p class="stage-title">(3) After PCR amplification <span class="stage-note">U is read as T — this is the sequencing read</span></p>
+      <svg id="stage-pcr" class="stage-svg" viewBox="0 0 1000 90" preserveAspectRatio="xMidYMid meet" aria-label="Post-PCR read"></svg>
+    </div>
+
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw cpg-meth"></span> methylated CpG (toggle on)</span>
+      <span class="legend-swatch"><span class="sw cpg-unmeth"></span> unmethylated CpG (toggle off)</span>
+      <span class="legend-swatch"><span class="sw meth"></span> retained C (blue — reads as methylated)</span>
+      <span class="legend-swatch"><span class="sw unmeth"></span> converted C (amber — reads as unmethylated)</span>
+    </div>
+  </section>
+
+  <section class="panel" id="replicates-panel" style="display:none;">
+    <p class="panel-label">Three independent reads</p>
+    <div class="replicates-wrap" id="replicates-wrap"></div>
+    <p class="hint">Each read is an independent stochastic draw at the current conversion efficiency. Per-CpG recovery compares the read's base (C → methylated call, T → unmethylated call) to the toggle state you set.</p>
+  </section>
+
+  <div class="banner" id="banner">
+    <b id="banner-cpgs">0</b> CpGs
+    <span class="sep">·</span>
+    <b id="banner-meth">0</b> toggled methylated
+    <span class="sep">·</span>
+    recovered: <b id="banner-recovered">0 / 0</b>
+    <span class="sep">·</span>
+    conversion efficiency: <b id="banner-eff">99.0%</b>
+    <span class="sep">·</span>
+    <span id="banner-note">—</span>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // -- Deterministic RNG ---------------------------------------------------
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // -- Preset reference sequences ------------------------------------------
+  //
+  // Each preset is hand-crafted 60-80 bp with 8-12 CpG dinucleotides. The
+  // "exon + CpG island" default has a dense CpG cluster in the middle
+  // (typical of promoter CGIs). The repeat preset simulates an Alu-like
+  // stretch that is CpG-poor. The random preset is just uniform ACGT.
+  const PRESETS = {
+    cgi: {
+      // 71 bp; exactly 10 CpG dinucleotides, clustered in a dense central
+      // island flanked by AT-rich context (mimics a promoter CpG island
+      // sitting next to coding exon sequence).
+      seq: 'TAGCATCAATGGCTAACCGCGATCGGCCGCAGCCGCTGCGCCGAATCGCAGCGGCTGGAATGACCGTTAAC',
+      label: 'exon + CpG island',
+    },
+    repeat: {
+      // 68 bp; 9 CpGs. Mimics the 5' head of an Alu SINE — these repeats
+      // are genome-wide CpG reservoirs that are typically heavily methylated
+      // in somatic tissue, so the preset is a useful counter-example to a
+      // promoter CGI.
+      seq: 'GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTCGGGAGGCCGAGGCGGGCGGATCACGAGGT',
+      label: 'repeat region',
+    },
+    random: {
+      // 72 bp; seeded uniform draw gives ~4-5 CpGs statistically; we
+      // hand-check and append if needed so we always hit >= 3 CpGs.
+      seq: 'ATCGATGCTACGATCAGTACGTAGCTAGCTACGATCGATCGTAGCTAGCATCGATGCTACGATCGATAGCTA',
+      label: 'random DNA',
+    },
+  };
+
+  // -- Find CpG indices in a sequence --------------------------------------
+  function findCpGs(seq) {
+    const out = [];
+    for (let i = 0; i < seq.length - 1; i++) {
+      if (seq[i] === 'C' && seq[i + 1] === 'G') out.push(i);
+    }
+    return out;
+  }
+
+  // -- Paste validation ----------------------------------------------------
+  function cleanAndValidateDNA(raw) {
+    const noHdr = raw.split(/\r?\n/).filter(l => !l.startsWith('>')).join('');
+    const cleaned = noHdr.replace(/\s+/g, '').toUpperCase();
+    if (cleaned.length === 0) {
+      return { ok: false, err: 'Paste box is empty after stripping whitespace.' };
+    }
+    const bad = cleaned.match(/[^ACGTN]/g);
+    if (bad && bad.length) {
+      const uniq = Array.from(new Set(bad)).slice(0, 6).join(', ');
+      return { ok: false, err: `Invalid characters in DNA: ${uniq}${bad.length > 6 ? ', ...' : ''}. Only A, C, G, T, N are allowed.` };
+    }
+    if (cleaned.length < 40) {
+      return { ok: false, err: `Sequence is ${cleaned.length} bp but at least 40 bp is required.` };
+    }
+    if (cleaned.length > 200) {
+      return { ok: false, err: `Sequence is ${cleaned.length} bp; please keep under 200 bp for readable rendering.` };
+    }
+    const cpgs = findCpGs(cleaned);
+    if (cpgs.length < 3) {
+      return { ok: false, err: `Found only ${cpgs.length} CpG dinucleotide(s); need at least 3 to exercise the simulator.` };
+    }
+    return { ok: true, seq: cleaned };
+  }
+
+  // -- Bisulfite simulation -------------------------------------------------
+  //
+  // For each base position, produce a per-read outcome:
+  //   - If the base is not C  -> unchanged.
+  //   - If the base is C and position is a methylated CpG -> stays C.
+  //   - Else (unmethylated C) -> converts to U with probability = efficiency.
+  //     Bases that fail conversion stay as C (the failure mode we want
+  //     students to see). After PCR, U -> T; unconverted C still reads C.
+  //
+  // Returns { bs: string, pcr: string, converted: boolean[] } where
+  // converted[i] records whether position i was converted at the BS step
+  // (true = became U, false = stayed C — either because it's methylated
+  // or because of a conversion miss).
+  function simulateOnce(seq, methylated, efficiency, rnd) {
+    const cpgs = findCpGs(seq);
+    const isCpGStart = new Set(cpgs);
+    const methSet = new Set();
+    cpgs.forEach((pos, idx) => { if (methylated[idx]) methSet.add(pos); });
+
+    const bsArr = new Array(seq.length);
+    const pcrArr = new Array(seq.length);
+    const convFlags = new Array(seq.length).fill(false);
+
+    for (let i = 0; i < seq.length; i++) {
+      const b = seq[i];
+      if (b !== 'C') {
+        bsArr[i] = b;
+        pcrArr[i] = b;
+        continue;
+      }
+      // This is a C. Is it the C of a methylated CpG?
+      const isMethC = isCpGStart.has(i) && methSet.has(i);
+      if (isMethC) {
+        bsArr[i] = 'C';
+        pcrArr[i] = 'C';
+      } else {
+        // Unmethylated C: convert with probability = efficiency.
+        const converts = rnd() < efficiency;
+        if (converts) {
+          bsArr[i] = 'U';
+          pcrArr[i] = 'T';
+          convFlags[i] = true;
+        } else {
+          // Failed conversion — stays C in both stages.
+          bsArr[i] = 'C';
+          pcrArr[i] = 'C';
+        }
+      }
+    }
+    return { bs: bsArr.join(''), pcr: pcrArr.join(''), converted: convFlags };
+  }
+
+  // Per-CpG methylation call from the read: C at the CpG C position -> called
+  // methylated, T -> called unmethylated. Compare to truth toggle state.
+  function recoveryFromRead(seq, pcr, cpgIdxs, methylated) {
+    const calls = [];
+    let correct = 0;
+    for (let j = 0; j < cpgIdxs.length; j++) {
+      const pos = cpgIdxs[j];
+      const readBase = pcr[pos];
+      const called = (readBase === 'C') ? 1 : 0;
+      const truth = methylated[j] ? 1 : 0;
+      const ok = called === truth;
+      if (ok) correct++;
+      calls.push({ pos, truth, called, ok, readBase });
+    }
+    return { calls, correct, total: cpgIdxs.length };
+  }
+
+  // -- Palette (locked per brief) ------------------------------------------
+  const BASE_COLOR = {
+    A: '#c4342c',
+    C: '#1e3a8a',
+    G: '#b45309',
+    T: '#2d7a3e',
+    U: '#7c3aed',
+    N: '#6b7280',
+  };
+  const METH_BG = '#dbeafe';    // pale blue highlight for retained C
+  const UNMETH_BG = '#fef3c7';  // pale amber highlight for converted C
+
+  // -- State ---------------------------------------------------------------
+  const state = {
+    seqKey: 'cgi',
+    seq: PRESETS.cgi.seq,
+    pastedSeq: null,
+    cpgs: findCpGs(PRESETS.cgi.seq),
+    methylated: [],        // boolean[] per CpG, parallel to state.cpgs
+    efficiency: 0.990,
+    simSeed: 0xBADBEEF,
+    replicates: null,      // null until "Simulate 3 reads" pressed
+    pendingRaf: 0,
+  };
+  state.methylated = state.cpgs.map(() => true); // default: all methylated
+
+  // -- DOM refs ------------------------------------------------------------
+  const seqPresetEl = $('seq-preset');
+  const effInputEl  = $('eff-input');
+  const effValueEl  = $('eff-value');
+  const pasteWrap   = $('paste-wrap');
+  const pasteInput  = $('paste-input');
+  const pasteBtn    = $('paste-btn');
+  const pasteClr    = $('paste-clear');
+  const pasteErr    = $('paste-error');
+  const simBtn      = $('sim-btn');
+  const allMethBtn  = $('all-meth-btn');
+  const allUnmethBtn= $('all-unmeth-btn');
+  const stageRef    = $('stage-ref');
+  const stageBs     = $('stage-bs');
+  const stagePcr    = $('stage-pcr');
+  const repsPanel   = $('replicates-panel');
+  const repsWrap    = $('replicates-wrap');
+
+  // -- SVG helpers ---------------------------------------------------------
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  // Compute layout geometry for a given sequence length within viewBox width.
+  // Returns { padL, charW, seqY, W }.
+  function layout(N, topPad, viewW) {
+    const PAD_L = 24, PAD_R = 24;
+    const plotW = viewW - PAD_L - PAD_R;
+    const charW = plotW / N;
+    return { padL: PAD_L, charW, plotW, viewW };
+  }
+
+  // -- Render reference stage (with CpG toggles) ---------------------------
+  function renderReference() {
+    clear(stageRef);
+    const N = state.seq.length;
+    const viewW = 1000;
+    const VIEW_H = 120;
+    stageRef.setAttribute('viewBox', `0 0 ${viewW} ${VIEW_H}`);
+
+    const { padL, charW, plotW } = layout(N, 0, viewW);
+    const toggleY = 26;
+    const seqY = 72;
+    const tickY = 100;
+
+    // Coordinate ticks every 10 bp
+    for (let p = 0; p < N; p += 10) {
+      const cx = padL + (p + 0.5) * charW;
+      stageRef.appendChild(el('line', {
+        x1: cx.toFixed(2), x2: cx.toFixed(2),
+        y1: tickY - 3, y2: tickY,
+        stroke: '#c4c1b6', 'stroke-width': 1,
+      }));
+      stageRef.appendChild(el('text', {
+        x: cx.toFixed(2), y: (tickY + 11).toFixed(2),
+        'font-family': 'var(--font-mono)',
+        'font-size': 9,
+        fill: '#8a8a85',
+        'text-anchor': 'middle',
+      }, String(p + 1)));
+    }
+
+    // Sequence letters
+    const fontSize = Math.max(10, Math.min(16, charW * 1.1));
+    for (let i = 0; i < N; i++) {
+      const b = state.seq[i];
+      const cx = padL + (i + 0.5) * charW;
+      stageRef.appendChild(el('text', {
+        x: cx.toFixed(2), y: seqY.toFixed(2),
+        'text-anchor': 'middle',
+        'font-family': 'JetBrains Mono, monospace',
+        'font-size': fontSize,
+        'font-weight': 600,
+        fill: BASE_COLOR[b] || BASE_COLOR.N,
+      }, b));
+    }
+
+    // CpG toggle circles above the C of each CpG; click toggles state.
+    const toggleR = Math.max(5, Math.min(9, charW * 0.45));
+    for (let j = 0; j < state.cpgs.length; j++) {
+      const pos = state.cpgs[j];
+      const cx = padL + (pos + 1) * charW; // centered on the CpG dinucleotide
+      const isMeth = state.methylated[j];
+
+      // Dashed link from toggle to the CpG letters
+      stageRef.appendChild(el('line', {
+        x1: cx.toFixed(2), x2: cx.toFixed(2),
+        y1: (toggleY + toggleR).toFixed(2), y2: (seqY - fontSize).toFixed(2),
+        stroke: '#c4c1b6', 'stroke-width': 0.75,
+        'stroke-dasharray': '2 2',
+      }));
+
+      const g = el('g', { class: 'cpg-toggle', 'data-idx': j });
+      g.appendChild(el('circle', {
+        cx: cx.toFixed(2), cy: toggleY.toFixed(2), r: toggleR,
+        fill: isMeth ? '#1e3a8a' : '#ffffff',
+        stroke: isMeth ? '#1e3a8a' : '#8a8a85',
+        'stroke-width': 1.2,
+      }));
+      // inner dot when methylated for extra clarity at small sizes
+      if (isMeth) {
+        g.appendChild(el('circle', {
+          cx: cx.toFixed(2), cy: toggleY.toFixed(2), r: Math.max(1.5, toggleR * 0.35),
+          fill: '#ffffff',
+        }));
+      }
+      g.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        state.methylated[j] = !state.methylated[j];
+        // Clear old replicates — they no longer reflect current truth.
+        state.replicates = null;
+        schedule();
+      });
+      stageRef.appendChild(g);
+    }
+
+    // Sequence-box outline
+    stageRef.appendChild(el('rect', {
+      x: padL - 2,
+      y: (seqY - fontSize - 2).toFixed(2),
+      width: (plotW + 4).toFixed(2),
+      height: (fontSize + 6).toFixed(2),
+      fill: 'none',
+      stroke: '#e5e3dc',
+      'stroke-width': 1,
+      rx: 2,
+    }));
+  }
+
+  // -- Render a converted-stage strand (bs or pcr) --------------------------
+  //
+  // Renders the per-base letters with a background highlight: blue for any
+  // C position that was at a methylated CpG (retained), amber for any
+  // position where the C was converted (C -> U or T). Non-C positions are
+  // plain.
+  function renderStage(node, seq, converted, stageKind, refSeq) {
+    clear(node);
+    const N = seq.length;
+    const viewW = 1000;
+    const VIEW_H = 90;
+    node.setAttribute('viewBox', `0 0 ${viewW} ${VIEW_H}`);
+
+    const { padL, charW, plotW } = layout(N, 0, viewW);
+    const seqY = 48;
+    const fontSize = Math.max(10, Math.min(16, charW * 1.1));
+
+    // Backgrounds for C-related positions
+    for (let i = 0; i < N; i++) {
+      const origC = refSeq[i] === 'C';
+      if (!origC) continue;
+      const wasConverted = converted[i];
+      const bg = wasConverted ? UNMETH_BG : METH_BG;
+      const x = padL + i * charW;
+      node.appendChild(el('rect', {
+        x: x.toFixed(2),
+        y: (seqY - fontSize + 2).toFixed(2),
+        width: charW.toFixed(2),
+        height: (fontSize + 4).toFixed(2),
+        fill: bg,
+      }));
+    }
+
+    // Coord ticks along the bottom
+    const tickY = 72;
+    for (let p = 0; p < N; p += 10) {
+      const cx = padL + (p + 0.5) * charW;
+      node.appendChild(el('line', {
+        x1: cx.toFixed(2), x2: cx.toFixed(2),
+        y1: tickY - 3, y2: tickY,
+        stroke: '#c4c1b6', 'stroke-width': 1,
+      }));
+      node.appendChild(el('text', {
+        x: cx.toFixed(2), y: (tickY + 11).toFixed(2),
+        'font-family': 'var(--font-mono)',
+        'font-size': 9,
+        fill: '#8a8a85',
+        'text-anchor': 'middle',
+      }, String(p + 1)));
+    }
+
+    // Letters
+    for (let i = 0; i < N; i++) {
+      const b = seq[i];
+      const cx = padL + (i + 0.5) * charW;
+      node.appendChild(el('text', {
+        x: cx.toFixed(2), y: seqY.toFixed(2),
+        'text-anchor': 'middle',
+        'font-family': 'JetBrains Mono, monospace',
+        'font-size': fontSize,
+        'font-weight': 600,
+        fill: BASE_COLOR[b] || BASE_COLOR.N,
+      }, b));
+    }
+
+    // Outer box
+    node.appendChild(el('rect', {
+      x: padL - 2,
+      y: (seqY - fontSize - 2).toFixed(2),
+      width: (plotW + 4).toFixed(2),
+      height: (fontSize + 6).toFixed(2),
+      fill: 'none',
+      stroke: '#e5e3dc',
+      'stroke-width': 1,
+      rx: 2,
+    }));
+  }
+
+  // -- Render 3-replicate panel --------------------------------------------
+  function renderReplicates() {
+    clear(repsWrap);
+    if (!state.replicates) {
+      repsPanel.style.display = 'none';
+      return;
+    }
+    repsPanel.style.display = '';
+
+    state.replicates.forEach((rep, i) => {
+      const card = document.createElement('div');
+      card.className = 'rep-card';
+
+      const head = document.createElement('div');
+      head.className = 'rep-head';
+      const acc = rep.recovery.correct === rep.recovery.total;
+      head.innerHTML = `<span>Read ${i + 1}</span>` +
+        `<span class="rep-meta">` +
+          `<span class="${acc ? 'ok' : 'bad'}">${rep.recovery.correct} / ${rep.recovery.total} CpGs recovered</span>` +
+        `</span>`;
+      card.appendChild(head);
+
+      const svg = document.createElementNS(SVG_NS, 'svg');
+      svg.setAttribute('class', 'stage-svg');
+      svg.setAttribute('viewBox', '0 0 1000 90');
+      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      card.appendChild(svg);
+
+      renderStage(svg, rep.pcr, rep.converted, 'pcr', state.seq);
+      repsWrap.appendChild(card);
+    });
+  }
+
+  // -- Update banner -------------------------------------------------------
+  function updateBanner(mainRun) {
+    const nC = state.cpgs.length;
+    const nMeth = state.methylated.filter(Boolean).length;
+    $('banner-cpgs').textContent = String(nC);
+    $('banner-meth').textContent = String(nMeth);
+    $('banner-eff').textContent = (state.efficiency * 100).toFixed(1) + '%';
+
+    if (mainRun && mainRun.recovery) {
+      const rec = mainRun.recovery;
+      $('banner-recovered').textContent = `${rec.correct} / ${rec.total}`;
+    } else {
+      $('banner-recovered').textContent = `${nC} / ${nC}`;
+    }
+
+    const eff = state.efficiency;
+    const effPct = eff * 100;
+    let note;
+    if (effPct >= 99.5) {
+      note = 'At ≥99.5% conversion, unmethylated Cs reliably read as T; calls are clean.';
+    } else if (effPct >= 98) {
+      note = `~${((1 - eff) * 100).toFixed(1)}% of unmethylated Cs will fail to convert — a small but real false-methylation rate.`;
+    } else {
+      note = `<span class="warn">Warning:</span> ~${((1 - eff) * 100).toFixed(1)}% of unmethylated Cs retain as C, inflating apparent methylation.`;
+    }
+    $('banner-note').innerHTML = note;
+  }
+
+  // -- Readouts ------------------------------------------------------------
+  function updateReadouts() {
+    effValueEl.textContent = (state.efficiency * 100).toFixed(1) + '%';
+  }
+
+  // -- Main simulation for the preview stages ------------------------------
+  //
+  // The "preview" stages (the three strands in the main pipeline panel)
+  // should update deterministically on control changes — we use a fixed
+  // per-config seed so toggling methylation or moving the slider produces
+  // a stable image. The "Simulate 3 reads" button generates independent
+  // random draws with a different seed each time.
+  function runPreview() {
+    const seed = 0xC0FFEE ^ (state.seq.length * 131) ^ Math.floor(state.efficiency * 1000) ^ (state.methylated.reduce((a, b, i) => a ^ ((b ? 1 : 0) << (i % 31)), 0) >>> 0);
+    const rnd = mulberry32(seed);
+    const out = simulateOnce(state.seq, state.methylated, state.efficiency, rnd);
+    const recovery = recoveryFromRead(state.seq, out.pcr, state.cpgs, state.methylated);
+    return { ...out, recovery };
+  }
+
+  // -- Render pipeline ------------------------------------------------------
+  function render() {
+    renderReference();
+    const preview = runPreview();
+    renderStage(stageBs, preview.bs, preview.converted, 'bs', state.seq);
+    renderStage(stagePcr, preview.pcr, preview.converted, 'pcr', state.seq);
+    renderReplicates();
+    updateBanner(preview);
+  }
+
+  function schedule() {
+    if (state.pendingRaf) return;
+    state.pendingRaf = requestAnimationFrame(() => {
+      state.pendingRaf = 0;
+      updateReadouts();
+      render();
+    });
+  }
+
+  // -- Simulate 3 independent reads ----------------------------------------
+  function simulateThreeReads() {
+    state.simSeed = (state.simSeed * 1664525 + 1013904223) >>> 0;
+    const reads = [];
+    for (let k = 0; k < 3; k++) {
+      const rnd = mulberry32(state.simSeed ^ (0xABCDEF * (k + 1)));
+      const out = simulateOnce(state.seq, state.methylated, state.efficiency, rnd);
+      const recovery = recoveryFromRead(state.seq, out.pcr, state.cpgs, state.methylated);
+      reads.push({ ...out, recovery });
+    }
+    state.replicates = reads;
+    schedule();
+  }
+
+  // -- Apply sequence change (preset or pasted) ----------------------------
+  function applySequence(newSeq) {
+    state.seq = newSeq;
+    state.cpgs = findCpGs(newSeq);
+    // Default to all methylated on sequence change.
+    state.methylated = state.cpgs.map(() => true);
+    state.replicates = null;
+  }
+
+  function selectSequence() {
+    const key = seqPresetEl.value;
+    state.seqKey = key;
+    if (key === 'paste') {
+      pasteWrap.classList.remove('hidden');
+      if (state.pastedSeq) {
+        applySequence(state.pastedSeq);
+      }
+      // If no pasted seq yet, leave the current state.seq alone; user must load.
+    } else {
+      pasteWrap.classList.add('hidden');
+      applySequence(PRESETS[key].seq);
+    }
+  }
+
+  // -- Wiring --------------------------------------------------------------
+  seqPresetEl.addEventListener('change', () => {
+    selectSequence();
+    schedule();
+  });
+
+  effInputEl.addEventListener('input', () => {
+    state.efficiency = (+effInputEl.value) / 1000;
+    // Clear replicates when efficiency changes — old reads no longer match.
+    state.replicates = null;
+    schedule();
+  });
+
+  simBtn.addEventListener('click', () => { simulateThreeReads(); });
+
+  allMethBtn.addEventListener('click', () => {
+    state.methylated = state.cpgs.map(() => true);
+    state.replicates = null;
+    schedule();
+  });
+  allUnmethBtn.addEventListener('click', () => {
+    state.methylated = state.cpgs.map(() => false);
+    state.replicates = null;
+    schedule();
+  });
+
+  pasteBtn.addEventListener('click', () => {
+    const res = cleanAndValidateDNA(pasteInput.value || '');
+    if (!res.ok) {
+      pasteErr.textContent = res.err;
+      pasteErr.classList.add('show');
+      return;
+    }
+    pasteErr.classList.remove('show');
+    state.pastedSeq = res.seq;
+    state.seqKey = 'paste';
+    seqPresetEl.value = 'paste';
+    pasteWrap.classList.remove('hidden');
+    applySequence(res.seq);
+    schedule();
+  });
+  pasteClr.addEventListener('click', () => {
+    pasteInput.value = '';
+    pasteErr.classList.remove('show');
+  });
+
+  // -- Boot ----------------------------------------------------------------
+  selectSequence();
+  updateReadouts();
+  render();
+})();
+</script>
+
+</body>
+</html>

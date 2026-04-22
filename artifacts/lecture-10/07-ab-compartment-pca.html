@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A/B Compartment Eigenvector</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.9rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+      align-items: center;
+    }
+    .action-row .hint-right {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-left: auto;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    .status-dot.working { background: var(--warning); animation: pulse 1s infinite ease-in-out; }
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
+
+    .plot-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 900px) {
+      .plot-grid { grid-template-columns: 1fr; }
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 0 0 0.4rem;
+    }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .row { display: block; }
+    .banner .row + .row { margin-top: 0.2rem; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 2px;
+    }
+    .legend-swatch .sw.a { background: #1e3a8a; }
+    .legend-swatch .sw.b { background: #b45309; }
+    .legend-swatch .sw.agree { background: #15803d; }
+    .legend-swatch .sw.disagree { background: #b91c1c; }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="ab-compartment-pca">
+
+  <header class="artifact-head">
+    <h1>A/B Compartment Eigenvector</h1>
+    <p>A simulated observed-over-expected (O/E) Hi-C matrix with alternating A and B compartments produces a checkerboard pattern. Take its correlation matrix. Run power iteration. The first principal component's sign flips where the compartment flips: PC1 <em>is</em> the A/B call. This is the cleanest demonstration of genomics as linear algebra.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Controls</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="nbins-input"># bins along chromosome</label>
+          <span class="slider-value" id="nbins-value">60</span>
+        </div>
+        <input id="nbins-input" type="range" min="40" max="80" step="1" value="60">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="nswitch-input"># A/B switches</label>
+          <span class="slider-value" id="nswitch-value">8</span>
+        </div>
+        <input id="nswitch-input" type="range" min="4" max="20" step="1" value="8">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="strength-input">Compartment-contact strength</label>
+          <span class="slider-value" id="strength-value">0.80</span>
+        </div>
+        <input id="strength-input" type="range" min="0" max="150" step="1" value="80">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="noise-input">Noise level</label>
+          <span class="slider-value" id="noise-value">0.30</span>
+        </div>
+        <input id="noise-input" type="range" min="0" max="100" step="1" value="30">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="iter-input">Power iteration step</label>
+          <span class="slider-value" id="iter-value">20</span>
+        </div>
+        <input id="iter-input" type="range" min="0" max="30" step="1" value="20">
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate</button>
+      <button class="btn" type="button" id="step-btn">Step</button>
+      <button class="btn" type="button" id="run-btn">Run</button>
+      <button class="btn" type="button" id="reset-btn">Reset</button>
+      <span class="hint-right"><span class="status-dot" id="status-dot"></span><span id="status-text">idle</span></span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">(a, b) Hi-C O/E vs correlation matrix · checkerboard signature of compartments</p>
+    <div class="plot-grid">
+      <div>
+        <p class="plot-title">(a) O/E matrix · same-compartment = red, different = blue</p>
+        <div class="plot-wrap">
+          <svg id="oe-svg" class="plot-svg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet" aria-label="O/E matrix heatmap"></svg>
+        </div>
+        <p class="plot-caption">log-O/E contacts. Bins in the same compartment are enriched (red); different compartments are depleted (blue). This is the checkerboard signal PC1 will find.</p>
+      </div>
+      <div>
+        <p class="plot-title">(b) Correlation matrix · sharper checkerboard</p>
+        <div class="plot-wrap">
+          <svg id="corr-svg" class="plot-svg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet" aria-label="Correlation matrix heatmap"></svg>
+        </div>
+        <p class="plot-caption">Pearson correlation between bin rows. Two bins in the same compartment have similar contact profiles, so their rows correlate strongly. The checkerboard is now saturated at +1 / -1.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">(c) First eigenvector track · current power-iteration estimate</p>
+    <div class="plot-wrap">
+      <svg id="eig-svg" class="plot-svg" viewBox="0 0 1000 220" preserveAspectRatio="none" aria-label="PC1 eigenvector track"></svg>
+    </div>
+    <p class="plot-caption">Each bar is one genomic bin. Height = PC1 component at that bin. Positive (cobalt) = compartment A. Negative (amber) = compartment B. The sign flips where the true compartment flips.</p>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw a"></span> PC1 positive · A</span>
+      <span class="legend-swatch"><span class="sw b"></span> PC1 negative · B</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">(d) Inferred A/B call vs ground truth · per-bin agreement</p>
+    <div class="plot-wrap">
+      <svg id="calls-svg" class="plot-svg" viewBox="0 0 1000 130" preserveAspectRatio="none" aria-label="Inferred vs ground-truth A/B calls"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw a"></span> A (true / inferred)</span>
+      <span class="legend-swatch"><span class="sw b"></span> B (true / inferred)</span>
+      <span class="legend-swatch"><span class="sw agree"></span> agreement</span>
+      <span class="legend-swatch"><span class="sw disagree"></span> disagreement</span>
+    </div>
+
+    <div class="banner" id="banner">
+      <span class="row"><b>Eigenvalue λ₁:</b> <span id="lambda-text">—</span></span>
+      <span class="row"><b>Sign agreement:</b> <span id="agree-text">—</span></span>
+      <span class="row"><b>Interpretation:</b> <span id="interp-text">—</span></span>
+    </div>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  const COLOR_A = '#1e3a8a';   // cobalt — compartment A, positive PC1
+  const COLOR_B = '#b45309';   // amber  — compartment B, negative PC1
+  const COLOR_AGREE = '#15803d';
+  const COLOR_DISAGREE = '#b91c1c';
+  const COLOR_POS = '#c4342c'; // red — enriched contacts / positive correlation
+  const COLOR_NEG = '#1e3a8a'; // blue — depleted contacts / negative correlation
+
+  const MAX_ITER = 30;
+
+  // ── Deterministic RNG ────────────────────────────────────
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rnd) {
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // ── Simulate compartment labels (A=+1, B=-1) along chromosome ─
+  //
+  // We want `nSwitches` A/B boundaries in `nBins` bins, with boundaries
+  // roughly evenly spaced (but seeded/jittered for variety).
+  function simulateLabels(nBins, nSwitches, rnd) {
+    const labels = new Int8Array(nBins);
+    // Place switch positions at roughly equal intervals with jitter
+    const nSegments = nSwitches + 1;
+    const segLen = nBins / nSegments;
+    const bounds = [0];
+    for (let s = 1; s < nSegments; s++) {
+      const nominal = s * segLen;
+      const jitter = (rnd() - 0.5) * segLen * 0.4;
+      let b = Math.round(nominal + jitter);
+      if (b <= bounds[bounds.length - 1]) b = bounds[bounds.length - 1] + 1;
+      if (b >= nBins) b = nBins - 1;
+      bounds.push(b);
+    }
+    bounds.push(nBins);
+    // Alternate A/B starting with A (+1)
+    let sign = 1;
+    for (let s = 0; s < bounds.length - 1; s++) {
+      for (let i = bounds[s]; i < bounds[s + 1]; i++) {
+        labels[i] = sign;
+      }
+      sign = -sign;
+    }
+    return labels;
+  }
+
+  // ── Simulate O/E Hi-C matrix ──────────────────────────────
+  //
+  // For each pair (i, j): the expected log-O/E signal is
+  //   strength * label[i] * label[j]     (same compartment: +, different: -)
+  // plus Gaussian noise with per-entry stddev `noise * NOISE_SCALE`.
+  // The NOISE_SCALE factor (=5) is a deliberate teaching choice: Hi-C rows
+  // correlate many entries at once, so moderate per-entry noise is averaged
+  // out by the correlation matrix. Scaling noise up compresses the teaching
+  // range so students see meaningful degradation at noise ≈ 0.8.
+  // Diagonal is zero. Matrix is symmetric.
+  const NOISE_SCALE = 5;
+  function simulateOE(labels, strength, noise, rnd) {
+    const n = labels.length;
+    const M = new Float64Array(n * n);
+    const sigma = noise * NOISE_SCALE;
+    for (let i = 0; i < n; i++) {
+      for (let j = i; j < n; j++) {
+        if (i === j) { M[i * n + j] = 0; continue; }
+        const signal = strength * labels[i] * labels[j];
+        const v = signal + sigma * randn(rnd);
+        M[i * n + j] = v;
+        M[j * n + i] = v;
+      }
+    }
+    return M;
+  }
+
+  // ── Correlation matrix of rows ────────────────────────────
+  //
+  // corr[i, j] = pearson(row_i, row_j). Each row has length n.
+  // We precompute per-row mean and stddev for speed.
+  function correlationMatrix(M, n) {
+    const mean = new Float64Array(n);
+    const std  = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      let s = 0;
+      for (let k = 0; k < n; k++) s += M[i * n + k];
+      mean[i] = s / n;
+    }
+    for (let i = 0; i < n; i++) {
+      let ss = 0;
+      const mu = mean[i];
+      for (let k = 0; k < n; k++) {
+        const d = M[i * n + k] - mu;
+        ss += d * d;
+      }
+      std[i] = Math.sqrt(ss / n);
+    }
+    const C = new Float64Array(n * n);
+    for (let i = 0; i < n; i++) {
+      C[i * n + i] = 1;
+      for (let j = i + 1; j < n; j++) {
+        let dot = 0;
+        const mi = mean[i], mj = mean[j];
+        for (let k = 0; k < n; k++) {
+          dot += (M[i * n + k] - mi) * (M[j * n + k] - mj);
+        }
+        const si = std[i], sj = std[j];
+        const denom = si * sj * n;
+        const c = denom < 1e-12 ? 0 : dot / denom;
+        C[i * n + j] = c;
+        C[j * n + i] = c;
+      }
+    }
+    return C;
+  }
+
+  // ── Power iteration — precompute every step 0..MAX_ITER ──
+  //
+  // step 0 is the initial random unit vector.
+  // step t (t >= 1) is v_t = normalise(C * v_{t-1}).
+  // We also record the Rayleigh quotient eigenvalue estimate at each step.
+  function powerIterationTrajectory(C, n, seed) {
+    const rnd = mulberry32(seed);
+    const v0 = new Float64Array(n);
+    for (let i = 0; i < n; i++) v0[i] = randn(rnd);
+    let norm = 0;
+    for (let i = 0; i < n; i++) norm += v0[i] * v0[i];
+    norm = Math.sqrt(norm) || 1;
+    for (let i = 0; i < n; i++) v0[i] /= norm;
+
+    const steps = [v0];
+    const eigs = [rayleigh(C, v0, n)];
+    let v = v0;
+    for (let t = 1; t <= MAX_ITER; t++) {
+      const w = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let s = 0;
+        for (let k = 0; k < n; k++) s += C[i * n + k] * v[k];
+        w[i] = s;
+      }
+      let nw = 0;
+      for (let i = 0; i < n; i++) nw += w[i] * w[i];
+      nw = Math.sqrt(nw) || 1;
+      for (let i = 0; i < n; i++) w[i] /= nw;
+      steps.push(w);
+      eigs.push(rayleigh(C, w, n));
+      v = w;
+    }
+    return { steps, eigs };
+  }
+
+  function rayleigh(C, v, n) {
+    // v^T C v  (v is unit). C is symmetric.
+    let s = 0;
+    for (let i = 0; i < n; i++) {
+      let ri = 0;
+      for (let k = 0; k < n; k++) ri += C[i * n + k] * v[k];
+      s += v[i] * ri;
+    }
+    return s;
+  }
+
+  // Align eigenvector sign so the majority matches ground truth
+  function alignSign(v, labels) {
+    let agree = 0, disagree = 0;
+    const n = v.length;
+    for (let i = 0; i < n; i++) {
+      const s = v[i] >= 0 ? 1 : -1;
+      if (s === labels[i]) agree++; else disagree++;
+    }
+    if (disagree > agree) {
+      const flipped = new Float64Array(n);
+      for (let i = 0; i < n; i++) flipped[i] = -v[i];
+      return { v: flipped, flipped: true };
+    }
+    return { v, flipped: false };
+  }
+
+  function agreementPct(v, labels) {
+    const n = v.length;
+    let agree = 0;
+    for (let i = 0; i < n; i++) {
+      const s = v[i] >= 0 ? 1 : -1;
+      if (s === labels[i]) agree++;
+    }
+    return agree / n;
+  }
+
+  // ── SVG helpers ───────────────────────────────────────────
+  function elSVG(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // Diverging colour mapping: v in [-1, 1] roughly → lerp blue ↔ white ↔ red
+  function divergingColor(v, vmax) {
+    const t = Math.max(-1, Math.min(1, v / (vmax || 1)));
+    // anchor points: -1 → blue (#1e3a8a), 0 → white (#fdfdfb), +1 → red (#c4342c)
+    const blue = [30, 58, 138];
+    const white = [253, 253, 251];
+    const red = [196, 52, 44];
+    let c;
+    if (t < 0) {
+      const a = -t;
+      c = [
+        Math.round(white[0] + (blue[0] - white[0]) * a),
+        Math.round(white[1] + (blue[1] - white[1]) * a),
+        Math.round(white[2] + (blue[2] - white[2]) * a),
+      ];
+    } else {
+      const a = t;
+      c = [
+        Math.round(white[0] + (red[0] - white[0]) * a),
+        Math.round(white[1] + (red[1] - white[1]) * a),
+        Math.round(white[2] + (red[2] - white[2]) * a),
+      ];
+    }
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  }
+
+  // ── Render matrix heatmap (500×500 viewBox) ───────────────
+  function renderMatrix(svgId, M, n, vmax, bounds) {
+    const svg = $(svgId);
+    clearNode(svg);
+    const W = 500, H = 500;
+    const PAD = 14;
+    const x0 = PAD, y0 = PAD;
+    const side = Math.min(W - 2 * PAD, H - 2 * PAD);
+    const cell = side / n;
+
+    // Frame
+    svg.appendChild(elSVG('rect', {
+      x: x0, y: y0, width: side, height: side,
+      fill: '#ffffff', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Build one <rect> per cell. For n ≤ 80 we have up to 6400 rects; fine.
+    // To reduce DOM size, emit a single <path> per colour bucket. Buckets quantised.
+    const buckets = new Map();
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        const v = M[i * n + j];
+        // Quantise to 24 buckets across [-vmax, vmax]
+        const t = Math.max(-1, Math.min(1, v / (vmax || 1)));
+        const q = Math.round(t * 12);  // -12..+12 → 25 buckets
+        const col = divergingColor(q / 12, 1);
+        const x = x0 + j * cell;
+        const y = y0 + i * cell;
+        // Use slight overlap to avoid hairline seams at fractional cell sizes.
+        const seg = `M${x.toFixed(2)} ${y.toFixed(2)}h${(cell + 0.6).toFixed(2)}v${(cell + 0.6).toFixed(2)}h${(-cell - 0.6).toFixed(2)}Z`;
+        if (!buckets.has(col)) buckets.set(col, []);
+        buckets.get(col).push(seg);
+      }
+    }
+    for (const [col, segs] of buckets) {
+      svg.appendChild(elSVG('path', {
+        d: segs.join(' '),
+        fill: col, stroke: 'none', 'shape-rendering': 'crispEdges',
+      }));
+    }
+
+    // Re-draw frame on top so edges look crisp
+    svg.appendChild(elSVG('rect', {
+      x: x0, y: y0, width: side, height: side,
+      fill: 'none', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Overlay compartment-boundary guide lines (dashed)
+    if (bounds && bounds.length) {
+      for (const b of bounds) {
+        const p = x0 + b * cell;
+        svg.appendChild(elSVG('line', {
+          x1: p, x2: p, y1: y0, y2: y0 + side,
+          stroke: 'rgba(0,0,0,0.35)', 'stroke-width': 0.6,
+          'stroke-dasharray': '2 3',
+        }));
+        svg.appendChild(elSVG('line', {
+          x1: x0, x2: x0 + side, y1: p, y2: p,
+          stroke: 'rgba(0,0,0,0.35)', 'stroke-width': 0.6,
+          'stroke-dasharray': '2 3',
+        }));
+      }
+    }
+
+    // Scale: row index ticks at start / middle / end
+    const ticks = [0, Math.floor(n / 2), n - 1];
+    for (const t of ticks) {
+      const p = x0 + (t + 0.5) * cell;
+      svg.appendChild(elSVG('text', {
+        x: p, y: H - 2,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 9,
+        fill: 'var(--fg-subtle)',
+      }, `bin ${t}`));
+    }
+  }
+
+  // Find internal boundary positions from label array (indices where label changes)
+  function boundaryPositions(labels) {
+    const b = [];
+    for (let i = 1; i < labels.length; i++) {
+      if (labels[i] !== labels[i - 1]) b.push(i);
+    }
+    return b;
+  }
+
+  // ── Render eigenvector track (1000 × 220 viewBox) ─────────
+  function renderEigTrack(v, labels) {
+    const svg = $('eig-svg');
+    clearNode(svg);
+    const W = 1000, H = 220;
+    const PAD_L = 50, PAD_R = 16, PAD_T = 14, PAD_B = 30;
+    const x0 = PAD_L, x1 = W - PAD_R, y0 = PAD_T, y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+    const midY = y0 + plotH / 2;
+    const n = v.length;
+
+    // Background
+    svg.appendChild(elSVG('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Scale: symmetric around zero using max |v|
+    let vmax = 0;
+    for (let i = 0; i < n; i++) { const a = Math.abs(v[i]); if (a > vmax) vmax = a; }
+    if (vmax < 1e-9) vmax = 1;
+
+    // Ground-truth compartment strip above the track
+    const stripH = 10;
+    for (let i = 0; i < n; i++) {
+      const bx = x0 + (i / n) * plotW;
+      const bw = plotW / n;
+      svg.appendChild(elSVG('rect', {
+        x: bx.toFixed(2), y: (y0 - stripH - 4).toFixed(2),
+        width: (bw + 0.5).toFixed(2), height: stripH,
+        fill: labels[i] > 0 ? COLOR_A : COLOR_B, opacity: 0.9,
+        'shape-rendering': 'crispEdges',
+      }));
+    }
+    svg.appendChild(elSVG('text', {
+      x: x0 - 6, y: y0 - 4,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-sans)', 'font-size': 10,
+      fill: 'var(--fg-muted)',
+    }, 'truth'));
+
+    // Zero axis
+    svg.appendChild(elSVG('line', {
+      x1: x0, x2: x1, y1: midY, y2: midY,
+      stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Bars
+    const bw = plotW / n;
+    for (let i = 0; i < n; i++) {
+      const val = v[i];
+      const h = (Math.abs(val) / vmax) * (plotH / 2);
+      const bx = x0 + i * bw;
+      const by = val >= 0 ? midY - h : midY;
+      svg.appendChild(elSVG('rect', {
+        x: bx.toFixed(2), y: by.toFixed(2),
+        width: (bw * 0.9).toFixed(2), height: Math.max(1, h).toFixed(2),
+        fill: val >= 0 ? COLOR_A : COLOR_B,
+        'shape-rendering': 'crispEdges',
+      }));
+    }
+
+    // Y axis labels
+    svg.appendChild(elSVG('text', {
+      x: x0 - 8, y: y0 + 9,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-mono)', 'font-size': 10,
+      fill: 'var(--fg-subtle)',
+    }, `+${vmax.toFixed(2)}`));
+    svg.appendChild(elSVG('text', {
+      x: x0 - 8, y: midY + 3,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-mono)', 'font-size': 10,
+      fill: 'var(--fg-subtle)',
+    }, '0'));
+    svg.appendChild(elSVG('text', {
+      x: x0 - 8, y: y1 - 1,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-mono)', 'font-size': 10,
+      fill: 'var(--fg-subtle)',
+    }, `-${vmax.toFixed(2)}`));
+
+    // X axis
+    svg.appendChild(elSVG('text', {
+      x: (x0 + x1) / 2, y: H - 8,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.08em',
+    }, 'genomic bin →'));
+
+    // Y-axis label (rotated)
+    svg.appendChild(elSVG('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)', 'letter-spacing': '0.08em',
+      transform: `translate(14, ${midY}) rotate(-90)`,
+    }, 'PC1 weight'));
+  }
+
+  // ── Render A/B calls strip (1000 × 130) ───────────────────
+  function renderCalls(v, labels) {
+    const svg = $('calls-svg');
+    clearNode(svg);
+    const W = 1000, H = 130;
+    const PAD_L = 110, PAD_R = 16, PAD_T = 14, PAD_B = 22;
+    const x0 = PAD_L, x1 = W - PAD_R, y0 = PAD_T;
+    const plotW = x1 - x0;
+    const n = v.length;
+    const rowH = 22;
+    const gap = 6;
+
+    // row 1: truth
+    // row 2: inferred
+    // row 3: agreement dot row
+    const yTruth = y0;
+    const yInfer = y0 + rowH + gap;
+    const yAgree = y0 + 2 * (rowH + gap);
+
+    // Labels
+    const labelsText = [
+      { y: yTruth + rowH / 2 + 3, text: 'truth' },
+      { y: yInfer + rowH / 2 + 3, text: 'inferred' },
+      { y: yAgree + rowH / 2 + 3, text: 'agree?' },
+    ];
+    for (const l of labelsText) {
+      svg.appendChild(elSVG('text', {
+        x: x0 - 10, y: l.y,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-sans)', 'font-size': 11,
+        'font-weight': 600,
+        fill: 'var(--fg-muted)', 'letter-spacing': '0.04em',
+      }, l.text));
+    }
+
+    const bw = plotW / n;
+    for (let i = 0; i < n; i++) {
+      const bx = x0 + i * bw;
+      const bwDraw = bw + 0.5;
+      const truthSign = labels[i] > 0 ? 1 : -1;
+      const inferSign = v[i] >= 0 ? 1 : -1;
+      const agree = truthSign === inferSign;
+
+      svg.appendChild(elSVG('rect', {
+        x: bx.toFixed(2), y: yTruth,
+        width: bwDraw.toFixed(2), height: rowH,
+        fill: truthSign > 0 ? COLOR_A : COLOR_B,
+        opacity: 0.95,
+        'shape-rendering': 'crispEdges',
+      }));
+      svg.appendChild(elSVG('rect', {
+        x: bx.toFixed(2), y: yInfer,
+        width: bwDraw.toFixed(2), height: rowH,
+        fill: inferSign > 0 ? COLOR_A : COLOR_B,
+        opacity: 0.95,
+        'shape-rendering': 'crispEdges',
+      }));
+      svg.appendChild(elSVG('rect', {
+        x: bx.toFixed(2), y: yAgree,
+        width: bwDraw.toFixed(2), height: rowH,
+        fill: agree ? COLOR_AGREE : COLOR_DISAGREE,
+        opacity: 0.95,
+        'shape-rendering': 'crispEdges',
+      }));
+    }
+
+    // Bottom bin scale
+    svg.appendChild(elSVG('text', {
+      x: x0, y: H - 6,
+      'text-anchor': 'start',
+      'font-family': 'var(--font-mono)', 'font-size': 9,
+      fill: 'var(--fg-subtle)',
+    }, 'bin 0'));
+    svg.appendChild(elSVG('text', {
+      x: x1, y: H - 6,
+      'text-anchor': 'end',
+      'font-family': 'var(--font-mono)', 'font-size': 9,
+      fill: 'var(--fg-subtle)',
+    }, `bin ${n - 1}`));
+  }
+
+  // ── State ────────────────────────────────────────────────
+  const state = {
+    seed: 20260421,
+    nBins: 60,
+    nSwitches: 8,
+    strength: 0.80,
+    noise: 0.30,
+    iter: 20,
+    labels: null,        // Int8Array length nBins
+    oe: null,            // Float64Array nBins²
+    corr: null,          // Float64Array nBins²
+    corrVmax: 1,
+    oeVmax: 1,
+    trajectory: null,    // { steps: Float64Array[], eigs: number[] }
+    running: false,
+    runAnim: null,       // rAF id
+  };
+
+  // ── Controls ────────────────────────────────────────────
+  const nbinsEl = $('nbins-input');
+  const nswitchEl = $('nswitch-input');
+  const strengthEl = $('strength-input');
+  const noiseEl = $('noise-input');
+  const iterEl = $('iter-input');
+  const resimBtn = $('resim-btn');
+  const stepBtn = $('step-btn');
+  const runBtn = $('run-btn');
+  const resetBtn = $('reset-btn');
+  const statusDot = $('status-dot');
+  const statusText = $('status-text');
+
+  function setStatus(text, working) {
+    statusText.textContent = text;
+    statusDot.classList.toggle('working', !!working);
+  }
+
+  function readControls() {
+    state.nBins = +nbinsEl.value;
+    state.nSwitches = +nswitchEl.value;
+    state.strength = (+strengthEl.value) / 100;
+    state.noise = (+noiseEl.value) / 100;
+    state.iter = +iterEl.value;
+    $('nbins-value').textContent = String(state.nBins);
+    $('nswitch-value').textContent = String(state.nSwitches);
+    $('strength-value').textContent = state.strength.toFixed(2);
+    $('noise-value').textContent = state.noise.toFixed(2);
+    $('iter-value').textContent = String(state.iter);
+  }
+
+  // ── Pipeline ─────────────────────────────────────────────
+  function simulateAll() {
+    const rnd = mulberry32(state.seed);
+    state.labels = simulateLabels(state.nBins, state.nSwitches, rnd);
+    state.oe = simulateOE(state.labels, state.strength, state.noise, rnd);
+
+    // Clamp v-max for the O/E heatmap — use a robust percentile rather than
+    // absolute max so a handful of outlier noise values don't wash out the
+    // colour scale.
+    let oeAbsMax = 0;
+    for (let k = 0; k < state.oe.length; k++) {
+      const a = Math.abs(state.oe[k]);
+      if (a > oeAbsMax) oeAbsMax = a;
+    }
+    state.oeVmax = Math.max(0.5, oeAbsMax * 0.9);
+
+    state.corr = correlationMatrix(state.oe, state.nBins);
+    state.corrVmax = 1;
+
+    state.trajectory = powerIterationTrajectory(state.corr, state.nBins, state.seed ^ 0x9e3779b9);
+  }
+
+  function renderAll() {
+    if (!state.trajectory) return;
+    const bounds = boundaryPositions(state.labels);
+    renderMatrix('oe-svg', state.oe, state.nBins, state.oeVmax, bounds);
+    renderMatrix('corr-svg', state.corr, state.nBins, state.corrVmax, bounds);
+
+    const step = Math.max(0, Math.min(MAX_ITER, state.iter));
+    const vRaw = state.trajectory.steps[step];
+    const { v } = alignSign(vRaw, state.labels);
+    const lambda = state.trajectory.eigs[step];
+
+    renderEigTrack(v, state.labels);
+    renderCalls(v, state.labels);
+
+    const agr = agreementPct(v, state.labels);
+    $('lambda-text').textContent = lambda.toFixed(3);
+    $('agree-text').textContent =
+      `${(agr * 100).toFixed(1)}% (${Math.round(agr * state.nBins)} / ${state.nBins} bins)`;
+
+    // Interpretation hint
+    let interp;
+    if (step === 0) {
+      interp = 'step 0 — eigenvector is still random noise; λ₁ is a Rayleigh quotient on the init.';
+    } else if (agr >= 0.95) {
+      interp = `clean recovery — PC1 sign matches compartments almost everywhere. The checkerboard drives the top eigenvalue.`;
+    } else if (agr >= 0.80) {
+      interp = `partial recovery — noise is contaminating PC1. Raise strength or lower noise to improve dominance.`;
+    } else if (agr >= 0.60) {
+      interp = `noise dominates — first eigenvector no longer aligned with compartments. At this regime PCA-on-Hi-C is unreliable.`;
+    } else {
+      interp = `random — eigenvector has no useful sign structure. Try converging further or reducing noise.`;
+    }
+    $('interp-text').textContent = interp;
+  }
+
+  // ── Interactions ────────────────────────────────────────
+  function onParamChangeFullRebuild() {
+    simulateAll();
+    renderAll();
+  }
+
+  function onIterChange() {
+    renderAll();
+  }
+
+  function stopRun() {
+    if (state.runAnim != null) {
+      cancelAnimationFrame(state.runAnim);
+      state.runAnim = null;
+    }
+    state.running = false;
+    runBtn.textContent = 'Run';
+    setStatus('idle', false);
+  }
+
+  function startRun() {
+    if (state.running) { stopRun(); return; }
+    // If we're already converged, rewind to 0 first so there's something to watch
+    if (state.iter >= MAX_ITER) {
+      state.iter = 0;
+      iterEl.value = '0';
+      $('iter-value').textContent = '0';
+      renderAll();
+    }
+    state.running = true;
+    runBtn.textContent = 'Pause';
+    setStatus('running power iteration…', true);
+
+    let lastTs = 0;
+    const stepMs = 180;  // ~5.5 steps/sec
+    const tick = (ts) => {
+      if (!state.running) return;
+      if (!lastTs) lastTs = ts;
+      if (ts - lastTs >= stepMs) {
+        lastTs = ts;
+        if (state.iter < MAX_ITER) {
+          state.iter += 1;
+          iterEl.value = String(state.iter);
+          $('iter-value').textContent = String(state.iter);
+          renderAll();
+        } else {
+          stopRun();
+          return;
+        }
+      }
+      state.runAnim = requestAnimationFrame(tick);
+    };
+    state.runAnim = requestAnimationFrame(tick);
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  nbinsEl.addEventListener('input', () => {
+    stopRun();
+    readControls();
+    onParamChangeFullRebuild();
+  });
+  nswitchEl.addEventListener('input', () => {
+    stopRun();
+    readControls();
+    onParamChangeFullRebuild();
+  });
+  strengthEl.addEventListener('input', () => {
+    stopRun();
+    readControls();
+    onParamChangeFullRebuild();
+  });
+  noiseEl.addEventListener('input', () => {
+    stopRun();
+    readControls();
+    onParamChangeFullRebuild();
+  });
+  iterEl.addEventListener('input', () => {
+    readControls();
+    onIterChange();
+  });
+
+  resimBtn.addEventListener('click', () => {
+    stopRun();
+    state.seed = (Math.random() * 0xffffffff) >>> 0;
+    readControls();
+    onParamChangeFullRebuild();
+  });
+  stepBtn.addEventListener('click', () => {
+    stopRun();
+    if (state.iter < MAX_ITER) {
+      state.iter += 1;
+      iterEl.value = String(state.iter);
+      $('iter-value').textContent = String(state.iter);
+      renderAll();
+    }
+  });
+  runBtn.addEventListener('click', () => {
+    startRun();
+  });
+  resetBtn.addEventListener('click', () => {
+    stopRun();
+    state.iter = 0;
+    iterEl.value = '0';
+    $('iter-value').textContent = '0';
+    renderAll();
+  });
+
+  // ── Boot ────────────────────────────────────────────────
+  readControls();
+  // Ensure the default open state is meaningful: fixed seed, converged iter.
+  simulateAll();
+  renderAll();
+  setStatus('idle', false);
+})();
+</script>
+
+</body>
+</html>

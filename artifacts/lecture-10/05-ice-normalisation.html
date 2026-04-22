@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ICE Normalisation Demo</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg); cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+    .slider-row .slider-value { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg); }
+    .slider-row input[type="range"] { accent-color: var(--accent); width: 100%; }
+
+    .controls-row {
+      display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+      margin-top: 1rem; padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .heatmap-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 760px) {
+      .heatmap-row { grid-template-columns: 1fr; }
+    }
+    .heatmap-card {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .heatmap-card h3 {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--fg-subtle); font-weight: 600;
+      margin: 0 0 0.5rem;
+    }
+    .heatmap-card h3 .sub {
+      display: inline-block;
+      margin-left: 0.5rem;
+      color: var(--fg-muted);
+      letter-spacing: 0.04em;
+      text-transform: none;
+      font-weight: 500;
+      font-family: var(--font-mono);
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+    .plot-caption {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-subtle); margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .colourbar-wrap { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; }
+    .colourbar-wrap .tick {
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--fg-subtle);
+    }
+    .colourbar {
+      flex: 1;
+      height: 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    .line-wrap {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+
+    .status-line {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem; padding: 0.85rem 1rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); margin-top: 1rem;
+    }
+    .status-line .label {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--fg-subtle); font-weight: 600; margin: 0;
+    }
+    .status-line .value {
+      font-family: var(--font-mono); font-size: var(--text-lg);
+      color: var(--fg); margin: 0.15rem 0 0;
+    }
+    .status-line .value.emphasis { color: var(--accent); }
+    .status-line .value.warn     { color: var(--warning); }
+
+    .banner {
+      margin-top: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-muted);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-relaxed);
+    }
+    .banner.converged {
+      border-color: var(--accent);
+      background: var(--accent-bg);
+      color: var(--accent);
+    }
+    .banner.banded {
+      border-color: var(--warning);
+      background: var(--warning-bg, rgba(200, 120, 40, 0.08));
+      color: var(--warning);
+    }
+    .banner .tag {
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      letter-spacing: 0.1em; text-transform: uppercase;
+      font-weight: 700; margin-right: 0.5rem;
+    }
+
+    .hint { font-size: var(--text-xs); color: var(--fg-muted); margin-top: 0.6rem; line-height: var(--leading-relaxed); }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="ice-normalisation">
+
+  <header class="artifact-head">
+    <h1>ICE Normalisation Demo</h1>
+    <p>Hi-C contact matrices carry per-bin biases — differences in mappability, restriction-site density, GC content. Left untreated, biased bins shout as bright horizontal and vertical bands. Iterative Correction and Eigenvector decomposition (ICE) assumes every bin should have equal visibility: normalise row sums, then column sums, repeat. Banding fades; biology remains.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Scenario</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="n-input"># bins</label>
+          <span class="slider-value" id="n-value">60</span>
+        </div>
+        <input id="n-input" type="range" min="40" max="80" step="2" value="60">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="bias-input">Bin-bias strength</label>
+          <span class="slider-value" id="bias-value">2.5×</span>
+        </div>
+        <input id="bias-input" type="range" min="1.0" max="5.0" step="0.1" value="2.5">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="k-input"># biased bins</label>
+          <span class="slider-value" id="k-value">8</span>
+        </div>
+        <input id="k-input" type="range" min="0" max="20" step="1" value="8">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="iter-input">Iteration</label>
+          <span class="slider-value" id="iter-value">0</span>
+        </div>
+        <input id="iter-input" type="range" min="0" max="30" step="1" value="0">
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <button id="step-btn"      class="btn btn--primary" type="button">Step</button>
+      <button id="run-btn"       class="btn"              type="button">Run to convergence</button>
+      <button id="reset-btn"     class="btn"              type="button">Reset iteration</button>
+      <button id="resim-btn"     class="btn"              type="button">Re-simulate</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Contact matrices</p>
+
+    <div class="heatmap-row">
+      <div class="heatmap-card">
+        <h3>Current iteration <span class="sub" id="left-sub">iter 0 (raw)</span></h3>
+        <svg id="heatmap-current" class="plot-svg" viewBox="0 0 400 400" preserveAspectRatio="none" aria-label="Current-iteration contact heatmap"></svg>
+        <div class="colourbar-wrap">
+          <span class="tick">low</span>
+          <div class="colourbar" id="cbar-left"></div>
+          <span class="tick">high</span>
+        </div>
+      </div>
+      <div class="heatmap-card">
+        <h3>Converged reference <span class="sub">iter 20</span></h3>
+        <svg id="heatmap-target" class="plot-svg" viewBox="0 0 400 400" preserveAspectRatio="none" aria-label="Converged reference heatmap"></svg>
+        <div class="colourbar-wrap">
+          <span class="tick">low</span>
+          <div class="colourbar" id="cbar-right"></div>
+          <span class="tick">high</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="plot-caption">biased bins are marked with small ticks along the heatmap edges</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Row-sum coefficient of variation</p>
+    <div class="line-wrap">
+      <svg id="cv-svg" class="plot-svg" viewBox="0 0 900 320" preserveAspectRatio="none" aria-label="Row-sum CV versus iteration"></svg>
+    </div>
+    <p class="plot-caption">CV(row sums) = std(s) / mean(s). A well-normalised matrix has near-equal row sums, so CV → 0.</p>
+
+    <div class="status-line">
+      <div>
+        <p class="label">Iteration</p>
+        <p class="value emphasis" id="stat-iter">0</p>
+      </div>
+      <div>
+        <p class="label">Current CV</p>
+        <p class="value" id="stat-cv">—</p>
+      </div>
+      <div>
+        <p class="label">Target CV @ iter 20</p>
+        <p class="value" id="stat-target">—</p>
+      </div>
+      <div>
+        <p class="label">Biased bins</p>
+        <p class="value warn" id="stat-biased">—</p>
+      </div>
+    </div>
+
+    <div id="banner" class="banner banded" role="status" aria-live="polite">
+      <span class="tag">raw</span>banding visible — row sums of biased bins dominate before any correction.
+    </div>
+
+    <p class="hint">Step through a few iterations and watch the bright bands in the left heatmap fade. Each ICE pass divides every row by its sum (relative to the mean row sum) and every column by its sum — the operation is symmetric, so the matrix stays symmetric. CV drops quickly for the first few passes, then asymptotes. Pushing bias strength to 5× makes the initial banding far louder, but ICE still converges; it just takes more iterations.</p>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  const nEl     = $('n-input');
+  const biasEl  = $('bias-input');
+  const kEl     = $('k-input');
+  const iterEl  = $('iter-input');
+
+  const nVal    = $('n-value');
+  const biasVal = $('bias-value');
+  const kVal    = $('k-value');
+  const iterVal = $('iter-value');
+
+  const stepBtn  = $('step-btn');
+  const runBtn   = $('run-btn');
+  const resetBtn = $('reset-btn');
+  const resimBtn = $('resim-btn');
+
+  const heatCurrent = $('heatmap-current');
+  const heatTarget  = $('heatmap-target');
+  const cvSvg       = $('cv-svg');
+
+  const leftSub     = $('left-sub');
+  const statIter    = $('stat-iter');
+  const statCv      = $('stat-cv');
+  const statTarget  = $('stat-target');
+  const statBiased  = $('stat-biased');
+  const banner      = $('banner');
+  const cbarLeft    = $('cbar-left');
+  const cbarRight   = $('cbar-right');
+
+  const SVG_NS  = 'http://www.w3.org/2000/svg';
+  const MAX_ITER = 30;
+  const TARGET_ITER = 20;
+
+  // ── PRNG (mulberry32) ────────────────────────────────────
+  let _seed = 0xC0FFEE ^ 0;
+  function reseed(s) {
+    _seed = (s >>> 0) || 1;
+  }
+  function mulberry32() {
+    let t = (_seed += 0x6D2B79F5) >>> 0;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  function randn() {
+    let u = 0, v = 0;
+    while (u === 0) u = mulberry32();
+    while (v === 0) v = mulberry32();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // ── State ────────────────────────────────────────────────
+  const state = {
+    n: 60,
+    bias: 2.5,
+    k: 8,
+    iter: 0,
+
+    biasedBins: [],       // indices of biased bins
+    rawMatrix: null,      // Float64Array length n*n, with bias applied (iter 0)
+    currentMatrix: null,  // evolving matrix at current iter
+    targetMatrix: null,   // precomputed matrix at TARGET_ITER
+    cvSeries: null,       // length MAX_ITER+1, CV at each iteration (0..MAX_ITER)
+    biasSim: 0xDEADBEEF,  // seed used for this simulation
+  };
+
+  // ── Base matrix: distance decay + TAD block structure ────
+  function buildBaseMatrix(n) {
+    // Choose TAD boundaries roughly 6-10 bins apart
+    const boundaries = [0];
+    let p = 0;
+    while (p < n) {
+      p += 6 + Math.floor(mulberry32() * 5);
+      boundaries.push(Math.min(p, n));
+    }
+    if (boundaries[boundaries.length - 1] !== n) boundaries.push(n);
+
+    // Assign each bin to a TAD
+    const tadOf = new Int32Array(n);
+    for (let t = 0; t < boundaries.length - 1; t++) {
+      for (let i = boundaries[t]; i < boundaries[t + 1]; i++) tadOf[i] = t;
+    }
+
+    const M = new Float64Array(n * n);
+    for (let i = 0; i < n; i++) {
+      for (let j = i; j < n; j++) {
+        const d = Math.abs(i - j);
+        // distance decay ~ 1/(d+1)^α
+        let v = 1.0 / Math.pow(d + 1, 1.15);
+        // TAD enhancement: +40% if same TAD
+        if (tadOf[i] === tadOf[j]) v *= 1.4;
+        // small multiplicative noise to avoid perfect symmetry in visuals
+        v *= 0.9 + 0.2 * mulberry32();
+        const idx = i * n + j;
+        const idx2 = j * n + i;
+        M[idx]  = v;
+        M[idx2] = v;
+      }
+    }
+    return M;
+  }
+
+  function applyBias(M, n, biasedBins, strength) {
+    // multiply each biased bin row and column by `strength` symmetrically.
+    // Doing both a row and a column multiply by `b` gives M[i,j] *= b (row i) and M[i,j] *= b (col j),
+    // so for a single biased bin i, M[i, ·] *= b and M[·, i] *= b, then M[i,i] *= b*b.
+    // That is exactly the bias vector model b_i*b_j*T[i,j].
+    const b = new Float64Array(n);
+    for (let i = 0; i < n; i++) b[i] = 1;
+    for (const bi of biasedBins) b[bi] = strength;
+
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        M[i * n + j] *= b[i] * b[j];
+      }
+    }
+    return M;
+  }
+
+  function pickBiasedBins(n, k) {
+    // avoid edges, space them out a bit
+    const picks = [];
+    const used = new Uint8Array(n);
+    let guard = 0;
+    while (picks.length < k && guard < k * 50) {
+      guard++;
+      const i = Math.floor(mulberry32() * n);
+      if (i <= 1 || i >= n - 2) continue;
+      if (used[i]) continue;
+      // require at least 1-bin spacing
+      if ((i > 0 && used[i - 1]) || (i < n - 1 && used[i + 1])) {
+        if (mulberry32() > 0.3) continue;
+      }
+      used[i] = 1;
+      picks.push(i);
+    }
+    picks.sort((a, b) => a - b);
+    return picks;
+  }
+
+  // ── ICE iteration ────────────────────────────────────────
+  function rowSums(M, n) {
+    const s = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      let r = 0;
+      for (let j = 0; j < n; j++) r += M[i * n + j];
+      s[i] = r;
+    }
+    return s;
+  }
+
+  function cvOfSums(s) {
+    const n = s.length;
+    let mean = 0;
+    for (let i = 0; i < n; i++) mean += s[i];
+    mean /= n;
+    if (mean <= 0) return 0;
+    let v = 0;
+    for (let i = 0; i < n; i++) {
+      const d = s[i] - mean;
+      v += d * d;
+    }
+    v /= n;
+    return Math.sqrt(v) / mean;
+  }
+
+  // Single ICE pass: normalise rows then columns by (sum / mean_sum).
+  function iceStep(M, n) {
+    const s = rowSums(M, n);
+    let mean = 0;
+    for (let i = 0; i < n; i++) mean += s[i];
+    mean /= n;
+    if (mean <= 0) return M;
+
+    // scale factor per bin — apply symmetrically so matrix stays symmetric
+    const scale = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const sf = s[i] / mean;
+      scale[i] = sf > 1e-12 ? 1.0 / sf : 1.0;
+    }
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        M[i * n + j] *= scale[i] * scale[j];
+      }
+    }
+    return M;
+  }
+
+  function copyMatrix(M) {
+    return Float64Array.from(M);
+  }
+
+  // ── Simulation driver ────────────────────────────────────
+  function simulate() {
+    const n = state.n;
+    reseed(state.biasSim);
+
+    // 1) base matrix with biology
+    const base = buildBaseMatrix(n);
+
+    // 2) pick biased bins (uses same PRNG stream, deterministic)
+    state.biasedBins = pickBiasedBins(n, state.k);
+
+    // 3) apply bias to produce raw matrix
+    const raw = applyBias(copyMatrix(base), n, state.biasedBins, state.bias);
+    state.rawMatrix = raw;
+
+    // 4) precompute iteration trajectory and target reference
+    const cvSeries = new Float64Array(MAX_ITER + 1);
+    let M = copyMatrix(raw);
+    cvSeries[0] = cvOfSums(rowSums(M, n));
+    let target = null;
+    for (let t = 1; t <= MAX_ITER; t++) {
+      M = iceStep(M, n);
+      cvSeries[t] = cvOfSums(rowSums(M, n));
+      if (t === TARGET_ITER) target = copyMatrix(M);
+    }
+    state.cvSeries = cvSeries;
+    state.targetMatrix = target || copyMatrix(M);
+
+    // 5) current matrix starts at requested iter
+    state.currentMatrix = matrixAtIter(state.iter);
+  }
+
+  function matrixAtIter(t) {
+    const n = state.n;
+    t = Math.max(0, Math.min(MAX_ITER, t | 0));
+    let M = copyMatrix(state.rawMatrix);
+    for (let k = 0; k < t; k++) M = iceStep(M, n);
+    return M;
+  }
+
+  // ── Colour scale ─────────────────────────────────────────
+  // Use a perceptually smooth ramp from a pale cool tint to the accent warm.
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function rgbStr(r, g, b) { return `rgb(${r|0},${g|0},${b|0})`; }
+
+  // Stops (cream → amber → deep red) — matches teaching theme
+  const STOPS = [
+    [252, 247, 238],   // pale cream
+    [245, 222, 179],   // wheat
+    [230, 168, 86],    // amber
+    [196, 95,  42],    // warm terracotta
+    [120, 30,  25],    // deep red
+  ];
+
+  function colourOf(t) {
+    t = Math.max(0, Math.min(1, t));
+    const seg = (STOPS.length - 1) * t;
+    const i = Math.floor(seg);
+    const f = seg - i;
+    const a = STOPS[i];
+    const b = STOPS[Math.min(i + 1, STOPS.length - 1)];
+    return rgbStr(lerp(a[0], b[0], f), lerp(a[1], b[1], f), lerp(a[2], b[2], f));
+  }
+
+  // For perceptual scaling we log-transform contact intensities.
+  function logNorm(v, vMin, vMax) {
+    if (v <= 0) return 0;
+    const lm = Math.log(vMin + 1e-9);
+    const lM = Math.log(vMax + 1e-9);
+    if (lM <= lm) return 0;
+    const lv = Math.log(v + 1e-9);
+    return Math.max(0, Math.min(1, (lv - lm) / (lM - lm)));
+  }
+
+  function matrixRange(M) {
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < M.length; i++) {
+      const v = M[i];
+      if (v > 0) {
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+      }
+    }
+    if (!isFinite(lo)) lo = 1e-6;
+    if (!isFinite(hi) || hi === lo) hi = lo * 10;
+    return [lo, hi];
+  }
+
+  // ── SVG helpers ──────────────────────────────────────────
+  function clear(svg) { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+  function el(tag, attrs) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  // ── Heatmap rendering ────────────────────────────────────
+  const HM_VB = 400;             // viewBox size
+  const HM_PAD_L = 28;
+  const HM_PAD_R = 8;
+  const HM_PAD_T = 8;
+  const HM_PAD_B = 24;
+
+  function renderHeatmap(svg, M, n, range, biasedBins, labelIter) {
+    clear(svg);
+    svg.setAttribute('viewBox', `0 0 ${HM_VB} ${HM_VB}`);
+
+    const plotW = HM_VB - HM_PAD_L - HM_PAD_R;
+    const plotH = HM_VB - HM_PAD_T - HM_PAD_B;
+    const cellW = plotW / n;
+    const cellH = plotH / n;
+
+    // Draw cells as small rects. n≤80 → ≤6400 cells, acceptable.
+    const [vMin, vMax] = range;
+    const g = el('g', { 'data-layer': 'cells' });
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        const v = M[i * n + j];
+        const t = logNorm(v, vMin, vMax);
+        const x = HM_PAD_L + j * cellW;
+        const y = HM_PAD_T + i * cellH;
+        const r = el('rect', {
+          x: x.toFixed(2), y: y.toFixed(2),
+          width: (cellW + 0.6).toFixed(2),
+          height: (cellH + 0.6).toFixed(2),
+          fill: colourOf(t),
+          'shape-rendering': 'crispEdges',
+        });
+        g.appendChild(r);
+      }
+    }
+    svg.appendChild(g);
+
+    // Border
+    svg.appendChild(el('rect', {
+      x: HM_PAD_L, y: HM_PAD_T,
+      width: plotW, height: plotH,
+      fill: 'none',
+      stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Biased-bin ticks along top and left edges
+    const tickLayer = el('g', { 'data-layer': 'ticks' });
+    for (const bi of biasedBins) {
+      // top tick
+      const xC = HM_PAD_L + (bi + 0.5) * cellW;
+      tickLayer.appendChild(el('line', {
+        x1: xC, x2: xC, y1: HM_PAD_T - 4, y2: HM_PAD_T - 1,
+        stroke: 'var(--warning)', 'stroke-width': 1.4,
+      }));
+      // left tick
+      const yC = HM_PAD_T + (bi + 0.5) * cellH;
+      tickLayer.appendChild(el('line', {
+        x1: HM_PAD_L - 4, x2: HM_PAD_L - 1, y1: yC, y2: yC,
+        stroke: 'var(--warning)', 'stroke-width': 1.4,
+      }));
+    }
+    svg.appendChild(tickLayer);
+
+    // Axis label at bottom
+    const lab = el('text', {
+      x: HM_PAD_L + plotW / 2,
+      y: HM_VB - 6,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-mono)',
+      'font-size': 11,
+      fill: 'var(--fg-subtle)',
+    });
+    lab.textContent = `${n} × ${n} bins` + (labelIter != null ? ` · ${labelIter}` : '');
+    svg.appendChild(lab);
+  }
+
+  function updateColourbars() {
+    // Build linear-gradient CSS from STOPS
+    const stopsCss = STOPS.map((c, i) => {
+      const t = i / (STOPS.length - 1);
+      return `rgb(${c[0]},${c[1]},${c[2]}) ${(t * 100).toFixed(1)}%`;
+    }).join(', ');
+    const bg = `linear-gradient(to right, ${stopsCss})`;
+    cbarLeft.style.background = bg;
+    cbarRight.style.background = bg;
+  }
+
+  // ── CV line chart ────────────────────────────────────────
+  const CV_W = 900;
+  const CV_H = 320;
+  const CV_PAD_L = 64;
+  const CV_PAD_R = 20;
+  const CV_PAD_T = 20;
+  const CV_PAD_B = 50;
+
+  function renderCvChart() {
+    const svg = cvSvg;
+    clear(svg);
+    svg.setAttribute('viewBox', `0 0 ${CV_W} ${CV_H}`);
+
+    const s = state.cvSeries;
+    if (!s) return;
+
+    // x axis: 0..MAX_ITER
+    // y axis: log10(CV + eps) range
+    const eps = 1e-4;
+    let yMin = Infinity, yMax = -Infinity;
+    for (let i = 0; i < s.length; i++) {
+      const lv = Math.log10(s[i] + eps);
+      if (lv < yMin) yMin = lv;
+      if (lv > yMax) yMax = lv;
+    }
+    // Add padding and clamp
+    yMin = Math.min(yMin, -3);
+    yMax = Math.max(yMax, 0);
+    const yRange = yMax - yMin;
+    yMin -= yRange * 0.05;
+    yMax += yRange * 0.05;
+
+    const plotX0 = CV_PAD_L, plotX1 = CV_W - CV_PAD_R;
+    const plotY0 = CV_PAD_T, plotY1 = CV_H - CV_PAD_B;
+
+    function xOf(it) {
+      const t = it / MAX_ITER;
+      return plotX0 + t * (plotX1 - plotX0);
+    }
+    function yOf(cv) {
+      const lv = Math.log10(cv + eps);
+      const t = (lv - yMin) / (yMax - yMin);
+      return plotY1 - t * (plotY1 - plotY0);
+    }
+
+    // Gridlines: x at every 5, y at decade lines
+    for (let it = 0; it <= MAX_ITER; it += 5) {
+      const x = xOf(it);
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: plotY0, y2: plotY1,
+        stroke: 'var(--border)',
+        'stroke-dasharray': it === 0 ? '' : '2 4',
+      }));
+      const tx = el('text', {
+        x, y: plotY1 + 16,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      });
+      tx.textContent = String(it);
+      svg.appendChild(tx);
+    }
+
+    // y decade lines
+    const yStart = Math.ceil(yMin);
+    const yEnd = Math.floor(yMax);
+    for (let ly = yStart; ly <= yEnd; ly++) {
+      const y = yOf(Math.pow(10, ly));
+      svg.appendChild(el('line', {
+        x1: plotX0, x2: plotX1, y1: y, y2: y,
+        stroke: 'var(--border)',
+        'stroke-dasharray': '2 4',
+      }));
+      const ty = el('text', {
+        x: plotX0 - 8, y: y + 4,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 11,
+        fill: 'var(--fg-subtle)',
+      });
+      ty.textContent = `10${sup(ly)}`;
+      svg.appendChild(ty);
+    }
+
+    // Axis lines
+    svg.appendChild(el('line', {
+      x1: plotX0, x2: plotX1, y1: plotY1, y2: plotY1,
+      stroke: 'var(--border-strong)',
+    }));
+    svg.appendChild(el('line', {
+      x1: plotX0, x2: plotX0, y1: plotY0, y2: plotY1,
+      stroke: 'var(--border-strong)',
+    }));
+
+    // Axis labels
+    const xL = el('text', {
+      x: (plotX0 + plotX1) / 2, y: CV_H - 10,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.06em',
+    });
+    xL.textContent = 'ICE iteration';
+    svg.appendChild(xL);
+
+    const yL = el('text', {
+      x: 18, y: (plotY0 + plotY1) / 2,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 12,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.06em',
+      transform: `rotate(-90 18 ${(plotY0 + plotY1) / 2})`,
+    });
+    yL.textContent = 'row-sum CV (log scale)';
+    svg.appendChild(yL);
+
+    // Target line at iter 20
+    const xTarget = xOf(TARGET_ITER);
+    svg.appendChild(el('line', {
+      x1: xTarget, x2: xTarget, y1: plotY0, y2: plotY1,
+      stroke: 'var(--accent)',
+      'stroke-dasharray': '4 4',
+      opacity: 0.6,
+    }));
+    const tt = el('text', {
+      x: xTarget + 4, y: plotY0 + 14,
+      'font-family': 'var(--font-mono)', 'font-size': 11,
+      fill: 'var(--accent)',
+    });
+    tt.textContent = 'target iter = 20';
+    svg.appendChild(tt);
+
+    // Polyline
+    const pts = [];
+    for (let i = 0; i < s.length; i++) {
+      pts.push(`${xOf(i).toFixed(2)},${yOf(s[i]).toFixed(2)}`);
+    }
+    svg.appendChild(el('polyline', {
+      points: pts.join(' '),
+      fill: 'none',
+      stroke: 'var(--accent)',
+      'stroke-width': 2,
+      'stroke-linejoin': 'round',
+    }));
+
+    // Markers
+    for (let i = 0; i < s.length; i++) {
+      const isCurrent = i === state.iter;
+      svg.appendChild(el('circle', {
+        cx: xOf(i).toFixed(2),
+        cy: yOf(s[i]).toFixed(2),
+        r: isCurrent ? 5 : 2.4,
+        fill: isCurrent ? 'var(--warning)' : 'var(--accent)',
+        stroke: isCurrent ? 'var(--warning)' : 'var(--accent)',
+        opacity: isCurrent ? 1 : 0.75,
+      }));
+    }
+  }
+
+  function sup(n) {
+    const map = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+    return String(n).split('').map(c => map[c] || c).join('');
+  }
+
+  // ── Readouts ─────────────────────────────────────────────
+  function fmtCV(v) {
+    if (v == null || !isFinite(v)) return '—';
+    if (v >= 0.01) return v.toFixed(3);
+    if (v >= 1e-4) return v.toFixed(4);
+    return v.toExponential(2);
+  }
+
+  function updateReadouts() {
+    nVal.textContent    = String(state.n);
+    biasVal.textContent = state.bias.toFixed(1) + '×';
+    kVal.textContent    = String(state.k);
+    iterVal.textContent = String(state.iter);
+
+    statIter.textContent   = String(state.iter);
+    const cv = state.cvSeries ? state.cvSeries[state.iter] : NaN;
+    const cvTarget = state.cvSeries ? state.cvSeries[TARGET_ITER] : NaN;
+    statCv.textContent     = fmtCV(cv);
+    statTarget.textContent = fmtCV(cvTarget);
+    statBiased.textContent = state.k === 0 ? '0 (none)' : `${state.k} / ${state.n}`;
+
+    leftSub.textContent = state.iter === 0
+      ? 'iter 0 (raw)'
+      : state.iter >= TARGET_ITER ? `iter ${state.iter} (converged)` : `iter ${state.iter}`;
+
+    updateBanner(cv, cvTarget);
+  }
+
+  function updateBanner(cv, cvTarget) {
+    banner.classList.remove('banded', 'converged');
+    if (state.iter === 0) {
+      banner.classList.add('banded');
+      const strongWord = state.k === 0 ? 'flat' : 'visible';
+      banner.innerHTML = `<span class="tag">raw</span>` +
+        `banding <strong>${strongWord}</strong> — biased rows inflate row sums. CV = ${fmtCV(cv)}; ` +
+        `target at iter 20 is ${fmtCV(cvTarget)}.`;
+      return;
+    }
+    const ratio = cv / (cvTarget + 1e-12);
+    if (state.iter >= TARGET_ITER || ratio < 1.5) {
+      banner.classList.add('converged');
+      banner.innerHTML = `<span class="tag">converged</span>` +
+        `iter ${state.iter}: CV = ${fmtCV(cv)} (target ${fmtCV(cvTarget)}). ` +
+        `Bands have faded — biology dominates the heatmap.`;
+    } else {
+      banner.classList.add('banded');
+      banner.innerHTML = `<span class="tag">iter ${state.iter}</span>` +
+        `CV = ${fmtCV(cv)}, still ${(ratio).toFixed(1)}× above target (${fmtCV(cvTarget)}). ` +
+        `Keep stepping.`;
+    }
+  }
+
+  // ── Rendering driver ─────────────────────────────────────
+  function renderAll() {
+    // Use a common log-scale colour range from the raw matrix so progress is visible.
+    // But clip the current matrix's top to raw's 99th percentile so the accent spread
+    // looks comparable across iterations.
+    if (!state.currentMatrix || !state.targetMatrix || !state.rawMatrix) return;
+    const rawRange = matrixRange(state.rawMatrix);
+    renderHeatmap(heatCurrent, state.currentMatrix, state.n, rawRange, state.biasedBins, `iter ${state.iter}`);
+    renderHeatmap(heatTarget,  state.targetMatrix,  state.n, rawRange, state.biasedBins, `iter ${TARGET_ITER}`);
+    renderCvChart();
+  }
+
+  function refreshCurrent() {
+    state.currentMatrix = matrixAtIter(state.iter);
+    updateReadouts();
+    renderAll();
+  }
+
+  function doSimulate(reseedSim) {
+    if (reseedSim) {
+      state.biasSim = (Math.floor(Math.random() * 0x7fffffff) || 1) >>> 0;
+    }
+    simulate();
+    updateReadouts();
+    renderAll();
+  }
+
+  // ── Controls ─────────────────────────────────────────────
+  function readParams() {
+    state.n    = +nEl.value | 0;
+    state.bias = +biasEl.value;
+    state.k    = Math.min(+kEl.value | 0, Math.max(0, state.n - 4));
+    state.iter = Math.max(0, Math.min(MAX_ITER, +iterEl.value | 0));
+  }
+
+  function onParamChange(resim) {
+    readParams();
+    if (resim) simulate();
+    else state.currentMatrix = matrixAtIter(state.iter);
+    updateReadouts();
+    renderAll();
+  }
+
+  nEl.addEventListener('input', () => {
+    readParams();
+    // reset iteration to 0 on size change so transient sim makes sense
+    iterEl.value = '0';
+    state.iter = 0;
+    simulate();
+    updateReadouts();
+    renderAll();
+  });
+
+  biasEl.addEventListener('input', () => {
+    readParams();
+    iterEl.value = '0';
+    state.iter = 0;
+    simulate();
+    updateReadouts();
+    renderAll();
+  });
+
+  kEl.addEventListener('input', () => {
+    readParams();
+    iterEl.value = '0';
+    state.iter = 0;
+    simulate();
+    updateReadouts();
+    renderAll();
+  });
+
+  iterEl.addEventListener('input', () => {
+    state.iter = Math.max(0, Math.min(MAX_ITER, +iterEl.value | 0));
+    refreshCurrent();
+  });
+
+  stepBtn.addEventListener('click', () => {
+    state.iter = Math.min(MAX_ITER, state.iter + 1);
+    iterEl.value = String(state.iter);
+    refreshCurrent();
+  });
+
+  runBtn.addEventListener('click', () => {
+    // Animate to convergence (TARGET_ITER or where CV ratio < 1.2)
+    if (state.iter >= TARGET_ITER) return;
+    runBtn.disabled = true;
+    stepBtn.disabled = true;
+    const target = TARGET_ITER;
+    const tick = () => {
+      if (state.iter >= target) {
+        runBtn.disabled = false;
+        stepBtn.disabled = false;
+        return;
+      }
+      state.iter = Math.min(target, state.iter + 1);
+      iterEl.value = String(state.iter);
+      refreshCurrent();
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+
+  resetBtn.addEventListener('click', () => {
+    state.iter = 0;
+    iterEl.value = '0';
+    refreshCurrent();
+  });
+
+  resimBtn.addEventListener('click', () => {
+    state.iter = 0;
+    iterEl.value = '0';
+    doSimulate(true);
+  });
+
+  // ── Initial render ───────────────────────────────────────
+  updateColourbars();
+  readParams();
+  // Fixed seed for first load so the raw state is reproducible.
+  state.biasSim = 0xA1CE2026 >>> 0;
+  simulate();
+  updateReadouts();
+  renderAll();
+})();
+</script>
+
+</body>
+</html>

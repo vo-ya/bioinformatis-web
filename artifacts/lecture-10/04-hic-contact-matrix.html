@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hi-C Contact Matrix Viewer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .mode-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .mode-btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.45rem 0.95rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg-muted);
+      cursor: pointer;
+      letter-spacing: 0.04em;
+    }
+    .mode-btn:hover { background: var(--bg-inset); border-color: var(--border-strong); color: var(--fg); }
+    .mode-btn.is-active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .action-row {
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+      margin-top: 1rem;
+      padding-top: 0.9rem;
+      border-top: 1px dashed var(--border);
+      flex-wrap: wrap;
+    }
+    .action-row .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0 0 0 auto;
+    }
+
+    .plot-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      gap: 1rem;
+    }
+    @media (max-width: 880px) {
+      .plot-grid { grid-template-columns: 1fr; }
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.5rem;
+      font-weight: 600;
+    }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .annot {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+    .annot .row {
+      display: grid;
+      grid-template-columns: 14px 1fr;
+      gap: 0.55rem;
+      align-items: start;
+      line-height: var(--leading-normal);
+    }
+    .annot .mark {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 2px;
+      margin-top: 4px;
+    }
+    .annot .mark.diag  { background: var(--accent); }
+    .annot .mark.tad   { background: var(--accent-bright); opacity: 0.7; }
+    .annot .mark.comp  { background: var(--warning); }
+    .annot .mark.loop  { background: var(--error); }
+    .annot .title {
+      font-weight: 600;
+      color: var(--fg);
+    }
+    .annot .desc {
+      color: var(--fg-muted);
+      font-size: var(--text-xs);
+      letter-spacing: 0.01em;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner .whatif {
+      display: block;
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+      letter-spacing: 0.01em;
+    }
+    .banner .whatif b { color: var(--fg); }
+
+    .note {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-top: 0.4rem;
+    }
+
+    .colorbar {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-top: 0.5rem;
+    }
+    .colorbar .bar {
+      flex: 1;
+      height: 10px;
+      border-radius: 2px;
+      border: 1px solid var(--border);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="hic-contact-matrix">
+
+  <header class="artifact-head">
+    <h1>Hi-C Contact Matrix Viewer</h1>
+    <p>Simulate a chromosome-scale Hi-C contact matrix with planted TADs, A/B compartments, and focal loops. Distance decay dominates the raw counts; log compresses the scale; observed-over-expected strips the decay away so TADs and checkerboards finally emerge. Toggle the view modes to watch the same data go from "a bright diagonal" to "structure everywhere".</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Genome simulation</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="bins-input"># bins</label>
+          <span class="slider-value" id="bins-value">80</span>
+        </div>
+        <input id="bins-input" type="range" min="40" max="120" step="1" value="80">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="tads-input"># planted TADs</label>
+          <span class="slider-value" id="tads-value">5</span>
+        </div>
+        <input id="tads-input" type="range" min="0" max="10" step="1" value="5">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="comp-input">compartment strength</label>
+          <span class="slider-value" id="comp-value">0.60</span>
+        </div>
+        <input id="comp-input" type="range" min="0" max="100" step="1" value="60">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="loops-input"># focal loops</label>
+          <span class="slider-value" id="loops-value">3</span>
+        </div>
+        <input id="loops-input" type="range" min="0" max="10" step="1" value="3">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="depth-input">sequencing depth</label>
+          <span class="slider-value" id="depth-value">500k</span>
+        </div>
+        <input id="depth-input" type="range" min="100" max="5000" step="50" value="500">
+      </div>
+    </div>
+
+    <p class="note">Cell (i,j) mean ~ |i-j|^-0.9 (distance decay) x TAD bonus x compartment term + loop spikes. Counts are Poisson draws with total expectation = sequencing depth.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">View mode</p>
+
+    <div class="mode-row" role="tablist" aria-label="Contact matrix view mode">
+      <button class="mode-btn is-active" type="button" data-mode="raw"  id="mode-raw">raw counts</button>
+      <button class="mode-btn"           type="button" data-mode="log"  id="mode-log">log(1 + counts)</button>
+      <button class="mode-btn"           type="button" data-mode="oe"   id="mode-oe">O / E  (distance detrended)</button>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate</button>
+      <span class="hint" id="seed-hint">seed = 271</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Contact matrix</p>
+
+    <div class="plot-grid">
+      <div>
+        <div class="plot-wrap">
+          <svg id="hic-svg" class="plot-svg" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" aria-label="Hi-C contact matrix heatmap"></svg>
+        </div>
+        <div class="colorbar">
+          <span id="cb-lo">low</span>
+          <span class="bar" id="cb-bar"></span>
+          <span id="cb-hi">high</span>
+        </div>
+        <p class="plot-caption" id="plot-caption">Pixel colour encodes contact intensity. Both axes are genomic bin index; the matrix is symmetric about the diagonal.</p>
+      </div>
+
+      <div>
+        <p class="plot-title">Feature guide</p>
+        <div class="plot-wrap">
+          <svg id="guide-svg" class="plot-svg" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet" aria-label="Hi-C feature guide"></svg>
+        </div>
+        <div class="annot" style="margin-top: 0.75rem;">
+          <div class="row">
+            <span class="mark diag"></span>
+            <span>
+              <span class="title">Diagonal</span><br>
+              <span class="desc">Adjacent bins contact each other often. Dominates raw counts.</span>
+            </span>
+          </div>
+          <div class="row">
+            <span class="mark tad"></span>
+            <span>
+              <span class="title">TAD triangles</span><br>
+              <span class="desc">Square blocks on the diagonal; same-TAD pairs enriched over baseline.</span>
+            </span>
+          </div>
+          <div class="row">
+            <span class="mark comp"></span>
+            <span>
+              <span class="title">Compartment checkerboard</span><br>
+              <span class="desc">Off-diagonal plaid of A-A and B-B enrichments; only visible after detrending.</span>
+            </span>
+          </div>
+          <div class="row">
+            <span class="mark loop"></span>
+            <span>
+              <span class="title">Focal loops</span><br>
+              <span class="desc">Isolated bright pixels away from the diagonal; chromatin loops.</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="banner" id="banner">
+      <b id="b-mode">raw counts</b>
+      <span class="sep">|</span>
+      depth <b id="b-depth">500k</b>
+      <span class="sep">|</span>
+      bins <b id="b-bins">80</b>
+      <span class="sep">|</span>
+      mean/cell <b id="b-mean">0</b>
+      <span class="whatif" id="b-whatif"></span>
+    </div>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // --- RNG -----------------------------------------------------
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Poisson sampler. Knuth for small lambda, normal approx for large.
+  function poissonSample(lambda, rnd) {
+    if (lambda <= 0) return 0;
+    if (lambda < 30) {
+      const L = Math.exp(-lambda);
+      let k = 0, p = 1;
+      do {
+        k++;
+        p *= rnd();
+      } while (p > L);
+      return k - 1;
+    }
+    // Normal approximation for large lambda.
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    return Math.max(0, Math.round(lambda + Math.sqrt(lambda) * z));
+  }
+
+  // --- Colour helpers ----------------------------------------
+  // Interpolate in HSL from bg-muted-ish (warm off-white) -> deep accent cobalt.
+  // bg-muted  #f4f3ee -> hsl(45, 18%, 95%)
+  // accent    #1e3a8a -> hsl(224, 64%, 33%)
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function colourAt(t) {
+    // t in [0,1]
+    t = Math.max(0, Math.min(1, t));
+    const h = lerp(45, 224, Math.pow(t, 0.8));
+    const s = lerp(18, 64, t);
+    const l = lerp(95, 26, Math.pow(t, 0.9));
+    return `hsl(${h.toFixed(1)}, ${s.toFixed(1)}%, ${l.toFixed(1)}%)`;
+  }
+  // For O/E we want a diverging scale: depleted (< 1) cool grey, neutral white,
+  // enriched (> 1) warm red-orange. We log-scale around 1 and clip at +/-2.
+  // t in [-1, 1] where -1 = fully depleted, +1 = fully enriched.
+  function divergingAt(t) {
+    t = Math.max(-1, Math.min(1, t));
+    if (t >= 0) {
+      // white -> var(--error) #b91c1c -> hsl(0, 76%, 42%)
+      const h = lerp(25, 0, t);
+      const s = lerp(12, 76, t);
+      const l = lerp(96, 42, t);
+      return `hsl(${h.toFixed(1)}, ${s.toFixed(1)}%, ${l.toFixed(1)}%)`;
+    } else {
+      const u = -t;
+      // white -> var(--accent) #1e3a8a -> hsl(224, 64%, 33%)
+      const h = lerp(220, 224, u);
+      const s = lerp(12, 64, u);
+      const l = lerp(96, 33, u);
+      return `hsl(${h.toFixed(1)}, ${s.toFixed(1)}%, ${l.toFixed(1)}%)`;
+    }
+  }
+
+  // --- Build expected-contact matrix -------------------------
+  function buildExpected(nBins, tads, compStrength, compBlockSize, loops) {
+    // Distance decay: C_dist[d] ∝ (d+1)^-0.9 with d=0 set to a finite floor.
+    const decay = new Float64Array(nBins);
+    for (let d = 0; d < nBins; d++) {
+      // Distance 0 uses d=1 power bump so diagonal is extra bright but finite.
+      decay[d] = d === 0 ? Math.pow(1, -0.9) * 4 : Math.pow(d, -0.9);
+    }
+
+    // TAD assignment: partition bins into tadCount contiguous blocks.
+    const tadOf = new Int32Array(nBins);
+    if (tads > 0) {
+      // Random partition points
+      const cutCount = tads - 1;
+      const cuts = [];
+      // Simple evenly-spaced with small jitter from a bin-label hash.
+      for (let k = 1; k <= cutCount; k++) {
+        const base = Math.round((k / tads) * nBins);
+        cuts.push(base);
+      }
+      cuts.sort((a, b) => a - b);
+      let idx = 0;
+      let cur = 0;
+      for (let i = 0; i < nBins; i++) {
+        while (idx < cuts.length && i >= cuts[idx]) {
+          cur++;
+          idx++;
+        }
+        tadOf[i] = cur;
+      }
+    }
+
+    // Compartment label: alternating A/B blocks of size compBlockSize.
+    const compOf = new Int8Array(nBins);
+    for (let i = 0; i < nBins; i++) {
+      compOf[i] = (Math.floor(i / compBlockSize) % 2 === 0) ? 1 : -1;
+    }
+
+    const N = nBins;
+    const E = new Float64Array(N * N);
+
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) {
+        const d = Math.abs(i - j);
+        let v = decay[d];
+
+        // TAD bonus: 2x within same TAD, only for nearby (intra-domain)
+        // contacts, which is what a real TAD does.
+        if (tads > 0 && tadOf[i] === tadOf[j] && d > 0) {
+          v *= 2.0;
+        }
+
+        // Compartment checkerboard. Applied as multiplicative factor:
+        // same-comp  -> 1 + compStrength * f(d)
+        // diff-comp  -> 1 - 0.5 * compStrength * f(d)
+        // where f(d) damps the effect at very short range (TAD-dominated)
+        // and at very long range (near-zero contact). Peak around d ~ N/8.
+        if (d > 1) {
+          const dPeak = Math.max(3, N / 8);
+          const fd = Math.min(1, d / dPeak) * Math.exp(-d / (3 * dPeak));
+          const sameComp = compOf[i] === compOf[j];
+          if (sameComp) {
+            v *= (1 + compStrength * fd);
+          } else {
+            v *= Math.max(0.05, 1 - 0.5 * compStrength * fd);
+          }
+        }
+
+        E[i * N + j] = v;
+      }
+    }
+
+    // Loop spikes: pick random off-diagonal pairs and crank them up.
+    // Loops placed within-TAD preferentially if TADs are defined.
+    const loopSpots = [];
+    if (loops > 0) {
+      // Simple deterministic-ish loop picker using a local RNG seeded from
+      // params so the "loops" shift sensibly when you re-simulate.
+      // (Seed injected by caller via buildExpected options in simulate.)
+    }
+
+    return { E, tadOf, compOf, N, loopSpots };
+  }
+
+  // --- Simulate: build expected + Poisson-sample observed -----
+  function simulate(params, seed) {
+    const { nBins, tads, compStrength, loops, depth } = params;
+    const rnd = mulberry32(seed);
+
+    // Compartment block size scales with bin count so the checkerboard has
+    // enough tiles to read visually at any N.
+    const compBlockSize = Math.max(3, Math.round(nBins / 10));
+
+    const built = buildExpected(nBins, tads, compStrength, compBlockSize, loops);
+    const E = built.E;
+    const N = built.N;
+    const tadOf = built.tadOf;
+
+    // Place loops: pick "loops" random (i,j) with i<j, d >= 3, preferably
+    // same-TAD (which is the biologically realistic case: anchor loops are
+    // usually within or at the edge of TADs).
+    const loopSpots = [];
+    let attempts = 0;
+    while (loopSpots.length < loops && attempts < loops * 50) {
+      attempts++;
+      const i = Math.floor(rnd() * N);
+      const maxOff = Math.min(N - 1 - i, Math.round(N / 4));
+      if (maxOff < 3) continue;
+      const d = 3 + Math.floor(rnd() * (maxOff - 2));
+      const j = i + d;
+      if (j >= N) continue;
+      // Prefer same-TAD loops but accept other with lower probability.
+      const sameTad = tads > 0 && tadOf[i] === tadOf[j];
+      if (!sameTad && rnd() > 0.25) continue;
+      loopSpots.push({ i, j });
+    }
+
+    // Bake loop spikes into E.
+    const LOOP_MULT = 8.0;
+    for (const lp of loopSpots) {
+      const a = lp.i * N + lp.j;
+      const b = lp.j * N + lp.i;
+      E[a] *= LOOP_MULT;
+      E[b] *= LOOP_MULT;
+    }
+
+    // Normalize expected to probabilities summing to 1, then scale by
+    // target total-read count -> lambda per cell.
+    let sumE = 0;
+    for (let k = 0; k < E.length; k++) sumE += E[k];
+    const invSum = sumE > 0 ? 1 / sumE : 0;
+    const totalReads = depth;
+
+    // Observed matrix.
+    const O = new Float64Array(N * N);
+    // Upper triangle -> Poisson sample, mirror to lower. This ensures a
+    // symmetric "count" matrix even at low depth (Hi-C matrices are
+    // symmetric by construction).
+    for (let i = 0; i < N; i++) {
+      for (let j = i; j < N; j++) {
+        const lam = E[i * N + j] * invSum * totalReads;
+        const c = poissonSample(lam, rnd);
+        O[i * N + j] = c;
+        O[j * N + i] = c;
+      }
+    }
+
+    // Distance-averaged observed, for O/E computation.
+    // avgByD[d] = mean_{|i-j|=d} O[i,j]
+    const sumByD = new Float64Array(N);
+    const cntByD = new Float64Array(N);
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) {
+        const d = Math.abs(i - j);
+        sumByD[d] += O[i * N + j];
+        cntByD[d] += 1;
+      }
+    }
+    const avgByD = new Float64Array(N);
+    for (let d = 0; d < N; d++) {
+      avgByD[d] = cntByD[d] > 0 ? sumByD[d] / cntByD[d] : 0;
+    }
+
+    return {
+      N, O, E,
+      tadOf: built.tadOf,
+      compOf: built.compOf,
+      loopSpots,
+      avgByD,
+      compBlockSize,
+      totalReads,
+    };
+  }
+
+  // --- Transform matrix by view mode --------------------------
+  function transformMatrix(sim, mode) {
+    const { N, O, avgByD } = sim;
+    const M = new Float64Array(N * N);
+    let lo = Infinity, hi = -Infinity;
+
+    if (mode === 'raw') {
+      for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+          const v = O[i * N + j];
+          M[i * N + j] = v;
+          if (v < lo) lo = v;
+          if (v > hi) hi = v;
+        }
+      }
+      // Saturate at 98th percentile to prevent the diagonal from
+      // dominating the colour scale completely.
+      const pct = percentile(M, 0.98);
+      hi = Math.max(pct, lo + 1);
+      return { M, lo, hi, diverging: false };
+    }
+
+    if (mode === 'log') {
+      for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+          const v = Math.log1p(O[i * N + j]);
+          M[i * N + j] = v;
+          if (v < lo) lo = v;
+          if (v > hi) hi = v;
+        }
+      }
+      return { M, lo, hi, diverging: false };
+    }
+
+    // mode === 'oe' : observed over expected, computed from the
+    // distance-averaged profile of the *observed* matrix (standard Hi-C
+    // practice -- removes distance decay without peeking at ground truth).
+    // Cells with expected ~ 0 get a neutral 1.0.
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) {
+        const d = Math.abs(i - j);
+        const exp = avgByD[d];
+        const obs = O[i * N + j];
+        const ratio = exp > 0 ? obs / exp : 1;
+        // log-transform so depletion and enrichment are symmetric in colour.
+        const v = Math.log2(Math.max(ratio, 0.01));
+        M[i * N + j] = v;
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+      }
+    }
+    // Symmetric scale for diverging map. Use 95th percentile of |v| to
+    // avoid a few rogue low-count cells stealing the colour budget.
+    const abs = new Float64Array(M.length);
+    for (let k = 0; k < M.length; k++) abs[k] = Math.abs(M[k]);
+    const limit = Math.max(0.5, percentile(abs, 0.95));
+    return { M, lo: -limit, hi: limit, diverging: true };
+  }
+
+  // Cheap percentile via partial sort on a copy.
+  function percentile(arr, q) {
+    const a = Array.from(arr);
+    a.sort((x, y) => x - y);
+    const idx = Math.min(a.length - 1, Math.max(0, Math.floor(q * (a.length - 1))));
+    return a[idx];
+  }
+
+  // --- State --------------------------------------------------
+  const state = {
+    nBins: 80,
+    tads: 5,
+    compStrength: 0.60,
+    loops: 3,
+    depth: 500000,
+    mode: 'raw',
+    seed: 271,
+    sim: null,
+    rafId: 0,
+  };
+
+  // --- DOM ----------------------------------------------------
+  const hicSvg   = $('hic-svg');
+  const guideSvg = $('guide-svg');
+  const cbBar    = $('cb-bar');
+  const cbLo     = $('cb-lo');
+  const cbHi     = $('cb-hi');
+  const seedHint = $('seed-hint');
+  const caption  = $('plot-caption');
+
+  const inputs = {
+    bins:  $('bins-input'),
+    tads:  $('tads-input'),
+    comp:  $('comp-input'),
+    loops: $('loops-input'),
+    depth: $('depth-input'),
+  };
+  const values = {
+    bins:  $('bins-value'),
+    tads:  $('tads-value'),
+    comp:  $('comp-value'),
+    loops: $('loops-value'),
+    depth: $('depth-value'),
+  };
+  const modeBtns = {
+    raw: $('mode-raw'),
+    log: $('mode-log'),
+    oe:  $('mode-oe'),
+  };
+
+  // --- SVG helpers --------------------------------------------
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  // --- Colour mapping helpers for current view mode ----------
+  function mapColour(v, lo, hi, diverging) {
+    if (diverging) {
+      const limit = Math.max(Math.abs(lo), Math.abs(hi), 1e-9);
+      const t = Math.max(-1, Math.min(1, v / limit));
+      return divergingAt(t);
+    }
+    const span = hi - lo;
+    if (span <= 0) return colourAt(0);
+    const t = (v - lo) / span;
+    return colourAt(t);
+  }
+
+  // --- Heatmap render -----------------------------------------
+  function renderHeatmap() {
+    clear(hicSvg);
+    const W = 600, H = 600;
+    const PAD_L = 48, PAD_R = 14, PAD_T = 14, PAD_B = 48;
+    const x0 = PAD_L, x1 = W - PAD_R;
+    const y0 = PAD_T, y1 = H - PAD_B;
+    const plotW = x1 - x0, plotH = y1 - y0;
+
+    const sim = state.sim;
+    const N = sim.N;
+    const { M, lo, hi, diverging } = transformMatrix(sim, state.mode);
+
+    // Cell pixel size.
+    const cw = plotW / N;
+    const ch = plotH / N;
+
+    // Background frame.
+    hicSvg.appendChild(el('rect', {
+      x: x0, y: y0, width: plotW, height: plotH,
+      fill: diverging ? 'hsl(25, 12%, 96%)' : 'var(--bg-muted)',
+      stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Paint cells. Use <rect>s; for N up to 120 we have <= 14,400 rects
+    // which stays within comfortable SVG budgets.
+    // Add an extra half-pixel overlap to avoid visible grid seams.
+    const overlap = 0.5;
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) {
+        const v = M[i * N + j];
+        const colour = mapColour(v, lo, hi, diverging);
+        const x = x0 + j * cw - overlap;
+        const y = y0 + i * ch - overlap;
+        hicSvg.appendChild(el('rect', {
+          x: x.toFixed(2),
+          y: y.toFixed(2),
+          width: (cw + 2 * overlap).toFixed(2),
+          height: (ch + 2 * overlap).toFixed(2),
+          fill: colour,
+          'shape-rendering': 'crispEdges',
+        }));
+      }
+    }
+
+    // Axis labels (bin 0, midpoint, N-1).
+    const ticks = [0, Math.floor(N / 2), N - 1];
+    for (const t of ticks) {
+      const x = x0 + (t + 0.5) * cw;
+      const y = y0 + (t + 0.5) * ch;
+      hicSvg.appendChild(el('line', {
+        x1: x, x2: x, y1: y1, y2: y1 + 4,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      hicSvg.appendChild(el('text', {
+        x, y: y1 + 18,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, String(t)));
+      hicSvg.appendChild(el('line', {
+        x1: x0 - 4, x2: x0, y1: y, y2: y,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      hicSvg.appendChild(el('text', {
+        x: x0 - 8, y: y + 3.5,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, String(t)));
+    }
+
+    // Axis titles
+    hicSvg.appendChild(el('text', {
+      x: (x0 + x1) / 2, y: H - 14,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+    }, 'bin j (genomic position)'));
+
+    hicSvg.appendChild(el('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+      transform: `translate(14, ${(y0 + y1) / 2}) rotate(-90)`,
+    }, 'bin i (genomic position)'));
+
+    // Update colorbar gradient to match current mode.
+    if (diverging) {
+      cbBar.style.background =
+        `linear-gradient(to right, ${divergingAt(-1)}, ${divergingAt(-0.5)}, ${divergingAt(0)}, ${divergingAt(0.5)}, ${divergingAt(1)})`;
+      const limit = Math.max(Math.abs(lo), Math.abs(hi), 1e-9);
+      cbLo.textContent = `-${limit.toFixed(1)}  depleted (log2)`;
+      cbHi.textContent = `+${limit.toFixed(1)}  enriched`;
+    } else {
+      cbBar.style.background =
+        `linear-gradient(to right, ${colourAt(0)}, ${colourAt(0.25)}, ${colourAt(0.5)}, ${colourAt(0.75)}, ${colourAt(1)})`;
+      if (state.mode === 'raw') {
+        cbLo.textContent = `${lo.toFixed(0)} reads`;
+        cbHi.textContent = `${hi.toFixed(0)} reads (98th %ile)`;
+      } else {
+        cbLo.textContent = `log1p = ${lo.toFixed(1)}`;
+        cbHi.textContent = `log1p = ${hi.toFixed(1)}`;
+      }
+    }
+  }
+
+  // --- Guide SVG (static schematic with arrows) ---------------
+  function renderGuide() {
+    clear(guideSvg);
+    const W = 300, H = 300;
+    const PAD = 26;
+    const x0 = PAD, y0 = PAD, x1 = W - PAD, y1 = H - PAD;
+
+    // Frame.
+    guideSvg.appendChild(el('rect', {
+      x: x0, y: y0, width: x1 - x0, height: y1 - y0,
+      fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Diagonal band.
+    const diag = el('line', {
+      x1: x0, y1: y0, x2: x1, y2: y1,
+      stroke: 'var(--accent)', 'stroke-width': 10, opacity: 0.45,
+      'stroke-linecap': 'round',
+    });
+    guideSvg.appendChild(diag);
+
+    // TAD triangles along diagonal.
+    const tadBlocks = [
+      { a: 0.05, b: 0.30 },
+      { a: 0.32, b: 0.55 },
+      { a: 0.58, b: 0.80 },
+    ];
+    for (const b of tadBlocks) {
+      const ax = x0 + b.a * (x1 - x0);
+      const ay = y0 + b.a * (y1 - y0);
+      const bx = x0 + b.b * (x1 - x0);
+      const by = y0 + b.b * (y1 - y0);
+      guideSvg.appendChild(el('rect', {
+        x: ax, y: ay, width: bx - ax, height: by - ay,
+        fill: 'var(--accent-bright)', opacity: 0.18,
+        stroke: 'var(--accent-bright)', 'stroke-width': 1, 'stroke-dasharray': '3 3',
+      }));
+    }
+
+    // Compartment checkerboard tiles (off-diagonal).
+    const compTiles = [
+      { i: 0.10, j: 0.65, col: 'var(--warning)', op: 0.25 },
+      { i: 0.15, j: 0.80, col: 'var(--warning)', op: 0.20 },
+      { i: 0.35, j: 0.85, col: 'var(--warning)', op: 0.22 },
+    ];
+    for (const t of compTiles) {
+      const size = 0.08 * (x1 - x0);
+      const cx = x0 + t.j * (x1 - x0);
+      const cy = y0 + t.i * (y1 - y0);
+      guideSvg.appendChild(el('rect', {
+        x: cx, y: cy, width: size, height: size,
+        fill: t.col, opacity: t.op,
+      }));
+      // Mirror across diagonal
+      guideSvg.appendChild(el('rect', {
+        x: y0 + t.i * (y1 - y0), y: x0 + t.j * (x1 - x0),
+        width: size, height: size,
+        fill: t.col, opacity: t.op,
+      }));
+    }
+
+    // Focal loop marker
+    const loopX = x0 + 0.70 * (x1 - x0);
+    const loopY = y0 + 0.22 * (y1 - y0);
+    guideSvg.appendChild(el('circle', {
+      cx: loopX, cy: loopY, r: 6,
+      fill: 'var(--error)', opacity: 0.85,
+    }));
+
+    // Arrows with labels
+    const arrows = [
+      { label: 'diagonal', x: x0 + 0.18 * (x1 - x0), y: y0 + 0.18 * (y1 - y0),
+        tx: x0 - 8, ty: y1 + 18, anchor: 'start' },
+      { label: 'TAD', x: x0 + 0.45 * (x1 - x0), y: y0 + 0.45 * (y1 - y0),
+        tx: x1 + 4, ty: y0 + 0.52 * (y1 - y0), anchor: 'start' },
+      { label: 'loop', x: loopX, y: loopY,
+        tx: x1 - 4, ty: y0 - 8, anchor: 'end' },
+      { label: 'compartment', x: x0 + 0.80 * (x1 - x0), y: y0 + 0.15 * (y1 - y0),
+        tx: x0 - 6, ty: y0 - 8, anchor: 'start' },
+    ];
+    for (const a of arrows) {
+      guideSvg.appendChild(el('line', {
+        x1: a.tx, y1: a.ty, x2: a.x, y2: a.y,
+        stroke: 'var(--fg-muted)', 'stroke-width': 0.9,
+        'stroke-dasharray': '2 3',
+      }));
+      guideSvg.appendChild(el('circle', {
+        cx: a.x, cy: a.y, r: 2.2, fill: 'var(--fg-muted)',
+      }));
+      guideSvg.appendChild(el('text', {
+        x: a.tx, y: a.ty,
+        'text-anchor': a.anchor,
+        'font-family': 'var(--font-sans)', 'font-size': 10,
+        fill: 'var(--fg-muted)',
+        'letter-spacing': '0.04em',
+      }, a.label));
+    }
+  }
+
+  // --- Banner -------------------------------------------------
+  function updateBanner() {
+    const sim = state.sim;
+    let total = 0;
+    for (let k = 0; k < sim.O.length; k++) total += sim.O[k];
+    const meanPerCell = total / (sim.N * sim.N);
+
+    $('b-mode').textContent = {
+      raw: 'raw counts',
+      log: 'log(1 + counts)',
+      oe:  'O / E (distance-detrended)',
+    }[state.mode];
+    $('b-depth').textContent = formatDepth(state.depth);
+    $('b-bins').textContent  = String(state.nBins);
+    $('b-mean').textContent  = meanPerCell.toFixed(2);
+
+    let hint = '';
+    if (state.mode === 'raw') {
+      hint = 'The diagonal + power-law distance decay eat the entire colour budget. TADs and compartments are here, but buried. Switch to log or O/E to see them.';
+    } else if (state.mode === 'log') {
+      hint = 'Log compresses the dynamic range: the diagonal is less blinding, and TAD boundaries become hinted. Distance decay still dominates the off-diagonal -- switch to O/E to remove it.';
+    } else {
+      // O/E
+      const tadPresent = state.tads > 0;
+      const compPresent = state.compStrength > 0.05;
+      const parts = [];
+      parts.push('Distance decay divided out.');
+      if (tadPresent) parts.push('TAD squares now stand out as red blocks on the diagonal.');
+      if (compPresent) parts.push('The compartment checkerboard appears as plaid far from the diagonal.');
+      if (state.loops > 0) parts.push('Loops remain as isolated bright pixels.');
+      hint = parts.join(' ');
+    }
+    $('b-whatif').textContent = hint;
+
+    // Plot caption adapts too.
+    caption.textContent = {
+      raw: 'Raw counts: diagonal + distance decay dominate. TADs and compartments are present but visually suppressed.',
+      log: 'log(1 + counts): compresses dynamic range so TAD hints emerge, but off-diagonal is still decay-dominated.',
+      oe:  'Observed / Expected: divide each cell by the mean contact at its genomic distance. Red = enriched (TADs, loops, A-A / B-B); blue = depleted (A-B compartments).',
+    }[state.mode];
+  }
+
+  function formatDepth(d) {
+    if (d >= 1e6) return (d / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (d >= 1e3) return Math.round(d / 1e3) + 'k';
+    return String(d);
+  }
+
+  // --- Controls wiring ----------------------------------------
+  function readControls() {
+    state.nBins        = +inputs.bins.value;
+    state.tads         = +inputs.tads.value;
+    state.compStrength = +inputs.comp.value / 100;
+    state.loops        = +inputs.loops.value;
+    // depth slider is in units of 1000 reads.
+    state.depth        = +inputs.depth.value * 1000;
+  }
+  function updateReadouts() {
+    values.bins.textContent  = String(state.nBins);
+    values.tads.textContent  = String(state.tads);
+    values.comp.textContent  = state.compStrength.toFixed(2);
+    values.loops.textContent = String(state.loops);
+    values.depth.textContent = formatDepth(state.depth);
+    seedHint.textContent = `seed = ${state.seed}`;
+  }
+  function runSim() {
+    state.sim = simulate({
+      nBins: state.nBins,
+      tads: state.tads,
+      compStrength: state.compStrength,
+      loops: state.loops,
+      depth: state.depth,
+    }, state.seed);
+  }
+  function scheduleDraw() {
+    if (state.rafId) return;
+    state.rafId = requestAnimationFrame(() => {
+      state.rafId = 0;
+      updateReadouts();
+      renderHeatmap();
+      updateBanner();
+    });
+  }
+
+  for (const k of Object.keys(inputs)) {
+    inputs[k].addEventListener('input', () => {
+      readControls();
+      runSim();
+      scheduleDraw();
+    });
+  }
+
+  for (const k of Object.keys(modeBtns)) {
+    modeBtns[k].addEventListener('click', () => {
+      state.mode = k;
+      for (const m of Object.keys(modeBtns)) {
+        modeBtns[m].classList.toggle('is-active', m === k);
+      }
+      scheduleDraw();
+    });
+  }
+
+  $('resim-btn').addEventListener('click', () => {
+    // Advance seed deterministically so re-simulate produces a fresh draw.
+    state.seed = (state.seed * 1664525 + 1013904223) >>> 0;
+    readControls();
+    runSim();
+    scheduleDraw();
+  });
+
+  // --- Boot ---------------------------------------------------
+  readControls();
+  updateReadouts();
+  runSim();
+  renderHeatmap();
+  renderGuide();
+  updateBanner();
+})();
+</script>
+
+</body>
+</html>

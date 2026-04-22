@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Three-Letter Alignment Demo</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 68ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .control-row { display: flex; flex-direction: column; gap: 0.35rem; }
+
+    select, textarea {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      padding: 0.45rem 0.6rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+    }
+    select:focus, textarea:focus {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: 1px;
+      background: var(--bg-elevated);
+    }
+
+    .paste-wrap {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.6rem;
+      margin-top: 0.85rem;
+      padding-top: 0.9rem;
+      border-top: 1px dashed var(--border);
+    }
+    .paste-wrap.hidden { display: none; }
+    .paste-wrap textarea {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: 1.45;
+      min-height: 72px;
+      resize: vertical;
+      width: 100%;
+      letter-spacing: 0.02em;
+    }
+    .paste-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .paste-actions .hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0 0 0 auto;
+    }
+    .paste-error {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--error);
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.75rem;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .paste-error.show { display: block; }
+
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .toggle-group {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: var(--bg-muted);
+    }
+    .toggle-group button {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.45rem 0.85rem;
+      background: transparent;
+      border: 0;
+      border-right: 1px solid var(--border);
+      color: var(--fg-muted);
+      cursor: pointer;
+    }
+    .toggle-group button:last-child { border-right: 0; }
+    .toggle-group button.active {
+      background: var(--accent);
+      color: #fff;
+    }
+    .toggle-group button:hover:not(.active) {
+      background: var(--bg-inset);
+      color: var(--fg);
+    }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+      overflow-x: auto;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 2px;
+    }
+    .legend-swatch .sw.a { background: #c4342c; }
+    .legend-swatch .sw.c { background: #1e3a8a; }
+    .legend-swatch .sw.g { background: #b45309; }
+    .legend-swatch .sw.t { background: #2d7a3e; }
+    .legend-swatch .sw.mm { background: var(--warning); }
+    .legend-swatch .sw.cpg { background: var(--accent); opacity: 0.25; border: 1px solid var(--accent); }
+
+    .summary-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.9rem;
+    }
+    .summary-cell {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.75rem;
+    }
+    .summary-cell .lab {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+    }
+    .summary-cell .val {
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      color: var(--fg);
+      font-weight: 500;
+    }
+    .summary-cell.ok .val   { color: var(--success, #16794c); }
+    .summary-cell.fail .val { color: var(--error, #b91c1c); }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner.fail {
+      background: #fef2f2;
+      border-color: #ef4444;
+    }
+    .banner.fail b { color: #b91c1c; }
+    .banner.ok {
+      background: #ecfdf5;
+      border-color: #10b981;
+    }
+    .banner.ok b { color: #047857; }
+
+    table.meth {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      margin-top: 0.8rem;
+    }
+    table.meth th, table.meth td {
+      padding: 0.4rem 0.55rem;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+    table.meth th {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      background: var(--bg-muted);
+    }
+    table.meth td.meth-call  { color: var(--accent); font-weight: 600; }
+    table.meth td.unmeth-call{ color: #2d7a3e; font-weight: 600; }
+    table.meth td.amb-call   { color: var(--fg-subtle); }
+    table.meth .mono { font-family: var(--font-mono); }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="three-letter-alignment">
+
+  <header class="artifact-head">
+    <h1>Three-Letter Alignment Demo</h1>
+    <p>A bisulfite-converted read won't align cleanly to the four-letter reference: every unmethylated C has become a T, so naive Smith-Waterman sees mismatches everywhere. The fix is to convert both sides, reference and read, C-to-T in silico and align in three-letter space. After the read is placed we decode methylation by looking back at each CpG's original read base: C stayed C (methylated), C turned into T (unmethylated).</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Inputs</p>
+
+    <div class="control-grid">
+      <div class="control-row">
+        <label class="field-label" for="ref-preset">Reference</label>
+        <select id="ref-preset">
+          <option value="promoter">promoter CpG island (~100 bp, 7 CpGs)</option>
+          <option value="exon">exon region (~100 bp, 5 CpGs)</option>
+          <option value="repeat">repeat (~100 bp, 6 CpGs, AT-rich)</option>
+        </select>
+      </div>
+
+      <div class="control-row">
+        <label class="field-label" for="read-preset">Read</label>
+        <select id="read-preset">
+          <option value="builtin">matched read (pre-built BS-converted)</option>
+          <option value="paste">custom paste</option>
+        </select>
+      </div>
+
+      <div class="control-row">
+        <label class="field-label">Algorithm mode</label>
+        <div class="toggle-group" id="mode-toggle" role="tablist">
+          <button type="button" data-mode="naive" class="active" role="tab" aria-selected="true">naive 4-letter</button>
+          <button type="button" data-mode="three" role="tab" aria-selected="false">three-letter (C→T)</button>
+        </div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="mm-input">Mismatch tolerance</label>
+          <span class="slider-value" id="mm-value">3</span>
+        </div>
+        <input id="mm-input" type="range" min="0" max="10" step="1" value="3">
+      </div>
+    </div>
+
+    <div class="paste-wrap hidden" id="paste-wrap">
+      <label class="field-label" for="paste-input">Paste read (ACGTN only, length 20-100)</label>
+      <textarea id="paste-input" spellcheck="false" placeholder="e.g. TTGTGTGATTTGGTGATTTTATTTTGTTTAGTATGGATTTGTATTTT..."></textarea>
+      <div class="paste-actions">
+        <button class="btn btn--primary" type="button" id="paste-btn">Load pasted read</button>
+        <button class="btn" type="button" id="paste-clear">Clear paste</button>
+        <span class="hint">Whitespace stripped · case-insensitive · must be ≤ reference length</span>
+      </div>
+      <div class="paste-error" id="paste-error"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Alignment</p>
+    <div class="plot-wrap">
+      <svg id="align-svg" class="plot-svg" viewBox="0 0 1000 260" preserveAspectRatio="xMidYMid meet" aria-label="Two-row reference + read alignment"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw a"></span> A</span>
+      <span class="legend-swatch"><span class="sw c"></span> C</span>
+      <span class="legend-swatch"><span class="sw g"></span> G</span>
+      <span class="legend-swatch"><span class="sw t"></span> T</span>
+      <span class="legend-swatch"><span class="sw mm"></span> mismatch</span>
+      <span class="legend-swatch"><span class="sw cpg"></span> reference CpG</span>
+    </div>
+    <p class="plot-caption">top row: reference · bottom row: read placed at best-scoring offset · columns the algorithm counted as mismatches are highlighted.</p>
+
+    <div class="summary-strip">
+      <div class="summary-cell" id="sum-mode">
+        <div class="lab">Mode</div>
+        <div class="val" id="sum-mode-val">naive 4-letter</div>
+      </div>
+      <div class="summary-cell" id="sum-pos">
+        <div class="lab">Best offset</div>
+        <div class="val" id="sum-pos-val">—</div>
+      </div>
+      <div class="summary-cell" id="sum-mm">
+        <div class="lab">Mismatches</div>
+        <div class="val" id="sum-mm-val">—</div>
+      </div>
+      <div class="summary-cell" id="sum-status">
+        <div class="lab">Status</div>
+        <div class="val" id="sum-status-val">—</div>
+      </div>
+    </div>
+
+    <div class="banner" id="banner">
+      <span id="banner-text">Naive mode: bisulfite-converted reads have most unmethylated Cs replaced by T, so every such column registers as a mismatch.</span>
+    </div>
+  </section>
+
+  <section class="panel" id="meth-panel">
+    <p class="panel-label">Methylation calls (original reference coordinates)</p>
+    <table class="meth" id="meth-table" aria-label="per-CpG methylation call table">
+      <thead>
+        <tr>
+          <th>CpG #</th>
+          <th>Ref pos</th>
+          <th>Ref context</th>
+          <th>Read base</th>
+          <th>Call</th>
+        </tr>
+      </thead>
+      <tbody id="meth-tbody"></tbody>
+    </table>
+    <p class="hint" id="meth-hint">Methylation calls appear once alignment succeeds.</p>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── Base palette ───────────────────────────────────────
+  const BASE_COLOR = {
+    A: '#c4342c',
+    C: '#1e3a8a',
+    G: '#b45309',
+    T: '#2d7a3e',
+    N: '#6b7280',
+  };
+
+  // ── References (exactly ~100 bp each, 5-7 CpGs) ────────
+  //
+  // Each reference is hand-built with a known number of CpG dinucleotides.
+  // The read is a bisulfite-converted version of a 60 bp window of the
+  // reference, with a deterministic mix of methylated and unmethylated CpGs
+  // so the outcome table has obvious ground truth.
+  //
+  // Convention: a planted "ground truth" methylation mask is a 0/1 vector
+  // over each CpG in the *read window*. 1 = methylated (C stays C in read),
+  // 0 = unmethylated (C becomes T). Non-CpG cytosines in the read window
+  // are *always* unmethylated and turn into T — that is what makes the
+  // naive alignment fail and the three-letter alignment succeed.
+  const REFERENCES = {
+    // Promoter CpG island: 7 total CpGs, 5 inside the read window, plus
+    // non-CpG Cs peppered through the window so naive alignment racks up
+    // ~7 mismatches (well above the default tolerance of 3).
+    promoter: {
+      label: 'promoter CpG island',
+      // 100 bp. CpGs at positions 8, 28, 40, 52, 64, 76, 90 (C-base, 0-indexed).
+      // Non-CpG Cs at 22, 33, 45, 58, 70 (all inside the read window).
+      seq:
+        'ATGATGATCGTGATGATGATGACAATGACGATGCTGATGACGATGCTGATGACGATGACAATGACGATGACAATGACGATGATGATGATGCGGATGATGA',
+      // Read window: reference[20..80] (60 bp) covers CpGs at 28, 40, 52, 64, 76.
+      window: { start: 20, len: 60 },
+      // Planted methylation mask for the 5 window CpGs, in order:
+      //   1 = methylated (C stays C in the read),
+      //   0 = unmethylated (C becomes T).
+      meth: [1, 0, 1, 1, 0],
+    },
+    // Exon region: 5 total CpGs, all inside the window, with a few non-CpG Cs.
+    exon: {
+      label: 'exon region',
+      // 100 bp. CpGs at 18, 30, 44, 58, 70. Non-CpG Cs at 25, 40, 55, 65.
+      seq:
+        'ATGATGATGATGATGATGCGGATGACAATGCGGATGATGACAATCGTGATGATGACAACGATGATCATGACGATGATGATGATGATGATGATGATGATGA',
+      window: { start: 15, len: 60 },
+      meth: [1, 1, 0, 1, 0],
+    },
+    // Repeat: 6 total CpGs (5 inside the window), heavier non-CpG C load so
+    // bisulfite conversion produces many C→T changes in the read.
+    repeat: {
+      label: 'repeat',
+      // 100 bp. CpGs at 12, 24, 36, 48, 60, 90. Non-CpG Cs at 20, 32, 44, 55, 65.
+      seq:
+        'ATGATGATGATGCGGATGATCATGCGGATGATCATGCGGATGATCATGCGGATGACAATGCGGATCATGATGATGATGATGATGATGATGCGGATGATGA',
+      window: { start: 8, len: 60 },
+      meth: [0, 1, 0, 1, 1],
+    },
+  };
+
+  // ── Build a BS-converted read from a reference window ──
+  //
+  // For each position in the window:
+  //   • if this C is the first base of a CpG listed in meth[] with value 1,
+  //     keep it as C (methylated, protected from bisulfite);
+  //   • if this C is the first base of a CpG listed in meth[] with value 0,
+  //     convert to T (unmethylated);
+  //   • any other C (non-CpG) → T (unmethylated in silico).
+  // All A/G/T pass through unchanged.
+  function buildConvertedRead(ref) {
+    const { start, len } = ref.window;
+    const meth = ref.meth;
+    const slice = ref.seq.slice(start, start + len);
+    const out = [];
+    let cpgIdx = 0;
+    for (let i = 0; i < slice.length; i++) {
+      const b = slice[i];
+      if (b === 'C') {
+        const next = slice[i + 1];
+        const isCpG = next === 'G';
+        if (isCpG) {
+          const m = meth[cpgIdx] ?? 0;
+          cpgIdx++;
+          out.push(m ? 'C' : 'T');
+        } else {
+          // Non-CpG C: always unmethylated → T
+          out.push('T');
+        }
+      } else {
+        out.push(b);
+      }
+    }
+    return out.join('');
+  }
+
+  // Locate all CpG dinucleotides (C followed by G) in `seq`; return an array
+  // of the 0-based positions of the C in each CpG.
+  function findCpGs(seq) {
+    const out = [];
+    for (let i = 0; i < seq.length - 1; i++) {
+      if (seq[i] === 'C' && seq[i + 1] === 'G') out.push(i);
+    }
+    return out;
+  }
+
+  // ── Alignment ──────────────────────────────────────────
+  //
+  // Ungapped sliding alignment: slide the read across the reference and, at
+  // each offset, count the number of positions where read[i] !== ref[offset+i].
+  // Return the offset with fewest mismatches (ties broken by leftmost).
+  //
+  // "Three-letter" mode converts both reference and read C→T before scoring.
+  // That collapses unmethylated-C-to-T conversion differences so the read
+  // matches where it came from.
+  function convertCtoT(seq) {
+    return seq.replace(/C/g, 'T');
+  }
+
+  function slidingAlign(ref, read) {
+    const rL = ref.length, qL = read.length;
+    if (qL > rL) return { offset: -1, mismatches: qL };
+    let bestOff = 0;
+    let bestMm = Infinity;
+    for (let off = 0; off + qL <= rL; off++) {
+      let mm = 0;
+      for (let i = 0; i < qL; i++) {
+        if (ref.charCodeAt(off + i) !== read.charCodeAt(i)) {
+          mm++;
+          // Mild early-exit: don't stop, we need the true mm for the chosen
+          // offset; but if mm already exceeds best, we can skip rest.
+          if (mm >= bestMm) break;
+        }
+      }
+      if (mm < bestMm) {
+        bestMm = mm;
+        bestOff = off;
+      }
+    }
+    return { offset: bestOff, mismatches: bestMm };
+  }
+
+  // Given the chosen offset + aligned read, compute the mismatch mask
+  // (one bool per read base) in the *chosen alignment space* (4-letter
+  // or 3-letter). For highlighting in the SVG we always show mismatches
+  // as the algorithm sees them under the current mode.
+  function mismatchMask(ref, read, offset) {
+    const qL = read.length;
+    const mask = new Uint8Array(qL);
+    for (let i = 0; i < qL; i++) {
+      mask[i] = (ref.charCodeAt(offset + i) !== read.charCodeAt(i)) ? 1 : 0;
+    }
+    return mask;
+  }
+
+  // ── Paste validation ───────────────────────────────────
+  function cleanAndValidateRead(raw, maxLen) {
+    const noHdr = raw.split(/\r?\n/).filter(l => !l.startsWith('>')).join('');
+    const cleaned = noHdr.replace(/\s+/g, '').toUpperCase();
+    if (cleaned.length === 0) {
+      return { ok: false, err: 'Paste box is empty.' };
+    }
+    const bad = cleaned.match(/[^ACGTN]/g);
+    if (bad && bad.length) {
+      const uniq = Array.from(new Set(bad)).slice(0, 6).join(', ');
+      return { ok: false, err: `Invalid characters: ${uniq}. Only A, C, G, T, N are allowed.` };
+    }
+    if (cleaned.length < 20) {
+      return { ok: false, err: `Read is ${cleaned.length} bp; need at least 20 bp.` };
+    }
+    if (cleaned.length > maxLen) {
+      return { ok: false, err: `Read is ${cleaned.length} bp but the reference is only ${maxLen} bp — read must not exceed the reference.` };
+    }
+    return { ok: true, seq: cleaned };
+  }
+
+  // ── State ──────────────────────────────────────────────
+  const state = {
+    refKey: 'promoter',
+    readKey: 'builtin',
+    mode: 'naive',        // 'naive' | 'three'
+    mmTol: 3,
+    pastedRead: null,
+    rafId: 0,
+  };
+
+  // ── DOM refs ───────────────────────────────────────────
+  const refPresetEl  = $('ref-preset');
+  const readPresetEl = $('read-preset');
+  const mmInputEl    = $('mm-input');
+  const mmValueEl    = $('mm-value');
+  const modeToggleEl = $('mode-toggle');
+  const pasteWrap    = $('paste-wrap');
+  const pasteInput   = $('paste-input');
+  const pasteBtn     = $('paste-btn');
+  const pasteClr     = $('paste-clear');
+  const pasteErr     = $('paste-error');
+  const svg          = $('align-svg');
+
+  // ── SVG helpers ────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  // ── Rendering ──────────────────────────────────────────
+  function render() {
+    const ref = REFERENCES[state.refKey];
+    const refSeq = ref.seq;
+    const builtinRead = buildConvertedRead(ref);
+    const read = state.readKey === 'paste' && state.pastedRead
+      ? state.pastedRead
+      : builtinRead;
+
+    // Align in whichever space the mode selects.
+    const refAligned  = state.mode === 'three' ? convertCtoT(refSeq) : refSeq;
+    const readAligned = state.mode === 'three' ? convertCtoT(read)   : read;
+    const { offset, mismatches } = slidingAlign(refAligned, readAligned);
+    const mask = mismatchMask(refAligned, readAligned, offset);
+
+    renderAlignment(refSeq, read, offset, mask, findCpGs(refSeq));
+    renderSummary(offset, mismatches, state.mmTol);
+    renderBanner(mismatches, state.mmTol, state.mode);
+    renderMeth(ref, read, offset, mismatches <= state.mmTol);
+  }
+
+  function renderAlignment(refSeq, read, offset, mask, cpgPositions) {
+    clear(svg);
+
+    const N = refSeq.length;
+    const qL = read.length;
+
+    const W = 1000;
+    const PAD_L = 60, PAD_R = 20;
+    const PAD_T = 18;
+    const plotW = W - PAD_L - PAD_R;
+    const charW = plotW / N;
+    const rowH  = 30;
+    const gap   = 42;
+    const labelW = 48;
+
+    const refY  = PAD_T + rowH * 0.75;
+    const readY = refY + gap;
+    const coordY = readY + rowH * 0.9;
+
+    const totalH = coordY + 14;
+    svg.setAttribute('viewBox', `0 0 ${W} ${totalH}`);
+
+    // CpG highlight bands across full reference width
+    for (const cpgC of cpgPositions) {
+      const x = PAD_L + cpgC * charW;
+      const w = charW * 2;
+      svg.appendChild(el('rect', {
+        x: x.toFixed(2),
+        y: (refY - rowH * 0.7).toFixed(2),
+        width: w.toFixed(2),
+        height: (rowH * 0.95).toFixed(2),
+        fill: '#f5c84a',
+        'fill-opacity': 0.22,
+        rx: 2,
+      }));
+    }
+
+    // Row labels
+    svg.appendChild(el('text', {
+      x: 6, y: (refY + 4).toFixed(2),
+      'font-family': 'var(--font-sans)',
+      'font-size': 11,
+      'font-weight': 600,
+      'letter-spacing': '0.08em',
+      fill: 'var(--fg-muted)',
+    }, 'ref'));
+    svg.appendChild(el('text', {
+      x: 6, y: (readY + 4).toFixed(2),
+      'font-family': 'var(--font-sans)',
+      'font-size': 11,
+      'font-weight': 600,
+      'letter-spacing': '0.08em',
+      fill: 'var(--fg-muted)',
+    }, 'read'));
+
+    const fontSize = Math.max(8, Math.min(13, charW * 1.35));
+
+    // Reference characters
+    for (let i = 0; i < N; i++) {
+      const b = refSeq[i];
+      const cx = PAD_L + (i + 0.5) * charW;
+      svg.appendChild(el('text', {
+        x: cx.toFixed(2),
+        y: refY.toFixed(2),
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)',
+        'font-size': fontSize.toFixed(2),
+        'font-weight': 500,
+        fill: BASE_COLOR[b] || BASE_COLOR.N,
+      }, b));
+    }
+
+    // Read, aligned to offset. Mismatch highlights drawn as rounded rects
+    // behind the mismatch letter.
+    if (offset >= 0 && offset + qL <= N) {
+      for (let i = 0; i < qL; i++) {
+        const cx = PAD_L + (offset + i + 0.5) * charW;
+        if (mask[i]) {
+          svg.appendChild(el('rect', {
+            x: (cx - charW * 0.48).toFixed(2),
+            y: (readY - rowH * 0.65).toFixed(2),
+            width: (charW * 0.96).toFixed(2),
+            height: (rowH * 0.9).toFixed(2),
+            fill: 'var(--warning)',
+            'fill-opacity': 0.35,
+            stroke: 'var(--warning)',
+            'stroke-width': 1,
+            rx: 2,
+          }));
+        }
+        const b = read[i];
+        svg.appendChild(el('text', {
+          x: cx.toFixed(2),
+          y: readY.toFixed(2),
+          'text-anchor': 'middle',
+          'font-family': 'var(--font-mono)',
+          'font-size': fontSize.toFixed(2),
+          'font-weight': 500,
+          fill: BASE_COLOR[b] || BASE_COLOR.N,
+        }, b));
+      }
+      // Mark the placement span with a slim underline
+      const xStart = PAD_L + offset * charW;
+      const xEnd   = PAD_L + (offset + qL) * charW;
+      svg.appendChild(el('line', {
+        x1: xStart.toFixed(2),
+        x2: xEnd.toFixed(2),
+        y1: (readY + rowH * 0.35).toFixed(2),
+        y2: (readY + rowH * 0.35).toFixed(2),
+        stroke: 'var(--fg-subtle)',
+        'stroke-width': 1,
+      }));
+    }
+
+    // Coordinate axis: ticks every 10 bp under reference
+    for (let p = 0; p <= N; p += 10) {
+      const x = PAD_L + p * charW;
+      svg.appendChild(el('line', {
+        x1: x.toFixed(2),
+        x2: x.toFixed(2),
+        y1: (refY + rowH * 0.25).toFixed(2),
+        y2: (refY + rowH * 0.35).toFixed(2),
+        stroke: 'var(--border-strong)',
+        'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x: x.toFixed(2),
+        y: (refY + rowH * 0.75).toFixed(2),
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)',
+        'font-size': 9,
+        fill: 'var(--fg-subtle)',
+      }, String(p)));
+    }
+  }
+
+  function renderSummary(offset, mm, tol) {
+    $('sum-mode-val').textContent = state.mode === 'three' ? 'three-letter (C→T)' : 'naive 4-letter';
+    $('sum-pos-val').textContent  = offset >= 0 ? `ref[${offset}]` : '—';
+    $('sum-mm-val').textContent   = isFinite(mm) ? String(mm) : '—';
+
+    const ok = mm <= tol;
+    $('sum-status-val').textContent = ok ? 'succeeds' : 'fails';
+    const statusCell = $('sum-status');
+    statusCell.classList.toggle('ok', ok);
+    statusCell.classList.toggle('fail', !ok);
+    const mmCell = $('sum-mm');
+    mmCell.classList.toggle('ok', ok);
+    mmCell.classList.toggle('fail', !ok);
+  }
+
+  function renderBanner(mm, tol, mode) {
+    const bn = $('banner');
+    const text = $('banner-text');
+    bn.classList.remove('ok', 'fail');
+    if (mode === 'naive' && mm > tol) {
+      bn.classList.add('fail');
+      text.innerHTML =
+        `<b>Naive 4-letter alignment fails</b> (${mm} mismatches > tol ${tol}). ` +
+        `Most of these mismatches are reference-C / read-T columns — the fingerprint of bisulfite conversion. ` +
+        `Switch to three-letter mode to rescue the placement.`;
+    } else if (mode === 'three' && mm <= tol) {
+      bn.classList.add('ok');
+      text.innerHTML =
+        `<b>Three-letter alignment succeeds</b> (${mm} mismatches ≤ tol ${tol}). ` +
+        `Once both sides are C→T-converted the read lands cleanly; we then decode methylation by inspecting the <em>original</em> read base at every reference CpG.`;
+    } else if (mode === 'naive' && mm <= tol) {
+      bn.classList.add('ok');
+      text.innerHTML =
+        `<b>Naive alignment succeeds on this read</b> (${mm} mismatches ≤ tol ${tol}). ` +
+        `That usually only happens when every CpG is methylated <em>and</em> there are few non-CpG Cs in the window — a special case. In general you must use three-letter alignment for BS reads.`;
+    } else {
+      bn.classList.add('fail');
+      text.innerHTML =
+        `<b>Three-letter alignment fails</b> (${mm} mismatches > tol ${tol}). ` +
+        `Either the read doesn't originate from this reference or tolerance is too tight — raise the slider or try a different read.`;
+    }
+  }
+
+  function renderMeth(ref, read, offset, ok) {
+    const tbody = $('meth-tbody');
+    const hint  = $('meth-hint');
+    tbody.innerHTML = '';
+    if (!ok) {
+      hint.textContent = 'Methylation calls appear once alignment succeeds.';
+      hint.style.display = '';
+      return;
+    }
+
+    // Find CpG positions in the *reference* that fall inside the aligned
+    // read window [offset, offset+readLen). At each such ref CpG C-position,
+    // look at the corresponding read base:
+    //   read C → methylated (BS protected the C)
+    //   read T → unmethylated (BS converted C→T)
+    //   read other → ambiguous (shouldn't happen on a clean alignment)
+    const refCpGs = findCpGs(ref.seq);
+    const qL = read.length;
+    const rows = [];
+    let cpgNum = 0;
+    for (const cPos of refCpGs) {
+      if (cPos >= offset && cPos + 1 < offset + qL) {
+        cpgNum++;
+        const readIdx = cPos - offset;
+        const readBase = read[readIdx];
+        const readNext = read[readIdx + 1];
+        // Reference context around the CpG for display (5 bp centred).
+        const ctxStart = Math.max(0, cPos - 2);
+        const ctxEnd   = Math.min(ref.seq.length, cPos + 3);
+        const ctx      = ref.seq.slice(ctxStart, ctxEnd);
+        let callClass, callText;
+        if (readBase === 'C') { callClass = 'meth-call';   callText = 'methylated'; }
+        else if (readBase === 'T') { callClass = 'unmeth-call'; callText = 'unmethylated'; }
+        else { callClass = 'amb-call'; callText = 'ambiguous'; }
+        rows.push({ cpgNum, cPos, ctx, readBase, readNext, callClass, callText });
+      }
+    }
+
+    if (rows.length === 0) {
+      hint.textContent = 'Aligned read window contains no reference CpGs — nothing to call.';
+      hint.style.display = '';
+      return;
+    }
+    hint.style.display = 'none';
+
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      const tdN   = document.createElement('td');
+      const tdPos = document.createElement('td');
+      const tdCtx = document.createElement('td');
+      const tdRd  = document.createElement('td');
+      const tdCall= document.createElement('td');
+      tdN.textContent   = String(r.cpgNum);
+      tdPos.textContent = String(r.cPos);
+      tdCtx.className   = 'mono';
+      tdCtx.textContent = r.ctx + '  (CpG at +' + (r.cPos - Math.max(0, r.cPos - 2)) + ')';
+      tdRd.className    = 'mono';
+      tdRd.textContent  = r.readBase + r.readNext + '  (read)';
+      tdCall.className  = r.callClass;
+      tdCall.textContent = r.callText;
+      tr.appendChild(tdN);
+      tr.appendChild(tdPos);
+      tr.appendChild(tdCtx);
+      tr.appendChild(tdRd);
+      tr.appendChild(tdCall);
+      tbody.appendChild(tr);
+    }
+  }
+
+  // ── Pipeline ──────────────────────────────────────────
+  function schedule() {
+    if (state.rafId) return;
+    state.rafId = requestAnimationFrame(() => {
+      state.rafId = 0;
+      mmValueEl.textContent = String(state.mmTol);
+      render();
+    });
+  }
+
+  function readControls() {
+    state.mmTol = +mmInputEl.value | 0;
+  }
+
+  function selectRef() {
+    state.refKey = refPresetEl.value;
+  }
+
+  function selectRead() {
+    const key = readPresetEl.value;
+    state.readKey = key;
+    if (key === 'paste') {
+      pasteWrap.classList.remove('hidden');
+    } else {
+      pasteWrap.classList.add('hidden');
+      pasteErr.classList.remove('show');
+    }
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    for (const btn of modeToggleEl.querySelectorAll('button')) {
+      const on = btn.getAttribute('data-mode') === mode;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+  }
+
+  // ── Wiring ─────────────────────────────────────────────
+  refPresetEl.addEventListener('change', () => {
+    selectRef();
+    // Any pasted read that's longer than the new reference is no longer
+    // valid; drop it silently and fall back to built-in.
+    if (state.pastedRead && state.pastedRead.length > REFERENCES[state.refKey].seq.length) {
+      state.pastedRead = null;
+      if (state.readKey === 'paste') {
+        readPresetEl.value = 'builtin';
+        selectRead();
+      }
+    }
+    schedule();
+  });
+  readPresetEl.addEventListener('change', () => {
+    selectRead();
+    schedule();
+  });
+  mmInputEl.addEventListener('input', () => {
+    readControls();
+    schedule();
+  });
+  modeToggleEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-mode]');
+    if (!btn) return;
+    setMode(btn.getAttribute('data-mode'));
+    schedule();
+  });
+
+  pasteBtn.addEventListener('click', () => {
+    const refLen = REFERENCES[state.refKey].seq.length;
+    const res = cleanAndValidateRead(pasteInput.value || '', refLen);
+    if (!res.ok) {
+      pasteErr.textContent = res.err;
+      pasteErr.classList.add('show');
+      return;
+    }
+    pasteErr.classList.remove('show');
+    state.pastedRead = res.seq;
+    state.readKey = 'paste';
+    readPresetEl.value = 'paste';
+    schedule();
+  });
+  pasteClr.addEventListener('click', () => {
+    pasteInput.value = '';
+    pasteErr.classList.remove('show');
+  });
+
+  // ── Boot ───────────────────────────────────────────────
+  selectRef();
+  selectRead();
+  readControls();
+  setMode('naive');
+  mmValueEl.textContent = String(state.mmTol);
+  render();
+})();
+</script>
+
+</body>
+</html>

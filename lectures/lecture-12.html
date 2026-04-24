@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 12 — Population Genetics Fundamentals · Bioinformatics for EE</title>
+  <meta name="description" content="Allele frequencies and Hardy-Weinberg as the null model, the Wright-Fisher Markov chain, genetic drift and selection, linkage disequilibrium as genome-scale autocorrelation, Kingman's coalescent, demographic inference with PSMC, ADMIXTURE as mixture-model decomposition, and selection scans (Tajima's D, iHS, XP-EHH) as detection with controlled FAR.">
+
+  <meta property="og:title" content="Lecture 12 — Population Genetics Fundamentals">
+  <meta property="og:description" content="Hardy-Weinberg as null · Wright-Fisher Markov chain · drift + selection · LD as autocorrelation · coalescent as inverse-time process · PSMC, ADMIXTURE, selection scans.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — Allele Frequencies &amp; Hardy-Weinberg</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 From variants to frequencies</a></li>
+          <li><a href="#sec-1-2">1.2 Hardy-Weinberg equilibrium</a></li>
+          <li><a href="#sec-1-3">1.3 Deviations from HWE as signal</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Forces Shaping Variation</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 The Wright-Fisher model</a></li>
+          <li><a href="#sec-2-2">2.2 Genetic drift</a></li>
+          <li><a href="#sec-2-3">2.3 Selection</a></li>
+          <li><a href="#sec-2-4">2.4 Mutation, migration, N<sub>e</sub></a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Linkage Disequilibrium</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Why non-random associations</a></li>
+          <li><a href="#sec-3-2">3.2 LD measures: r² and D'</a></li>
+          <li><a href="#sec-3-3">3.3 LD decay &amp; haplotype blocks</a></li>
+          <li><a href="#sec-3-4">3.4 LD as autocorrelation</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — The Coalescent</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Forward vs backward time</a></li>
+          <li><a href="#sec-4-2">4.2 The standard coalescent</a></li>
+          <li><a href="#sec-4-3">4.3 Trees to summary statistics</a></li>
+          <li><a href="#sec-4-4">4.4 Ancestral recombination graphs</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Inferring Population History</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 PSMC — from a single genome</a></li>
+          <li><a href="#sec-5-2">5.2 SMC++ and Relate</a></li>
+          <li><a href="#sec-5-3">5.3 Admixture inference</a></li>
+          <li><a href="#sec-5-4">5.4 Demographic models in the wild</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Selection Scans</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 Tajima's D and neutrality</a></li>
+          <li><a href="#sec-6-2">6.2 iHS and EHH</a></li>
+          <li><a href="#sec-6-3">6.3 Interpretation &amp; failure modes</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 12</div>
+      <h1 class="lecture-title">Population Genetics Fundamentals</h1>
+      <p class="lecture-subtitle">Allele frequencies and their fates — from Hardy-Weinberg as a null model, through Wright-Fisher as the Markov chain in the middle, to Kingman's coalescent as the same process run backward in time.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — Allele frequencies &amp; Hardy-Weinberg</a></li>
+        <li><a href="#part-2">Part 2 — Forces shaping variation</a></li>
+        <li><a href="#part-3">Part 3 — Linkage disequilibrium</a></li>
+        <li><a href="#part-4">Part 4 — The coalescent</a></li>
+        <li><a href="#part-5">Part 5 — Inferring population history</a></li>
+        <li><a href="#part-6">Part 6 — Selection scans</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Six moves:</em>
+        <span class="lecture-tagline-beat">count alleles</span>,
+        <span class="lecture-tagline-beat">test the null</span>,
+        <span class="lecture-tagline-beat">sample binomially forward</span>,
+        <span class="lecture-tagline-beat">coalesce backward</span>,
+        <span class="lecture-tagline-beat">decompose admixture</span>,
+        <span class="lecture-tagline-beat">detect sweeps with a known FAR</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Define allele frequency and genotype frequency, and derive the Hardy-Weinberg genotype distribution from a single allele frequency under the standard assumptions.</li>
+          <li>State the four forces that can move a population off Hardy-Weinberg equilibrium and give a worked example of each.</li>
+          <li>Describe the Wright-Fisher model as a Markov chain on allele-frequency state, and identify what genetic drift, selection, mutation, and migration each contribute to the transition kernel.</li>
+          <li>Compute $r^2$ and $D'$ linkage-disequilibrium statistics from a pair of SNPs, and explain why LD decays exponentially with genetic distance under recombination.</li>
+          <li>Relate LD structure along the genome to autocorrelation of a 1D stochastic process.</li>
+          <li>Explain the standard coalescent as a backward-in-time stochastic process, derive the expected time to most recent common ancestor (TMRCA) for a sample of $n$ lineages, and state the coalescent's duality with the Wright-Fisher forward model.</li>
+          <li>Interpret a PSMC $N_e(t)$ trajectory and describe the inference logic: coalescent events per unit time map to effective population size at that time.</li>
+          <li>Describe ADMIXTURE-style unsupervised mixture modelling and explain the "K selection" problem as a model-order selection problem.</li>
+          <li>Apply three selection-scan statistics (Tajima's D, iHS, XP-EHH) to a toy dataset and discuss their failure modes.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 25 min</span>
+          Allele Frequencies and Hardy-Weinberg Equilibrium
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 From variants to frequencies</h3>
+
+          <p>Lectures 1–11 treated sequencing data one sample at a time — a FASTQ, a BAM, a VCF, a methylation profile. Population genetics asks a different question: given a collection of genomes from a population, what can we say about the <strong>distribution</strong> of genetic variation across that population?</p>
+
+          <p>The simplest summary is per-variant: at a bi-allelic SNP with alleles $A$ and $a$, count the copies of each allele across all chromosomes in your sample. If you have $N$ diploid individuals, you have $2N$ chromosomes and therefore $2N$ allele counts. The <strong>allele frequency</strong> of $A$ is $p = \#A / 2N$; of $a$ is $q = \#a / 2N = 1 - p$.</p>
+
+          <p>Allele frequencies are the currency of population genetics. Every downstream quantity — genotype frequencies, linkage disequilibrium, expected heterozygosity, effective population size — is built on them.</p>
+
+          <p>Three quick conventions:</p>
+
+          <ul>
+            <li><strong>Minor allele frequency (MAF)</strong>: $\min(p, q)$. Below 1% → "rare variant"; 1–5% → "low-frequency"; &gt;5% → "common variant". A lot of methods treat these regimes differently.</li>
+            <li><strong>Genotype frequencies</strong>: the fraction of individuals with each diploid genotype $AA$, $Aa$, $aa$. Under HWE these are $p^2, 2pq, q^2$ (next subsection), but in general they need not be.</li>
+            <li><strong>Ploidy convention</strong>: for autosomes, humans are diploid. Sex chromosomes and mitochondria break this; PopGen treats them separately.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-12/01-allele-frequency.svg"
+                 alt="A cohort of 50 diploid individuals (100 chromosomes) at a biallelic SNP. Each individual shown as a pair of coloured boxes (two chromosomes). Count below: 65 copies of A (blue), 35 copies of a (red). Allele frequencies p=0.65, q=0.35. Genotype-frequency bar chart on the right showing AA, Aa, aa counts.">
+            <figcaption>Figure 1. Counting alleles in a diploid cohort. The per-chromosome tally gives allele frequencies; the per-individual tally gives genotype frequencies — the two are linked by Hardy-Weinberg when the population is well-mixed.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 Hardy-Weinberg equilibrium</h3>
+
+          <p>The <strong>Hardy-Weinberg principle</strong> (Hardy 1908, Weinberg 1908) states that under a set of idealised conditions, allele frequencies in a population don't change across generations, and genotype frequencies are a deterministic function of allele frequencies:</p>
+
+          <p>$$P(AA) = p^2, \quad P(Aa) = 2pq, \quad P(aa) = q^2$$</p>
+
+          <p>The conditions:</p>
+
+          <ol>
+            <li><strong>Random mating</strong> (no assortative mating by genotype).</li>
+            <li><strong>No selection</strong> (all genotypes have equal fitness).</li>
+            <li><strong>No mutation</strong> (alleles don't switch identity between generations).</li>
+            <li><strong>No migration</strong> (no external alleles entering the population).</li>
+            <li><strong>Infinite population size</strong> (no drift — allele frequencies don't fluctuate stochastically).</li>
+          </ol>
+
+          <p>None of these conditions hold in real populations. So why is HWE the centrepiece of population genetics?</p>
+
+          <p>Because it's the <strong>null model</strong>. The interesting question is always how the data <em>deviates</em> from HWE, and those deviations are the signal. A locus that matches HWE has nothing interesting happening at it. A locus that deviates strongly — excess homozygosity, excess heterozygosity, unexpected genotype clusters — is where the biology is.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-12/02-hardy-weinberg.svg"
+                 alt="Three curves on a shared x-axis of p (allele frequency, 0 to 1), y-axis is genotype frequency. Blue curve p² for AA genotype. Red curve q² = (1−p)² for aa. Green curve 2pq for Aa, peaking at p=0.5 with value 0.5. Shaded regions label each curve. Annotations: p=0.5 heterozygote maximum; p=0 or p=1 fixation.">
+            <figcaption>Figure 2. The Hardy-Weinberg parabolas. Genotype frequencies are a deterministic function of a single allele frequency — the heterozygote class peaks at p=0.5 and vanishes at fixation.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 1 — Hardy-Weinberg Explorer.</strong> Slide the allele frequency $p$ and watch the three genotype frequencies update live; overlay an "observed" dataset and compute a chi-squared test for HWE deviation; see when and why the test rejects.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-12/01-hardy-weinberg.html" loading="lazy" title="Artifact 1 — Hardy-Weinberg Explorer"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">Intuition box</p>
+            <p>Hardy-Weinberg is the "well-shuffled deck" distribution. If you have a population, you pair them off at random, draw alleles independently from each parent, and put the children back in the pool — the genotype frequencies settle at $p^2, 2pq, q^2$ after one generation and stay there. Any process that breaks random pairing (selection, drift, migration, assortative mating) pulls the distribution away from the shuffled deck. HWE is what equilibrium looks like in an idealised population; deviations are what show you the real biology.</p>
+          </aside>
+
+          <aside class="callout callout--note">
+            <p class="callout-label">Historical pointer</p>
+            <p>Hardy and Weinberg derived this result independently in 1908, responding to a practical confusion about Mendelian inheritance. Mendel's 3:1 ratio applies to offspring of a specific cross, not to frequencies across a population — but this was widely misunderstood at the time, with objections that dominant alleles should become more common just because they're dominant. Hardy was a mathematician at Cambridge; Weinberg was a physician in Stuttgart. Both wrote short, direct papers explaining that without external forces, allele frequencies simply stay what they are, and genotype frequencies settle at $(p^2, 2pq, q^2)$ in one generation. The result is the oldest and still most-used population-genetics equation.</p>
+          </aside>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">EE framing — HWE as equilibrium distribution</p>
+            <p>Hardy-Weinberg is the stationary distribution of a Markov chain on diploid genotype states under the idealised assumptions. In signal processing terms, HWE is what a memoryless channel outputs under symmetric input: given allele frequencies $(p, q)$ at generation $t$, the genotype distribution at $t+1$ is deterministic and doesn't depend on the previous history. Deviations from HWE are memory effects — the process has some state that goes beyond the current allele frequency, such as population structure (memory in space), inbreeding (memory in mating structure), or recent selection (memory in fitness history). Testing for HWE is testing whether the allele-frequency summary statistic is sufficient for describing the population.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 Deviations from HWE as signal</h3>
+
+          <p>Five canonical deviations, each diagnostic of a different biological process:</p>
+
+          <ul>
+            <li><strong>Excess homozygosity</strong> — too many $AA$ and $aa$, not enough $Aa$. Suggests <strong>population structure</strong> (two sub-populations with different allele frequencies pooled as if they were one — the Wahlund effect) or <strong>inbreeding</strong> (related individuals mating, offspring inheriting the same allele from both parents).</li>
+            <li><strong>Excess heterozygosity</strong> — too many $Aa$. Suggests <strong>heterozygote advantage / overdominance</strong> (a known example: sickle cell anaemia, where $Aa$ carriers are protected from malaria) or <strong>negative assortative mating</strong>.</li>
+            <li><strong>Selection against a specific genotype</strong> — e.g. excess of $AA$ + $Aa$ with a depletion of $aa$. Suggests <strong>directional selection</strong> against $a$.</li>
+            <li><strong>Allele-frequency changes between generations</strong> — $p$ shifts systematically. Suggests <strong>drift</strong>, <strong>selection</strong>, or <strong>migration</strong>.</li>
+            <li><strong>Genotype patterns correlated with environment</strong> — HWE may hold within each subpopulation but not across pooled data. Suggests <strong>population stratification</strong> (L13 GWAS confounding).</li>
+          </ul>
+
+          <p>Real populations deviate for all these reasons simultaneously. Modern tests (<code>vcftools --hardy</code>, PLINK's <code>--hwe</code>) compute per-SNP HWE p-values across millions of SNPs. Interpretation:</p>
+
+          <ul>
+            <li>Extreme deviation at a single locus: could be selection, or genotyping error (always check).</li>
+            <li>Deviations across many loci in the same direction: structure or admixture.</li>
+            <li>Deviations at lineage-specific loci (MT, Y chromosome): expected; these are haploid.</li>
+          </ul>
+
+          <aside class="callout callout--warning">
+            <p class="callout-label">Warning box</p>
+            <p>HWE assumes none of the four forces (mutation, drift, selection, migration) operate. All four do operate, always, in every population. The question is therefore never "is this population in HWE?" (answer: probably not exactly) but "does this locus or this subpopulation deviate <em>more</em> than expected by sampling noise?" HWE testing is a screen, not a truth claim. Never interpret a single-locus HWE p-value as "this population is in equilibrium"; read it as "is this deviation bigger than sampling noise?"</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 40 min</span>
+          Forces Shaping Variation
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 The Wright-Fisher model</h3>
+
+          <p>The <strong>Wright-Fisher (WF) model</strong> (Fisher 1930, Wright 1931) is the standard idealised model for how allele frequencies evolve generation-to-generation. It makes simplifying assumptions that every more-realistic model generalises from.</p>
+
+          <p>The model:</p>
+
+          <ul>
+            <li>Finite population of $N$ diploid individuals ($2N$ chromosomes).</li>
+            <li>Discrete, non-overlapping generations.</li>
+            <li>Each chromosome in generation $t+1$ is an independent random draw (with replacement) from the $2N$ chromosomes in generation $t$.</li>
+            <li>No selection, no mutation, no migration — just sampling.</li>
+          </ul>
+
+          <p>The allele count in generation $t+1$ is then binomial:</p>
+
+          <p>$$X_{t+1} \sim \text{Binomial}(2N, \, p_t)$$</p>
+
+          <p>where $p_t = X_t / 2N$ is the allele frequency in generation $t$. This defines a <strong>Markov chain</strong> on the state space $\{0, 1, 2, \ldots, 2N\}$ with transition probabilities given by the binomial.</p>
+
+          <p><strong>Two absorbing states</strong>: $X = 0$ (allele $a$ is extinct, all $A$) and $X = 2N$ (allele $A$ is extinct, all $a$). Once you hit either, you stay — "fixation" of one or the other allele. Given enough generations, every finite WF population eventually fixes.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-12/03-wright-fisher.svg"
+                 alt="Three generations stacked vertically. Each generation is a row of 2N=10 chromosome slots. Lines connect each slot in generation t+1 to its parent slot in generation t (randomly chosen). Allele frequency printed above each row: p_0 = 0.5, p_1 = 0.4, p_2 = 0.3 showing stochastic drift in a small finite sample.">
+            <figcaption>Figure 3. The Wright-Fisher generative scheme. Each chromosome in the next generation is an independent random draw with replacement from the current generation — allele frequency drifts with variance $p(1-p)/(2N)$ per step.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">EE framing — Wright-Fisher as Markov chain</p>
+            <p>The WF model is a discrete-time, discrete-state Markov chain whose transition kernel is a binomial. In stochastic-process terms it's a birth-death chain on $\{0, 1, \ldots, 2N\}$ with drift reflecting allele-frequency selection bias and diffusion approximating random sampling. Absorbing boundaries at 0 and $2N$ make it a particular kind of finite-horizon random walk — a gambler's ruin with biased coin depending on $s$ (selection). All of stochastic-process theory applies: stationary distributions, mixing times, expected hitting times to absorbing states. The field's core quantitative predictions — expected heterozygosity decay, expected time to fixation, allele-frequency spectrum — are all derivable from this Markov chain plus its diffusion limit (Kimura 1955, Wright's diffusion equation).</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 Genetic drift</h3>
+
+          <p><strong>Genetic drift</strong> is the change in allele frequency from generation to generation due purely to finite-population sampling. In a population of size $N$, each generation's allele frequency has:</p>
+
+          <ul>
+            <li>Mean: $\mathbb{E}[p_{t+1} \mid p_t] = p_t$ (drift is unbiased — it doesn't push alleles up or down on average).</li>
+            <li>Variance: $\text{Var}(p_{t+1} \mid p_t) = p_t (1 - p_t) / (2N)$ — inversely proportional to population size.</li>
+          </ul>
+
+          <p>Small $N$ → large per-generation fluctuations → fast drift. Large $N$ → small fluctuations → slow drift.</p>
+
+          <p>Several classical results follow:</p>
+
+          <ul>
+            <li><strong>Expected heterozygosity decays</strong> at rate $1 / (2N)$ per generation. Starting from $H_0 = 2pq$, we have $H_t = H_0 (1 - 1/(2N))^t$. Small populations lose heterozygosity fast.</li>
+            <li><strong>Probability of fixation</strong> of a neutral allele equals its current frequency: $P(\text{fix}) = p$. A new mutation that appears once has probability $1/(2N)$ of going to fixation.</li>
+            <li><strong>Expected time to fixation</strong> of an allele that does fix is $\approx 4N$ generations.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-12/04-drift-trajectories.svg"
+                 alt="A plot with generations on x-axis (0 to 500) and allele frequency on y-axis (0 to 1). Several coloured trajectories starting at p_0 = 0.5, each a different random realisation. In a small-N panel (N=50), trajectories wander widely and many hit 0 or 1 (fixation). In a large-N panel (N=5000), trajectories stay clustered near 0.5. Illustrates stochastic drift strength depending on population size.">
+            <figcaption>Figure 4. Drift is population-size dependent. The same initial allele frequency produces wild swings in a small population and near-flat trajectories in a large one — variance scales as $1/(2N)$.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Selection</h3>
+
+          <p><strong>Selection</strong> adds a deterministic bias to the stochastic drift. Different genotypes have different fitness (survival × reproduction probability); higher-fitness genotypes contribute more to the next generation.</p>
+
+          <p>Fitness notation (for a single bi-allelic locus):</p>
+
+          <ul>
+            <li>$w_{AA}, w_{Aa}, w_{aa}$ = fitness of each genotype.</li>
+            <li>Typically parameterised as $w_{AA} = 1, w_{Aa} = 1 - hs, w_{aa} = 1 - s$, where $s$ is the selection coefficient against $a$ and $h$ is the dominance coefficient.</li>
+          </ul>
+
+          <p>The deterministic allele-frequency update:</p>
+
+          <p>$$p_{t+1} = p_t \cdot \frac{p_t w_{AA} + q_t w_{Aa}}{\bar{w}}$$</p>
+
+          <p>where $\bar{w}$ is mean fitness. Adding this to the WF sampling gives a Markov chain with drift ($\mathbb{E}[\Delta p]$ biased toward the higher-fitness allele) plus diffusion (still sampling noise).</p>
+
+          <p><strong>Three regimes depending on $s$ vs $1/(2N)$</strong>:</p>
+
+          <ul>
+            <li><strong>Strong selection</strong> ($|s| \gg 1/(2N)$): selection dominates; allele frequencies move deterministically toward whichever direction fitness prefers.</li>
+            <li><strong>Weak selection</strong> ($|s| \ll 1/(2N)$): drift dominates; the selected allele behaves nearly as if neutral.</li>
+            <li><strong>Moderate selection</strong> ($|s| \sim 1/(2N)$): both forces matter; stochastic dynamics with a bias.</li>
+          </ul>
+
+          <p>The critical insight: whether a locus is "under selection" depends on <strong>both</strong> the strength of selection and the effective population size. A selection coefficient of 0.001 is strongly effective in a population of $N = 10^6$ (product $2Ns = 2000 \gg 1$) but is essentially neutral in $N = 100$ ($2Ns = 0.2$).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-12/05-selection.svg"
+                 alt="Three trajectories on the same p-vs-t plot. s=0 (neutral): zigzag drift. s=0.01 (weak positive selection): noisy upward trend, slowly fixing. s=0.1 (strong positive): quickly fixing. Each shown for a single realisation plus ensemble mean. Annotations: drift dominates, moderate, selection dominates.">
+            <figcaption>Figure 5. Selection vs drift. What matters is the scaled quantity $2Ns$ — in large populations even tiny coefficients fix deterministically; in small populations moderate selection looks almost neutral.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 2 — Wright-Fisher Drift + Selection Simulator.</strong> Slide $N$ and $s$; simulate many WF+selection trajectories; plot allele-frequency paths over generations and a histogram of fixation times. Target aha: the critical scaling is $2Ns$, not $s$ or $N$ separately.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-12/02-wright-fisher.html" loading="lazy" title="Artifact 2 — Wright-Fisher Drift + Selection Simulator"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Mutation, migration, and effective population size</h3>
+
+          <p><strong>Mutation</strong> introduces new alleles. In the infinite-alleles model, each mutation creates a brand-new allele; the mutation rate $\mu$ is typically $10^{-8}$ per base per generation in humans. Genome-wide, roughly 70 new mutations per child. Most are lost within a few generations by drift; rare survivors contribute to population-level variation.</p>
+
+          <p><strong>Migration</strong> moves alleles between populations. Parameterised by $m$, the fraction of the receiving population replaced by migrants per generation. A little migration ($m \sim 0.01$) homogenises allele frequencies between populations surprisingly fast on evolutionary timescales. Island models, stepping-stone models, and isolation-by-distance models formalise different migration structures.</p>
+
+          <p><strong>Effective population size ($N_e$)</strong> — the holy grail of quantitative population genetics. The actual census size of a population is usually much larger than the size of an idealised WF population that would produce the same level of genetic variation. $N_e$ captures this: it's the size of an idealised population with the same drift behaviour as the real one.</p>
+
+          <p>Why $N_e \ll N$:</p>
+
+          <ul>
+            <li>Unequal reproductive success (a few individuals have many offspring).</li>
+            <li>Skewed sex ratio.</li>
+            <li>Fluctuating population size (bottlenecks reduce $N_e$ dramatically).</li>
+            <li>Overlapping generations.</li>
+            <li>Age-structured populations.</li>
+          </ul>
+
+          <p>For humans: $N \approx 8 \times 10^9$ today, but $N_e \approx 10^4$ from most genetic evidence. The 10,000 effective size reflects population history — bottlenecks during our out-of-Africa expansion, founder events in most non-African populations, population sizes in our hunter-gatherer past — not our current census count.</p>
+
+          <p>$N_e$ is <strong>the</strong> relevant parameter for drift, selection thresholds, and most population-genetic predictions. Never confuse it with the current census population.</p>
+
+          <aside class="callout callout--warning">
+            <p class="callout-label">Warning box</p>
+            <p>Effective population size is almost always <strong>much smaller</strong> than census population size. Humans have $N \approx 8$ billion people alive today but $N_e \approx 10{,}000$ in most genetic analyses — because $N_e$ reflects the long-term average including ancient bottlenecks, not the current count. When a paper says "a population of 10,000," check whether it means census, current effective, or historical effective — these are three different numbers.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 35 min</span>
+          Linkage Disequilibrium
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 Why non-random allele associations</h3>
+
+          <p>If alleles at two loci were completely independent (random across chromosomes), the probability of seeing a particular haplotype — say, allele $A$ at locus 1 and allele $B$ at locus 2 — would just be the product of their individual frequencies: $P(AB) = p_A \cdot p_B$.</p>
+
+          <p>In real populations, this independence usually fails. If alleles $A$ and $B$ arose on the same ancestral chromosome and haven't been separated by recombination, they co-occur more often than chance — they are in <strong>linkage disequilibrium (LD)</strong>.</p>
+
+          <p>Three generative processes create LD:</p>
+
+          <ul>
+            <li><strong>Historical founding</strong>. When a new allele arises by mutation, it is on one specific chromosome. Initially, it is perfectly correlated with all nearby alleles on that same chromosome (LD = 1 with everything flanking).</li>
+            <li><strong>Population admixture</strong>. When two populations with different allele frequencies mix, chromosomes carry population-specific haplotypes; the admixed population has LD between any pair of loci with differing frequencies.</li>
+            <li><strong>Selection</strong>. An allele under positive selection sweeps up in frequency; its flanking variants sweep along, producing a "selection footprint" of elevated LD around the selected locus (L12 §6).</li>
+          </ul>
+
+          <p>Three destructive processes break LD:</p>
+
+          <ul>
+            <li><strong>Recombination</strong>. Each generation, chromosomes swap segments during meiosis. Over enough generations, any pair of loci on the same chromosome is eventually broken apart.</li>
+            <li><strong>Drift</strong>. Stochastic allele-frequency changes weaken the deterministic co-occurrence pattern.</li>
+            <li><strong>Time</strong>. LD decays exponentially with the product of recombination rate and generation count.</li>
+          </ul>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 LD measures: $r^2$ and $D'$</h3>
+
+          <p>Two dominant LD statistics:</p>
+
+          <p><strong>D (raw coefficient)</strong>. Define $D = P(AB) - P(A) P(B)$ — the deviation of observed haplotype frequency from the product of allele frequencies. Positive $D$ = over-represented combination; negative = under-represented; zero = independence. $D$ depends on the allele frequencies themselves, which makes it hard to compare across loci.</p>
+
+          <p><strong>$r^2$ (squared correlation)</strong>. Normalise $D$ to produce something comparable:</p>
+
+          <p>$$r^2 = \frac{D^2}{p_A p_a \cdot p_B p_b}$$</p>
+
+          <p>This is the squared correlation between the allele indicators at the two loci. $r^2 \in [0, 1]$. $r^2 = 0$: independence. $r^2 = 1$: perfect correlation. This is the standard statistic in GWAS (L13) because power to detect a variant via a nearby tag depends on $r^2$.</p>
+
+          <p><strong>$D'$ (normalised D)</strong>. Another normalisation:</p>
+
+          <p>$$D' = D / D_{\max}$$</p>
+
+          <p>where $D_{\max}$ is the maximum achievable value of $D$ given the allele frequencies. $D' \in [-1, +1]$. Captures "structural" LD (which haplotypes exist) better than $r^2$ (which also requires similar frequencies). Often used together with $r^2$ to interpret LD patterns.</p>
+
+          <p>Practical computation from VCF data: <code>plink --r2</code> or <code>plink --ld</code> computes these statistics genome-wide.</p>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 LD decay and haplotype blocks</h3>
+
+          <p>Under no selection and random mating, <strong>LD decays exponentially with genetic distance</strong>:</p>
+
+          <p>$$r^2(c, t) \approx r^2(0) \cdot (1 - c)^{2t} \approx r^2(0) \cdot e^{-2ct}$$</p>
+
+          <p>for small $c$, where $c$ is the per-generation recombination rate between the two loci and $t$ is time since LD was established. One centimorgan (cM) ≈ 1% recombination per generation ≈ about 1 Mb in humans.</p>
+
+          <p>At the human genome scale:</p>
+
+          <ul>
+            <li>Within 10 kb: $r^2$ typically 0.5–0.9. Strong LD.</li>
+            <li>100 kb: $r^2$ typically 0.1–0.3.</li>
+            <li>1 Mb: $r^2$ typically below 0.05. Near-independence.</li>
+          </ul>
+
+          <p>The genome-wide pattern: <strong>LD blocks</strong>. Regions where multiple loci are in high LD with each other, separated by narrow recombination hotspots where LD drops sharply. The 2002 International HapMap Project and its successors (1000 Genomes, HGDP, HPRC) empirically mapped these blocks; they are the basis for GWAS tag-SNP designs (L13).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-12/06-ld-matrix.svg"
+                 alt="A 100-SNP × 100-SNP LD heatmap showing r² for every pair. Triangular block-diagonal structure: blocks of red (high r²) along the diagonal, with sharp white boundaries at recombination hotspots. Below the matrix, a genomic-position track showing SNP locations.">
+            <figcaption>Figure 6. A genomic LD matrix. The block-diagonal structure reveals LD blocks punctuated by recombination hotspots — the empirical basis for GWAS tag-SNP design.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-12/07-ld-decay.svg"
+                 alt="r² (y-axis) vs genomic distance in kb (x-axis, log scale). Curve: r² = 1 at distance 0, decaying to ~0.05 at 1 Mb. Shaded region showing typical human-population values. Annotation: half-max at ~30 kb for a typical human cohort.">
+            <figcaption>Figure 7. LD decay with physical distance. Exponential in recombination rate × time — this is why tag-SNP panels can stand in for whole-genome genotyping at sub-LD-block resolution.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 3 — LD Decay Explorer.</strong> Simulate a chromosome with a known recombination rate, plot $r^2$ vs distance, and adjust recombination rate, population size, and time since founding. Target aha: the decay constant is governed by $2ct$ (recombination × time), explicitly.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-12/03-ld-decay.html" loading="lazy" title="Artifact 3 — LD Decay Explorer"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 LD as autocorrelation</h3>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">EE framing — LD as autocorrelation along the genome</p>
+            <p>Linkage disequilibrium is the autocorrelation structure of a 1D stochastic process along the chromosome. Position each SNP on the genomic coordinate axis; allele state at each SNP is a $\{0, 1\}$ random variable. LD between two SNPs is the covariance of these random variables; $r^2$ is the squared Pearson correlation. Autocorrelation of a stochastic process is the covariance of the process at two points; for a stationary process it depends only on the lag. Genomic LD is not translation-invariant (recombination rate varies along the genome), so it's an autocorrelation of a <em>non-stationary</em> process. But every autocorrelation-based technique from signal processing transfers: spectral estimation (Fourier view → rate of change of LD with position = recombination hotspot detection), wavelet analysis, windowed estimators, matched filtering for selection signatures. GWAS's tag-SNP approach is a <em>downsampling</em> argument — if you sample at rate matched to the autocorrelation scale, the information in the missing SNPs is recoverable from their neighbours.</p>
+          </aside>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">Intuition box</p>
+            <p>LD is genome-scale memory. A variant has a history; it arose on a specific chromosome, co-travelled with its neighbours, got shuffled by recombination across generations, and ended up in its current position. The LD around it is the surviving fingerprint of that history. The stronger the LD, the more recent the history (or the lower the recombination). Inferring evolutionary events — selection sweeps, population founding, admixture — from LD patterns is the signal-processing problem of reading genome memory.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 45 min</span>
+          The Coalescent
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 Forward vs backward time</h3>
+
+          <p>Wright-Fisher is a <strong>forward-time</strong> model: we start at some generation, apply the sampling rule, and track allele frequencies forward through time. This is natural when you want to simulate a population's evolution.</p>
+
+          <p>But the data we actually observe is <strong>today's population</strong> — a sample of $n$ present-day chromosomes. Running the model forward from some historical starting point is wasteful: most of the simulated lineages don't contribute to the sampled chromosomes anyway. We're interested in the ancestry of the sample, not the whole population history.</p>
+
+          <p>The <strong>coalescent</strong> (Kingman 1982) runs the model <em>backward in time</em>. It tracks only the lineages that ancestors the sample, working backward until they all merge into a single ancestor. This inverts the WF model and produces dramatic simplifications.</p>
+
+          <p><strong>Why inverse time is easier</strong>: going forward, you have to simulate all $2N$ chromosomes in each generation, the vast majority of which leave no present-day descendants. Going backward, you only need to simulate the $n$ (and shrinking) lineages that actually ancestor the sample. For $n \ll N$, this is vastly cheaper.</p>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 The standard coalescent</h3>
+
+          <p>The standard coalescent (Kingman's coalescent, for a single randomly-mating population) works as follows:</p>
+
+          <ol>
+            <li>Start with $n$ present-day sample lineages.</li>
+            <li>Go backward in time. At each step, two lineages (randomly chosen) <strong>coalesce</strong> — they find their most-recent common ancestor (MRCA). The $n$-lineage state becomes an $(n-1)$-lineage state.</li>
+            <li>Continue until only one lineage remains. That's the MRCA of the entire sample.</li>
+          </ol>
+
+          <p><strong>The key quantitative result</strong>: under Wright-Fisher with population size $2N$, the time (in generations) for any two randomly-chosen lineages among $k$ existing lineages to coalesce is exponentially distributed with rate $\binom{k}{2} / (2N)$:</p>
+
+          <p>$$T_k \sim \text{Exp}\left( \binom{k}{2} / (2N) \right)$$</p>
+
+          <p>Expected waiting times:</p>
+
+          <ul>
+            <li>From $n$ lineages to $n-1$: $\approx 2N / \binom{n}{2}$ generations.</li>
+            <li>From $n$ lineages all the way to 1: $\approx 2N \sum_{k=2}^n 2 / (k(k-1)) = 4N(1 - 1/n)$ generations.</li>
+            <li>Time to MRCA of the entire sample $\approx 4N$ generations for large $n$.</li>
+          </ul>
+
+          <p>Remarkable consequence: the time to MRCA depends very weakly on sample size. Going from $n = 10$ to $n = 1000$ doesn't add much time — because the last two lineages take as long to coalesce as the first 998.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-12/08-coalescent-tree.svg"
+                 alt="An n=8 sample tree drawn with present at the bottom, past at the top. Coalescence events shown as merges. Branch lengths (vertical) proportional to time between coalescences. Annotations: waiting times T_8, T_7, ..., T_2 labelled per interval. MRCA at the top. Note the pattern: short waits when many lineages remain, long wait at the last merge.">
+            <figcaption>Figure 8. A coalescent tree for $n=8$. Waiting times shrink as lineages merge — the last pairwise coalescence dominates total tree depth, which is why TMRCA plateaus near $4N_e$ regardless of sample size.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 From coalescent trees to summary statistics</h3>
+
+          <p>Given a coalescent tree and mutation rate $\mu$, we can predict everything about observed genetic variation:</p>
+
+          <ul>
+            <li><strong>Number of segregating sites</strong> ($S$): the number of polymorphic sites in the sample. Expected value $\mathbb{E}[S] = \theta \sum_{k=1}^{n-1} 1/k$, where $\theta = 4N_e \mu$ is the population-scaled mutation rate.</li>
+            <li><strong>Expected pairwise nucleotide differences</strong> ($\pi$): average number of differences between two randomly-chosen chromosomes. $\mathbb{E}[\pi] = \theta$.</li>
+            <li><strong>Site-frequency spectrum (SFS)</strong>: histogram of allele frequencies in the sample. Under neutrality, follows a specific shape (Watterson 1975).</li>
+          </ul>
+
+          <p>These are <strong>Tajima's relations</strong> (Tajima 1983, 1989) — they give rise to <strong>Tajima's D</strong>, one of the cornerstone tests for departures from neutrality (covered in Part 6).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-12/09-coalescent-wf-duality.svg"
+                 alt="Side-by-side panels. Left: forward WF — one specific Wright-Fisher realisation running forward for 100 generations, N=20 chromosomes per generation, one sample of n=5 at the present highlighted. Right: backward coalescent — the same 5 sampled chromosomes traced backward through the same realisation, showing the coalescent tree that results. Annotation: the coalescent is a view of the same process — only the lineages reaching the present are relevant.">
+            <figcaption>Figure 9. WF forward vs coalescent backward. Both views describe the same underlying stochastic process; the coalescent simulates only the sub-pedigree that actually reaches the present.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Ancestral recombination graphs (ARGs)</h3>
+
+          <p>The standard coalescent assumes all sites along the chromosome share a single genealogy. Recombination breaks this: different parts of the chromosome have different genealogies, because crossovers during meiosis split lineages.</p>
+
+          <p>The generalisation is an <strong>ancestral recombination graph (ARG)</strong> — a coalescent-tree structure where each genomic position has its own tree, and the trees change (smoothly, mostly) as you move along the chromosome. At a recombination breakpoint, the tree structure shifts.</p>
+
+          <p>ARGs are computationally demanding. The standard tools:</p>
+
+          <ul>
+            <li><strong>ms</strong> (Hudson 1983) and <strong>scrm</strong> (Staab et al. 2014): classical coalescent simulators, efficient for small samples and moderate recombination.</li>
+            <li><strong>msprime</strong> / <strong>tskit</strong> (Kelleher et al. 2016, 2022): modern, scalable. Represents ARGs as tree sequences that share ancestry between adjacent trees efficiently. Handles millions of samples.</li>
+            <li><strong>SLiM</strong> (Haller &amp; Messer 2019): forward-time simulator with coalescent-compatible output for complex demographic / selection scenarios.</li>
+          </ul>
+
+          <p>Tree sequences (msprime's data structure) are the current state-of-the-art: a compact encoding of the ARG that enables statistical computations (LD, allele frequencies, summary statistics) at genome scale.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 4 — Coalescent Tree Simulator.</strong> Simulate the standard coalescent for $n = 2$ to $30$ lineages, watch lineages coalesce backward in time, and adjust $N_e$ to see total tree length scale. Target aha: TMRCA plateaus at roughly $4N_e$ regardless of $n$, because the last coalescence dominates the total time.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-12/04-coalescent-tree.html" loading="lazy" title="Artifact 4 — Coalescent Tree Simulator"></iframe>
+          </figure>
+
+          <aside class="callout callout--note">
+            <p class="callout-label">Historical pointer</p>
+            <p>John Kingman introduced the coalescent in a short 1982 paper in <em>Stochastic Processes and their Applications</em>. He wasn't a biologist; he was a mathematician interested in the Wright-Fisher model as a random process. The insight — that the backward-time process is dramatically simpler than the forward one — transformed theoretical population genetics in the 1980s–1990s. Coalescent theory is now the standard framework for demographic inference and for the entire class of tools covered in Part 5 (PSMC, Relate, tsinfer). Fifteen years of follow-up work generalised Kingman's single-population coalescent to structured populations, recombination, selection, and more.</p>
+          </aside>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">Intuition box</p>
+            <p>The coalescent is like running a movie of the population backward. At the present, you have your sample of $n$ chromosomes. Back one generation, some pairs happen to share parents — their lineages merge. Back a few more generations, more merges. Keep rewinding, and eventually all lineages have merged into one. The tree of those merges is the coalescent tree; the merge times are the coalescent waiting times. This is conceptually cleaner than running forward from some ancient time, because it only simulates the lineages that matter for your present-day sample.</p>
+          </aside>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">EE framing — coalescent as inverse-time stochastic process</p>
+            <p>The coalescent is a backward-in-time, continuous-time Markov chain on the number of active lineages, with exponential waiting-time transitions from $k$ lineages to $k-1$ at rate $\binom{k}{2}/(2N)$. In signal processing this is an inverse-time process — the analog of running a linear time-invariant system "in reverse" to recover driving signals from outputs, or Kalman-smoothing a state trajectory backward from present to past. The duality between Wright-Fisher (forward) and coalescent (backward) is a specific instance of a deep principle: given a Markov forward process, the conditional distribution of the past given the present is another Markov process. Population geneticists discovered this duality independently and gave it their own name.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 35 min</span>
+          Inferring Population History
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 PSMC — from a single genome</h3>
+
+          <p><strong>PSMC</strong> (Pairwise Sequentially Markovian Coalescent, Li &amp; Durbin 2011) infers the effective population size $N_e(t)$ as a function of historical time $t$, using <strong>a single diploid genome</strong> as input. This was genuinely surprising when published — you would think you needed many samples to infer population history.</p>
+
+          <p>The trick: within a single diploid genome, you have two chromosome copies (maternal and paternal). The coalescent time for the two alleles at any given locus gives you information about $N_e$ at that specific point in history. Short coalescent times (the two alleles are similar) → recent MRCA → small $N_e$ at that time. Long coalescent times (alleles are very different) → ancient MRCA → larger $N_e$.</p>
+
+          <p>The algorithm (in rough outline):</p>
+
+          <ol>
+            <li>Split the diploid genome into windows.</li>
+            <li>Model coalescent time at each window as a hidden state in an HMM.</li>
+            <li>The HMM uses the sequentially-Markovian-coalescent (SMC) as the transition probability — adjacent windows have correlated coalescent times because of recombination structure.</li>
+            <li>Emission probability: observed heterozygosity at each window, given the window's coalescent time.</li>
+            <li>Fit $N_e(t)$ for a discrete time-mesh via Baum-Welch / EM.</li>
+          </ol>
+
+          <p>Output: a step function $N_e(t)$ showing inferred effective population size going back ~1 million years.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-12/10-psmc-ne.svg"
+                 alt="A log-log plot. X-axis: years before present (10^3 to 10^7). Y-axis: effective population size (10^3 to 10^6). Three population curves: African, European, Asian. Clear features visible: ancient bottleneck around 100 kya (out-of-Africa), European/Asian curves dip around 50 kya, African maintains higher N_e throughout. Annotations: out-of-Africa bottleneck, recent expansion.">
+            <figcaption>Figure 10. PSMC $N_e(t)$ across continental populations. A single diploid genome recovers a million-year demographic trajectory — the out-of-Africa bottleneck appears as a distinct dip in non-African curves.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 5 — PSMC Demographic Reconstructor.</strong> Simulate a single diploid genome under a user-specified demographic history ($N_e$ as a step function of time), run a simplified PSMC-like inference, and compare the recovered $N_e(t)$ to the true $N_e(t)$. Target aha: PSMC can reconstruct ancient bottlenecks from a single diploid genome — but has limited resolution in the most recent past and very ancient past.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-12/05-psmc.html" loading="lazy" title="Artifact 5 — PSMC Demographic Reconstructor"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 SMC++ and Relate</h3>
+
+          <p>PSMC uses only a single diploid. <strong>SMC++</strong> (Terhorst, Kamm, &amp; Song 2017) generalises to multiple genomes. The trick is to combine:</p>
+
+          <ul>
+            <li>The diploid coalescent (PSMC-style) within an individual.</li>
+            <li>The site-frequency spectrum (SFS) across individuals, which carries complementary information about recent population size changes.</li>
+          </ul>
+
+          <p>Advantage over PSMC: much better resolution in the recent past (last 50 kya), where PSMC has little information because the two diploid alleles haven't had time to differ much.</p>
+
+          <p><strong>Relate</strong> (Speidel et al. 2019) takes a different approach: it estimates the actual ARG (ancestral recombination graph) for the sample, then computes allele-age and branch-length distributions to infer demographic history. More computationally expensive than SMC++ but richer output — you get a genome-wide genealogy, not just a population-size trajectory.</p>
+
+          <p><strong>tsinfer + tsdate</strong> (Kelleher et al. 2019, Wohns et al. 2022) scales the Relate approach to thousands of samples. The output is a tree sequence of the inferred ARG.</p>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Admixture inference</h3>
+
+          <p><strong>Admixture</strong> is the genetic consequence of historical mixing between previously-separated populations. Modern humans are all admixed to some degree — out-of-Africa populations admixed with Neanderthals and Denisovans; recent centuries mixed populations across continents.</p>
+
+          <p>The canonical unsupervised model: each genome is a mixture of $K$ ancestral "components," each component having its own allele frequencies. The observed genotypes are sampled from this mixture.</p>
+
+          <ul>
+            <li><strong>STRUCTURE</strong> (Pritchard, Stephens, &amp; Donnelly 2000). The first Bayesian admixture method. MCMC inference over allele frequencies + individual ancestry proportions. Slow but gold standard.</li>
+            <li><strong>ADMIXTURE</strong> (Alexander, Novembre, &amp; Lange 2009). Maximum-likelihood reformulation, 10–100× faster. The standard choice for modern analyses.</li>
+            <li><strong>fastSTRUCTURE</strong> (Raj et al. 2014). Variational approximation; similar speed to ADMIXTURE.</li>
+          </ul>
+
+          <p>Each method fits $K$ (the number of ancestral populations) as a user-specified hyperparameter. The output is a per-individual ancestry-component vector, typically visualised as a stacked bar chart.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-12/11-admixture.svg"
+                 alt="A bar chart where each column is one individual and each bar is stacked with K=4 ancestry components (each a different colour). Individuals sorted by continental origin. Clear structure: African individuals mostly component 1, European mostly 2, East Asian mostly 3, admixed individuals showing mixtures. Annotation: K=4 ancestry components fit to 1000 Genomes subset.">
+            <figcaption>Figure 11. ADMIXTURE stacked-bar output. Each column is one individual; colours are the $K$ inferred ancestry components — the plot is a direct visualisation of the mixture coefficients fitted per genome.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 6 — ADMIXTURE Component Explorer.</strong> Simulate a multi-population genome cohort (2, 3, or 4 true source populations), run an ADMIXTURE-style mixture fit for user-specified $K$, and compare recovered ancestry components to ground truth. Target aha: $K$ selection is arbitrary — picking $K = 5$ on data with 3 true populations just splits one cluster in half.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-12/06-admixture.html" loading="lazy" title="Artifact 6 — ADMIXTURE Component Explorer"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">EE framing — admixture inference as mixture-model decomposition</p>
+            <p>Admixture analysis is exactly unsupervised mixture-model decomposition — the genomics instance of Gaussian mixture models in ML, spectral mixture analysis in remote sensing, or independent-component-analysis variants in signal processing. Each observed sample (genome) is a mixture of $K$ latent sources (ancestral populations); the task is to recover both the source "spectra" (allele frequencies per population) and the per-sample mixture coefficients (ancestry proportions). Standard ML machinery applies: EM for point estimates, variational inference for posteriors, BIC/AIC for model-order selection. Admixture in population genetics has the same mathematical structure as unmixing a multispectral image.</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Demographic models in the wild</h3>
+
+          <p>Real demographic inference combines multiple signals:</p>
+
+          <ul>
+            <li><strong>Divergence times</strong> between populations (when did East Asians and Europeans diverge? ~25–40 kya from most estimates).</li>
+            <li><strong>Effective population sizes</strong> over time (PSMC / SMC++).</li>
+            <li><strong>Admixture events and dates</strong> (when did Neanderthal introgression happen? ~55 kya).</li>
+            <li><strong>Migration rates</strong> (how much gene flow between populations?).</li>
+          </ul>
+
+          <p>Tools that combine these:</p>
+
+          <ul>
+            <li><strong>δaδi</strong> (Gutenkunst et al. 2009). Fits demographic models to the joint site-frequency spectrum across populations.</li>
+            <li><strong>momi2</strong> (Kamm et al. 2020). Fast demographic inference from summary statistics.</li>
+            <li><strong>Relate + tsdate</strong>: infer ARG + date it → read demographic history off the genealogy directly.</li>
+          </ul>
+
+          <p>The output is a <strong>demographic model</strong>: a parameterised history (population sizes, split times, migration rates) that best explains the observed data. Real human demographic models now have 10–20 parameters; fitting them is an active research area.</p>
+
+          <aside class="callout callout--discussion">
+            <p class="callout-label">Discussion prompt</p>
+            <p>You run ADMIXTURE at $K=2$ through $K=10$ on a dataset. The likelihood keeps increasing with $K$, cross-validation error has an unclear minimum. How do you pick $K$ for reporting? (Options: use the $K$ that minimises cross-validation error; pick based on biological interpretability; report multiple $K$s; acknowledge that $K$ is a hyperparameter, not a biological truth. No single right answer — ADMIXTURE's $K$ is a statistical convenience, not a claim about "the true number of ancestral populations".)</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 20 min</span>
+          Selection Scans
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 Tajima's D and neutrality tests</h3>
+
+          <p><strong>Tajima's D</strong> (Tajima 1989) is the classical test for departures from neutrality:</p>
+
+          <p>$$D = \frac{\pi - S / a_n}{\sqrt{\text{Var}(\pi - S/a_n)}}$$</p>
+
+          <p>where $\pi$ is expected pairwise differences, $S$ is the number of segregating sites, and $a_n = \sum_{k=1}^{n-1} 1/k$. Under neutrality, $\pi$ and $S/a_n$ both estimate $\theta = 4N_e\mu$, so $D \approx 0$.</p>
+
+          <p><strong>Deviations</strong>:</p>
+
+          <ul>
+            <li><strong>D &gt; 0</strong>: excess of intermediate-frequency variants vs expected. Suggests <strong>balancing selection</strong> (stabilising multiple alleles at moderate frequency) or population structure.</li>
+            <li><strong>D &lt; 0</strong>: excess of rare variants. Suggests <strong>positive selection</strong> (sweep eliminates surrounding variation, then new mutations accumulate as rare variants) or <strong>population expansion</strong> (recent growth introduces many new mutations at low frequency).</li>
+          </ul>
+
+          <p>Tajima's D is computed in sliding windows along the genome; regions with extreme values are candidates for selection.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-12/12-selection-scan.svg"
+                 alt="Manhattan plot. X-axis: genomic position across 22 chromosomes. Y-axis: −log10(p-value) for a selection statistic (iHS). Each dot is one SNP or window. Most dots at low −log10(p). A few tall peaks clearly visible; annotations point to known selection-targeted loci — LCT (lactase persistence), SLC24A5 (skin pigmentation), ABCC11 (earwax type), EDAR (East Asian-specific hair thickness).">
+            <figcaption>Figure 12. A genome-wide selection-scan Manhattan plot. Even well-known sweep targets appear as modest peaks — robust detection requires a properly calibrated neutral-demography null.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 iHS and EHH — Extended Haplotype Homozygosity</h3>
+
+          <p><strong>iHS</strong> (integrated Haplotype Score, Voight et al. 2006) scans for recent, incomplete positive-selection sweeps. A sweep hasn't finished yet — the favoured allele is at intermediate frequency, but it's still carrying its surrounding haplotype. The signal: unusually long haplotypes around the favoured allele.</p>
+
+          <p>iHS is computed per SNP:</p>
+
+          <ol>
+            <li>At each SNP with frequency $p > 0.05$ and $< 0.95$, compute the <strong>extended haplotype homozygosity (EHH)</strong> for each allele — how fast does haplotype identity decay moving outward from the SNP?</li>
+            <li>If the derived allele has unusually long haplotype homozygosity compared to the ancestral, iHS is extreme.</li>
+            <li>iHS is standardised by allele frequency to make values comparable across SNPs.</li>
+          </ol>
+
+          <p><strong>XP-EHH</strong> (Cross-Population EHH, Sabeti et al. 2007) compares EHH at the same SNP across two populations. Extreme values suggest selection in one population but not the other — common for population-specific adaptations (skin pigmentation, lactase persistence, high-altitude adaptation).</p>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 Interpretation and failure modes</h3>
+
+          <p>Selection scans produce long lists of candidate loci. Most of them are wrong. Key failure modes:</p>
+
+          <ul>
+            <li><strong>Population-structure confounding</strong>. If subpopulations have different allele frequencies, pooled scans can flag loci that are just structure, not selection.</li>
+            <li><strong>Demographic events mimic selection</strong>. Bottlenecks and expansions reshape the SFS and haplotype structure in ways that resemble selection signatures.</li>
+            <li><strong>Background selection</strong> (removal of linked deleterious variants) reduces diversity genome-wide in gene-rich regions, mimicking positive-selection signal.</li>
+            <li><strong>Multiple testing</strong>. Millions of SNPs tested; the tail of the null distribution contains many false positives at genome-wide significance.</li>
+          </ul>
+
+          <p>Good practice:</p>
+
+          <ul>
+            <li>Use neutral-demography null distributions derived from simulations (msprime, SLiM) rather than assuming Gaussian p-values.</li>
+            <li>Combine multiple scan statistics (Tajima's D + iHS + XP-EHH) and require agreement.</li>
+            <li>Validate top hits experimentally or through orthogonal evidence (e.g. GWAS, functional studies).</li>
+          </ul>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 7 — Selection Scan (iHS and Tajima's D).</strong> Simulate a neutral region and a region under recent positive selection (using a simplified coalescent), compute Tajima's D and iHS in sliding windows, and plot the genome-wide scan with the planted selection signal marked. Target aha: even strong selection shows up only as a modest peak — finding it requires proper null calibration.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-12/07-selection-scan.html" loading="lazy" title="Artifact 7 — Selection Scan (iHS and Tajima's D)"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">EE framing — selection scans as detection with controlled FAR</p>
+            <p>A selection scan is a detection problem across millions of genomic windows. The null hypothesis is neutrality (no selection); the test statistic is Tajima's D, iHS, XP-EHH, etc. The analysis is multi-hypothesis detection with controlled false-alarm rate — exactly the setting from radar (Lecture 9) and differential expression (Lectures 6, 9). The specific wrinkles: the null distribution is not analytical (no closed-form "neutral SFS"); it's generated by coalescent simulations under a best-fit demographic model. BH-like FDR control applies but is sensitive to the simulated null accurately reflecting demographic reality. This is the same noise-floor-characterisation problem as in radar: the detector works as well as the estimate of ambient clutter.</p>
+          </aside>
+
+          <aside class="callout callout--warning">
+            <p class="callout-label">Warning box</p>
+            <p>Selection scans are the genomics method most prone to <strong>overinterpretation</strong>. A locus flagged by iHS at the 99.9th percentile is a <strong>candidate</strong> for selection; it may also be a demographic artefact, a structural variant mis-mapped, or chance. Published "selection sweeps" have been retracted when more-careful demographic modelling explained them without invoking selection. Always triangulate: multiple scan statistics, replication across populations, functional evidence, consistent evolutionary story.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup" class="lecture-wrapup">
+        <h2>
+          <span class="part-kicker">Wrap-up · 10 min</span>
+          Takeaways, homework, and next lecture
+        </h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Allele frequencies are the basic currency of population genetics.</strong> Hardy-Weinberg is the null distribution; deviations are the biological signal. HWE assumes none of drift, selection, mutation, migration — all of which operate, so HWE is never exactly true.</li>
+          <li><strong>The Wright-Fisher model is the simplest generative model.</strong> A Markov chain on allele counts; binomial transition; two absorbing states at fixation. Drift + selection + mutation + migration all modify the WF kernel.</li>
+          <li><strong>Effective population size $N_e$ is what matters for drift and selection thresholds</strong> — not census $N$. Humans: $N \approx 8$ billion, $N_e \approx 10{,}000$.</li>
+          <li><strong>Linkage disequilibrium is genome-scale autocorrelation.</strong> Decays exponentially with recombination × time. $r^2$ is the squared correlation; $D'$ is the normalised deviation. LD blocks are autocorrelation plateaus.</li>
+          <li><strong>The coalescent is the backward-time view of Wright-Fisher.</strong> Simpler to simulate (only the sample's lineages), same predictions as forward WF for sample-level statistics. TMRCA $\approx 4N_e$.</li>
+          <li><strong>Demographic inference from a single genome works.</strong> PSMC reconstructs $N_e(t)$ trajectories over millions of years using just the two diploid alleles' coalescent times.</li>
+          <li><strong>Admixture is mixture-model decomposition.</strong> ADMIXTURE is EM over ancestry proportions + source allele frequencies. $K$ is a hyperparameter, not a truth claim.</li>
+          <li><strong>Selection scans are detection with controlled FAR.</strong> Tajima's D, iHS, XP-EHH each detect different sweep signatures. All are confounded by demographic events; proper null calibration is essential.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>GWAS (genome-wide association studies) and statistical genetics. Scaling multi-hypothesis detection to 10 million SNPs; population-stratification correction as noise whitening; polygenic risk scores and their portability problem; fine-mapping as a sparse-inverse problem.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Take the 1000 Genomes Project VCF for one chromosome (chr22 is a common starter). For 1000 random SNPs with MAF &gt; 0.05, compute the Hardy-Weinberg chi-squared statistic. What fraction deviate at $p < 0.05$? What fraction at $p < 10^{-6}$? Interpret.</li>
+          <li>Simulate Wright-Fisher evolution for $N_e = 100$ and $N_e = 10000$, starting from $p_0 = 0.5$, running 1000 generations with $s = 0$. Plot 20 trajectories each. What fraction fix (reach 0 or 1) in each case?</li>
+          <li>Use msprime to simulate a coalescent tree for $n = 20$ lineages and a population of $N = 10^4$. Repeat 1000 times. Report the median and 10–90th percentile of TMRCA.</li>
+          <li>Run ADMIXTURE at $K = 2, 3, 4, 5$ on a subset of 1000 Genomes (e.g. CEU, CHB, YRI populations). Which $K$ gives the best cross-validation error? Plot the bar chart; does the biological interpretation change with $K$?</li>
+          <li>Compute Tajima's D in 10 kb sliding windows across a 1 Mb region for a population. Identify the top 5 most extreme windows. Are any near known selection-target loci (check ensembl or UCSC)?</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Hardy, G. H. (1908). Mendelian proportions in a mixed population. <em>Science</em> 28, 49–50. (The original HWE paper.)</li>
+          <li>Wright, S. (1931). Evolution in Mendelian populations. <em>Genetics</em> 16, 97–159.</li>
+          <li>Fisher, R. A. (1930). <em>The Genetical Theory of Natural Selection.</em> Oxford University Press.</li>
+          <li>Kingman, J. F. C. (1982). The coalescent. <em>Stochastic Processes and their Applications</em> 13, 235–248.</li>
+          <li>Tajima, F. (1989). Statistical method for testing the neutral mutation hypothesis by DNA polymorphism. <em>Genetics</em> 123, 585–595.</li>
+          <li>Li, H., &amp; Durbin, R. (2011). Inference of human population history from individual whole-genome sequences. <em>Nature</em> 475, 493–496. (The PSMC paper.)</li>
+          <li>Alexander, D. H., Novembre, J., &amp; Lange, K. (2009). Fast model-based estimation of ancestry in unrelated individuals. <em>Genome Research</em> 19, 1655–1664. (ADMIXTURE.)</li>
+          <li>Voight, B. F., Kudaravalli, S., Wen, X., &amp; Pritchard, J. K. (2006). A map of recent positive selection in the human genome. <em>PLoS Biology</em> 4, e72. (iHS.)</li>
+          <li>Sabeti, P. C., Varilly, P., Fry, B., et al. (2007). Genome-wide detection and characterization of positive selection in human populations. <em>Nature</em> 449, 913–918. (XP-EHH.)</li>
+          <li>Kelleher, J., Etheridge, A. M., &amp; McVean, G. (2016). Efficient coalescent simulation and genealogical analysis for large sample sizes. <em>PLoS Computational Biology</em> 12, e1004842. (msprime.)</li>
+          <li>Speidel, L., Forest, M., Shi, S., &amp; Myers, S. R. (2019). A method for genome-wide genealogy estimation for thousands of samples. <em>Nature Genetics</em> 51, 1321–1329. (Relate.)</li>
+          <li>Terhorst, J., Kamm, J. A., &amp; Song, Y. S. (2017). Robust and scalable inference of population history from hundreds of unphased whole genomes. <em>Nature Genetics</em> 49, 303–309. (SMC++.)</li>
+          <li>Slatkin, M. (2008). Linkage disequilibrium — understanding the evolutionary past and mapping the medical future. <em>Nature Reviews Genetics</em> 9, 477–485.</li>
+          <li>1000 Genomes Project Consortium (2015). A global reference for human genetic variation. <em>Nature</em> 526, 68–74.</li>
+          <li>msprime documentation: <a href="https://tskit.dev/msprime/" target="_blank" rel="noopener">tskit.dev/msprime</a></li>
+          <li>Relate documentation: <a href="https://myersgroup.github.io/relate/" target="_blank" rel="noopener">myersgroup.github.io/relate</a></li>
+          <li>ADMIXTURE software: <a href="https://dalexander.github.io/admixture/" target="_blank" rel="noopener">dalexander.github.io/admixture</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — Allele Frequencies &amp; Hardy-Weinberg</td>        <td>25&nbsp;min</td><td>0:25</td></tr>
+            <tr><td>Part 2 — Forces Shaping Variation</td>                        <td>40&nbsp;min</td><td>1:05</td></tr>
+            <tr><td>Part 3 — Linkage Disequilibrium</td>                          <td>35&nbsp;min</td><td>1:40</td></tr>
+            <tr><td>Part 4 — The Coalescent</td>                                   <td>45&nbsp;min</td><td>2:25</td></tr>
+            <tr><td>Part 5 — Inferring Population History</td>                     <td>35&nbsp;min</td><td>3:00</td></tr>
+            <tr><td>Part 6 — Selection Scans</td>                                  <td>20&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                                    <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys())
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) {
+          f.style.height = d.height + 'px';
+        }
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

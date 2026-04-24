@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wright-Fisher Drift + Selection Simulator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg); cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      font-weight: 600;
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .controls-row {
+      display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+      margin-top: 1rem; padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+    .controls-row .status {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-left: auto;
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+    .plot-canvas { display: block; width: 100%; height: 360px; background: #fafafa; border-radius: 2px; }
+    .plot-caption {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-subtle); margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 0.9rem;
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-muted); margin-top: 0.5rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw { display: inline-block; width: 16px; height: 3px; border-radius: 1px; }
+    .legend-swatch .sw.mean { background: var(--accent); height: 3px; }
+    .legend-swatch .sw.reps { background: #9ca3af; height: 2px; }
+    .legend-swatch .sw.fixed { background: #1e3a8a; height: 3px; }
+    .legend-swatch .sw.lost  { background: #c4342c; height: 3px; }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner .regime {
+      display: inline-block;
+      padding: 0.05rem 0.45rem;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+      border: 1px solid currentColor;
+    }
+    .regime.drift     { color: #9a6400; background: #fff7ed; }
+    .regime.moderate  { color: #b45309; background: #fef3c7; }
+    .regime.selection { color: #15803d; background: #dcfce7; }
+
+    .hist-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .hist-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .hist-wrap h3 {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+      font-weight: 600;
+      margin: 0 0 0.4rem;
+    }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    @media (max-width: 820px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .hist-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="wright-fisher">
+
+  <header class="artifact-head">
+    <h1>Wright-Fisher Drift + Selection Simulator</h1>
+    <p>Many replicate populations, identical parameters, different random fates. Each generation, every allele is resampled from the expected post-selection frequency via Binomial(2N, p&prime;). Watch individual trajectories scatter around the mean sweep curve &mdash; then change <em>N</em> and <em>s</em> independently. The regime label tracks <em>2Ns</em>, not either parameter alone: double <em>N</em>, halve <em>s</em>, and the outcome is indistinguishable.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Parameters</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="n-input">Population size N</label>
+          <span class="slider-value" id="n-value">1000</span>
+        </div>
+        <input id="n-input" type="range" min="0" max="1000" step="1" value="680">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="s-input">Selection s</label>
+          <span class="slider-value" id="s-value">+0.010</span>
+        </div>
+        <input id="s-input" type="range" min="-0.05" max="0.10" step="0.001" value="0.010">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="h-input">Dominance h</label>
+          <span class="slider-value" id="h-value">0.50</span>
+        </div>
+        <input id="h-input" type="range" min="0" max="1" step="0.01" value="0.5">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="p0-input">Initial frequency p&#8320;</label>
+          <span class="slider-value" id="p0-value">0.050</span>
+        </div>
+        <input id="p0-input" type="range" min="0.001" max="0.5" step="0.001" value="0.05">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="gen-input">Generations</label>
+          <span class="slider-value" id="gen-value">2000</span>
+        </div>
+        <input id="gen-input" type="range" min="100" max="5000" step="50" value="2000">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="rep-input">Replicates</label>
+          <span class="slider-value" id="rep-value">100</span>
+        </div>
+        <input id="rep-input" type="range" min="10" max="500" step="10" value="100">
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <button id="run-btn" class="btn btn--primary" type="button">Run</button>
+      <button id="reset-btn" class="btn" type="button">Reset defaults</button>
+      <span class="status" id="status">&nbsp;</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Allele-frequency trajectories</p>
+    <div class="plot-wrap">
+      <canvas id="traj-canvas" class="plot-canvas" width="1100" height="360" aria-label="Allele-frequency trajectories for all replicate populations"></canvas>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw reps"></span> replicate trajectory</span>
+      <span class="legend-swatch"><span class="sw mean"></span> mean across replicates</span>
+      <span class="legend-swatch"><span class="sw fixed"></span> fixed at p&nbsp;=&nbsp;1</span>
+      <span class="legend-swatch"><span class="sw lost"></span>  lost at p&nbsp;=&nbsp;0</span>
+    </div>
+    <p class="plot-caption">Each thin line is one replicate population's allele-frequency path across generations. The thick line is the cross-replicate mean at each time. Shaded bands at 0 and 1 mark the absorbing boundaries.</p>
+
+    <div class="banner" id="banner">
+      2Ns = <b id="b-2ns">&mdash;</b>
+      <span class="sep">&middot;</span>
+      <span class="regime drift" id="b-regime">drift-dominated</span>
+      <span class="sep">&middot;</span>
+      P(fix) = <b id="b-pfix">&mdash;</b>
+      <span class="sep">&middot;</span>
+      neutral expectation p&#8320; = <b id="b-neutral">&mdash;</b>
+      <span class="sep">&middot;</span>
+      median T<sub>fix</sub> = <b id="b-tfix">&mdash;</b>
+    </div>
+
+    <div class="hist-grid">
+      <div class="hist-wrap">
+        <h3>Fixation-time distribution (fixed replicates)</h3>
+        <svg id="tfix-svg" class="plot-svg" viewBox="0 0 540 220" preserveAspectRatio="xMidYMid meet" aria-label="Histogram of fixation times"></svg>
+      </div>
+      <div class="hist-wrap">
+        <h3>Final-frequency distribution (all replicates)</h3>
+        <svg id="pfin-svg" class="plot-svg" viewBox="0 0 540 220" preserveAspectRatio="xMidYMid meet" aria-label="Histogram of final allele frequencies"></svg>
+      </div>
+    </div>
+
+    <p class="hint">
+      Default (N = 1000, s = +0.01, p&#8320; = 0.05) gives 2Ns = 20: most replicates fix, median fixation near a few hundred generations. Drop N to 50 with s = +0.01 &rarr; 2Ns = 1 and drift wins: P(fix) collapses toward the neutral expectation of p&#8320;. Push s to +0.2 at N = 50 &rarr; 2Ns = 20 again, and the sweep returns. The product 2Ns is the knob; N and s individually are not.
+    </p>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── DOM refs ────────────────────────────────────────────
+  const nEl   = $('n-input');
+  const sEl   = $('s-input');
+  const hEl   = $('h-input');
+  const p0El  = $('p0-input');
+  const genEl = $('gen-input');
+  const repEl = $('rep-input');
+  const runBtn   = $('run-btn');
+  const resetBtn = $('reset-btn');
+  const statusEl = $('status');
+
+  const nVal   = $('n-value');
+  const sVal   = $('s-value');
+  const hVal   = $('h-value');
+  const p0Val  = $('p0-value');
+  const genVal = $('gen-value');
+  const repVal = $('rep-value');
+
+  const bTwoNs   = $('b-2ns');
+  const bRegime  = $('b-regime');
+  const bPfix    = $('b-pfix');
+  const bNeutral = $('b-neutral');
+  const bTfix    = $('b-tfix');
+
+  const canvas  = $('traj-canvas');
+  const ctx     = canvas.getContext('2d');
+  const tfixSvg = $('tfix-svg');
+  const pfinSvg = $('pfin-svg');
+
+  // ── Defaults ────────────────────────────────────────────
+  const DEFAULTS = {
+    N: 1000,
+    s: 0.01,
+    h: 0.5,
+    p0: 0.05,
+    gens: 2000,
+    reps: 100,
+  };
+
+  // Log slider for N: 20..10000
+  const N_MIN = 20, N_MAX = 10000;
+  function nFromSlider(t) {
+    const lo = Math.log(N_MIN), hi = Math.log(N_MAX);
+    const v = Math.exp(lo + (t / 1000) * (hi - lo));
+    if (v < 100)    return Math.round(v / 5) * 5;
+    if (v < 1000)   return Math.round(v / 10) * 10;
+    if (v < 3000)   return Math.round(v / 50) * 50;
+    return Math.round(v / 100) * 100;
+  }
+  function sliderFromN(n) {
+    const lo = Math.log(N_MIN), hi = Math.log(N_MAX);
+    return Math.round(((Math.log(n) - lo) / (hi - lo)) * 1000);
+  }
+
+  // ── State ───────────────────────────────────────────────
+  const state = {
+    N: DEFAULTS.N, s: DEFAULTS.s, h: DEFAULTS.h,
+    p0: DEFAULTS.p0, gens: DEFAULTS.gens, reps: DEFAULTS.reps,
+    seed: 20260423,
+    result: null,
+  };
+
+  // ── PRNG (mulberry32) ───────────────────────────────────
+  function mulberry32(seedVal) {
+    let t = seedVal >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Binomial draws. Exact (sum of Bernoullis) when n is small or a tail
+  // mode is extreme; otherwise normal approximation with continuity
+  // clamping. Adequate for the pedagogy scale we're at.
+  function binomial(n, p, rnd) {
+    if (p <= 0) return 0;
+    if (p >= 1) return n;
+    if (n <= 0) return 0;
+    const expected = n * p;
+    if (n <= 64 || expected < 10 || (n - expected) < 10) {
+      let k = 0;
+      for (let i = 0; i < n; i++) if (rnd() < p) k++;
+      return k;
+    }
+    const sigma = Math.sqrt(n * p * (1 - p));
+    let u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    let k = Math.round(expected + sigma * z);
+    if (k < 0) k = 0; else if (k > n) k = n;
+    return k;
+  }
+
+  // ── WF + selection ─────────────────────────────────────
+  // w_AA = 1+s, w_Aa = 1+hs, w_aa = 1. Deterministic update:
+  //   p' = p(p w_AA + q w_Aa) / wbar
+  // Stochastic: X ~ Binomial(2N, p'); p_{t+1} = X / (2N).
+  function simulateReplicate(N, s, h, p0, gens, rnd) {
+    const twoN = 2 * N;
+    const wAA = 1 + s;
+    const wAa = 1 + h * s;
+    const waa = 1;
+    const path = new Float32Array(gens + 1);
+    path[0] = p0;
+    let X = Math.round(p0 * twoN);
+    if (X < 0) X = 0; else if (X > twoN) X = twoN;
+    let absorbedAt = -1;
+    for (let t = 1; t <= gens; t++) {
+      if (X === 0 || X === twoN) {
+        const pabs = X === twoN ? 1 : 0;
+        for (let u = t; u <= gens; u++) path[u] = pabs;
+        if (absorbedAt < 0) absorbedAt = t - 1;
+        break;
+      }
+      const p = X / twoN;
+      const q = 1 - p;
+      const wbar = p * p * wAA + 2 * p * q * wAa + q * q * waa;
+      let pPrime;
+      if (wbar <= 0) {
+        pPrime = p;
+      } else {
+        pPrime = p * (p * wAA + q * wAa) / wbar;
+        if (pPrime < 0) pPrime = 0;
+        else if (pPrime > 1) pPrime = 1;
+      }
+      X = binomial(twoN, pPrime, rnd);
+      path[t] = X / twoN;
+    }
+    return { path, absorbedAt, finalCount: X };
+  }
+
+  // ── Ensemble ───────────────────────────────────────────
+  function runEnsemble() {
+    const { N, s, h, p0, gens, reps, seed } = state;
+    const rnd = mulberry32(seed);
+    const twoN = 2 * N;
+    const traj = [];
+    const fixTimes = [];
+    const finalFreqs = new Float32Array(reps);
+    let nFixed = 0, nLost = 0;
+    const meanSum = new Float64Array(gens + 1);
+
+    for (let r = 0; r < reps; r++) {
+      const rep = simulateReplicate(N, s, h, p0, gens, rnd);
+      const path = rep.path;
+      traj.push(path);
+      finalFreqs[r] = path[gens];
+      if (rep.finalCount === twoN) {
+        nFixed++;
+        fixTimes.push(rep.absorbedAt >= 0 ? rep.absorbedAt : gens);
+      } else if (rep.finalCount === 0) {
+        nLost++;
+      }
+      for (let t = 0; t <= gens; t++) meanSum[t] += path[t];
+    }
+    const mean = new Float32Array(gens + 1);
+    for (let t = 0; t <= gens; t++) mean[t] = meanSum[t] / reps;
+
+    const pFix = nFixed / reps;
+    let medianTfix = null;
+    if (fixTimes.length > 0) {
+      const sorted = fixTimes.slice().sort((a, b) => a - b);
+      const mid = sorted.length >> 1;
+      medianTfix = sorted.length % 2 === 1
+        ? sorted[mid]
+        : 0.5 * (sorted[mid - 1] + sorted[mid]);
+    }
+
+    state.result = {
+      traj, mean, fixTimes, finalFreqs,
+      nFixed, nLost, pFix, medianTfix,
+      gens, reps, N,
+    };
+  }
+
+  // ── Canvas trajectory plot ─────────────────────────────
+  function drawTrajectories() {
+    const { gens } = state;
+    const r = state.result;
+    if (!r) return;
+
+    const cssW = canvas.clientWidth || canvas.width;
+    const cssH = canvas.clientHeight || canvas.height;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (canvas.width !== Math.floor(cssW * dpr) || canvas.height !== Math.floor(cssH * dpr)) {
+      canvas.width = Math.floor(cssW * dpr);
+      canvas.height = Math.floor(cssH * dpr);
+    }
+    const W = canvas.width, H = canvas.height;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const padL = 48 * dpr, padR = 16 * dpr, padT = 18 * dpr, padB = 30 * dpr;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(padL, padT, plotW, plotH);
+
+    // Absorbing bands at p = 1 and p = 0
+    const bandH = Math.max(2, plotH * 0.02);
+    ctx.fillStyle = 'rgba(30, 58, 138, 0.10)';
+    ctx.fillRect(padL, padT, plotW, bandH);
+    ctx.fillStyle = 'rgba(196, 52, 44, 0.10)';
+    ctx.fillRect(padL, padT + plotH - bandH, plotW, bandH);
+
+    // Gridlines + y-tick labels
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1 * dpr;
+    ctx.font = (11 * dpr) + 'px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#6b7280';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const pTicks = [0, 0.25, 0.5, 0.75, 1];
+    for (let i = 0; i < pTicks.length; i++) {
+      const pt = pTicks[i];
+      const y = padT + plotH * (1 - pt);
+      ctx.beginPath();
+      ctx.moveTo(padL, y);
+      ctx.lineTo(padL + plotW, y);
+      ctx.stroke();
+      ctx.fillText(pt.toFixed(2), padL - 6 * dpr, y);
+    }
+
+    // p0 marker
+    const y0 = padT + plotH * (1 - state.p0);
+    ctx.strokeStyle = '#9ca3af';
+    ctx.setLineDash([4 * dpr, 4 * dpr]);
+    ctx.beginPath();
+    ctx.moveTo(padL, y0);
+    ctx.lineTo(padL + plotW, y0);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = '#6b7280';
+    ctx.fillText('p₀ = ' + state.p0.toFixed(3), padL + 6 * dpr, y0 - 3 * dpr);
+
+    // X ticks
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const nxTicks = 5;
+    for (let i = 0; i <= nxTicks; i++) {
+      const g = Math.round((gens * i) / nxTicks);
+      const x = padL + plotW * (i / nxTicks);
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.beginPath();
+      ctx.moveTo(x, padT);
+      ctx.lineTo(x, padT + plotH);
+      ctx.stroke();
+      ctx.fillStyle = '#6b7280';
+      ctx.fillText(g.toString(), x, padT + plotH + 4 * dpr);
+    }
+
+    // Axis labels
+    ctx.fillStyle = '#374151';
+    ctx.font = '600 ' + (10 * dpr) + 'px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('ALLELE FREQ p', padL, 2 * dpr);
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('GENERATION', padL + plotW, H - 2 * dpr);
+
+    const xOf = (t) => padL + plotW * (t / gens);
+    const yOf = (p) => padT + plotH * (1 - p);
+
+    const COL_REP_NEUTRAL = 'rgba(107, 114, 128, 0.35)';
+    const COL_REP_FIXED   = 'rgba(30, 58, 138, 0.40)';
+    const COL_REP_LOST    = 'rgba(196, 52, 44, 0.32)';
+
+    ctx.lineWidth = 1 * dpr;
+    ctx.lineJoin = 'round';
+    const stride = Math.max(1, Math.ceil(gens / 800));
+    for (let i = 0; i < r.traj.length; i++) {
+      const path = r.traj[i];
+      const finalP = path[gens];
+      let col;
+      if (finalP >= 0.999) col = COL_REP_FIXED;
+      else if (finalP <= 0.001) col = COL_REP_LOST;
+      else col = COL_REP_NEUTRAL;
+      ctx.strokeStyle = col;
+      ctx.beginPath();
+      ctx.moveTo(xOf(0), yOf(path[0]));
+      for (let t = stride; t <= gens; t += stride) {
+        ctx.lineTo(xOf(t), yOf(path[t]));
+      }
+      if ((gens % stride) !== 0) ctx.lineTo(xOf(gens), yOf(path[gens]));
+      ctx.stroke();
+    }
+
+    // Mean overlay
+    const accent = getCssVar('--accent', '#b45309');
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 2.4 * dpr;
+    ctx.beginPath();
+    const stride2 = Math.max(1, Math.ceil(gens / 600));
+    ctx.moveTo(xOf(0), yOf(r.mean[0]));
+    for (let t = stride2; t <= gens; t += stride2) {
+      ctx.lineTo(xOf(t), yOf(r.mean[t]));
+    }
+    if ((gens % stride2) !== 0) ctx.lineTo(xOf(gens), yOf(r.mean[gens]));
+    ctx.stroke();
+
+    // Frame
+    ctx.strokeStyle = '#d1d5db';
+    ctx.lineWidth = 1 * dpr;
+    ctx.strokeRect(padL, padT, plotW, plotH);
+  }
+
+  function getCssVar(name, fallback) {
+    try {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return v || fallback;
+    } catch (_) { return fallback; }
+  }
+
+  // ── SVG histograms ─────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) {
+      for (const k in attrs) {
+        if (attrs[k] == null) continue;
+        e.setAttribute(k, attrs[k]);
+      }
+    }
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  function drawHist(svg, values, opts) {
+    clear(svg);
+    const W = 540, H = 220;
+    const padL = 44, padR = 10, padT = 10, padB = 30;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+
+    svg.appendChild(el('rect', {
+      x: padL, y: padT, width: plotW, height: plotH,
+      fill: '#ffffff', stroke: '#d1d5db', 'stroke-width': 1,
+    }));
+
+    svg.appendChild(el('text', {
+      x: padL + plotW, y: H - 8,
+      'text-anchor': 'end',
+      'font-family': 'Inter, sans-serif', 'font-size': 10,
+      fill: '#374151', 'font-weight': 600, 'letter-spacing': '0.1em',
+    }, opts.xLabel));
+
+    if (!values || values.length === 0) {
+      svg.appendChild(el('text', {
+        x: padL + plotW / 2, y: padT + plotH / 2,
+        'text-anchor': 'middle', 'dominant-baseline': 'middle',
+        'font-family': 'Inter, sans-serif', 'font-size': 12,
+        fill: '#9ca3af',
+      }, opts.emptyMsg || 'No data'));
+      return;
+    }
+
+    const nBins = opts.nBins || 20;
+    let lo = opts.xMin, hi = opts.xMax;
+    if (lo == null || hi == null) {
+      lo = Infinity; hi = -Infinity;
+      for (let i = 0; i < values.length; i++) {
+        const v = values[i];
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+      }
+    }
+    if (hi <= lo) hi = lo + 1;
+    const binW = (hi - lo) / nBins;
+    const counts = new Array(nBins).fill(0);
+    for (let i = 0; i < values.length; i++) {
+      let b = Math.floor((values[i] - lo) / binW);
+      if (b < 0) b = 0;
+      if (b >= nBins) b = nBins - 1;
+      counts[b]++;
+    }
+    let maxC = 0;
+    for (let i = 0; i < counts.length; i++) if (counts[i] > maxC) maxC = counts[i];
+    if (maxC === 0) maxC = 1;
+
+    // Y gridlines + labels
+    for (let i = 0; i <= 3; i++) {
+      const frac = i / 3;
+      const y = padT + plotH - frac * plotH;
+      svg.appendChild(el('line', {
+        x1: padL, x2: padL + plotW, y1: y, y2: y,
+        stroke: '#e5e7eb', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x: padL - 6, y: y + 3,
+        'text-anchor': 'end',
+        'font-family': 'JetBrains Mono, monospace', 'font-size': 10,
+        fill: '#6b7280',
+      }, Math.round(maxC * frac).toString()));
+    }
+
+    // Bars
+    const barGap = 1;
+    const barW = plotW / nBins;
+    for (let b = 0; b < nBins; b++) {
+      if (counts[b] <= 0) continue;
+      const x = padL + b * barW + barGap / 2;
+      const barH = (counts[b] / maxC) * plotH;
+      const y = padT + plotH - barH;
+      svg.appendChild(el('rect', {
+        x, y, width: Math.max(0.5, barW - barGap), height: barH,
+        fill: opts.barColor || '#1e3a8a',
+        opacity: 0.85,
+      }));
+    }
+
+    // X ticks
+    const nxTicks = Math.min(5, nBins);
+    for (let i = 0; i <= nxTicks; i++) {
+      const frac = i / nxTicks;
+      const x = padL + frac * plotW;
+      const v = lo + frac * (hi - lo);
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: padT + plotH, y2: padT + plotH + 3,
+        stroke: '#9ca3af', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x, y: padT + plotH + 14,
+        'text-anchor': 'middle',
+        'font-family': 'JetBrains Mono, monospace', 'font-size': 10,
+        fill: '#6b7280',
+      }, opts.xFmt ? opts.xFmt(v) : v.toFixed(2)));
+    }
+
+    // Overlays (vertical marker lines)
+    if (opts.overlays) {
+      for (let o = 0; o < opts.overlays.length; o++) {
+        const ov = opts.overlays[o];
+        if (ov.value == null || ov.value < lo || ov.value > hi) continue;
+        const x = padL + ((ov.value - lo) / (hi - lo)) * plotW;
+        svg.appendChild(el('line', {
+          x1: x, x2: x, y1: padT, y2: padT + plotH,
+          stroke: ov.color || '#b45309',
+          'stroke-width': 1.5,
+          'stroke-dasharray': ov.dashed ? '4 3' : null,
+        }));
+        if (ov.label) {
+          svg.appendChild(el('text', {
+            x: x + 4, y: padT + 12,
+            'text-anchor': 'start',
+            'font-family': 'Inter, sans-serif', 'font-size': 10,
+            fill: ov.color || '#b45309', 'font-weight': 600,
+          }, ov.label));
+        }
+      }
+    }
+
+    // Count marker
+    svg.appendChild(el('text', {
+      x: padL + plotW - 4, y: padT + 12,
+      'text-anchor': 'end',
+      'font-family': 'JetBrains Mono, monospace', 'font-size': 10,
+      fill: '#6b7280',
+    }, 'n = ' + values.length));
+  }
+
+  function drawHistograms() {
+    const r = state.result;
+    if (!r) return;
+    const { gens, fixTimes, finalFreqs, medianTfix } = r;
+
+    drawHist(tfixSvg, fixTimes.slice(), {
+      xMin: 0, xMax: Math.max(1, gens),
+      nBins: 24,
+      xLabel: 'GENERATION',
+      barColor: '#1e3a8a',
+      emptyMsg: 'No replicates fixed at p = 1',
+      overlays: medianTfix != null
+        ? [{ value: medianTfix, color: '#b45309', label: 'median ' + Math.round(medianTfix) }]
+        : [],
+      xFmt: function (v) { return Math.round(v).toString(); },
+    });
+
+    drawHist(pfinSvg, Array.from(finalFreqs), {
+      xMin: 0, xMax: 1,
+      nBins: 22,
+      xLabel: 'FINAL ALLELE FREQ p',
+      barColor: '#525252',
+      overlays: [
+        { value: state.p0, color: '#6b7280', dashed: true, label: 'p₀ ' + state.p0.toFixed(3) },
+      ],
+      xFmt: function (v) { return v.toFixed(2); },
+    });
+  }
+
+  // ── Banner ─────────────────────────────────────────────
+  function regimeFor(twoNs) {
+    const abs = Math.abs(twoNs);
+    if (abs < 1)   return { label: 'drift-dominated',    cls: 'drift' };
+    if (abs <= 10) return { label: 'moderate',           cls: 'moderate' };
+    return           { label: 'selection-dominated', cls: 'selection' };
+  }
+
+  function fmtPct(p) {
+    if (!isFinite(p)) return '—';
+    return (p * 100).toFixed(1) + '%';
+  }
+
+  function updateBanner() {
+    const r = state.result;
+    if (!r) return;
+    const twoNs = 2 * state.N * state.s;
+    const reg = regimeFor(twoNs);
+
+    const sign = twoNs >= 0 ? '+' : '−';
+    bTwoNs.textContent = sign + Math.abs(twoNs).toFixed(2);
+    bRegime.textContent = reg.label;
+    bRegime.className = 'regime ' + reg.cls;
+    bPfix.textContent = fmtPct(r.pFix);
+    bNeutral.textContent = fmtPct(state.p0);
+    bTfix.textContent = r.medianTfix != null
+      ? Math.round(r.medianTfix).toLocaleString() + ' gen'
+      : '—';
+  }
+
+  // ── Readouts ───────────────────────────────────────────
+  function updateSliderLabels() {
+    nVal.textContent   = state.N.toLocaleString();
+    sVal.textContent   = (state.s >= 0 ? '+' : '−') + Math.abs(state.s).toFixed(3);
+    hVal.textContent   = state.h.toFixed(2);
+    p0Val.textContent  = state.p0.toFixed(3);
+    genVal.textContent = state.gens.toLocaleString();
+    repVal.textContent = state.reps.toString();
+  }
+
+  function readControls() {
+    state.N    = nFromSlider(+nEl.value);
+    state.s    = +sEl.value;
+    state.h    = +hEl.value;
+    state.p0   = +p0El.value;
+    state.gens = +genEl.value;
+    state.reps = +repEl.value;
+    if (state.p0 < 0.001) state.p0 = 0.001;
+    if (state.p0 > 0.999) state.p0 = 0.999;
+  }
+
+  // ── Orchestrate ────────────────────────────────────────
+  function runAndDraw() {
+    const t0 = performance.now();
+    statusEl.textContent = 'simulating…';
+    requestAnimationFrame(function () {
+      try {
+        runEnsemble();
+        drawTrajectories();
+        drawHistograms();
+        updateBanner();
+        const ms = (performance.now() - t0).toFixed(0);
+        statusEl.textContent = state.reps + ' replicates · ' +
+          state.gens.toLocaleString() + ' gen · ' + ms + ' ms';
+      } catch (e) {
+        statusEl.textContent = 'simulation error';
+        if (typeof console !== 'undefined' && console.error) console.error(e);
+      }
+    });
+  }
+
+  // ── Wire controls ──────────────────────────────────────
+  function onSliderInput() {
+    readControls();
+    updateSliderLabels();
+  }
+  [nEl, sEl, hEl, p0El, genEl, repEl].forEach(function (e) {
+    e.addEventListener('input', onSliderInput);
+  });
+
+  runBtn.addEventListener('click', function () {
+    readControls();
+    updateSliderLabels();
+    state.seed = (Math.floor(Math.random() * 0x7fffffff) || 1) >>> 0;
+    runAndDraw();
+  });
+
+  resetBtn.addEventListener('click', function () {
+    nEl.value   = sliderFromN(DEFAULTS.N).toString();
+    sEl.value   = DEFAULTS.s.toString();
+    hEl.value   = DEFAULTS.h.toString();
+    p0El.value  = DEFAULTS.p0.toString();
+    genEl.value = DEFAULTS.gens.toString();
+    repEl.value = DEFAULTS.reps.toString();
+    state.seed  = 20260423;
+    readControls();
+    updateSliderLabels();
+    runAndDraw();
+  });
+
+  let resizeTimer = null;
+  window.addEventListener('resize', function () {
+    if (resizeTimer) cancelAnimationFrame(resizeTimer);
+    resizeTimer = requestAnimationFrame(function () { drawTrajectories(); });
+  });
+
+  // ── Boot ───────────────────────────────────────────────
+  nEl.value = sliderFromN(DEFAULTS.N).toString();
+  readControls();
+  updateSliderLabels();
+  runAndDraw();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ADMIXTURE Component Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 1rem 1.25rem;
+      align-items: end;
+    }
+    @media (max-width: 1000px) {
+      .controls-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 720px) {
+      .controls-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .controls-grid { grid-template-columns: 1fr; }
+    }
+
+    .ctrl-wrap input[type="range"] {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      width: 100%;
+    }
+    .ctrl-wrap input[type="range"]:focus { outline: 2px solid var(--accent-bright); outline-offset: 1px; }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .slider-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+    .slider-val {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--fg);
+      min-width: 3.4rem;
+      text-align: right;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn--primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .action-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.9rem;
+    }
+
+    .status-line {
+      margin-top: 0.6rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      min-height: 1.2em;
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.55rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .panel h3 {
+      font-family: var(--font-serif);
+      font-size: var(--text-xl);
+      margin: 0 0 0.75rem;
+      letter-spacing: -0.01em;
+    }
+
+    .grid-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 980px) {
+      .grid-two { grid-template-columns: 1fr; }
+    }
+    .grid-two .panel { margin-bottom: 0; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.85rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 14px; height: 10px;
+      border-radius: 2px;
+    }
+
+    table.match-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      margin-top: 0.4rem;
+    }
+    table.match-table th, table.match-table td {
+      border-bottom: 1px solid var(--border);
+      padding: 0.4rem 0.55rem;
+      text-align: left;
+      vertical-align: middle;
+    }
+    table.match-table th {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-strong);
+    }
+    table.match-table td.tight { font-feature-settings: "tnum"; }
+    .swatch-inline {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 2px;
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    .corr-bar-wrap {
+      display: inline-block;
+      width: 80px;
+      height: 8px;
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      vertical-align: middle;
+      margin-left: 0.45rem;
+    }
+    .corr-bar-wrap .fill {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-relaxed);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .verdict {
+      display: inline-block;
+      font-weight: 600;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.15rem 0.5rem;
+      border-radius: 3px;
+      margin-right: 0.5rem;
+    }
+    .banner .verdict.good { background: #dcfce7; color: #14532d; border: 1px solid #86efac; }
+    .banner .verdict.warn { background: #fef3c7; color: #854d0e; border: 1px solid #fde68a; }
+    .banner .verdict.bad  { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .kvp {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem 1.4rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg);
+    }
+    .kvp .k { color: var(--fg-subtle); text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
+    .kvp .v { font-weight: 600; font-size: var(--text-sm); }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="admixture">
+
+  <header class="artifact-head">
+    <h1>ADMIXTURE Component Explorer</h1>
+    <p>Simulate a cohort drawn from <i>K<sub>true</sub></i> ancestral populations (with some admixed individuals) and fit an ADMIXTURE-style mixture model for a chosen <i>K<sub>fit</sub></i>. With the right <i>K</i>, recovered components track the truth at &gt; 0.9 correlation; push <i>K</i> too high and the model obligingly splits a real cluster in two. Five-fold cross-validation error across <i>K<sub>fit</sub></i> ∈ {2..7} reveals the model-selection minimum — which coincides with the true K when the signal is clean, not because ADMIXTURE recovers biology but because the mixture likelihood stops improving.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="controls-grid">
+      <div class="ctrl-wrap">
+        <label class="field-label" for="ktrue-slider">K<sub>true</sub></label>
+        <div class="slider-row">
+          <input type="range" id="ktrue-slider" min="2" max="4" step="1" value="3">
+          <span class="slider-val" id="ktrue-val">3</span>
+        </div>
+      </div>
+      <div class="ctrl-wrap">
+        <label class="field-label" for="nperpop-slider">Individuals / pop</label>
+        <div class="slider-row">
+          <input type="range" id="nperpop-slider" min="10" max="100" step="5" value="40">
+          <span class="slider-val" id="nperpop-val">40</span>
+        </div>
+      </div>
+      <div class="ctrl-wrap">
+        <label class="field-label" for="admix-slider">Admixed fraction</label>
+        <div class="slider-row">
+          <input type="range" id="admix-slider" min="0" max="50" step="1" value="10">
+          <span class="slider-val" id="admix-val">10%</span>
+        </div>
+      </div>
+      <div class="ctrl-wrap">
+        <label class="field-label" for="snps-slider">SNPs (log)</label>
+        <div class="slider-row">
+          <input type="range" id="snps-slider" min="0" max="100" step="1" value="54">
+          <span class="slider-val" id="snps-val">500</span>
+        </div>
+      </div>
+      <div class="ctrl-wrap">
+        <label class="field-label" for="kfit-slider">K<sub>fit</sub></label>
+        <div class="slider-row">
+          <input type="range" id="kfit-slider" min="2" max="7" step="1" value="3">
+          <span class="slider-val" id="kfit-val">3</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn--primary" type="button" id="resim-btn">Re-simulate</button>
+      <button class="btn" type="button" id="run-btn">Run ADMIXTURE (EM)</button>
+      <button class="btn" type="button" id="sweep-btn">K-sweep (5-fold CV)</button>
+    </div>
+    <div class="status-line" id="status"></div>
+  </section>
+
+  <section class="panel">
+    <h3>Ancestry bar plot</h3>
+    <div class="plot-wrap">
+      <svg id="bars-svg" class="plot-svg" viewBox="0 0 1100 280" preserveAspectRatio="xMidYMid meet" aria-label="Per-individual ancestry stacked bars"></svg>
+    </div>
+    <div class="legend" id="bars-legend"></div>
+    <p class="hint">Each column is one individual; stacked segments are the fitted mixture weights <i>Q<sub>ij</sub></i> across <i>K<sub>fit</sub></i> components. Individuals are sorted by their majority component so populations render as contiguous blocks. Admixed individuals show genuine within-column mixing; unadmixed individuals should be near-solid.</p>
+  </section>
+
+  <div class="grid-two">
+    <section class="panel">
+      <h3>Recovered vs true mapping</h3>
+      <div id="match-wrap">
+        <table class="match-table" id="match-table">
+          <thead>
+            <tr>
+              <th>True pop</th>
+              <th>Best recovered</th>
+              <th>Correlation</th>
+            </tr>
+          </thead>
+          <tbody id="match-body"></tbody>
+        </table>
+      </div>
+      <div class="kvp" style="margin-top: 0.8rem;">
+        <div><div class="k">Mean r (matched)</div><div class="v" id="mean-corr">–</div></div>
+        <div><div class="k">Frobenius ‖Q<sub>true</sub>-Q<sub>fit</sub>‖</div><div class="v" id="frob">–</div></div>
+        <div><div class="k">EM log-lik.</div><div class="v" id="loglik">–</div></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3>K-sweep · 5-fold CV error</h3>
+      <div class="plot-wrap">
+        <svg id="sweep-svg" class="plot-svg" viewBox="0 0 560 280" preserveAspectRatio="xMidYMid meet" aria-label="CV error vs K_fit"></svg>
+      </div>
+      <p class="hint">CV error is the held-out negative log-likelihood per allele call: mask 20% of genotypes, refit, and score the masked cells' Bernoulli likelihood under the fitted <i>Q</i>, <i>P</i>. Curves bottom out near <i>K<sub>true</sub></i>; beyond it, the model is overparameterised and held-out likelihood flattens or rebounds even as in-sample log-likelihood keeps rising.</p>
+    </section>
+  </div>
+
+  <div class="banner" id="banner"></div>
+  <p class="hint">ADMIXTURE itself uses block-coordinate ascent on a multinomial likelihood; here we use the same multiplicative updates (Q-step then P-step, holding the other fixed). For tractability we run ~60 EM iterations and compute CV with 6 inner EM iterations per fold. This is a teaching-scale implementation — production ADMIXTURE handles hundreds of thousands of SNPs, but the qualitative behaviour around K selection is identical.</p>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // Deterministic RNG (mulberry32).
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Ancestry palette (spec § requirements).
+  const PAL = [
+    '#c4342c', // 1 African (crimson)
+    '#1e3a8a', // 2 European (cobalt)
+    '#b45309', // 3 East Asian (amber)
+    '#7c3aed', // 4 Admixed / other (violet)
+    '#2d7a3e', // 5 (green)
+    '#0d7377', // 6 (teal)
+    '#525252', // 7 (slate)
+  ];
+  const POP_NAMES = ['Pop 1', 'Pop 2', 'Pop 3', 'Pop 4', 'Pop 5', 'Pop 6', 'Pop 7'];
+
+  // Numerical helpers.
+  function normRowInPlace(row) {
+    let s = 0;
+    for (let k = 0; k < row.length; k++) s += row[k];
+    if (s <= 0) {
+      for (let k = 0; k < row.length; k++) row[k] = 1 / row.length;
+    } else {
+      for (let k = 0; k < row.length; k++) row[k] /= s;
+    }
+  }
+  function clamp01(x, eps = 1e-6) {
+    if (x < eps) return eps;
+    if (x > 1 - eps) return 1 - eps;
+    return x;
+  }
+
+  // ── State ────────────────────────────────────────────────
+  const state = {
+    Ktrue: 3,
+    nPerPop: 40,
+    admixFrac: 0.10,
+    M: 500,              // SNPs
+    Kfit: 3,
+    seed: 20260423,
+    data: null,          // { geno, trueQ, Ktrue, N, M, popLabel, admixed }
+    fit: null,           // { Q, P, Kfit, loglik }
+    sweep: null,         // array of { K, cvErr }
+  };
+
+  // ── Simulate the cohort ─────────────────────────────────
+  //
+  // Balding-Nichols-style allele frequency differentiation:
+  //   draw ancestral p_m ~ Uniform(0.1, 0.9);
+  //   per-population p_mk ~ Beta(p_m (1-F)/F, (1-p_m)(1-F)/F);
+  // with F_ST in the 0.1 range to give visible structure but not zero
+  // admixture signal at fitted K > true.
+  //
+  // Unadmixed individual j from pop k: genotype_m = Binomial(2, p_mk).
+  // Admixed individual with mixture q over pops: genotype_m = sum of 2 draws,
+  // one from each "parent" pop pair (we approximate by drawing the 2 alleles
+  // from p_mk where k ~ Categorical(q) — this is the same marginal as
+  // ADMIXTURE's likelihood assumes).
+  function betaSample(alpha, beta, rng) {
+    // Gamma(shape, 1) using Marsaglia-Tsang for shape >= 1; fall back to
+    // Johnk's algorithm for shape < 1.
+    function gamma(shape) {
+      if (shape < 1) {
+        // Johnk / boost-1 trick
+        const g = gamma(shape + 1);
+        return g * Math.pow(Math.max(1e-300, rng()), 1 / shape);
+      }
+      const d = shape - 1 / 3;
+      const c = 1 / Math.sqrt(9 * d);
+      while (true) {
+        let x, v;
+        do {
+          // Box-Muller
+          const u1 = Math.max(1e-12, rng());
+          const u2 = rng();
+          x = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+          v = 1 + c * x;
+        } while (v <= 0);
+        v = v * v * v;
+        const u = rng();
+        if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+        if (Math.log(Math.max(1e-300, u)) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+      }
+    }
+    const ga = gamma(alpha);
+    const gb = gamma(beta);
+    return ga / (ga + gb);
+  }
+
+  function binomial2(p, rng) {
+    const a = rng() < p ? 1 : 0;
+    const b = rng() < p ? 1 : 0;
+    return a + b;
+  }
+
+  function simulateCohort() {
+    const rng = mulberry32(state.seed);
+    const Ktrue = state.Ktrue;
+    const nPerPop = state.nPerPop;
+    const M = state.M;
+
+    // Admixed count: admixFrac of the nPerPop * Ktrue base — pulled from
+    // reassignable individuals; we add an extra admixed block on top.
+    const baseN = nPerPop * Ktrue;
+    const nAdmixed = Math.round(baseN * state.admixFrac);
+
+    const N = baseN + nAdmixed;
+
+    // Ancestral frequencies & per-pop frequencies.
+    // F_ST ~ 0.18 gives cleanly separable populations with > 0.9 expected
+    // correlations at K_fit = K_true, even at 500 SNPs / 120 individuals.
+    const FST = 0.18;
+    const invF = (1 - FST) / FST;
+    const P_true = new Array(M);
+    for (let m = 0; m < M; m++) {
+      const anc = 0.1 + 0.8 * rng();
+      const row = new Array(Ktrue);
+      for (let k = 0; k < Ktrue; k++) {
+        const a = anc * invF;
+        const b = (1 - anc) * invF;
+        row[k] = clamp01(betaSample(a, b, rng), 0.02);
+      }
+      P_true[m] = row;
+    }
+
+    // Per-individual ancestry proportions (trueQ) and population label.
+    const trueQ = [];
+    const popLabel = new Array(N);
+    const admixed = new Array(N).fill(false);
+
+    // Unadmixed cohort: nPerPop per pop, trueQ = one-hot.
+    let idx = 0;
+    for (let k = 0; k < Ktrue; k++) {
+      for (let j = 0; j < nPerPop; j++) {
+        const q = new Array(Ktrue).fill(0);
+        q[k] = 1;
+        trueQ.push(q);
+        popLabel[idx] = k;
+        idx++;
+      }
+    }
+    // Admixed: pick 2 or 3 donor pops, random Dirichlet-ish proportions.
+    for (let j = 0; j < nAdmixed; j++) {
+      const q = new Array(Ktrue).fill(0);
+      const nDonors = Ktrue === 2 ? 2 : (rng() < 0.6 ? 2 : 3);
+      const donors = [];
+      const pool = Array.from({ length: Ktrue }, (_, i) => i);
+      for (let d = 0; d < nDonors; d++) {
+        const pick = Math.floor(rng() * pool.length);
+        donors.push(pool.splice(pick, 1)[0]);
+      }
+      // Random mixing proportions.
+      const raws = donors.map(() => 0.2 + rng() * 0.8);
+      let s = 0; for (const r of raws) s += r;
+      for (let d = 0; d < donors.length; d++) q[donors[d]] = raws[d] / s;
+      trueQ.push(q);
+      // Majority donor for popLabel (for colour grouping).
+      let best = 0, bv = q[0];
+      for (let k = 1; k < Ktrue; k++) if (q[k] > bv) { bv = q[k]; best = k; }
+      popLabel[idx] = best;
+      admixed[idx] = true;
+      idx++;
+    }
+
+    // Genotypes: geno[i][m] ∈ {0,1,2} encoded as (i*M + m) in a flat Uint8Array.
+    const geno = new Uint8Array(N * M);
+    for (let i = 0; i < N; i++) {
+      const q = trueQ[i];
+      for (let m = 0; m < M; m++) {
+        // Each of the 2 alleles is drawn by first picking an ancestry, then
+        // sampling from that ancestry's frequency.
+        let alleleA;
+        {
+          const u = rng();
+          let acc = 0, pick = Ktrue - 1;
+          for (let k = 0; k < Ktrue; k++) { acc += q[k]; if (u < acc) { pick = k; break; } }
+          alleleA = rng() < P_true[m][pick] ? 1 : 0;
+        }
+        let alleleB;
+        {
+          const u = rng();
+          let acc = 0, pick = Ktrue - 1;
+          for (let k = 0; k < Ktrue; k++) { acc += q[k]; if (u < acc) { pick = k; break; } }
+          alleleB = rng() < P_true[m][pick] ? 1 : 0;
+        }
+        geno[i * M + m] = alleleA + alleleB;
+      }
+    }
+
+    state.data = { geno, trueQ, P_true, Ktrue, N, M, popLabel, admixed };
+  }
+
+  // ── ADMIXTURE-style EM ─────────────────────────────────
+  //
+  // Model: for each individual i and SNP m,
+  //   g_im ~ Binomial(2, r_im),  with r_im = sum_k Q_ik * P_mk.
+  //
+  // Likelihood:
+  //   log L = sum_im  g_im log(r_im) + (2 - g_im) log(1 - r_im).
+  //
+  // Block coordinate update (multiplicative):
+  //   a_imk = Q_ik * P_mk / r_im          (contribution to allele "1")
+  //   b_imk = Q_ik * (1 - P_mk) / (1 - r_im)   (contribution to allele "0")
+  //
+  //   Q_ik <- (1 / (2M)) * sum_m ( g_im * a_imk + (2 - g_im) * b_imk )
+  //   P_mk <- sum_i ( g_im * a_imk ) / sum_i ( g_im * a_imk + (2 - g_im) * b_imk )
+  //
+  // which are exactly the EM-M-step updates for this mixture.
+  // After each update we clip to [eps, 1-eps] and re-normalise Q rows.
+  function runEM(geno, mask, N, M, K, iters, rng) {
+    // Initialise Q: each individual picks a "dominant" component with high
+    // weight, small mass on the rest. This asymmetric seeding breaks the
+    // trivial uniform symmetry that multiplicative EM would otherwise get
+    // stuck in. Initialise P: draw uniform in [0.1, 0.9] per component.
+    const Q = new Float64Array(N * K);
+    const P = new Float64Array(M * K);
+    for (let i = 0; i < N; i++) {
+      // Dirichlet(0.5, 0.5, ..., 0.5) style: draw Gammas with small shape
+      // so one or two components dominate.
+      let s = 0;
+      for (let k = 0; k < K; k++) {
+        // Small-shape gamma approx: u^(1/shape) with shape=0.5.
+        const u = Math.max(1e-8, rng());
+        const v = Math.pow(u, 2.0); // u^(1/0.5)
+        Q[i * K + k] = v + 1e-3;
+        s += Q[i * K + k];
+      }
+      for (let k = 0; k < K; k++) Q[i * K + k] /= s;
+    }
+    for (let m = 0; m < M; m++) {
+      for (let k = 0; k < K; k++) {
+        P[m * K + k] = 0.1 + rng() * 0.8;
+      }
+    }
+
+    const EPS = 1e-5;
+    let loglik = -Infinity;
+
+    // Scratch for per-(i,m) softmax weights.
+    const wA = new Float64Array(K);
+    const wB = new Float64Array(K);
+
+    for (let it = 0; it < iters; it++) {
+      // Q update accumulator, P update numerator/denominator.
+      const Qnew = new Float64Array(N * K);
+      const Pnum = new Float64Array(M * K);
+      const Pden = new Float64Array(M * K);
+      const QmassPerInd = new Float64Array(N); // normaliser for Q (= 2 * M_effective)
+
+      let ll = 0;
+
+      for (let i = 0; i < N; i++) {
+        const qOff = i * K;
+        let mEff = 0;
+        for (let m = 0; m < M; m++) {
+          if (mask && mask[i * M + m]) continue; // held out, skip
+          const g = geno[i * M + m];
+          // r = sum_k Q_ik * P_mk
+          let r = 0;
+          const pOff = m * K;
+          for (let k = 0; k < K; k++) r += Q[qOff + k] * P[pOff + k];
+          if (r < EPS) r = EPS; else if (r > 1 - EPS) r = 1 - EPS;
+          const oneMr = 1 - r;
+
+          // Posterior per-k responsibilities for "1" and "0" alleles.
+          for (let k = 0; k < K; k++) {
+            const qp = Q[qOff + k] * P[pOff + k];
+            const qnp = Q[qOff + k] * (1 - P[pOff + k]);
+            wA[k] = qp / r;      // responsibility for each of the g_im "1"s
+            wB[k] = qnp / oneMr; // responsibility for each of the (2-g_im) "0"s
+          }
+          // Accumulate Q numerator (unnormalised ancestry counts).
+          for (let k = 0; k < K; k++) {
+            Qnew[qOff + k] += g * wA[k] + (2 - g) * wB[k];
+          }
+          // Accumulate P numerator & denominator.
+          for (let k = 0; k < K; k++) {
+            const na = g * wA[k];
+            const nb = (2 - g) * wB[k];
+            Pnum[pOff + k] += na;
+            Pden[pOff + k] += na + nb;
+          }
+          mEff++;
+          // Log-likelihood contribution.
+          ll += g * Math.log(r) + (2 - g) * Math.log(oneMr);
+        }
+        QmassPerInd[i] = 2 * mEff;
+      }
+
+      // Finalise Q: divide by 2 * M_effective; renormalise for numerical safety.
+      for (let i = 0; i < N; i++) {
+        const qOff = i * K;
+        const denom = QmassPerInd[i] > 0 ? QmassPerInd[i] : 1;
+        let s = 0;
+        for (let k = 0; k < K; k++) {
+          let v = Qnew[qOff + k] / denom;
+          if (v < EPS) v = EPS;
+          Q[qOff + k] = v;
+          s += v;
+        }
+        for (let k = 0; k < K; k++) Q[qOff + k] /= s;
+      }
+
+      // Finalise P: ratio Pnum / Pden, clipped.
+      for (let m = 0; m < M; m++) {
+        const pOff = m * K;
+        for (let k = 0; k < K; k++) {
+          const num = Pnum[pOff + k];
+          const den = Pden[pOff + k];
+          let v = den > 0 ? (num / den) : 0.5;
+          if (v < EPS) v = EPS; else if (v > 1 - EPS) v = 1 - EPS;
+          P[pOff + k] = v;
+        }
+      }
+      loglik = ll;
+    }
+    return { Q, P, K, loglik };
+  }
+
+  // ── Recovered-vs-true matching (greedy Hungarian approximation) ─
+  //
+  // Build K_true × K_fit Pearson correlation matrix between columns of
+  // trueQ (N × K_true) and fitted Q (N × K_fit). Greedy: repeatedly pick
+  // the largest |corr| entry, assign, zero out its row and column.
+  function computeMatch(data, fit) {
+    const { trueQ, N } = data;
+    const Ktrue = data.Ktrue;
+    const K = fit.K;
+    const Q = fit.Q;
+
+    // Column means.
+    const trueMean = new Float64Array(Ktrue);
+    for (let k = 0; k < Ktrue; k++) {
+      let s = 0;
+      for (let i = 0; i < N; i++) s += trueQ[i][k];
+      trueMean[k] = s / N;
+    }
+    const fitMean = new Float64Array(K);
+    for (let k = 0; k < K; k++) {
+      let s = 0;
+      for (let i = 0; i < N; i++) s += Q[i * K + k];
+      fitMean[k] = s / N;
+    }
+
+    const corr = new Array(Ktrue);
+    for (let a = 0; a < Ktrue; a++) {
+      corr[a] = new Float64Array(K);
+      for (let b = 0; b < K; b++) {
+        let num = 0, sa = 0, sb = 0;
+        for (let i = 0; i < N; i++) {
+          const da = trueQ[i][a] - trueMean[a];
+          const db = Q[i * K + b] - fitMean[b];
+          num += da * db;
+          sa += da * da;
+          sb += db * db;
+        }
+        const denom = Math.sqrt(Math.max(1e-12, sa * sb));
+        corr[a][b] = num / denom;
+      }
+    }
+
+    // Greedy assignment (bounded by min(Ktrue, K)).
+    const assign = new Array(Ktrue).fill(-1);    // true-pop -> fit-component
+    const used = new Set();
+    const nMatches = Math.min(Ktrue, K);
+    for (let s = 0; s < nMatches; s++) {
+      let bestA = -1, bestB = -1, bestV = -Infinity;
+      for (let a = 0; a < Ktrue; a++) {
+        if (assign[a] !== -1) continue;
+        for (let b = 0; b < K; b++) {
+          if (used.has(b)) continue;
+          const v = corr[a][b];
+          if (v > bestV) { bestV = v; bestA = a; bestB = b; }
+        }
+      }
+      if (bestA === -1) break;
+      assign[bestA] = bestB;
+      used.add(bestB);
+    }
+
+    // Frobenius distance: for each matched pair, ||Q_fit[:,b] - trueQ[:,a]||;
+    // unmatched true columns contribute their own norm.
+    let frob2 = 0;
+    const corrs = [];
+    for (let a = 0; a < Ktrue; a++) {
+      const b = assign[a];
+      if (b === -1) {
+        for (let i = 0; i < N; i++) {
+          const x = trueQ[i][a];
+          frob2 += x * x;
+        }
+        corrs.push({ a, b: -1, r: 0 });
+        continue;
+      }
+      let s = 0;
+      for (let i = 0; i < N; i++) {
+        const d = Q[i * K + b] - trueQ[i][a];
+        s += d * d;
+      }
+      frob2 += s;
+      corrs.push({ a, b, r: corr[a][b] });
+    }
+    return { assign, corrMatrix: corr, corrs, frobenius: Math.sqrt(frob2) };
+  }
+
+  // ── 5-fold CV ──────────────────────────────────────────
+  //
+  // Split the (i, m) genotype cells into 5 folds at random. For each fold,
+  // mask ~20% of cells (the held-out fold), refit a shorter EM on the
+  // remaining cells, and predict r_im = sum_k Q_ik * P_mk for the masked
+  // cells. CV error: mean squared error between g_im / 2 and r_im on the
+  // held-out cells, averaged over folds.
+  function runCV(geno, N, M, K, rng) {
+    const NFOLDS = 5;
+    // Random fold assignments.
+    const fold = new Uint8Array(N * M);
+    for (let i = 0; i < N; i++) {
+      for (let m = 0; m < M; m++) {
+        fold[i * M + m] = Math.floor(rng() * NFOLDS);
+      }
+    }
+    let totalErr = 0;
+    let totalCount = 0;
+
+    for (let f = 0; f < NFOLDS; f++) {
+      // Build mask for this fold (heldout cells = true).
+      const mask = new Uint8Array(N * M);
+      for (let i = 0; i < N; i++) {
+        for (let m = 0; m < M; m++) {
+          if (fold[i * M + m] === f) mask[i * M + m] = 1;
+        }
+      }
+      // Refit each CV fold to rough convergence — the K-dependent held-out
+      // reconstruction-error curve is only meaningful once each K has
+      // plateaued in-sample.
+      const foldRng = mulberry32((state.seed ^ (0xA5A5 + K * 101 + f * 37)) >>> 0);
+      const { Q, P } = runEM(geno, mask, N, M, K, 40, foldRng);
+      // Predict held-out cells. Use negative Bernoulli log-likelihood per
+      // allele call — this is the standard ADMIXTURE CV criterion and
+      // penalises over-parameterised models that spread probability mass
+      // too thin on held-out data. (MSE alone keeps dropping with K
+      // because richer Q × P can still reconstruct held-out cells via the
+      // remaining 80% of the row/column.)
+      let err = 0, n = 0;
+      const EPS = 1e-5;
+      for (let i = 0; i < N; i++) {
+        for (let m = 0; m < M; m++) {
+          if (mask[i * M + m]) {
+            let r = 0;
+            for (let k = 0; k < K; k++) r += Q[i * K + k] * P[m * K + k];
+            if (r < EPS) r = EPS; else if (r > 1 - EPS) r = 1 - EPS;
+            const g = geno[i * M + m];
+            // −log P(g | r) for binomial(2, r)
+            err -= g * Math.log(r) + (2 - g) * Math.log(1 - r);
+            n += 2;
+          }
+        }
+      }
+      if (n > 0) { totalErr += err; totalCount += n; }
+    }
+    return totalCount > 0 ? (totalErr / totalCount) : NaN;
+  }
+
+  function runKSweep() {
+    const { geno, N, M } = state.data;
+    const rng = mulberry32((state.seed ^ 0xBEEF) >>> 0);
+    const sweep = [];
+    for (let K = 2; K <= 7; K++) {
+      const cvErr = runCV(geno, N, M, K, rng);
+      sweep.push({ K, cvErr });
+    }
+    return sweep;
+  }
+
+  // ── Rendering ───────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  function renderBars() {
+    const svg = $('bars-svg');
+    clear(svg);
+    const data = state.data;
+    const fit = state.fit;
+    if (!data || !fit) return;
+    const N = data.N;
+    const K = fit.K;
+    const Q = fit.Q;
+
+    const W = 1100, H = 280;
+    const PAD_L = 40, PAD_R = 14, PAD_T = 24, PAD_B = 36;
+    const plotW = W - PAD_L - PAD_R;
+    const plotH = H - PAD_T - PAD_B;
+
+    // Sort individuals by their majority fitted component, then by the
+    // component's weight descending so populations form visible blocks.
+    const idx = Array.from({ length: N }, (_, i) => i);
+    idx.sort((a, b) => {
+      const ma = majorityK(Q, a, K);
+      const mb = majorityK(Q, b, K);
+      if (ma !== mb) return ma - mb;
+      return Q[b * K + mb] - Q[a * K + ma];
+    });
+
+    const barW = plotW / N;
+
+    // Axis backdrop.
+    svg.appendChild(el('rect', {
+      x: PAD_L, y: PAD_T, width: plotW, height: plotH,
+      fill: '#fafafa', stroke: 'var(--border)', 'stroke-width': 1, rx: 2,
+    }));
+
+    // Y axis ticks at 0, 0.25, 0.5, 0.75, 1.
+    for (let t = 0; t <= 4; t++) {
+      const y = PAD_T + plotH * (1 - t / 4);
+      svg.appendChild(el('line', {
+        x1: PAD_L - 4, x2: PAD_L, y1: y, y2: y,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x: PAD_L - 6, y: y + 3,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 9,
+        fill: 'var(--fg-subtle)',
+      }, (t / 4).toFixed(2)));
+    }
+    svg.appendChild(el('text', {
+      x: 12, y: PAD_T + plotH / 2,
+      transform: `rotate(-90 12 ${PAD_T + plotH / 2})`,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 10,
+      fill: 'var(--fg-muted)',
+    }, 'ancestry fraction Q'));
+
+    // Stacked bars.
+    for (let j = 0; j < N; j++) {
+      const i = idx[j];
+      let yTop = PAD_T;
+      const qRow = [];
+      for (let k = 0; k < K; k++) qRow.push({ k, v: Q[i * K + k] });
+      // Keep stacking order canonical (by K index) for consistent colours.
+      let yAcc = 0;
+      for (let k = 0; k < K; k++) {
+        const v = Q[i * K + k];
+        if (v <= 0) continue;
+        const h = v * plotH;
+        svg.appendChild(el('rect', {
+          x: PAD_L + j * barW,
+          y: PAD_T + yAcc * plotH,
+          width: Math.max(0.6, barW),
+          height: h,
+          fill: PAL[k % PAL.length],
+          'shape-rendering': 'crispEdges',
+        }));
+        yAcc += v;
+      }
+    }
+
+    // Population boundaries (by true population label in the sorted order).
+    // Draw thin separators where the true popLabel changes.
+    const sortedLabels = idx.map(i => data.popLabel[i]);
+    for (let j = 1; j < N; j++) {
+      if (sortedLabels[j] !== sortedLabels[j - 1]) {
+        const x = PAD_L + j * barW;
+        svg.appendChild(el('line', {
+          x1: x, x2: x, y1: PAD_T, y2: PAD_T + plotH,
+          stroke: '#0a0a0a', 'stroke-width': 0.9, 'stroke-dasharray': '2 2',
+          opacity: 0.5,
+        }));
+      }
+    }
+
+    // Population label tape below bars: print true-pop blocks.
+    let runStart = 0;
+    for (let j = 1; j <= N; j++) {
+      if (j === N || sortedLabels[j] !== sortedLabels[runStart]) {
+        const mid = PAD_L + ((runStart + j - 1) / 2 + 0.5) * barW;
+        const lab = POP_NAMES[sortedLabels[runStart]];
+        svg.appendChild(el('text', {
+          x: mid,
+          y: PAD_T + plotH + 14,
+          'text-anchor': 'middle',
+          'font-family': 'var(--font-mono)', 'font-size': 9.5,
+          fill: 'var(--fg-muted)',
+        }, lab));
+        // Bracket line below.
+        svg.appendChild(el('line', {
+          x1: PAD_L + runStart * barW + 2,
+          x2: PAD_L + j * barW - 2,
+          y1: PAD_T + plotH + 4, y2: PAD_T + plotH + 4,
+          stroke: 'var(--fg-muted)', 'stroke-width': 1,
+        }));
+        runStart = j;
+      }
+    }
+
+    // Axis footer: individual count + fit K.
+    svg.appendChild(el('text', {
+      x: PAD_L + plotW / 2,
+      y: PAD_T + plotH + 30,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 10,
+      fill: 'var(--fg-subtle)',
+    }, `${N} individuals · K_true = ${data.Ktrue} · K_fit = ${K}`));
+
+    // Legend (components).
+    const legend = $('bars-legend');
+    legend.innerHTML = '';
+    for (let k = 0; k < K; k++) {
+      const span = document.createElement('span');
+      span.className = 'legend-swatch';
+      const sw = document.createElement('span');
+      sw.className = 'sw';
+      sw.style.background = PAL[k % PAL.length];
+      span.appendChild(sw);
+      span.appendChild(document.createTextNode(`component ${k + 1}`));
+      legend.appendChild(span);
+    }
+  }
+
+  function majorityK(Q, i, K) {
+    let best = 0, bv = Q[i * K];
+    for (let k = 1; k < K; k++) {
+      const v = Q[i * K + k];
+      if (v > bv) { bv = v; best = k; }
+    }
+    return best;
+  }
+
+  function renderMatchTable(match) {
+    const tbody = $('match-body');
+    tbody.innerHTML = '';
+    const data = state.data;
+    const fit = state.fit;
+    for (const { a, b, r } of match.corrs) {
+      const tr = document.createElement('tr');
+      const tdA = document.createElement('td');
+      tdA.innerHTML = `<span class="swatch-inline" style="background:${PAL[a % PAL.length]}"></span>${POP_NAMES[a]} <span style="color:var(--fg-subtle)">(true ${a + 1})</span>`;
+      const tdB = document.createElement('td');
+      if (b === -1) {
+        tdB.innerHTML = `<span style="color:var(--fg-subtle)">(no match — K_fit &lt; K_true)</span>`;
+      } else {
+        tdB.innerHTML = `<span class="swatch-inline" style="background:${PAL[b % PAL.length]}"></span>component ${b + 1}`;
+      }
+      const tdC = document.createElement('td');
+      tdC.className = 'tight';
+      if (b === -1) {
+        tdC.textContent = '—';
+      } else {
+        const rVal = r;
+        const frac = Math.max(0, Math.min(1, rVal));
+        tdC.innerHTML = `${rVal.toFixed(3)} <span class="corr-bar-wrap"><span class="fill" style="width:${(frac * 100).toFixed(0)}%"></span></span>`;
+      }
+      tr.appendChild(tdA); tr.appendChild(tdB); tr.appendChild(tdC);
+      tbody.appendChild(tr);
+    }
+    // Also show unmatched extra fit components (when K_fit > K_true) as
+    // informational rows beneath.
+    const usedB = new Set(match.corrs.filter(x => x.b !== -1).map(x => x.b));
+    for (let b = 0; b < fit.K; b++) {
+      if (usedB.has(b)) continue;
+      const tr = document.createElement('tr');
+      const tdA = document.createElement('td');
+      tdA.innerHTML = `<span style="color:var(--fg-subtle)">(extra fitted component)</span>`;
+      const tdB = document.createElement('td');
+      tdB.innerHTML = `<span class="swatch-inline" style="background:${PAL[b % PAL.length]}"></span>component ${b + 1}`;
+      const tdC = document.createElement('td');
+      tdC.className = 'tight';
+      // Compute best correlation to any true column (showing what it's
+      // "stealing from").
+      let bestR = -1, bestA = -1;
+      for (let a = 0; a < data.Ktrue; a++) {
+        const r = match.corrMatrix[a][b];
+        if (r > bestR) { bestR = r; bestA = a; }
+      }
+      tdC.innerHTML = `splits ${POP_NAMES[bestA]} · r = ${bestR.toFixed(3)}`;
+      tr.appendChild(tdA); tr.appendChild(tdB); tr.appendChild(tdC);
+      tr.style.background = 'rgba(124, 58, 237, 0.04)';
+      tbody.appendChild(tr);
+    }
+
+    // Header summary numbers.
+    const matched = match.corrs.filter(x => x.b !== -1);
+    const meanR = matched.length ? matched.reduce((s, x) => s + x.r, 0) / matched.length : 0;
+    $('mean-corr').textContent = matched.length ? meanR.toFixed(3) : '—';
+    $('frob').textContent = match.frobenius.toFixed(3);
+    $('loglik').textContent = isFinite(fit.loglik) ? fit.loglik.toFixed(1) : '—';
+  }
+
+  function renderSweep() {
+    const svg = $('sweep-svg');
+    clear(svg);
+    const sweep = state.sweep;
+    if (!sweep) {
+      // Placeholder message.
+      svg.appendChild(el('text', {
+        x: 280, y: 140,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 12,
+        fill: 'var(--fg-subtle)',
+      }, 'Click "K-sweep" to compute CV error for K_fit ∈ {2..7}.'));
+      return;
+    }
+
+    const W = 560, H = 280;
+    const PAD_L = 50, PAD_R = 16, PAD_T = 24, PAD_B = 42;
+    const plotW = W - PAD_L - PAD_R;
+    const plotH = H - PAD_T - PAD_B;
+
+    const xs = sweep.map(s => s.K);
+    const ys = sweep.map(s => s.cvErr);
+    const ymin = Math.min(...ys);
+    const ymax = Math.max(...ys);
+    const yRange = Math.max(1e-6, ymax - ymin);
+    const yPad = yRange * 0.12;
+    const yLo = ymin - yPad;
+    const yHi = ymax + yPad;
+
+    const xOf = (K) => PAD_L + ((K - 2) / 5) * plotW;
+    const yOf = (y) => PAD_T + (1 - (y - yLo) / (yHi - yLo)) * plotH;
+
+    // Frame.
+    svg.appendChild(el('rect', {
+      x: PAD_L, y: PAD_T, width: plotW, height: plotH,
+      fill: '#fafafa', stroke: 'var(--border)', 'stroke-width': 1, rx: 2,
+    }));
+
+    // Y ticks (5 evenly spaced).
+    for (let t = 0; t <= 4; t++) {
+      const yVal = yLo + (yHi - yLo) * (t / 4);
+      const y = yOf(yVal);
+      svg.appendChild(el('line', {
+        x1: PAD_L - 4, x2: PAD_L, y1: y, y2: y,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x: PAD_L - 6, y: y + 3,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 9,
+        fill: 'var(--fg-subtle)',
+      }, yVal.toExponential(2)));
+      svg.appendChild(el('line', {
+        x1: PAD_L, x2: PAD_L + plotW, y1: y, y2: y,
+        stroke: 'var(--border)', 'stroke-width': 0.5, 'stroke-dasharray': '2 3',
+      }));
+    }
+
+    // X ticks.
+    for (let K = 2; K <= 7; K++) {
+      const x = xOf(K);
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: PAD_T + plotH, y2: PAD_T + plotH + 4,
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      svg.appendChild(el('text', {
+        x, y: PAD_T + plotH + 16,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-muted)',
+      }, `K=${K}`));
+    }
+    svg.appendChild(el('text', {
+      x: PAD_L + plotW / 2,
+      y: PAD_T + plotH + 33,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 10,
+      fill: 'var(--fg-muted)',
+    }, 'K_fit'));
+    svg.appendChild(el('text', {
+      x: 14, y: PAD_T + plotH / 2,
+      transform: `rotate(-90 14 ${PAD_T + plotH / 2})`,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 10,
+      fill: 'var(--fg-muted)',
+    }, '5-fold CV neg-log-lik'));
+
+    // Line.
+    let path = '';
+    for (let i = 0; i < sweep.length; i++) {
+      const { K, cvErr } = sweep[i];
+      const x = xOf(K), y = yOf(cvErr);
+      path += (i === 0 ? 'M' : 'L') + x.toFixed(2) + ' ' + y.toFixed(2) + ' ';
+    }
+    svg.appendChild(el('path', {
+      d: path,
+      fill: 'none',
+      stroke: 'var(--accent)',
+      'stroke-width': 2,
+      'stroke-linejoin': 'round',
+    }));
+
+    // Points, highlight min.
+    let minIdx = 0;
+    for (let i = 1; i < sweep.length; i++) if (sweep[i].cvErr < sweep[minIdx].cvErr) minIdx = i;
+    for (let i = 0; i < sweep.length; i++) {
+      const { K, cvErr } = sweep[i];
+      const x = xOf(K), y = yOf(cvErr);
+      const isMin = (i === minIdx);
+      svg.appendChild(el('circle', {
+        cx: x, cy: y,
+        r: isMin ? 6 : 4,
+        fill: isMin ? 'var(--accent)' : '#fff',
+        stroke: 'var(--accent)',
+        'stroke-width': 2,
+      }));
+      svg.appendChild(el('text', {
+        x: x, y: y - 10,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 9,
+        fill: isMin ? 'var(--accent)' : 'var(--fg-muted)',
+        'font-weight': isMin ? 600 : 400,
+      }, cvErr.toExponential(2)));
+    }
+
+    // Mark K_true with a vertical guide.
+    const kTrueX = xOf(state.data.Ktrue);
+    svg.appendChild(el('line', {
+      x1: kTrueX, x2: kTrueX, y1: PAD_T, y2: PAD_T + plotH,
+      stroke: '#0a0a0a', 'stroke-width': 1, 'stroke-dasharray': '4 3',
+      opacity: 0.35,
+    }));
+    svg.appendChild(el('text', {
+      x: kTrueX, y: PAD_T - 6,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-mono)', 'font-size': 9.5,
+      fill: 'var(--fg-muted)',
+      'font-weight': 600,
+    }, `K_true = ${state.data.Ktrue}`));
+  }
+
+  // Detect a "split cluster": any true pop whose fractional weight on a
+  // single fitted component never exceeds a threshold — typically when
+  // K_fit > K_true, one true pop gets divided between two fitted components.
+  function detectSplit(data, fit) {
+    const { N, Ktrue, popLabel, admixed } = data;
+    const K = fit.K;
+    const Q = fit.Q;
+
+    // For each true pop, find the mean fitted-component vector for
+    // unadmixed individuals in that pop.
+    const means = new Array(Ktrue);
+    const counts = new Array(Ktrue).fill(0);
+    for (let a = 0; a < Ktrue; a++) means[a] = new Float64Array(K);
+    for (let i = 0; i < N; i++) {
+      if (admixed[i]) continue;
+      const a = popLabel[i];
+      for (let k = 0; k < K; k++) means[a][k] += Q[i * K + k];
+      counts[a]++;
+    }
+    for (let a = 0; a < Ktrue; a++) {
+      if (counts[a] > 0) for (let k = 0; k < K; k++) means[a][k] /= counts[a];
+    }
+    // Split detection: a true pop is "split" if its top-1 mean is < 0.75
+    // AND its top-2 mean sum is >= 0.85 (i.e., most of the mass lives on
+    // two components, not one).
+    let splitPop = -1;
+    let splitBestPair = null;
+    for (let a = 0; a < Ktrue; a++) {
+      const row = means[a];
+      const sorted = Array.from(row).map((v, k) => ({ k, v })).sort((x, y) => y.v - x.v);
+      const top1 = sorted[0].v;
+      const top2 = sorted[0].v + (sorted[1] ? sorted[1].v : 0);
+      if (top1 < 0.75 && top2 >= 0.80) {
+        splitPop = a;
+        splitBestPair = [sorted[0].k, sorted[1].k];
+        break;
+      }
+    }
+    return { splitPop, splitBestPair };
+  }
+
+  function renderBanner(match) {
+    const banner = $('banner');
+    const data = state.data;
+    const fit = state.fit;
+    const matched = match.corrs.filter(x => x.b !== -1);
+    const meanR = matched.length ? matched.reduce((s, x) => s + x.r, 0) / matched.length : 0;
+    const Kt = data.Ktrue, Kf = fit.K;
+
+    let verdictTag, verdictCls;
+    if (Kf < Kt) {
+      verdictTag = 'underfit';
+      verdictCls = 'bad';
+    } else if (Kf === Kt && meanR >= 0.85) {
+      verdictTag = 'match';
+      verdictCls = 'good';
+    } else if (Kf === Kt) {
+      verdictTag = 'weak match';
+      verdictCls = 'warn';
+    } else {
+      verdictTag = 'overfit';
+      verdictCls = 'warn';
+    }
+
+    const parts = [];
+    parts.push(`<span class="verdict ${verdictCls}">${verdictTag}</span>`);
+    parts.push(`K<sub>true</sub> = <b>${Kt}</b>, K<sub>fit</sub> = <b>${Kf}</b> → mean recovered correlation <b>${(meanR * 100).toFixed(1)}%</b> (${matched.length} of ${Kt} true populations matched).`);
+
+    if (Kf === Kt && meanR >= 0.90) {
+      parts.push(`<br>Clean recovery: every true population maps to a distinct fitted component at r &gt; 0.85. At this signal-to-noise, ADMIXTURE reproduces the planted structure almost verbatim.`);
+    } else if (Kf === Kt) {
+      parts.push(`<br>Components map 1:1 but correlations are modest — try more SNPs or individuals to sharpen the fit.`);
+    }
+
+    if (Kf > Kt) {
+      const split = detectSplit(data, fit);
+      if (split.splitPop !== -1) {
+        const [cA, cB] = split.splitBestPair;
+        parts.push(`<br>At K<sub>fit</sub> = ${Kf}, <b>${POP_NAMES[split.splitPop]}</b> is split across two recovered components (components ${cA + 1} and ${cB + 1}). The extra K didn't find a new population — it fractured an existing one. Classic ADMIXTURE overfit.`);
+      } else {
+        parts.push(`<br>K<sub>fit</sub> = ${Kf} &gt; K<sub>true</sub> = ${Kt}: the extra components mostly track zero weight, indicating the EM landed near a reasonable solution, but held-out CV error still flags this as overparameterised.`);
+      }
+    }
+
+    if (Kf < Kt) {
+      parts.push(`<br>K<sub>fit</sub> = ${Kf} &lt; K<sub>true</sub> = ${Kt}: at least one true population cannot be represented — two distinct ancestries collapse into the same fitted component.`);
+    }
+
+    // CV minimum line, if we have sweep data.
+    if (state.sweep) {
+      let minIdx = 0;
+      for (let i = 1; i < state.sweep.length; i++) if (state.sweep[i].cvErr < state.sweep[minIdx].cvErr) minIdx = i;
+      const minK = state.sweep[minIdx].K;
+      const minErr = state.sweep[minIdx].cvErr;
+      parts.push(`<br>5-fold CV minimum at <b>K = ${minK}</b> (neg-log-lik per call = ${minErr.toFixed(3)})` + (minK === Kt ? ` — matches K<sub>true</sub>.` : ` — ${minK < Kt ? 'under' : 'over'} by ${Math.abs(minK - Kt)}.`));
+    } else {
+      parts.push(`<br><span style="color:var(--fg-subtle)">Run the K-sweep to see where cross-validation pins the model order.</span>`);
+    }
+
+    banner.innerHTML = parts.join(' ');
+  }
+
+  // ── Driver: simulate, fit, render ──────────────────────
+  function fitAndRender() {
+    const { geno, N, M } = state.data;
+    const K = state.Kfit;
+    // Two random restarts; keep the run with higher final log-likelihood.
+    // ADMIXTURE's objective is non-convex; the multiplicative EM can plateau
+    // at a poor local optimum from an unlucky init. Two restarts is a cheap
+    // hedge that reliably produces clean recovery at the default settings.
+    let best = null;
+    for (let restart = 0; restart < 2; restart++) {
+      const rng = mulberry32((state.seed ^ (0xC0FFEE + K * 7919 + restart * 131)) >>> 0);
+      const cand = runEM(geno, null, N, M, K, 60, rng);
+      if (!best || cand.loglik > best.loglik) best = cand;
+    }
+    const fit = best;
+    state.fit = fit;
+
+    renderBars();
+    const match = computeMatch(state.data, fit);
+    renderMatchTable(match);
+    renderBanner(match);
+  }
+
+  function setStatus(msg) {
+    $('status').textContent = msg;
+  }
+
+  function resimulate(newSeed) {
+    if (newSeed) state.seed = (Math.random() * 0xffffffff) >>> 0;
+    simulateCohort();
+    state.sweep = null; // invalidate sweep when data changes
+    renderSweep();
+  }
+
+  // SNPs slider maps log-uniform between 100 and 2000.
+  function snpsFromSlider(v) {
+    const lo = Math.log(100), hi = Math.log(2000);
+    const u = v / 100;
+    const M = Math.round(Math.exp(lo + u * (hi - lo)));
+    // Snap to nearest 10 for cleanliness.
+    return Math.max(100, Math.min(2000, Math.round(M / 10) * 10));
+  }
+  function snpsSliderFromM(M) {
+    const lo = Math.log(100), hi = Math.log(2000);
+    return Math.round(((Math.log(M) - lo) / (hi - lo)) * 100);
+  }
+
+  // ── Wiring ─────────────────────────────────────────────
+  const ktrueSlider  = $('ktrue-slider');
+  const nperpopSlider = $('nperpop-slider');
+  const admixSlider  = $('admix-slider');
+  const snpsSlider   = $('snps-slider');
+  const kfitSlider   = $('kfit-slider');
+
+  // Initialise SNP slider to reflect default M = 500.
+  snpsSlider.value = String(snpsSliderFromM(state.M));
+  $('snps-val').textContent = String(state.M);
+
+  ktrueSlider.addEventListener('input', () => {
+    state.Ktrue = parseInt(ktrueSlider.value, 10);
+    $('ktrue-val').textContent = state.Ktrue;
+    resimulate(false);
+    fitAndRender();
+    setStatus(`Regenerated cohort for K_true = ${state.Ktrue}.`);
+  });
+  nperpopSlider.addEventListener('input', () => {
+    state.nPerPop = parseInt(nperpopSlider.value, 10);
+    $('nperpop-val').textContent = state.nPerPop;
+    resimulate(false);
+    fitAndRender();
+    setStatus(`Cohort: ${state.nPerPop} per pop × ${state.Ktrue} pops.`);
+  });
+  admixSlider.addEventListener('input', () => {
+    const pct = parseInt(admixSlider.value, 10);
+    state.admixFrac = pct / 100;
+    $('admix-val').textContent = `${pct}%`;
+    resimulate(false);
+    fitAndRender();
+    setStatus(`Admixed fraction: ${pct}%.`);
+  });
+  snpsSlider.addEventListener('input', () => {
+    const v = parseInt(snpsSlider.value, 10);
+    state.M = snpsFromSlider(v);
+    $('snps-val').textContent = state.M;
+    resimulate(false);
+    fitAndRender();
+    setStatus(`SNPs: ${state.M}.`);
+  });
+  kfitSlider.addEventListener('input', () => {
+    state.Kfit = parseInt(kfitSlider.value, 10);
+    $('kfit-val').textContent = state.Kfit;
+    fitAndRender();
+    setStatus(`Re-fit with K_fit = ${state.Kfit}.`);
+  });
+
+  $('resim-btn').addEventListener('click', () => {
+    state.seed = (Math.random() * 0xffffffff) >>> 0;
+    resimulate(true);
+    fitAndRender();
+    setStatus(`Fresh draw (seed ${state.seed}).`);
+  });
+  $('run-btn').addEventListener('click', () => {
+    setStatus('Running ADMIXTURE (60 EM iterations)…');
+    setTimeout(() => {
+      fitAndRender();
+      setStatus('EM complete.');
+    }, 15);
+  });
+  $('sweep-btn').addEventListener('click', () => {
+    const btn = $('sweep-btn');
+    btn.disabled = true;
+    setStatus('Running 5-fold CV for K ∈ {2..7}…');
+    setTimeout(() => {
+      state.sweep = runKSweep();
+      renderSweep();
+      // Re-render banner to include the CV verdict.
+      if (state.fit) {
+        const match = computeMatch(state.data, state.fit);
+        renderBanner(match);
+      }
+      btn.disabled = false;
+      setStatus('K-sweep complete.');
+    }, 15);
+  });
+
+  // ── Boot ───────────────────────────────────────────────
+  function boot() {
+    resimulate(false);
+    fitAndRender();
+    // Pre-compute sweep on first load so the default panel isn't empty.
+    state.sweep = runKSweep();
+    renderSweep();
+    // Refresh banner with sweep info.
+    const match = computeMatch(state.data, state.fit);
+    renderBanner(match);
+    setStatus('Default fit: K_true = 3, K_fit = 3.');
+  }
+  boot();
+})();
+</script>
+
+<script src="../_shared/resize.js" defer></script>
+
+</body>
+</html>

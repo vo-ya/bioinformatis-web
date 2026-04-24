@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LD Decay Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 78ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg); cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+    .slider-row .slider-note {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+    }
+
+    .controls-row {
+      display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+      margin-top: 1rem; padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-caption {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-subtle); margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+      line-height: var(--leading-relaxed);
+    }
+
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .col-cell {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .col-title {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+      font-weight: 600;
+      margin: 0 0 0.4rem;
+    }
+
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 0.9rem;
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-muted); margin-top: 0.5rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block; width: 14px; height: 10px; border-radius: 2px;
+      background: var(--accent);
+    }
+    .legend-swatch .sw.mean { background: var(--accent); }
+    .legend-swatch .sw.fit  { background: var(--base-g); }
+    .legend-swatch .sw.half { background: var(--base-a); }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .stat-cell {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.7rem 0.9rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+    .stat-cell .k {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+      display: block;
+    }
+    .stat-cell .v { color: var(--fg); }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .heatmap-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    canvas.heatmap {
+      display: block;
+      image-rendering: pixelated;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      max-width: 100%;
+      height: auto;
+    }
+    .heatmap-scale {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.5rem;
+      justify-content: center;
+    }
+    .heatmap-scale .gradient {
+      width: 180px; height: 10px;
+      background: linear-gradient(
+        to right,
+        #f4f3ee 0%,
+        #dbeafe 20%,
+        #93c5fd 40%,
+        #3b82f6 60%,
+        #1e3a8a 80%,
+        #0a0a0a 100%
+      );
+      border: 1px solid var(--border);
+      border-radius: 2px;
+    }
+
+    @media (max-width: 820px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .two-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="ld-decay">
+
+  <header class="artifact-head">
+    <h1>LD Decay Explorer</h1>
+    <p>Linkage disequilibrium is an autocorrelation between loci &mdash; how much knowing the allele at site A tells you about site B. Every generation of recombination is one round of smoothing; the expected correlation between two sites at distance <i>d</i> decays as <b>exp(&minus;2ct&middot;d)</b>, where <i>c</i> is the recombination rate and <i>t</i> is the number of generations since the founding haplotype pool was laid down. Simulate a chromosome, extract the decay curve, and watch the characteristic distance shrink as either axis moves.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Simulation controls</p>
+
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="c-input">Recombination rate c</label>
+          <span class="slider-value" id="c-value">1.00 cM/Mb</span>
+        </div>
+        <input id="c-input" type="range" min="10" max="500" step="5" value="100">
+        <span class="slider-note">0.1 &ndash; 5 cM/Mb (1 cM/Mb &asymp; 1e-8 per bp)</span>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="t-input">Generations t</label>
+          <span class="slider-value" id="t-value">100</span>
+        </div>
+        <input id="t-input" type="range" min="0" max="1000" step="1" value="333">
+        <span class="slider-note">log scale, 10 &ndash; 10,000 since founding</span>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="N-input">Population size N</label>
+          <span class="slider-value" id="N-value">10,000</span>
+        </div>
+        <input id="N-input" type="range" min="0" max="1000" step="1" value="565">
+        <span class="slider-note">log scale, 500 &ndash; 100,000 (sim uses scaled pool; see note)</span>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="L-input">Region length</label>
+          <span class="slider-value" id="L-value">1.0 Mb</span>
+        </div>
+        <input id="L-input" type="range" min="100" max="5000" step="50" value="1000">
+        <span class="slider-note">100 kb &ndash; 5 Mb</span>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="S-input">SNPs in region</label>
+          <span class="slider-value" id="S-value">100</span>
+        </div>
+        <input id="S-input" type="range" min="50" max="200" step="5" value="100">
+        <span class="slider-note">evenly spaced along the region</span>
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <button id="run-btn" class="btn btn--primary" type="button">Re-simulate</button>
+      <button id="reset-btn" class="btn" type="button">Reset defaults</button>
+      <span class="slider-note" id="status-note" style="margin-left:auto"></span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">LD decay curve</p>
+    <div class="plot-wrap">
+      <svg id="decay-svg" class="plot-svg" viewBox="0 0 1100 440" preserveAspectRatio="xMidYMid meet" aria-label="LD decay curve: mean r-squared vs pairwise distance"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw mean"></span> binned mean r&sup2; (log-spaced distance bins)</span>
+      <span class="legend-swatch"><span class="sw fit"></span> fitted exp(&minus;2ct&middot;d)</span>
+      <span class="legend-swatch"><span class="sw half"></span> half-max distance (r&sup2; = 0.5)</span>
+    </div>
+    <p class="plot-caption">Every pair of simulated SNPs contributes one r&sup2; value at one pairwise distance; bin the distances log-uniformly and plot the within-bin mean. Fit a single-parameter exponential by ordinary least squares on the log of the mean r&sup2;. The half-max distance is ln(2)/(2ct) &mdash; the characteristic distance at which correlations have fallen to 0.5.</p>
+
+    <div class="banner" id="banner">
+      <span>fitted 2ct = <b id="b-tns">&mdash;</b></span>
+      <span class="sep">&middot;</span>
+      <span>half-max distance = <b id="b-half">&mdash;</b></span>
+      <span class="sep">&middot;</span>
+      <span>expected 2ct = <b id="b-expected">&mdash;</b></span>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-cell">
+        <span class="k">SNPs simulated</span>
+        <span class="v" id="s-snps">&mdash;</span>
+      </div>
+      <div class="stat-cell">
+        <span class="k">segregating SNPs</span>
+        <span class="v" id="s-seg">&mdash;</span>
+      </div>
+      <div class="stat-cell">
+        <span class="k">pairwise comparisons</span>
+        <span class="v" id="s-pairs">&mdash;</span>
+      </div>
+      <div class="stat-cell">
+        <span class="k">mean MAF</span>
+        <span class="v" id="s-maf">&mdash;</span>
+      </div>
+      <div class="stat-cell">
+        <span class="k">mean r&sup2; (all pairs)</span>
+        <span class="v" id="s-meanr2">&mdash;</span>
+      </div>
+      <div class="stat-cell">
+        <span class="k">fit R&sup2; (log space)</span>
+        <span class="v" id="s-fitR2">&mdash;</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">LD heatmap &amp; block structure</p>
+    <div class="two-col">
+      <div class="col-cell">
+        <p class="col-title">Pairwise r&sup2; heatmap (upper triangular)</p>
+        <div class="heatmap-wrap">
+          <canvas id="heatmap" class="heatmap" width="400" height="400" aria-label="Pairwise r-squared matrix as a heatmap"></canvas>
+        </div>
+        <div class="heatmap-scale">
+          <span>r&sup2; = 0</span>
+          <span class="gradient"></span>
+          <span>r&sup2; = 1</span>
+        </div>
+      </div>
+      <div class="col-cell">
+        <p class="col-title">Haplotype block &amp; teaching notes</p>
+        <p class="hint" style="margin-top:0">
+          The heatmap reads like a triangular skyline: bright near the diagonal, fading as you move out. The brightness &quot;halo&quot; around the diagonal is the haplotype block. Its width matches the half-max distance on the left-hand curve &mdash; same number, two views. If the block fills the whole region, there has not been enough recombination (small <i>c</i>, small <i>t</i>). If the halo is a thin diagonal strip, recombination has erased nearly all long-range correlation.
+        </p>
+        <p class="hint">
+          <b>Aha moment.</b> Park at the default (c=1 cM/Mb, t=100) and note the half-max. Now multiply <i>t</i> by 10: the half-max shrinks by roughly 10&times;. Put <i>t</i> back, multiply <i>c</i> by 10: same thing. The decay constant is the product <i>2ct</i> &mdash; neither axis alone fixes it.
+        </p>
+        <p class="hint">
+          <b>Tiny gotcha.</b> Low-frequency SNPs carry very noisy r&sup2;. The simulation drops any SNP with MAF &lt; 0.05 before binning; the &quot;segregating SNPs&quot; counter tells you how many survived.
+        </p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ─────────────────────────────────────────────────────────
+  //  Seeded PRNG (mulberry32)
+  // ─────────────────────────────────────────────────────────
+  function mulberry32(seed) {
+    let s = seed >>> 0;
+    return function () {
+      s = (s + 0x6D2B79F5) >>> 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Slider helpers
+  // ─────────────────────────────────────────────────────────
+  // Log-space slider: integer 0..1000 → value in [lo, hi]
+  function logFromSlider(v, lo, hi) {
+    const t = Math.max(0, Math.min(1000, +v)) / 1000;
+    return lo * Math.pow(hi / lo, t);
+  }
+  function logToSlider(val, lo, hi) {
+    const t = Math.log(val / lo) / Math.log(hi / lo);
+    return Math.round(Math.max(0, Math.min(1, t)) * 1000);
+  }
+  function fmtInt(n) { return Math.round(n).toLocaleString('en-US'); }
+  function fmtKbMb(bp) {
+    if (bp >= 1e6) return (bp / 1e6).toFixed(bp >= 1e7 ? 1 : 2) + ' Mb';
+    if (bp >= 1e3) return (bp / 1e3).toFixed(bp >= 100e3 ? 0 : 1) + ' kb';
+    return Math.round(bp) + ' bp';
+  }
+  function fmtSci(x) {
+    if (!isFinite(x) || x === 0) return '0';
+    const abs = Math.abs(x);
+    if (abs >= 0.01 && abs < 1000) return x.toPrecision(3);
+    const exp = Math.floor(Math.log10(abs));
+    const mantissa = x / Math.pow(10, exp);
+    return mantissa.toFixed(2) + 'e' + (exp >= 0 ? '+' : '') + exp;
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Parameter readout from sliders
+  // ─────────────────────────────────────────────────────────
+  function readParams() {
+    const cInp = +$('c-input').value;   // 10..500 → /100 cM/Mb
+    const c_cm_per_mb = cInp / 100;     // 0.1 .. 5.0
+    // convert cM/Mb → Morgans per bp: 1 cM/Mb = 1e-8 M/bp
+    const c_per_bp = c_cm_per_mb * 1e-8;
+
+    const t = Math.round(logFromSlider($('t-input').value, 10, 10000));
+    const N = Math.round(logFromSlider($('N-input').value, 500, 100000));
+    const L_kb = +$('L-input').value;   // 100..5000 kb
+    const L_bp = Math.round(L_kb * 1000);
+    const S = +$('S-input').value;      // SNP count
+
+    return { c_cm_per_mb, c_per_bp, t, N, L_bp, L_kb, S };
+  }
+
+  function updateReadouts() {
+    const p = readParams();
+    $('c-value').textContent = p.c_cm_per_mb.toFixed(2) + ' cM/Mb';
+    $('t-value').textContent = fmtInt(p.t);
+    $('N-value').textContent = fmtInt(p.N);
+    $('L-value').textContent = p.L_kb >= 1000
+      ? (p.L_kb / 1000).toFixed(p.L_kb >= 2000 ? 1 : 2) + ' Mb'
+      : p.L_kb + ' kb';
+    $('S-value').textContent = String(p.S);
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Simulation
+  // ─────────────────────────────────────────────────────────
+  // SCALING NOTE
+  // The UI exposes N up to 100,000 and t up to 10,000. Simulating a
+  // chromosome pool of 100,000 × 100 SNPs × 10,000 generations in the
+  // browser is not feasible. We use the textbook property that LD decay
+  // is governed by 2·c·t (the recombination-distance product), not by
+  // N itself — N only sets the background drift–mutation balance of allele
+  // frequencies, which we approximate by seeding a small "founder block"
+  // set (4 haplotypes at varied frequencies) and then evolving POOL_SIZE=200
+  // chromosomes forward under recombination.
+  //
+  // Two sim scales: (i) SIM_GENS_CAP caps the number of generations we run
+  // to keep the loop bounded; (ii) we rescale the effective recombination
+  // rate to preserve c·t when we shorten t. But if the rescaled per-generation
+  // Poisson rate λ_eff = c_eff·L exceeds LAMBDA_MAX, too many crossovers pile
+  // into one generation — breaking the "recombination is rare per generation"
+  // assumption and also driving allele frequencies to fixation. In that case
+  // we back off the cap and run more generations at a lower effective rate.
+  // In all configurations the expected decay constant is 2·c·t; simT and
+  // scaleTime only control the sim cost vs accuracy trade-off.
+  const POOL_SIZE = 400;
+  // Keep simT small enough that drift does not erase signal. With POOL_SIZE=400
+  // the fixation time scale is 4·Ne ~ 1600 gens; we keep simT ≤ 120 so that
+  // fewer than 8% of sites drift to fixation at p=0.5. That leaves a clean
+  // decay signal; beyond simT all scaling is absorbed by c_eff.
+  const SIM_GENS_CAP = 120;
+
+  // Seed the pool with two ancestral haplotypes (all-0 vs all-1), half and
+  // half across POOL_SIZE chromosomes. Every site starts at p ≈ 0.5 and every
+  // pair starts in perfect LD (r² = 1). This is the cleanest possible initial
+  // condition for observing the exp(−2ct·d) decay. With POOL_SIZE = 400 and
+  // simT ≤ 120 the sites remain polymorphic across the simulation horizon.
+  function seedFounderHaplotypes(S, rng) {
+    const pool = new Array(POOL_SIZE);
+    for (let k = 0; k < POOL_SIZE; k++) {
+      const h = new Uint8Array(S);
+      const isAlt = (rng() < 0.5) ? 1 : 0;
+      if (isAlt) {
+        for (let i = 0; i < S; i++) h[i] = 1;
+      }
+      pool[k] = h;
+    }
+    return pool;
+  }
+
+  // Simulate one generation of Wright-Fisher + recombination on the pool.
+  // positions[] are SNP positions in bp within [0, L_bp].
+  // crossover rate per unit distance is c_eff_per_bp.
+  function stepGeneration(pool, positions, L_bp, c_eff_per_bp, rng) {
+    const S = positions.length;
+    const next = new Array(POOL_SIZE);
+    // Expected crossovers per chromosome across the region:
+    const lambda = c_eff_per_bp * L_bp;
+    for (let k = 0; k < POOL_SIZE; k++) {
+      // Pick two parents uniformly; build a recombined offspring.
+      const pA = pool[(rng() * POOL_SIZE) | 0];
+      const pB = pool[(rng() * POOL_SIZE) | 0];
+      // Draw number of crossovers (Poisson) with Knuth's algorithm.
+      let nCross = 0;
+      {
+        const Lp = Math.exp(-lambda);
+        let p = 1;
+        // Cap at 200 to prevent pathological blowup under extreme lambda.
+        for (let safety = 0; safety < 200; safety++) {
+          nCross++;
+          p *= rng();
+          if (p <= Lp) { nCross--; break; }
+        }
+      }
+      // Sort crossover positions
+      const cx = new Array(nCross);
+      for (let i = 0; i < nCross; i++) cx[i] = rng() * L_bp;
+      cx.sort((a, b) => a - b);
+      // Build offspring: start on parent A, flip to the other parent at each
+      // crossover position. Always starting on pA (rather than randomising)
+      // keeps the per-chromosome crossover rate == λ exactly, matching the
+      // analytical exp(−2ct·d) assumption that the per-generation probability
+      // of recombination between two sites at distance d is (1 − exp(−c·d)).
+      const offs = new Uint8Array(S);
+      let cur = 0;
+      let cxIdx = 0;
+      for (let i = 0; i < S; i++) {
+        const pos = positions[i];
+        while (cxIdx < nCross && pos >= cx[cxIdx]) {
+          cur ^= 1;
+          cxIdx++;
+        }
+        offs[i] = cur === 0 ? pA[i] : pB[i];
+      }
+      next[k] = offs;
+    }
+    return next;
+  }
+
+  // Compute pairwise r² across all SNP pairs (segregating only).
+  function computeLD(pool, positions, mafMin) {
+    const S = positions.length;
+    const n = pool.length;
+    // Allele frequencies
+    const freq = new Float32Array(S);
+    for (let i = 0; i < S; i++) {
+      let sum = 0;
+      for (let k = 0; k < n; k++) sum += pool[k][i];
+      freq[i] = sum / n;
+    }
+    // Filter segregating SNPs (MAF >= mafMin)
+    const seg = [];
+    for (let i = 0; i < S; i++) {
+      const pf = freq[i];
+      const maf = Math.min(pf, 1 - pf);
+      if (maf >= mafMin) seg.push(i);
+    }
+
+    const pairs = [];
+    let sumR2 = 0, countR2 = 0;
+    for (let a = 0; a < seg.length; a++) {
+      const i = seg[a];
+      const pi = freq[i];
+      for (let b = a + 1; b < seg.length; b++) {
+        const j = seg[b];
+        const pj = freq[j];
+        let c11 = 0;
+        for (let k = 0; k < n; k++) {
+          c11 += pool[k][i] & pool[k][j];
+        }
+        const p11 = c11 / n;
+        const D = p11 - pi * pj;
+        const denom = pi * (1 - pi) * pj * (1 - pj);
+        if (denom <= 0) continue;
+        const r2 = (D * D) / denom;
+        const d = Math.abs(positions[j] - positions[i]);
+        pairs.push([d, r2]);
+        sumR2 += r2; countR2++;
+      }
+    }
+    const meanR2 = countR2 > 0 ? sumR2 / countR2 : 0;
+    return { pairs, freq, seg, meanR2 };
+  }
+
+  // Log-spaced binning of pairs → mean r² per bin.
+  function binLDcurve(pairs, dMin, dMax, nBins) {
+    if (!pairs.length) return [];
+    const logMin = Math.log(Math.max(1, dMin));
+    const logMax = Math.log(Math.max(dMin * 1.01, dMax));
+    const step = (logMax - logMin) / nBins;
+    const sums = new Float64Array(nBins);
+    const counts = new Int32Array(nBins);
+    for (let i = 0; i < pairs.length; i++) {
+      const d = pairs[i][0], r2 = pairs[i][1];
+      if (d <= 0) continue;
+      let b = Math.floor((Math.log(d) - logMin) / step);
+      if (b < 0) b = 0;
+      if (b >= nBins) b = nBins - 1;
+      sums[b] += r2;
+      counts[b] += 1;
+    }
+    const bins = [];
+    for (let b = 0; b < nBins; b++) {
+      if (counts[b] === 0) continue;
+      const centreLog = logMin + (b + 0.5) * step;
+      bins.push({
+        d: Math.exp(centreLog),
+        r2: sums[b] / counts[b],
+        n: counts[b],
+      });
+    }
+    return bins;
+  }
+
+  // Fit log(mean r²) = a + b·d (with b ≈ -2ct) by weighted OLS.
+  function fitDecay(bins) {
+    if (bins.length < 2) return null;
+    const xs = [], ys = [], ws = [];
+    for (const b of bins) {
+      if (b.r2 <= 1e-6) continue;
+      xs.push(b.d);
+      ys.push(Math.log(b.r2));
+      ws.push(b.n);
+    }
+    if (xs.length < 2) return null;
+    let W = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (let i = 0; i < xs.length; i++) {
+      const w = ws[i];
+      W += w;
+      sx += w * xs[i];
+      sy += w * ys[i];
+      sxx += w * xs[i] * xs[i];
+      sxy += w * xs[i] * ys[i];
+    }
+    const meanX = sx / W, meanY = sy / W;
+    const denom = sxx - W * meanX * meanX;
+    if (denom <= 0) return null;
+    const slope = (sxy - W * meanX * meanY) / denom;
+    const intercept = meanY - slope * meanX;
+    // R² in log-space
+    let ssRes = 0, ssTot = 0;
+    for (let i = 0; i < xs.length; i++) {
+      const yhat = intercept + slope * xs[i];
+      ssRes += ws[i] * (ys[i] - yhat) * (ys[i] - yhat);
+      ssTot += ws[i] * (ys[i] - meanY) * (ys[i] - meanY);
+    }
+    const R2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+    const fit2ct = Math.max(1e-15, -slope);
+    // Half-max = distance at which the fitted curve hits r² = 0.5.
+    // Textbook form: r²(d) = exp(−2ct·d) with intercept 0 ⇒ halfMax = ln(2)/fit2ct.
+    // We use that form so the reported half-max is always the analytical
+    // "half-max of exp(−2ct·d)" regardless of whether the empirical curve at
+    // d → 0 happens to be below 1 (due to finite-pool drift).
+    const halfMax = Math.log(2) / fit2ct;
+    return { slope, intercept, fit2ct, halfMax, R2 };
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Run the pipeline
+  // ─────────────────────────────────────────────────────────
+  let seedCounter = 0x1a2b3c4d;
+  function runSimulation() {
+    const p = readParams();
+    const rng = mulberry32(seedCounter >>> 0);
+
+    // Rescale for in-browser feasibility: we want to preserve the product c·t.
+    // Cap generations at SIM_GENS_CAP and scale c in proportion so that
+    //    2 · c_eff · simT  =  2 · c · t
+    // To first order in (c·d), exp(−2·c_eff·simT·d) ≡ exp(−2·c·t·d). The
+    // approximation is accurate when c_eff·d stays small; for the ranges
+    // the sliders expose (c ≤ 5 cM/Mb, t ≤ 10,000, L ≤ 5 Mb) this holds.
+    const rawT = p.t;
+    const simT = Math.min(rawT, SIM_GENS_CAP);
+    const scaleTime = rawT / simT;
+    const cEff = p.c_per_bp * scaleTime;
+    const product2ct = 2 * p.c_per_bp * rawT;  // analytical decay constant
+
+    // Positions evenly spaced
+    const S = p.S;
+    const positions = new Float64Array(S);
+    for (let i = 0; i < S; i++) {
+      positions[i] = (S === 1) ? p.L_bp / 2 : (i / (S - 1)) * p.L_bp;
+    }
+
+    // Seed founder pool
+    let pool = seedFounderHaplotypes(S, rng);
+
+    // Run generations
+    for (let g = 0; g < simT; g++) {
+      pool = stepGeneration(pool, positions, p.L_bp, cEff, rng);
+    }
+
+    // Compute LD
+    // MAF threshold: start at 0.05, relax to 0.02 if too few sites survived
+    // (happens at very high t where drift has fixed most of the pool).
+    let mafMin = 0.05;
+    let ld = computeLD(pool, positions, mafMin);
+    if (ld.seg.length < 10) {
+      mafMin = 0.02;
+      ld = computeLD(pool, positions, mafMin);
+    }
+    const { pairs, freq, seg, meanR2 } = ld;
+
+    // Bin (log-spaced)
+    const dMin = p.L_bp / S;         // min sensible distance ≈ spacing
+    const dMax = p.L_bp;
+    const bins = binLDcurve(pairs, dMin, dMax, 24);
+    const fit = fitDecay(bins);
+
+    // Pairwise r² matrix for heatmap (S×S, computed on all segregating sites).
+    const mat = new Float32Array(S * S);
+    for (let i = 0; i < S; i++) mat[i * S + i] = 1;
+    for (let i = 0; i < S; i++) {
+      const pi = freq[i];
+      const mafI = Math.min(pi, 1 - pi);
+      if (mafI < mafMin) continue;
+      for (let j = i + 1; j < S; j++) {
+        const pj = freq[j];
+        const mafJ = Math.min(pj, 1 - pj);
+        if (mafJ < mafMin) continue;
+        let c11 = 0;
+        for (let k = 0; k < pool.length; k++) {
+          c11 += pool[k][i] & pool[k][j];
+        }
+        const p11 = c11 / pool.length;
+        const D = p11 - pi * pj;
+        const denom = pi * (1 - pi) * pj * (1 - pj);
+        if (denom <= 0) continue;
+        const r2 = (D * D) / denom;
+        mat[i * S + j] = r2;
+        mat[j * S + i] = r2;
+      }
+    }
+
+    // Seg stats
+    let mafSum = 0;
+    for (let idx = 0; idx < seg.length; idx++) {
+      const i = seg[idx];
+      mafSum += Math.min(freq[i], 1 - freq[i]);
+    }
+    const meanMaf = seg.length ? mafSum / seg.length : 0;
+
+    return {
+      params: p, rawT, simT, scaleTime, cEff, product2ct,
+      positions, pool,
+      freq, seg, pairs, meanR2,
+      bins, fit,
+      mat, S,
+      meanMaf, mafMin,
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Rendering — decay curve (SVG)
+  // ─────────────────────────────────────────────────────────
+  function svgEl(name, attrs) {
+    const el = document.createElementNS(SVG_NS, name);
+    if (attrs) for (const k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  function renderDecay(result) {
+    const svg = $('decay-svg');
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const W = 1100, H = 440;
+    const M = { left: 70, right: 30, top: 20, bottom: 60 };
+    const innerW = W - M.left - M.right;
+    const innerH = H - M.top - M.bottom;
+
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+
+    const p = result.params;
+    const dMin = Math.max(100, p.L_bp / p.S);
+    const dMax = p.L_bp;
+    const logDMin = Math.log10(dMin);
+    const logDMax = Math.log10(dMax);
+
+    const xFromD = (d) => M.left + ((Math.log10(Math.max(dMin, d)) - logDMin) / (logDMax - logDMin)) * innerW;
+    const yFromR2 = (r2) => M.top + (1 - Math.max(0, Math.min(1, r2))) * innerH;
+
+    // Gridlines and x-axis ticks
+    const gridG = svgEl('g', { class: 'grid' });
+    svg.appendChild(gridG);
+    const dec0 = Math.floor(logDMin);
+    const dec1 = Math.ceil(logDMax);
+    for (let d = dec0; d <= dec1; d++) {
+      for (const m of [1, 2, 5]) {
+        const v = m * Math.pow(10, d);
+        if (v < dMin * 0.999 || v > dMax * 1.001) continue;
+        const x = xFromD(v);
+        const line = svgEl('line', {
+          x1: x, x2: x, y1: M.top, y2: M.top + innerH,
+          stroke: m === 1 ? '#cfccc2' : '#e5e3dc',
+          'stroke-width': m === 1 ? 1 : 0.5,
+          'stroke-dasharray': m === 1 ? '' : '2 3',
+        });
+        gridG.appendChild(line);
+        if (m === 1) {
+          const lbl = svgEl('text', {
+            x: x, y: M.top + innerH + 18,
+            'text-anchor': 'middle',
+            'font-family': 'var(--font-mono)',
+            'font-size': '11',
+            fill: '#525252',
+          });
+          lbl.textContent = fmtKbMb(v);
+          svg.appendChild(lbl);
+        }
+      }
+    }
+    // y-axis gridlines
+    for (let r = 0; r <= 1.00001; r += 0.1) {
+      const y = yFromR2(r);
+      const line = svgEl('line', {
+        x1: M.left, x2: M.left + innerW, y1: y, y2: y,
+        stroke: Math.abs(r - 0.5) < 1e-6 ? '#c4c1b6' : '#e5e3dc',
+        'stroke-width': Math.abs(r - 0.5) < 1e-6 ? 1 : 0.5,
+        'stroke-dasharray': Math.abs(r - 0.5) < 1e-6 ? '4 3' : '',
+      });
+      gridG.appendChild(line);
+      const lbl = svgEl('text', {
+        x: M.left - 8, y: y + 4,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)',
+        'font-size': '11',
+        fill: '#525252',
+      });
+      lbl.textContent = r.toFixed(1);
+      svg.appendChild(lbl);
+    }
+
+    // Axes frame
+    svg.appendChild(svgEl('rect', {
+      x: M.left, y: M.top, width: innerW, height: innerH,
+      fill: 'none', stroke: '#8a8a85', 'stroke-width': 1,
+    }));
+
+    // Axis labels
+    const xLbl = svgEl('text', {
+      x: M.left + innerW / 2, y: H - 14,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)',
+      'font-size': '12', 'font-weight': '600',
+      fill: '#525252',
+    });
+    xLbl.textContent = 'Pairwise distance (log)';
+    svg.appendChild(xLbl);
+    const yLbl = svgEl('text', {
+      x: 18, y: M.top + innerH / 2,
+      transform: 'rotate(-90 18 ' + (M.top + innerH / 2) + ')',
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)',
+      'font-size': '12', 'font-weight': '600',
+      fill: '#525252',
+    });
+    yLbl.textContent = 'mean r² per bin';
+    svg.appendChild(yLbl);
+
+    // Fitted exponential curve
+    if (result.fit) {
+      let pathD = '';
+      const N = 160;
+      for (let i = 0; i <= N; i++) {
+        const lg = logDMin + (i / N) * (logDMax - logDMin);
+        const d = Math.pow(10, lg);
+        const r2hat = Math.exp(result.fit.intercept + result.fit.slope * d);
+        const x = xFromD(d);
+        const y = yFromR2(r2hat);
+        pathD += (i === 0 ? 'M ' : ' L ') + x.toFixed(2) + ',' + y.toFixed(2);
+      }
+      svg.appendChild(svgEl('path', {
+        d: pathD,
+        fill: 'none',
+        stroke: '#b45309',
+        'stroke-width': 2,
+        'stroke-dasharray': '6 4',
+        opacity: 0.9,
+      }));
+      // Half-max vertical line
+      const halfD = result.fit.halfMax;
+      if (halfD >= dMin && halfD <= dMax) {
+        const x = xFromD(halfD);
+        svg.appendChild(svgEl('line', {
+          x1: x, x2: x, y1: M.top, y2: M.top + innerH,
+          stroke: '#c4342c', 'stroke-width': 1.5, 'stroke-dasharray': '4 3',
+        }));
+        const hlbl = svgEl('text', {
+          x: x + 6, y: M.top + 14,
+          'font-family': 'var(--font-mono)', 'font-size': '11',
+          fill: '#c4342c',
+        });
+        hlbl.textContent = 'half-max ' + fmtKbMb(halfD);
+        svg.appendChild(hlbl);
+      }
+    }
+
+    // Binned mean-r² points + connecting line
+    const ptsG = svgEl('g', { class: 'pts' });
+    svg.appendChild(ptsG);
+    let linePath = '';
+    result.bins.forEach((b, i) => {
+      const x = xFromD(b.d), y = yFromR2(b.r2);
+      linePath += (i === 0 ? 'M ' : ' L ') + x.toFixed(2) + ',' + y.toFixed(2);
+    });
+    if (linePath) {
+      ptsG.appendChild(svgEl('path', {
+        d: linePath, fill: 'none',
+        stroke: '#1e3a8a', 'stroke-width': 1.6, opacity: 0.55,
+      }));
+    }
+    result.bins.forEach(b => {
+      const x = xFromD(b.d), y = yFromR2(b.r2);
+      const radius = 2.5 + Math.min(3, Math.sqrt(b.n) * 0.25);
+      const circ = svgEl('circle', {
+        cx: x, cy: y, r: radius,
+        fill: '#1e3a8a', stroke: '#fff', 'stroke-width': 1, opacity: 0.9,
+      });
+      const title = svgEl('title');
+      title.textContent =
+        'distance ' + fmtKbMb(b.d) +
+        ' · r² = ' + b.r2.toFixed(3) +
+        ' · n=' + b.n + ' pairs';
+      circ.appendChild(title);
+      ptsG.appendChild(circ);
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Rendering — heatmap (canvas)
+  // ─────────────────────────────────────────────────────────
+  function r2ToColor(r2) {
+    // Blend from bg → light blue → cobalt → black
+    const t = Math.max(0, Math.min(1, r2));
+    const stops = [
+      [0.00, [244, 243, 238]],
+      [0.20, [219, 234, 254]],
+      [0.40, [147, 197, 253]],
+      [0.60, [59, 130, 246]],
+      [0.80, [30, 58, 138]],
+      [1.00, [10, 10, 10]],
+    ];
+    let lo = stops[0], hi = stops[stops.length - 1];
+    for (let i = 0; i < stops.length - 1; i++) {
+      if (t >= stops[i][0] && t <= stops[i + 1][0]) {
+        lo = stops[i]; hi = stops[i + 1]; break;
+      }
+    }
+    const span = Math.max(1e-9, hi[0] - lo[0]);
+    const u = (t - lo[0]) / span;
+    return [
+      Math.round(lo[1][0] + (hi[1][0] - lo[1][0]) * u),
+      Math.round(lo[1][1] + (hi[1][1] - lo[1][1]) * u),
+      Math.round(lo[1][2] + (hi[1][2] - lo[1][2]) * u),
+    ];
+  }
+
+  function renderHeatmap(result) {
+    const cv = $('heatmap');
+    const S = result.S;
+    const SIZE = 400;
+    cv.width = SIZE;
+    cv.height = SIZE;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fcfcfa';
+    ctx.fillRect(0, 0, SIZE, SIZE);
+
+    const img = ctx.createImageData(SIZE, SIZE);
+    // Background fill
+    for (let p = 0; p < img.data.length; p += 4) {
+      img.data[p] = 252;
+      img.data[p + 1] = 252;
+      img.data[p + 2] = 250;
+      img.data[p + 3] = 255;
+    }
+    // For each pixel (px, py), map to SNP pair (i, j). Upper triangle only.
+    for (let py = 0; py < SIZE; py++) {
+      const j = Math.floor((py / SIZE) * S);
+      for (let px = 0; px < SIZE; px++) {
+        const i = Math.floor((px / SIZE) * S);
+        // Upper triangular (including diagonal): draw where i ≤ j
+        if (i > j) continue;
+        const r2 = result.mat[i * S + j];
+        const col = r2ToColor(r2);
+        const off = (py * SIZE + px) * 4;
+        img.data[off] = col[0];
+        img.data[off + 1] = col[1];
+        img.data[off + 2] = col[2];
+        img.data[off + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+
+    // Diagonal separator
+    ctx.strokeStyle = '#8a8a85';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(SIZE, SIZE);
+    ctx.stroke();
+
+    // Corner labels
+    ctx.fillStyle = '#525252';
+    ctx.font = '10px "JetBrains Mono", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('SNP 1', 4, 12);
+    ctx.textAlign = 'right';
+    ctx.fillText('SNP ' + S, SIZE - 4, SIZE - 4);
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Banner + stats
+  // ─────────────────────────────────────────────────────────
+  function renderBanner(result) {
+    const fit = result.fit;
+    if (!fit) {
+      $('b-tns').textContent = '—';
+      $('b-half').textContent = '—';
+    } else {
+      $('b-tns').textContent = fmtSci(fit.fit2ct) + ' /bp';
+      $('b-half').textContent = fmtKbMb(fit.halfMax);
+    }
+    $('b-expected').textContent = fmtSci(result.product2ct) + ' /bp';
+
+    $('s-snps').textContent = result.S;
+    $('s-seg').textContent = result.seg.length + ' / ' + result.S;
+    const np = result.pairs.length;
+    $('s-pairs').textContent = fmtInt(np);
+    $('s-maf').textContent = result.meanMaf.toFixed(3);
+    $('s-meanr2').textContent = result.meanR2.toFixed(3);
+    $('s-fitR2').textContent = fit ? fit.R2.toFixed(3) : '—';
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Pipeline wiring
+  // ─────────────────────────────────────────────────────────
+  function runAll() {
+    $('status-note').textContent = 'simulating…';
+    // Yield once so the status note paints.
+    requestAnimationFrame(() => {
+      const t0 = performance.now();
+      const result = runSimulation();
+      renderDecay(result);
+      renderHeatmap(result);
+      renderBanner(result);
+      const ms = (performance.now() - t0) | 0;
+      $('status-note').textContent =
+        'sim t=' + result.rawT +
+        ' (ran ' + result.simT + ' gens, c-rescale ×' + result.scaleTime.toFixed(2) + ') · ' +
+        ms + ' ms';
+    });
+  }
+
+  function onReseed() {
+    seedCounter = (seedCounter * 1664525 + 1013904223) >>> 0;
+    runAll();
+  }
+
+  // Slider events: update readouts on input; run on change (release).
+  const sliderIds = ['c-input', 't-input', 'N-input', 'L-input', 'S-input'];
+  sliderIds.forEach(id => {
+    $(id).addEventListener('input', updateReadouts);
+    $(id).addEventListener('change', () => {
+      updateReadouts();
+      runAll();
+    });
+  });
+
+  $('run-btn').addEventListener('click', onReseed);
+  $('reset-btn').addEventListener('click', () => {
+    $('c-input').value = 100;
+    $('t-input').value = logToSlider(100, 10, 10000);
+    $('N-input').value = logToSlider(10000, 500, 100000);
+    $('L-input').value = 1000;
+    $('S-input').value = 100;
+    updateReadouts();
+    runAll();
+  });
+
+  // Boot
+  updateReadouts();
+  runAll();
+})();
+</script>
+
+</body>
+</html>

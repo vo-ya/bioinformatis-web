@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Selection Scan &mdash; iHS and Tajima&rsquo;s D</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1240px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 72ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+      margin-bottom: 0.75rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 2px;
+      border: 1px solid rgba(0,0,0,0.15);
+    }
+    .legend-swatch .sw-line {
+      display: inline-block;
+      width: 16px; height: 2px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem 1rem;
+      margin-top: 0.5rem;
+    }
+    .summary-cell {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 0.8rem;
+    }
+    .summary-cell .k {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+    }
+    .summary-cell .v {
+      font-family: var(--font-mono);
+      font-size: var(--text-lg);
+      color: var(--fg);
+      font-weight: 500;
+      margin-top: 0.15rem;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner .note {
+      display: block;
+      margin-top: 0.4rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="selection-scan">
+
+  <header class="artifact-head">
+    <h1>Selection Scan &mdash; iHS and Tajima&rsquo;s D</h1>
+    <p>Simulate a genomic region with an optional planted selective sweep. Compute Tajima&rsquo;s D and a simplified iHS in non-overlapping 10 kb windows, then plot both as Manhattan-style scans. Flag windows above the significance threshold and compare to the known sweep location. The aha: a single extreme window is not a claim about selection &mdash; it is a candidate to validate against a properly calibrated null, ideally with multiple statistics.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="control-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ctrl-region">Region length</label>
+          <span class="slider-value" id="val-region">2.0 Mb</span>
+        </div>
+        <input type="range" id="ctrl-region" min="500" max="5000" step="100" value="2000">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ctrl-ne">Effective N<sub>e</sub> (log)</label>
+          <span class="slider-value" id="val-ne">10000</span>
+        </div>
+        <input type="range" id="ctrl-ne" min="0" max="1000" step="1" value="590">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ctrl-n">Sample size n</label>
+          <span class="slider-value" id="val-n">50</span>
+        </div>
+        <input type="range" id="ctrl-n" min="20" max="200" step="2" value="50">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ctrl-s">Selection s</label>
+          <span class="slider-value" id="val-s">0.050</span>
+        </div>
+        <input type="range" id="ctrl-s" min="0" max="1000" step="1" value="500">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ctrl-freq">Sweep current freq</label>
+          <span class="slider-value" id="val-freq">0.70</span>
+        </div>
+        <input type="range" id="ctrl-freq" min="10" max="95" step="1" value="70">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ctrl-pos">Sweep position</label>
+          <span class="slider-value" id="val-pos">1.00 Mb</span>
+        </div>
+        <input type="range" id="ctrl-pos" min="5" max="95" step="1" value="50">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ctrl-pct">Threshold percentile</label>
+          <span class="slider-value" id="val-pct">99.0</span>
+        </div>
+        <input type="range" id="ctrl-pct" min="900" max="999" step="1" value="990">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn--primary" id="btn-resim">Re-simulate</button>
+      <button class="btn" id="btn-neutral">Set s = 0 (null)</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Manhattan scan</p>
+    <div class="plot-wrap">
+      <svg id="scan-svg" class="plot-svg" viewBox="0 0 1120 520" preserveAspectRatio="xMidYMid meet" aria-label="Manhattan-style selection scan"></svg>
+    </div>
+    <p class="plot-caption" id="scan-caption">Top: Tajima&rsquo;s D per 10 kb window. Bottom: simplified iHS per window. Horizontal dashed lines mark the user-selected significance threshold (absolute value). The vertical amber bar marks the planted sweep position.</p>
+    <div class="legend">
+      <span class="legend-swatch"><span class="sw" style="background:#525252"></span> neutral windows</span>
+      <span class="legend-swatch"><span class="sw" style="background:#b45309"></span> flagged windows (|stat| beyond threshold)</span>
+      <span class="legend-swatch"><span class="sw-line" style="background:#c4342c"></span> planted sweep position</span>
+      <span class="legend-swatch"><span class="sw-line" style="background:#1e3a8a;border-top:1px dashed #1e3a8a"></span> threshold</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Detection summary</p>
+    <div class="summary-grid">
+      <div class="summary-cell"><div class="k">Windows</div><div class="v" id="sum-n">&mdash;</div></div>
+      <div class="summary-cell"><div class="k">Flagged (D)</div><div class="v" id="sum-flag-d">&mdash;</div></div>
+      <div class="summary-cell"><div class="k">Flagged (iHS)</div><div class="v" id="sum-flag-i">&mdash;</div></div>
+      <div class="summary-cell"><div class="k">Flagged (either)</div><div class="v" id="sum-flag-e">&mdash;</div></div>
+      <div class="summary-cell"><div class="k">True positives</div><div class="v" id="sum-tp">&mdash;</div></div>
+      <div class="summary-cell"><div class="k">False positives</div><div class="v" id="sum-fp">&mdash;</div></div>
+      <div class="summary-cell"><div class="k">Precision</div><div class="v" id="sum-prec">&mdash;</div></div>
+      <div class="summary-cell"><div class="k">Recall</div><div class="v" id="sum-rec">&mdash;</div></div>
+    </div>
+    <div class="banner" id="banner">
+      <span id="banner-main">&mdash;</span>
+      <span class="note" id="banner-note"></span>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  // ── Helpers ─────────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // Seeded mulberry32 PRNG (reset per simulation for reproducibility).
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Normal variate via Box-Muller.
+  function randn(rng) {
+    let u = 0, v = 0;
+    while (u === 0) u = rng();
+    while (v === 0) v = rng();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // Poisson via Knuth when lambda small, normal approx when large.
+  function poisson(rng, lambda) {
+    if (lambda <= 0) return 0;
+    if (lambda < 30) {
+      const L = Math.exp(-lambda);
+      let k = 0, p = 1;
+      do { k++; p *= rng(); } while (p > L);
+      return k - 1;
+    }
+    return Math.max(0, Math.round(lambda + Math.sqrt(lambda) * randn(rng)));
+  }
+
+  // Binomial via iterative (ok for the modest n used here).
+  function binomial(rng, n, p) {
+    if (p <= 0) return 0;
+    if (p >= 1) return n;
+    let k = 0;
+    for (let i = 0; i < n; i++) if (rng() < p) k++;
+    return k;
+  }
+
+  // ── Log-scale mapper for N_e slider (1000 .. 50000) ────
+  function neFromSlider(v) {
+    const t = v / 1000;
+    const lo = Math.log(1000), hi = Math.log(50000);
+    return Math.round(Math.exp(lo + (hi - lo) * t) / 100) * 100;
+  }
+  function sliderFromNe(ne) {
+    const lo = Math.log(1000), hi = Math.log(50000);
+    return Math.round(((Math.log(ne) - lo) / (hi - lo)) * 1000);
+  }
+
+  // ── State ───────────────────────────────────────────────
+  const state = {
+    regionKb:  2000,    // kb
+    Ne:        10000,
+    n:         50,
+    s:         0.05,
+    freq:      0.70,
+    posFrac:   0.50,    // fraction of region
+    pct:       0.99,    // threshold percentile
+    seed:      12345,
+  };
+
+  // ── DOM refs ────────────────────────────────────────────
+  const ctrlRegion = $('ctrl-region');
+  const ctrlNe     = $('ctrl-ne');
+  const ctrlN      = $('ctrl-n');
+  const ctrlS      = $('ctrl-s');
+  const ctrlFreq   = $('ctrl-freq');
+  const ctrlPos    = $('ctrl-pos');
+  const ctrlPct    = $('ctrl-pct');
+  const btnResim   = $('btn-resim');
+  const btnNeutral = $('btn-neutral');
+
+  // ── Simulation ─────────────────────────────────────────
+  // Simplified coalescent-style window statistics.
+  //
+  // PEDAGOGICAL SIMPLIFICATIONS (documented per spec):
+  //   - We do NOT run a full ms-style coalescent or phased-haplotype
+  //     EHH. Full iHS would require phased chromosomes and extended
+  //     haplotype homozygosity integrals to a standardised unselected
+  //     frequency reference.
+  //   - For each non-overlapping 10 kb window we sample a window-level
+  //     π (per-site heterozygosity) from a noisy coalescent expectation
+  //     of θ = 4 N_e μ, a segregating-site count S from a Poisson on
+  //     θ·a_n, and compute Tajima's D via the textbook formula.
+  //   - For iHS we sample, per window, a pair of haplotype-homozygosity
+  //     integrals (ancestral vs derived) under neutrality (matched
+  //     distributions, moderate noise) and form iHS = −ln(iHH_D/iHH_A),
+  //     then standardise.
+  //   - The sweep is injected by (a) reducing π in a Gaussian shell
+  //     around the sweep centre and (b) elongating the derived
+  //     haplotype (raising iHH_D) in the same shell. Reach and depth
+  //     of the shell scale with s and with how far the allele has
+  //     already travelled (current freq). This reproduces the teaching
+  //     behaviour: both statistics peak near the sweep, with plenty of
+  //     neutral-tail false positives elsewhere.
+  function simulate(st) {
+    const rng = mulberry32(st.seed);
+
+    const windowKb = 10;
+    const W = Math.max(10, Math.round(st.regionKb / windowKb)); // # windows
+    const sweepWindow = Math.max(0, Math.min(W - 1, Math.round(st.posFrac * W)));
+
+    // a_n = Σ 1/k for k=1..n-1
+    let a_n = 0, a2_n = 0;
+    for (let k = 1; k < st.n; k++) {
+      a_n += 1 / k;
+      a2_n += 1 / (k * k);
+    }
+
+    // Expected θ per window. Tuned so default D values sit roughly in
+    // [-2, 2] with variance near unity, matching textbook calibration.
+    const mu = 1.2e-8;
+    const windowBp = windowKb * 1000;
+    const thetaExp = 4 * st.Ne * mu * windowBp;
+
+    // Tajima constants (Tajima 1989)
+    const n = st.n;
+    const b1 = (n + 1) / (3 * (n - 1));
+    const b2 = (2 * (n * n + n + 3)) / (9 * n * (n - 1));
+    const c1 = b1 - 1 / a_n;
+    const c2 = b2 - (n + 2) / (a_n * n) + a2_n / (a_n * a_n);
+    const e1 = c1 / a_n;
+    const e2 = c2 / (a_n * a_n + a2_n);
+
+    // Sweep shell: Gaussian around the sweep window.
+    // Reach in windows scales with s (stronger sweep → broader hitchhiking).
+    // Depth scales with s × freq (partial sweeps less deep).
+    const sweepActive = st.s > 0;
+    const reachWindows = Math.max(1, Math.round(6 + 220 * st.s));
+    const depth = Math.min(0.95, st.s * 18 * Math.min(1, st.freq * 1.2 + 0.2));
+    const ihsBoost = Math.min(3.2, st.s * 50 * (0.4 + st.freq));
+
+    function sweepShell(i) {
+      if (!sweepActive) return 0;
+      const d = (i - sweepWindow) / reachWindows;
+      return Math.exp(-d * d * 0.5);
+    }
+
+    const dVals = new Array(W);
+    const iVals = new Array(W);
+    const Svals = new Array(W);
+    const piVals = new Array(W);
+
+    for (let i = 0; i < W; i++) {
+      const shell = sweepShell(i);
+
+      // Neutral segregating-site count (Poisson on θ·a_n), with modest
+      // additional over-dispersion from coalescent variance.
+      let theta_i = thetaExp * Math.exp(0.25 * randn(rng));
+      // Sweep depresses diversity in the shell.
+      const piMult = 1 - depth * shell;
+      theta_i *= Math.max(0.05, piMult);
+
+      const S = Math.max(1, poisson(rng, Math.max(0.01, theta_i * a_n)));
+      // π (average pairwise differences): sample with modest noise around
+      // θ, biased down in the sweep shell in proportion to depth·shell.
+      const piMean = theta_i * (0.95 + 0.1 * rng());
+      const pi = Math.max(0, piMean + Math.sqrt(Math.max(0.01, piMean)) * 0.35 * randn(rng));
+
+      // Tajima's D = (π − S/a_n) / sqrt(e1·S + e2·S·(S−1))
+      const numer = pi - S / a_n;
+      const varD = Math.max(1e-9, e1 * S + e2 * S * (S - 1));
+      let D = numer / Math.sqrt(varD);
+      // Sweep pushes D negative via π reduction; add a small direct
+      // contribution so even low-count windows register the signal.
+      D -= 1.8 * depth * shell;
+      dVals[i] = D;
+      Svals[i] = S;
+      piVals[i] = pi;
+
+      // Simplified iHS.
+      //
+      // Draw iHH_A and iHH_D under neutrality from matched log-normals;
+      // then in the sweep shell raise iHH_D by the hitchhiking boost.
+      // iHS = −ln(iHH_D / iHH_A). We standardise against the (noisy)
+      // neutral distribution below.
+      const lnA = 0.30 * randn(rng);
+      const lnD = 0.30 * randn(rng) + (sweepActive ? ihsBoost * shell : 0);
+      const rawIHS = -(lnD - lnA);
+      iVals[i] = rawIHS;
+    }
+
+    // Standardise iHS by per-region mean/sd (textbook: standardise by
+    // derived-allele-frequency bin; this is a pedagogical proxy).
+    let mI = 0; for (const v of iVals) mI += v; mI /= W;
+    let sdI = 0; for (const v of iVals) sdI += (v - mI) * (v - mI); sdI = Math.sqrt(sdI / Math.max(1, W - 1));
+    if (sdI < 1e-6) sdI = 1;
+    for (let i = 0; i < W; i++) iVals[i] = (iVals[i] - mI) / sdI;
+
+    return {
+      W, sweepWindow, windowKb,
+      dVals, iVals, Svals, piVals,
+      a_n,
+    };
+  }
+
+  // Percentile of absolute values (threshold applies to |stat|).
+  function absPercentile(arr, p) {
+    const a = arr.map(Math.abs).slice().sort((x, y) => x - y);
+    if (a.length === 0) return 0;
+    const idx = Math.min(a.length - 1, Math.max(0, Math.floor(p * a.length)));
+    return a[idx];
+  }
+
+  // ── Rendering ───────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  function renderScan(sim, flags, thrD, thrI) {
+    const svg = $('scan-svg');
+    clear(svg);
+
+    const W = 1120, H = 520;
+    const PAD_L = 58, PAD_R = 20, PAD_T = 26, PAD_B = 30;
+    const GAP = 30;
+    const plotW = W - PAD_L - PAD_R;
+    const panelH = (H - PAD_T - PAD_B - GAP) / 2;
+
+    const n = sim.W;
+    const regionMb = sim.W * sim.windowKb / 1000;
+
+    // Absolute Y bounds for each panel (symmetrised around 0).
+    const dAbs = Math.max(3.5, ...sim.dVals.map(v => Math.abs(v) || 0)) * 1.05;
+    const iAbs = Math.max(3.5, ...sim.iVals.map(v => Math.abs(v) || 0)) * 1.05;
+
+    function drawPanel(topY, vals, thr, label, flagSet) {
+      // Panel frame
+      svg.appendChild(el('rect', {
+        x: PAD_L, y: topY, width: plotW, height: panelH,
+        fill: 'var(--bg)', stroke: 'var(--border)', 'stroke-width': 0.7,
+      }));
+
+      // Sweep position (vertical amber bar, behind points)
+      const swX = PAD_L + (sim.sweepWindow + 0.5) / n * plotW;
+      svg.appendChild(el('line', {
+        x1: swX, x2: swX, y1: topY, y2: topY + panelH,
+        stroke: '#c4342c', 'stroke-width': 2, 'stroke-opacity': 0.7,
+      }));
+
+      // Zero line
+      const yZero = topY + panelH / 2;
+      svg.appendChild(el('line', {
+        x1: PAD_L, x2: PAD_L + plotW, y1: yZero, y2: yZero,
+        stroke: 'var(--border-strong)', 'stroke-width': 0.6,
+      }));
+
+      // Axis labels
+      const absMax = (label === 'D') ? dAbs : iAbs;
+      // Y ticks at ±1, ±2, ±3 (as available)
+      for (const t of [-3, -2, -1, 0, 1, 2, 3]) {
+        if (Math.abs(t) > absMax) continue;
+        const y = topY + panelH / 2 - (t / absMax) * (panelH / 2);
+        svg.appendChild(el('line', {
+          x1: PAD_L - 3, x2: PAD_L, y1: y, y2: y,
+          stroke: 'var(--border-strong)', 'stroke-width': 0.6,
+        }));
+        svg.appendChild(el('text', {
+          x: PAD_L - 5, y: y + 3.4,
+          'text-anchor': 'end',
+          'font-family': 'var(--font-mono)', 'font-size': 10,
+          fill: 'var(--fg-subtle)',
+        }, String(t)));
+      }
+
+      // Threshold lines (|stat| = thr)
+      for (const sign of [+1, -1]) {
+        const yT = topY + panelH / 2 - (sign * thr / absMax) * (panelH / 2);
+        if (yT < topY || yT > topY + panelH) continue;
+        svg.appendChild(el('line', {
+          x1: PAD_L, x2: PAD_L + plotW, y1: yT, y2: yT,
+          stroke: '#1e3a8a', 'stroke-width': 1,
+          'stroke-dasharray': '4 3',
+        }));
+      }
+
+      // Panel title
+      svg.appendChild(el('text', {
+        x: PAD_L, y: topY - 8,
+        'font-family': 'var(--font-sans)', 'font-size': 11,
+        'letter-spacing': '0.08em',
+        fill: 'var(--fg-muted)',
+      }, label === 'D' ? 'TAJIMA’S D' : 'SIMPLIFIED iHS'));
+
+      // Threshold annotation at right
+      svg.appendChild(el('text', {
+        x: PAD_L + plotW - 4, y: topY - 8,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: '#1e3a8a',
+      }, `|${label}| ≥ ${thr.toFixed(2)}`));
+
+      // Points
+      for (let i = 0; i < n; i++) {
+        const v = vals[i];
+        const x = PAD_L + (i + 0.5) / n * plotW;
+        const y = topY + panelH / 2 - (v / absMax) * (panelH / 2);
+        const flagged = flagSet.has(i);
+        svg.appendChild(el('circle', {
+          cx: x, cy: y, r: flagged ? 3.1 : 2.0,
+          fill: flagged ? '#b45309' : '#525252',
+          stroke: flagged ? '#7a3806' : 'none',
+          'stroke-width': 0.6,
+          'fill-opacity': flagged ? 1 : 0.85,
+        }));
+      }
+    }
+
+    // Top: Tajima's D
+    const flagsD = new Set(flags.filter(f => f.byD).map(f => f.i));
+    drawPanel(PAD_T, sim.dVals, thrD, 'D', flagsD);
+
+    // Bottom: iHS
+    const flagsI = new Set(flags.filter(f => f.byI).map(f => f.i));
+    drawPanel(PAD_T + panelH + GAP, sim.iVals, thrI, 'iHS', flagsI);
+
+    // X axis (position in Mb) under the bottom panel
+    const bottomY = PAD_T + panelH + GAP + panelH;
+    const nTicks = 5;
+    for (let t = 0; t <= nTicks; t++) {
+      const frac = t / nTicks;
+      const x = PAD_L + frac * plotW;
+      svg.appendChild(el('line', {
+        x1: x, x2: x, y1: bottomY, y2: bottomY + 4,
+        stroke: 'var(--border-strong)', 'stroke-width': 0.6,
+      }));
+      svg.appendChild(el('text', {
+        x, y: bottomY + 16,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, (frac * regionMb).toFixed(2) + ' Mb'));
+    }
+    // X axis title
+    svg.appendChild(el('text', {
+      x: PAD_L + plotW / 2, y: H - 4,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      fill: 'var(--fg-muted)',
+    }, 'Window position (region coordinate)'));
+  }
+
+  function regime(st, tpD, tpI, flaggedE, W) {
+    if (st.s <= 0) return 'NULL';
+    if (tpD > 0 && tpI > 0) return 'BOTH';
+    if (tpD > 0) return 'D_ONLY';
+    if (tpI > 0) return 'IHS_ONLY';
+    return 'MISSED';
+  }
+
+  // ── Pipeline ────────────────────────────────────────────
+  function run() {
+    const sim = simulate(state);
+
+    const thrD = absPercentile(sim.dVals, state.pct);
+    const thrI = absPercentile(sim.iVals, state.pct);
+
+    // True-positive window neighbourhood: any window within ±2 of sweep.
+    const nearSweep = new Set();
+    for (let d = -2; d <= 2; d++) {
+      const j = sim.sweepWindow + d;
+      if (j >= 0 && j < sim.W) nearSweep.add(j);
+    }
+
+    const flags = [];
+    for (let i = 0; i < sim.W; i++) {
+      const byD = Math.abs(sim.dVals[i]) >= thrD;
+      const byI = Math.abs(sim.iVals[i]) >= thrI;
+      if (byD || byI) flags.push({ i, byD, byI });
+    }
+
+    // Counts per statistic
+    const flaggedD = flags.filter(f => f.byD).length;
+    const flaggedI = flags.filter(f => f.byI).length;
+    const flaggedE = flags.length;
+
+    // TP/FP/precision/recall based on either-stat flagging.
+    let tpE = 0, tpD = 0, tpI = 0;
+    let tpSetE = new Set(); // per-flag events, but recall is per-sweep
+    for (const f of flags) {
+      if (nearSweep.has(f.i)) {
+        tpE++;
+        if (f.byD) tpD++;
+        if (f.byI) tpI++;
+        tpSetE.add(f.i);
+      }
+    }
+    const fpE = flaggedE - tpE;
+    const precE = flaggedE > 0 ? tpE / flaggedE : 0;
+    // Recall is per-sweep (single planted sweep): did we flag any of the
+    // neighbourhood windows?
+    const recE = state.s > 0 ? (tpSetE.size > 0 ? 1 : 0) : null;
+
+    renderScan(sim, flags, thrD, thrI);
+
+    // Summary cells
+    $('sum-n').textContent = String(sim.W);
+    $('sum-flag-d').textContent = String(flaggedD);
+    $('sum-flag-i').textContent = String(flaggedI);
+    $('sum-flag-e').textContent = String(flaggedE);
+    $('sum-tp').textContent = String(tpE);
+    $('sum-fp').textContent = String(fpE);
+    $('sum-prec').textContent = flaggedE > 0 ? (precE * 100).toFixed(1) + '%' : '—';
+    $('sum-rec').textContent = recE === null ? 'n/a (s = 0)' : (recE ? '100%' : '0%');
+
+    // Banner
+    const banner = $('banner-main');
+    const note = $('banner-note');
+    const reg = regime(state, tpD, tpI, flaggedE, sim.W);
+    const pctPct = (state.pct * 100).toFixed(1);
+    const expectedFP = Math.round((1 - state.pct) * sim.W);
+
+    if (state.s <= 0) {
+      banner.innerHTML = `Pure neutral &middot; no sweep planted &middot; <b>${flaggedE}</b> windows exceed the ${pctPct}% threshold (expected ~${expectedFP}).`;
+      note.textContent = 'All flagged windows here are false positives by construction. The tail doesn’t mean selection — it means "draws from a distribution’s tail". That’s the baseline FAR you’d subtract in a real scan.';
+    } else if (reg === 'BOTH') {
+      banner.innerHTML = `Sweep flagged by <b>both</b> Tajima’s D and iHS &middot; precision ${(precE*100).toFixed(1)}% &middot; ${fpE} FP at the ${pctPct}% threshold.`;
+      note.textContent = 'The classical "two statistics agree" pattern. D reads the site-frequency skew, iHS reads the haplotype length; both agreeing is stronger evidence than either alone.';
+    } else if (reg === 'D_ONLY') {
+      banner.innerHTML = `Sweep flagged by <b>Tajima’s D only</b> &middot; iHS missed it &middot; ${fpE} FP at the ${pctPct}% threshold.`;
+      note.textContent = 'Partial or older sweeps often still show the SFS signature even when haplotype-based signals have decayed.';
+    } else if (reg === 'IHS_ONLY') {
+      banner.innerHTML = `Sweep flagged by <b>iHS only</b> &middot; Tajima’s D missed it &middot; ${fpE} FP at the ${pctPct}% threshold.`;
+      note.textContent = 'Ongoing (incomplete) sweeps frequently elongate haplotypes before they strongly distort the SFS — iHS is the classic catch in that regime.';
+    } else {
+      banner.innerHTML = `Sweep <b>NOT flagged</b> at the ${pctPct}% threshold &middot; ${fpE} unrelated windows flagged.`;
+      note.textContent = 'Try raising s, lowering the threshold, or raising the current sweep frequency. Weak / very partial sweeps routinely evade single-statistic detection.';
+    }
+  }
+
+  // ── Wiring ──────────────────────────────────────────────
+  function bindSlider(elId, valId, fmt, onChange) {
+    const e = $(elId), v = $(valId);
+    function update() {
+      onChange(+e.value);
+      v.textContent = fmt(+e.value);
+    }
+    e.addEventListener('input', update);
+    update();
+  }
+
+  bindSlider('ctrl-region', 'val-region',
+    (v) => (v / 1000).toFixed(1) + ' Mb',
+    (v) => { state.regionKb = v; });
+  bindSlider('ctrl-ne', 'val-ne',
+    (v) => String(neFromSlider(v)),
+    (v) => { state.Ne = neFromSlider(v); });
+  bindSlider('ctrl-n', 'val-n',
+    (v) => String(v),
+    (v) => { state.n = v; });
+  bindSlider('ctrl-s', 'val-s',
+    (v) => (v / 10000).toFixed(3),
+    (v) => { state.s = v / 10000; });
+  bindSlider('ctrl-freq', 'val-freq',
+    (v) => (v / 100).toFixed(2),
+    (v) => { state.freq = v / 100; });
+  bindSlider('ctrl-pos', 'val-pos',
+    (v) => {
+      const mb = (state.regionKb / 1000) * (v / 100);
+      return mb.toFixed(2) + ' Mb';
+    },
+    (v) => { state.posFrac = v / 100; });
+  bindSlider('ctrl-pct', 'val-pct',
+    (v) => (v / 10).toFixed(1),
+    (v) => { state.pct = v / 1000; });
+
+  // Re-simulate draws a fresh seed.
+  btnResim.addEventListener('click', () => {
+    state.seed = (Math.floor(Math.random() * 0x7fffffff)) >>> 0;
+    run();
+  });
+  btnNeutral.addEventListener('click', () => {
+    ctrlS.value = 0;
+    state.s = 0;
+    $('val-s').textContent = '0.000';
+    state.seed = (state.seed + 1) >>> 0;
+    run();
+  });
+
+  // Live update on any slider change (cheap sim; ~ms).
+  for (const id of ['ctrl-region','ctrl-ne','ctrl-n','ctrl-s','ctrl-freq','ctrl-pos','ctrl-pct']) {
+    $(id).addEventListener('change', run);
+    // Also re-run on "input" for responsive feel, but only for cheap ones.
+    $(id).addEventListener('input', () => {
+      if (id === 'ctrl-pct') run(); // cheap: only re-threshold
+    });
+  }
+
+  // Initial render with defaults (s = 0.05, pre-rendered).
+  // Fixed seed → consistent default view.
+  // (Re-simulate button above will randomise.)
+  ctrlNe.value = sliderFromNe(10000);
+  $('val-ne').textContent = String(neFromSlider(+ctrlNe.value));
+  state.Ne = neFromSlider(+ctrlNe.value);
+  run();
+})();
+</script>
+
+<script src="../_shared/resize.js" defer></script>
+
+</body>
+</html>

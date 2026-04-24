@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hardy-Weinberg Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 64ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-head label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--fg);
+    }
+    .slider-row .slider-hint {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .controls-row {
+      display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+      margin-top: 1rem; padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+    .btn {
+      font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg); cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .controls-row .stat-hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin-left: auto;
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+    .plot-caption {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-subtle);
+      margin: 0.4rem 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 0.9rem;
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      color: var(--fg-muted); margin-top: 0.5rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw { display: inline-block; width: 14px; height: 10px; border-radius: 2px; }
+
+    .plot-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 820px) {
+      .plot-grid { grid-template-columns: 1fr; }
+    }
+
+    table.obs-exp {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.25rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+    table.obs-exp th, table.obs-exp td {
+      padding: 0.45rem 0.6rem;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+    table.obs-exp th:first-child,
+    table.obs-exp td:first-child {
+      text-align: left;
+      font-family: var(--font-sans);
+      font-weight: 600;
+    }
+    table.obs-exp thead th {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      border-bottom: 1px solid var(--border-strong);
+    }
+    table.obs-exp tfoot td {
+      border-top: 1px solid var(--border-strong);
+      border-bottom: none;
+      padding-top: 0.6rem;
+      font-weight: 600;
+    }
+    .chi-summary {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+    .chi-summary .k { color: var(--fg-subtle); margin-right: 0.25rem; }
+    .chi-summary .sep { color: var(--fg-subtle); margin: 0 0.55rem; }
+
+    .banner {
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      background: var(--accent-bg);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-relaxed);
+    }
+    .banner.reject {
+      background: #fdecea;
+      border-color: var(--error);
+    }
+    .banner.reject b { color: var(--error); }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner .line2 { color: var(--fg-muted); font-family: var(--font-sans); }
+
+    .formula-row {
+      display: flex; flex-wrap: wrap; gap: 1.25rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+    }
+    .formula-row .form-item b { color: var(--fg); font-weight: 600; }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="hardy-weinberg-explorer">
+
+  <header class="artifact-head">
+    <h1>Hardy-Weinberg Explorer</h1>
+    <p>Slide the allele frequency p, watch the three genotype frequencies (p&sup2;, 2pq, q&sup2;) track across the population, compare simulated counts to Hardy-Weinberg expectation, and read off the chi-squared verdict. The aha: it is the <em>deviation</em> (inbreeding coefficient F), not p itself, that the test detects — and small cohorts have too little power to catch anything short of extreme structure.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="slider-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label for="p-input">Allele frequency&nbsp;p</label>
+          <span class="slider-value" id="p-value">0.500</span>
+        </div>
+        <input id="p-input" type="range" min="1" max="99" step="1" value="50">
+        <span class="slider-hint">0.01 – 0.99 &middot; q = 1 &minus; p</span>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label for="n-input">Cohort size&nbsp;N</label>
+          <span class="slider-value" id="n-value">500</span>
+        </div>
+        <input id="n-input" type="range" min="20" max="5000" step="10" value="500">
+        <span class="slider-hint">diploid individuals (20 – 5000)</span>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label for="f-input">Deviation&nbsp;F</label>
+          <span class="slider-value" id="f-value">+0.000</span>
+        </div>
+        <input id="f-input" type="range" min="-30" max="30" step="1" value="0">
+        <span class="slider-hint">inbreeding coefficient &middot; &minus; excess het &middot; + excess homo</span>
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <button class="btn btn--primary" id="resample-btn">Re-sample</button>
+      <button class="btn" id="reset-btn">Reset defaults</button>
+      <span class="stat-hint" id="seed-hint">seed = 1</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Hardy-Weinberg curves &amp; observed counts</p>
+
+    <div class="plot-grid">
+      <div class="plot-wrap">
+        <svg id="curve-svg" class="plot-svg" viewBox="0 0 560 320" preserveAspectRatio="xMidYMid meet" aria-label="Hardy-Weinberg genotype frequency curves across allele frequency p"></svg>
+        <div class="legend">
+          <span class="legend-swatch"><span class="sw" style="background: var(--base-a);"></span>AA&nbsp;= p&sup2;</span>
+          <span class="legend-swatch"><span class="sw" style="background: var(--base-g);"></span>Aa&nbsp;= 2pq</span>
+          <span class="legend-swatch"><span class="sw" style="background: var(--base-t);"></span>aa&nbsp;= q&sup2;</span>
+          <span class="legend-swatch" style="margin-left:auto;">
+            <span class="sw" style="background: var(--fg-muted);"></span>current p
+          </span>
+        </div>
+      </div>
+
+      <div class="plot-wrap">
+        <svg id="bars-svg" class="plot-svg" viewBox="0 0 460 320" preserveAspectRatio="xMidYMid meet" aria-label="Expected and observed genotype counts for AA, Aa, and aa"></svg>
+        <div class="legend">
+          <span class="legend-swatch"><span class="sw" style="background: var(--border-strong); opacity: 0.55;"></span>expected (HWE)</span>
+          <span class="legend-swatch"><span class="sw" style="background: var(--accent);"></span>observed</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="plot-caption">Left: the three HWE parabolas in p; the vertical guide marks the current slider value. Right: N times the expected vs observed genotype counts; expected bars are translucent, observed bars solid.</p>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Observed vs expected &middot; chi-squared test</p>
+    <table class="obs-exp" id="oe-table">
+      <thead>
+        <tr>
+          <th>Genotype</th>
+          <th>Expected (HWE)</th>
+          <th>Observed</th>
+          <th>(O &minus; E)</th>
+          <th>(O &minus; E)&sup2; / E</th>
+        </tr>
+      </thead>
+      <tbody id="oe-body"></tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4" style="text-align: right;">&chi;&sup2; (df = 1)</td>
+          <td id="oe-chi">0.00</td>
+        </tr>
+      </tfoot>
+    </table>
+    <div class="chi-summary">
+      <span class="k">p-value</span><span id="pv-out">0.000</span>
+      <span class="sep">|</span>
+      <span class="k">critical &chi;&sup2; (&alpha;=0.05)</span><span>3.841</span>
+      <span class="sep">|</span>
+      <span class="k">df</span><span>1</span>
+      <span class="sep">|</span>
+      <span class="k">p&#770; from sample</span><span id="phat-out">0.500</span>
+    </div>
+
+    <div class="formula-row">
+      <span class="form-item"><b>HWE</b>: p&sup2; + 2pq + q&sup2; = 1</span>
+      <span class="form-item"><b>with F</b>: (p&sup2; + Fpq, 2pq(1 &minus; F), q&sup2; + Fpq)</span>
+      <span class="form-item"><b>&chi;&sup2;</b> = &Sigma; (O &minus; E)&sup2; / E</span>
+    </div>
+
+    <div class="banner" id="banner"></div>
+  </section>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  // ── Helpers ───────────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+  function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+  function fmt(x, d) { return Number(x).toFixed(d); }
+
+  // ── Seeded PRNG (mulberry32) ─────────────────────────────
+  function mulberry32(seed) {
+    let s = seed >>> 0;
+    return function () {
+      s = (s + 0x6D2B79F5) >>> 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ── Multinomial draw ─────────────────────────────────────
+  //
+  // Draw N outcomes from a categorical distribution with probabilities
+  // `probs` (which must sum to 1). We use sequential conditional binomials
+  // on the remaining budget; this is exact and avoids per-trial loops that
+  // would be prohibitive for N = 5000.
+  function binomialRV(n, p, rand) {
+    if (n <= 0) return 0;
+    if (p <= 0) return 0;
+    if (p >= 1) return n;
+    // For small n, straight Bernoulli is cheap and avoids normal-approx bias.
+    if (n < 60) {
+      let k = 0;
+      for (let i = 0; i < n; i++) if (rand() < p) k++;
+      return k;
+    }
+    // For larger n, use BTRS-style rejection? We keep this simple with
+    // a Bernoulli-sum loop — still fast enough (N <= 5000; at most 5000
+    // draws per Re-sample), and dependency-free.
+    let k = 0;
+    for (let i = 0; i < n; i++) if (rand() < p) k++;
+    return k;
+  }
+  function multinomialRV(n, probs, rand) {
+    const out = new Array(probs.length).fill(0);
+    let remaining = n;
+    let pLeft = 1.0;
+    for (let i = 0; i < probs.length - 1; i++) {
+      const pi = probs[i];
+      if (remaining <= 0) { out[i] = 0; continue; }
+      if (pLeft <= 0) { out[i] = 0; continue; }
+      const condP = clamp(pi / pLeft, 0, 1);
+      const k = binomialRV(remaining, condP, rand);
+      out[i] = k;
+      remaining -= k;
+      pLeft -= pi;
+    }
+    out[probs.length - 1] = remaining;
+    return out;
+  }
+
+  // ── Chi-squared p-value, df = 1 ──────────────────────────
+  //
+  // For df = 1, P(X^2 > x) = erfc(sqrt(x/2)). We use a standard
+  // Abramowitz-Stegun rational approximation of erfc.
+  function erfc(x) {
+    // Numerical Recipes-style Chebyshev approximation; max error ~1.2e-7.
+    const z = Math.abs(x);
+    const t = 1.0 / (1.0 + 0.5 * z);
+    const ans = t * Math.exp(-z * z - 1.26551223 +
+      t * (1.00002368 +
+      t * (0.37409196 +
+      t * (0.09678418 +
+      t * (-0.18628806 +
+      t * (0.27886807 +
+      t * (-1.13520398 +
+      t * (1.48851587 +
+      t * (-0.82215223 +
+      t * 0.17087277))))))))
+    );
+    return x >= 0 ? ans : 2.0 - ans;
+  }
+  function chiSqPValueDf1(x) {
+    if (!(x > 0)) return 1.0;
+    return clamp(erfc(Math.sqrt(x / 2)), 0, 1);
+  }
+  function fmtPValue(p) {
+    if (p >= 0.01) return p.toFixed(3);
+    if (p >= 1e-4) return p.toFixed(4);
+    if (p >= 1e-12) return p.toExponential(1);
+    return '<1e-12';
+  }
+
+  // ── State ────────────────────────────────────────────────
+  const DEFAULTS = { p: 0.5, N: 500, F: 0.0, seed: 1 };
+  const state = { ...DEFAULTS, obs: null, exp: null, chi: null, pv: null };
+
+  // ── DOM refs ─────────────────────────────────────────────
+  const pInput = $('p-input');
+  const nInput = $('n-input');
+  const fInput = $('f-input');
+  const pValueEl = $('p-value');
+  const nValueEl = $('n-value');
+  const fValueEl = $('f-value');
+  const resampleBtn = $('resample-btn');
+  const resetBtn = $('reset-btn');
+  const seedHint = $('seed-hint');
+  const oeBody = $('oe-body');
+  const oeChi = $('oe-chi');
+  const pvOut = $('pv-out');
+  const phatOut = $('phat-out');
+  const banner = $('banner');
+  const curveSvg = $('curve-svg');
+  const barsSvg = $('bars-svg');
+
+  // ── Colour tokens lifted from the shared theme ───────────
+  //
+  // We stick to the base palette rather than hex-coding: AA → red,
+  // Aa → amber (heterozygote, neither homozygote colour), aa → teal.
+  // The p-locator line uses the muted text token.
+  const COLORS = {
+    AA: 'var(--base-a)',
+    Aa: 'var(--base-g)',
+    aa: 'var(--base-t)',
+    curGuide: 'var(--fg-muted)',
+    gridLine: 'var(--border)',
+    gridLineStrong: 'var(--border-strong)',
+    expFill: 'var(--border-strong)',
+    obsFill: 'var(--accent)',
+    axis: 'var(--fg-muted)',
+    axisMuted: 'var(--fg-subtle)',
+  };
+
+  // ── Expected / observed calculation ──────────────────────
+  function computeExpected(p, N) {
+    const q = 1 - p;
+    return {
+      AA: N * p * p,
+      Aa: N * 2 * p * q,
+      aa: N * q * q,
+    };
+  }
+  function computeSampleProbs(p, F) {
+    const q = 1 - p;
+    const pq = p * q;
+    // Guard the 3 probabilities to [0, 1] and renormalise to stay on the
+    // simplex; F in [-0.3, 0.3] combined with p in [0.01, 0.99] keeps them
+    // well-defined but a defensive clamp avoids negative prob at extremes.
+    const pAA = clamp(p * p + F * pq, 0, 1);
+    const pAa = clamp(2 * pq * (1 - F), 0, 1);
+    const paa = clamp(q * q + F * pq, 0, 1);
+    const s = pAA + pAa + paa;
+    return { AA: pAA / s, Aa: pAa / s, aa: paa / s };
+  }
+
+  function drawSample() {
+    const { p, N, F, seed } = state;
+    const rand = mulberry32(seed);
+    const probs = computeSampleProbs(p, F);
+    const counts = multinomialRV(N, [probs.AA, probs.Aa, probs.aa], rand);
+    state.obs = { AA: counts[0], Aa: counts[1], aa: counts[2] };
+
+    // The chi-squared HWE test conditions on the estimated allele frequency:
+    // p̂ = (2·n_AA + n_Aa) / (2N). Expected counts under the HWE null use
+    // p̂, not the generative p. Losing one degree of freedom to this
+    // estimate is exactly what gives df = 1 (three categories minus the
+    // fixed total and the one estimated parameter). We also expose the
+    // slider p as p_true for the banner interpretation.
+    const pHat = N > 0 ? (2 * state.obs.AA + state.obs.Aa) / (2 * N) : p;
+    state.pHat = pHat;
+    state.exp = computeExpected(pHat, N);
+
+    // Chi-squared against HWE expectation (df = 1). Guard zero-expected
+    // cells — which can happen at p̂ = 0 or 1 (monomorphic sample).
+    let chi = 0;
+    for (const g of ['AA', 'Aa', 'aa']) {
+      const o = state.obs[g];
+      const e = state.exp[g];
+      if (e > 0) chi += (o - e) * (o - e) / e;
+    }
+    state.chi = chi;
+    state.pv = chiSqPValueDf1(chi);
+  }
+
+  // ── HWE curves panel ─────────────────────────────────────
+  const CURVE_W = 560, CURVE_H = 320;
+  const CURVE_PAD_L = 44, CURVE_PAD_R = 12, CURVE_PAD_T = 14, CURVE_PAD_B = 36;
+  const CURVE_PLOT_W = CURVE_W - CURVE_PAD_L - CURVE_PAD_R;
+  const CURVE_PLOT_H = CURVE_H - CURVE_PAD_T - CURVE_PAD_B;
+
+  function curveXY(px, fy) {
+    return {
+      x: CURVE_PAD_L + px * CURVE_PLOT_W,
+      y: CURVE_PAD_T + (1 - fy) * CURVE_PLOT_H,
+    };
+  }
+
+  function renderCurves() {
+    clear(curveSvg);
+    // background plot rect
+    curveSvg.appendChild(el('rect', {
+      x: CURVE_PAD_L, y: CURVE_PAD_T,
+      width: CURVE_PLOT_W, height: CURVE_PLOT_H,
+      fill: 'var(--bg-elevated)',
+      stroke: COLORS.gridLine,
+      'stroke-width': 1,
+    }));
+    // gridlines (y every 0.2)
+    for (let i = 0; i <= 5; i++) {
+      const fy = i / 5;
+      const { y } = curveXY(0, fy);
+      curveSvg.appendChild(el('line', {
+        x1: CURVE_PAD_L, x2: CURVE_PAD_L + CURVE_PLOT_W,
+        y1: y, y2: y,
+        stroke: COLORS.gridLine,
+        'stroke-width': 1,
+        'stroke-dasharray': i === 0 || i === 5 ? '' : '2 3',
+      }));
+      curveSvg.appendChild(el('text', {
+        x: CURVE_PAD_L - 6, y: y + 3,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)',
+        'font-size': 10,
+        fill: COLORS.axisMuted,
+      }, fmt(fy, 1)));
+    }
+    // x-axis ticks every 0.2
+    for (let i = 0; i <= 5; i++) {
+      const px = i / 5;
+      const { x } = curveXY(px, 0);
+      curveSvg.appendChild(el('line', {
+        x1: x, x2: x,
+        y1: CURVE_PAD_T + CURVE_PLOT_H, y2: CURVE_PAD_T + CURVE_PLOT_H + 4,
+        stroke: COLORS.axis,
+        'stroke-width': 1,
+      }));
+      curveSvg.appendChild(el('text', {
+        x, y: CURVE_PAD_T + CURVE_PLOT_H + 16,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)',
+        'font-size': 10,
+        fill: COLORS.axisMuted,
+      }, fmt(px, 1)));
+    }
+    // axis titles
+    curveSvg.appendChild(el('text', {
+      x: CURVE_PAD_L + CURVE_PLOT_W / 2,
+      y: CURVE_H - 6,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)',
+      'font-size': 11,
+      fill: COLORS.axis,
+    }, 'allele frequency p'));
+    curveSvg.appendChild(el('text', {
+      x: 12,
+      y: CURVE_PAD_T + CURVE_PLOT_H / 2,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)',
+      'font-size': 11,
+      fill: COLORS.axis,
+      transform: `rotate(-90 12 ${CURVE_PAD_T + CURVE_PLOT_H / 2})`,
+    }, 'genotype frequency'));
+
+    // Sample the three curves at 101 points.
+    const STEPS = 100;
+    const paths = { AA: [], Aa: [], aa: [] };
+    for (let i = 0; i <= STEPS; i++) {
+      const px = i / STEPS;
+      const q = 1 - px;
+      const { x, y: yAA } = curveXY(px, px * px);
+      paths.AA.push([x, yAA]);
+      const yAa = curveXY(px, 2 * px * q).y;
+      paths.Aa.push([x, yAa]);
+      const yaa = curveXY(px, q * q).y;
+      paths.aa.push([x, yaa]);
+    }
+    function pathD(pts) {
+      return pts.map((p, i) => (i === 0 ? 'M' : 'L') + fmt(p[0], 2) + ' ' + fmt(p[1], 2)).join(' ');
+    }
+    for (const key of ['AA', 'Aa', 'aa']) {
+      curveSvg.appendChild(el('path', {
+        d: pathD(paths[key]),
+        fill: 'none',
+        stroke: COLORS[key],
+        'stroke-width': 2.25,
+        'stroke-linejoin': 'round',
+        'stroke-linecap': 'round',
+      }));
+    }
+
+    // Current-p vertical guide + marker dots on each curve.
+    const p = state.p, q = 1 - p;
+    const gx = CURVE_PAD_L + p * CURVE_PLOT_W;
+    curveSvg.appendChild(el('line', {
+      x1: gx, x2: gx,
+      y1: CURVE_PAD_T, y2: CURVE_PAD_T + CURVE_PLOT_H,
+      stroke: COLORS.curGuide,
+      'stroke-width': 1.25,
+      'stroke-dasharray': '4 3',
+    }));
+    curveSvg.appendChild(el('text', {
+      x: gx + 4, y: CURVE_PAD_T + 12,
+      'font-family': 'var(--font-mono)',
+      'font-size': 10,
+      fill: COLORS.curGuide,
+    }, `p = ${fmt(p, 2)}`));
+    // dots
+    const dotsAt = [
+      { key: 'AA', fy: p * p },
+      { key: 'Aa', fy: 2 * p * q },
+      { key: 'aa', fy: q * q },
+    ];
+    for (const d of dotsAt) {
+      const { x, y } = curveXY(p, d.fy);
+      curveSvg.appendChild(el('circle', {
+        cx: x, cy: y, r: 4,
+        fill: COLORS[d.key],
+        stroke: 'var(--bg-elevated)',
+        'stroke-width': 1.5,
+      }));
+      // numerical label offset
+      curveSvg.appendChild(el('text', {
+        x: x + 7,
+        y: y - 6,
+        'font-family': 'var(--font-mono)',
+        'font-size': 10,
+        fill: COLORS[d.key],
+      }, fmt(d.fy, 3)));
+    }
+  }
+
+  // ── Expected vs observed bars panel ──────────────────────
+  const BAR_W = 460, BAR_H = 320;
+  const BAR_PAD_L = 48, BAR_PAD_R = 16, BAR_PAD_T = 18, BAR_PAD_B = 40;
+  const BAR_PLOT_W = BAR_W - BAR_PAD_L - BAR_PAD_R;
+  const BAR_PLOT_H = BAR_H - BAR_PAD_T - BAR_PAD_B;
+
+  function renderBars() {
+    clear(barsSvg);
+    const genos = ['AA', 'Aa', 'aa'];
+    const exp = state.exp, obs = state.obs;
+    // Y max covers both expected and observed, with 10% headroom.
+    let yMax = 0;
+    for (const g of genos) {
+      yMax = Math.max(yMax, exp[g], obs[g]);
+    }
+    yMax = Math.max(1, yMax * 1.1);
+    // Round yMax to a tidy number for axis ticks.
+    const niceMax = niceCeil(yMax);
+
+    // background plot rect
+    barsSvg.appendChild(el('rect', {
+      x: BAR_PAD_L, y: BAR_PAD_T,
+      width: BAR_PLOT_W, height: BAR_PLOT_H,
+      fill: 'var(--bg-elevated)',
+      stroke: COLORS.gridLine,
+      'stroke-width': 1,
+    }));
+
+    // y gridlines at 0, .25, .5, .75, 1 of niceMax
+    for (let i = 0; i <= 4; i++) {
+      const fy = i / 4;
+      const yv = niceMax * fy;
+      const y = BAR_PAD_T + (1 - fy) * BAR_PLOT_H;
+      barsSvg.appendChild(el('line', {
+        x1: BAR_PAD_L, x2: BAR_PAD_L + BAR_PLOT_W,
+        y1: y, y2: y,
+        stroke: COLORS.gridLine,
+        'stroke-dasharray': i === 0 ? '' : '2 3',
+      }));
+      barsSvg.appendChild(el('text', {
+        x: BAR_PAD_L - 6, y: y + 3,
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)',
+        'font-size': 10,
+        fill: COLORS.axisMuted,
+      }, formatCount(yv)));
+    }
+
+    // axis labels
+    barsSvg.appendChild(el('text', {
+      x: BAR_PAD_L + BAR_PLOT_W / 2,
+      y: BAR_H - 8,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)',
+      'font-size': 11,
+      fill: COLORS.axis,
+    }, 'genotype'));
+    barsSvg.appendChild(el('text', {
+      x: 14,
+      y: BAR_PAD_T + BAR_PLOT_H / 2,
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)',
+      'font-size': 11,
+      fill: COLORS.axis,
+      transform: `rotate(-90 14 ${BAR_PAD_T + BAR_PLOT_H / 2})`,
+    }, 'count'));
+
+    // Side-by-side bars per genotype: expected (translucent) + observed (solid).
+    const groupW = BAR_PLOT_W / genos.length;
+    const barW = groupW * 0.32;
+    const gap = groupW * 0.06;
+    for (let i = 0; i < genos.length; i++) {
+      const g = genos[i];
+      const cx = BAR_PAD_L + groupW * (i + 0.5);
+      const xExp = cx - barW - gap / 2;
+      const xObs = cx + gap / 2;
+      const hExp = BAR_PLOT_H * (exp[g] / niceMax);
+      const hObs = BAR_PLOT_H * (obs[g] / niceMax);
+      // expected (translucent)
+      barsSvg.appendChild(el('rect', {
+        x: xExp,
+        y: BAR_PAD_T + BAR_PLOT_H - hExp,
+        width: barW,
+        height: hExp,
+        fill: COLORS[g],
+        'fill-opacity': 0.25,
+        stroke: COLORS[g],
+        'stroke-width': 1.25,
+        'stroke-dasharray': '3 2',
+        rx: 2,
+      }));
+      // observed (solid)
+      barsSvg.appendChild(el('rect', {
+        x: xObs,
+        y: BAR_PAD_T + BAR_PLOT_H - hObs,
+        width: barW,
+        height: hObs,
+        fill: COLORS[g],
+        'fill-opacity': 0.9,
+        rx: 2,
+      }));
+      // numerical labels above bars
+      barsSvg.appendChild(el('text', {
+        x: xExp + barW / 2,
+        y: BAR_PAD_T + BAR_PLOT_H - hExp - 5,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)',
+        'font-size': 10,
+        fill: COLORS.axis,
+      }, formatCount(exp[g])));
+      barsSvg.appendChild(el('text', {
+        x: xObs + barW / 2,
+        y: BAR_PAD_T + BAR_PLOT_H - hObs - 5,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)',
+        'font-size': 10,
+        'font-weight': 600,
+        fill: COLORS[g],
+      }, obs[g].toString()));
+      // x tick: genotype label
+      barsSvg.appendChild(el('text', {
+        x: cx,
+        y: BAR_PAD_T + BAR_PLOT_H + 18,
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)',
+        'font-size': 12,
+        'font-weight': 600,
+        fill: COLORS[g],
+      }, g));
+    }
+  }
+
+  function formatCount(v) {
+    if (v >= 1000) return v.toFixed(0);
+    if (v >= 10) return v.toFixed(0);
+    return v.toFixed(1);
+  }
+  // Pick a "nice" axis maximum ≥ x. Rounds up to 1, 2, 2.5, 5 × 10^k.
+  function niceCeil(x) {
+    if (x <= 0) return 1;
+    const e = Math.floor(Math.log10(x));
+    const f = x / Math.pow(10, e);
+    let nf;
+    if (f <= 1)      nf = 1;
+    else if (f <= 2) nf = 2;
+    else if (f <= 2.5) nf = 2.5;
+    else if (f <= 5) nf = 5;
+    else             nf = 10;
+    return nf * Math.pow(10, e);
+  }
+
+  // ── Observed-vs-expected table ───────────────────────────
+  function renderTable() {
+    const genos = ['AA', 'Aa', 'aa'];
+    const rows = [];
+    for (const g of genos) {
+      const e = state.exp[g];
+      const o = state.obs[g];
+      const diff = o - e;
+      const contrib = e > 0 ? (diff * diff) / e : 0;
+      rows.push(`
+        <tr>
+          <td><span style="color: ${COLORS[g]};">&#9632;</span> ${g}</td>
+          <td>${fmt(e, 2)}</td>
+          <td>${o}</td>
+          <td>${diff >= 0 ? '+' : ''}${fmt(diff, 2)}</td>
+          <td>${fmt(contrib, 3)}</td>
+        </tr>
+      `);
+    }
+    oeBody.innerHTML = rows.join('');
+    oeChi.textContent = fmt(state.chi, 3);
+    pvOut.textContent = fmtPValue(state.pv);
+    phatOut.textContent = fmt(state.pHat, 3);
+  }
+
+  // ── Outcome banner ───────────────────────────────────────
+  //
+  // Verdict uses α = 0.05 on df = 1 (χ² critical = 3.841). The banner
+  // colour flips red when we reject. The second line is context: why the
+  // test is likely rejecting (or failing to reject) given current state.
+  function renderBanner() {
+    const { p, N, F, chi, pv, obs, exp } = state;
+    const reject = chi > 3.841;
+    banner.classList.toggle('reject', reject);
+
+    const fStr = (F >= 0 ? '+' : '') + fmt(F, 3);
+    const fDir = F === 0 ? 'no deviation' : (F > 0 ? 'excess homozygosity' : 'excess heterozygosity');
+
+    const line1 = [
+      `<b>p</b> = ${fmt(p, 3)}`,
+      `<b>N</b> = ${N}`,
+      `<b>F</b> = ${fStr} (${fDir})`,
+    ].join('<span class="sep">&middot;</span>');
+
+    const line2 = [
+      `<b>&chi;&sup2;</b> = ${fmt(chi, 3)}`,
+      `<b>p-value</b> = ${fmtPValue(pv)}`,
+      reject
+        ? `<b>REJECTS HWE</b> at &alpha; = 0.05`
+        : `<b>consistent with HWE</b> at &alpha; = 0.05`,
+    ].join('<span class="sep">&middot;</span>');
+
+    // Interpretation line: tailor to the situation.
+    let interp;
+    if (reject) {
+      if (F > 0.05) {
+        interp = 'Population shows excess homozygotes &mdash; inbreeding, assortative mating, or a Wahlund (population-structure) effect.';
+      } else if (F < -0.05) {
+        interp = 'Population shows excess heterozygotes &mdash; overdominance, negative assortative mating, or a recent hybridisation event.';
+      } else {
+        interp = 'Deviation is small but the cohort is large enough to detect it. Try shrinking N and watch the verdict flip.';
+      }
+    } else {
+      if (Math.abs(F) >= 0.1 && N <= 60) {
+        interp = 'The deviation is real, but N is too small for the test to have enough power to flag it. Increase N.';
+      } else if (Math.abs(F) < 0.02) {
+        interp = 'Counts match HWE expectation &mdash; population is behaving as a random-mating, infinite-size panmictic population.';
+      } else {
+        interp = 'Deviation is moderate; this particular re-sample did not exceed &chi;&sup2; = 3.841. Re-sample a few times to see the rejection rate.';
+      }
+    }
+
+    banner.innerHTML = `${line1}<br>${line2}<br><span class="line2">${interp}</span>`;
+  }
+
+  // ── Control wiring ───────────────────────────────────────
+  function readControls() {
+    // p-slider is 1..99 integer → 0.01..0.99
+    state.p = clamp(parseInt(pInput.value, 10) / 100, 0.01, 0.99);
+    state.N = clamp(parseInt(nInput.value, 10), 20, 5000);
+    // F-slider is -30..30 integer → -0.30..0.30
+    state.F = clamp(parseInt(fInput.value, 10) / 100, -0.30, 0.30);
+
+    pValueEl.textContent = fmt(state.p, 3);
+    nValueEl.textContent = state.N.toString();
+    fValueEl.textContent = (state.F >= 0 ? '+' : '') + fmt(state.F, 3);
+    seedHint.textContent = `seed = ${state.seed}`;
+  }
+
+  function render() {
+    drawSample();
+    renderCurves();
+    renderBars();
+    renderTable();
+    renderBanner();
+  }
+
+  function onParamChange() {
+    readControls();
+    // A parameter change advances the PRNG seed by 1 so the displayed sample
+    // is coherent with the new state and students see counts refresh.
+    state.seed = (state.seed + 1) | 0;
+    render();
+  }
+
+  function onResample() {
+    // Advance the seed; rerun with same p/N/F.
+    state.seed = (state.seed + 1) | 0;
+    seedHint.textContent = `seed = ${state.seed}`;
+    render();
+  }
+
+  function onReset() {
+    state.p = DEFAULTS.p; state.N = DEFAULTS.N; state.F = DEFAULTS.F;
+    state.seed = DEFAULTS.seed;
+    pInput.value = Math.round(state.p * 100).toString();
+    nInput.value = state.N.toString();
+    fInput.value = Math.round(state.F * 100).toString();
+    readControls();
+    render();
+  }
+
+  pInput.addEventListener('input', onParamChange);
+  nInput.addEventListener('input', onParamChange);
+  fInput.addEventListener('input', onParamChange);
+  resampleBtn.addEventListener('click', onResample);
+  resetBtn.addEventListener('click', onReset);
+
+  // ── Boot with the pre-rendered default ───────────────────
+  pInput.value = Math.round(DEFAULTS.p * 100).toString();
+  nInput.value = DEFAULTS.N.toString();
+  fInput.value = Math.round(DEFAULTS.F * 100).toString();
+  readControls();
+  render();
+})();
+</script>
+
+</body>
+</html>

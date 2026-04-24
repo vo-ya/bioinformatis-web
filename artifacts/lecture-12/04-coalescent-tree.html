@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coalescent Tree Simulator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 70ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.85rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .stage-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
+      gap: 1.1rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .stage-grid { grid-template-columns: 1fr; }
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .side-panel {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 0.95rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+    }
+    .side-panel h3 {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 0 0 0.6rem;
+    }
+    .side-panel + .side-panel { margin-top: 0.8rem; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+    .stat-grid .stat {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.35rem 0.45rem;
+    }
+    .stat .k {
+      display: block;
+      font-family: var(--font-sans);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin-bottom: 0.12rem;
+    }
+    .stat .v { color: var(--fg); font-variant-numeric: tabular-nums; }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.1rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner .secondary {
+      margin-top: 0.3rem;
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+    .banner.match-good { border-color: var(--success); background: var(--bg-muted); }
+    .banner.match-good b { color: var(--success); }
+    .banner.match-warn { border-color: var(--warning); background: var(--bg-muted); }
+    .banner.match-warn b { color: var(--warning); }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.55rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 3px;
+      border: 1px solid var(--border-strong);
+    }
+    .legend-swatch .sw.lineage { background: var(--fg); border-color: var(--fg); }
+    .legend-swatch .sw.coal    { background: var(--warning); border-color: var(--warning); }
+    .legend-swatch .sw.expect  { background: var(--accent-bright); border-color: var(--accent-bright); }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="coalescent-tree">
+
+  <header class="artifact-head">
+    <h1>Coalescent Tree Simulator</h1>
+    <p>Simulate Kingman's standard coalescent for a sample of <i>n</i> lineages drawn from an effective population of size <i>N<sub>e</sub></i>. Waiting times between coalescence events are exponential with rate <i>(k choose 2)/(2N<sub>e</sub>)</i>, so the last pair takes the longest. Increase <i>n</i> and watch the TMRCA barely budge &mdash; doubling <i>N<sub>e</sub></i> doubles it.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Parameters</p>
+
+    <div class="control-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="n-input">Sample size n</label>
+          <span class="slider-value" id="n-value">10</span>
+        </div>
+        <input id="n-input" type="range" min="2" max="50" step="1" value="10">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="ne-input">Effective pop Ne (log)</label>
+          <span class="slider-value" id="ne-value">10000</span>
+        </div>
+        <input id="ne-input" type="range" min="0" max="1000" step="1" value="667">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="reps-input">Replicates</label>
+          <span class="slider-value" id="reps-value">200</span>
+        </div>
+        <input id="reps-input" type="range" min="20" max="1000" step="20" value="200">
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn--primary" id="btn-sim" type="button">Re-simulate</button>
+      <span class="hint" style="margin-top:0;">Draws a fresh realised tree plus a fresh ensemble from a new seed.</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Realised coalescent tree</p>
+    <div class="stage-grid">
+      <div>
+        <div class="plot-wrap">
+          <svg id="tree-svg" class="plot-svg" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet" aria-label="Coalescent tree"></svg>
+        </div>
+        <div class="legend">
+          <span class="legend-swatch"><span class="sw lineage"></span> lineage</span>
+          <span class="legend-swatch"><span class="sw coal"></span> coalescence event</span>
+          <span class="legend-swatch"><span class="sw expect"></span> analytical expectation</span>
+        </div>
+      </div>
+
+      <aside>
+        <div class="side-panel">
+          <h3>Tree summary</h3>
+          <div class="stat-grid">
+            <div class="stat"><span class="k">n</span><span class="v" id="stat-n">10</span></div>
+            <div class="stat"><span class="k">Ne</span><span class="v" id="stat-ne">10000</span></div>
+            <div class="stat"><span class="k">TMRCA</span><span class="v" id="stat-tmrca">&mdash;</span></div>
+            <div class="stat"><span class="k">total length</span><span class="v" id="stat-ttl">&mdash;</span></div>
+            <div class="stat"><span class="k">E[TMRCA]</span><span class="v" id="stat-etmrca">&mdash;</span></div>
+            <div class="stat"><span class="k">T2 share</span><span class="v" id="stat-t2share">&mdash;</span></div>
+          </div>
+          <p class="hint" style="margin-top:0.6rem;">Time increases upward. Each horizontal bar marks a coalescence event at time T_k measured from the present.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Waiting-time decomposition &amp; TMRCA ensemble</p>
+    <div class="two-col">
+      <div>
+        <div class="plot-wrap">
+          <svg id="bars-svg" class="plot-svg" viewBox="0 0 500 360" preserveAspectRatio="xMidYMid meet" aria-label="Waiting-time bars"></svg>
+        </div>
+        <p class="hint">Each bar is T_k (gens), the wait while k lineages are alive. Darker bars = later (smaller k). T_2 dominates.</p>
+      </div>
+      <div>
+        <div class="plot-wrap">
+          <svg id="hist-svg" class="plot-svg" viewBox="0 0 500 360" preserveAspectRatio="xMidYMid meet" aria-label="TMRCA histogram"></svg>
+        </div>
+        <p class="hint">Histogram of TMRCA across replicates. Vertical line = analytical expectation 4N(1 &minus; 1/n).</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="banner" id="banner">
+    <div>
+      observed mean TMRCA <b id="banner-obs">&mdash;</b>
+      <span class="sep">&middot;</span>
+      expected 4N(1 &minus; 1/n) <b id="banner-exp">&mdash;</b>
+      <span class="sep">&middot;</span>
+      match <b id="banner-match">&mdash;</b>
+    </div>
+    <div class="secondary" id="banner-note">&nbsp;</div>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ── SVG helpers ────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  // ── Seeded PRNG (mulberry32) ──────────────────────────
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Exponential sample with rate λ (mean 1/λ), inverse-CDF on seeded uniform.
+  function expSample(rng, lambda) {
+    // Guard against u=0 by nudging into (0, 1].
+    const u = 1 - rng();
+    return -Math.log(u) / lambda;
+  }
+
+  // ── Kingman coalescent simulator ──────────────────────
+  //
+  // Returns an object with:
+  //   waits: [T_n, T_{n-1}, …, T_2]   (waiting time with k lineages alive)
+  //   events: [{ k, t, pair: [idA,idB], parent }]  in coalescence order
+  //   tmrca:  cumulative total time from present to MRCA
+  //   totalLength: sum over k of k · T_k (expected Theta tree length)
+  //
+  // At each step with k lineages, draw T_k ∼ Exp(C(k,2) / (2 N)). Pick a
+  // uniformly random pair to coalesce; replace them with a parent node.
+  function simulateCoalescent(n, Ne, rng) {
+    // Leaves indexed 0..n-1. Internal nodes indexed n..2n-2.
+    // Each node gets a record with children (null for leaves) and time (0 for leaves).
+    const nodes = [];
+    for (let i = 0; i < n; i++) nodes.push({ id: i, time: 0, children: null });
+    // Active lineages: array of node ids.
+    let active = [];
+    for (let i = 0; i < n; i++) active.push(i);
+
+    const waits = [];
+    const events = [];
+    let cumulativeTime = 0;
+    let nextId = n;
+
+    while (active.length > 1) {
+      const k = active.length;
+      const pairs = (k * (k - 1)) / 2;
+      const rate = pairs / (2 * Ne);
+      const T = expSample(rng, rate);
+      cumulativeTime += T;
+      waits.push({ k, T });
+
+      // Pick a random pair (i, j) with i < j.
+      const idx = Math.floor(rng() * pairs);
+      let a = 0, b = 0, count = 0, found = false;
+      for (let i = 0; i < k - 1 && !found; i++) {
+        for (let j = i + 1; j < k; j++) {
+          if (count === idx) { a = i; b = j; found = true; break; }
+          count++;
+        }
+      }
+      const idA = active[a];
+      const idB = active[b];
+      const parent = {
+        id: nextId++,
+        time: cumulativeTime,
+        children: [idA, idB],
+      };
+      nodes.push(parent);
+      events.push({ k, t: cumulativeTime, T, pair: [idA, idB], parent: parent.id });
+
+      // Remove a and b, push parent.
+      const next = [];
+      for (let i = 0; i < k; i++) if (i !== a && i !== b) next.push(active[i]);
+      next.push(parent.id);
+      active = next;
+    }
+
+    // Total tree length = Σ k · T_k (over k = n down to 2).
+    let totalLength = 0;
+    for (const w of waits) totalLength += w.k * w.T;
+
+    return { nodes, waits, events, tmrca: cumulativeTime, totalLength, root: active[0], n };
+  }
+
+  // ── Tree layout: assign x to leaves in visit order, then bubble up ──
+  function layoutTree(tree) {
+    const { nodes, root, n } = tree;
+    const byId = new Map();
+    for (const node of nodes) byId.set(node.id, node);
+
+    const leavesInOrder = [];
+    const x = new Map();
+
+    // Post-order walk from the root; first visit collects leaves left-to-right.
+    function visit(id) {
+      const node = byId.get(id);
+      if (!node.children) {
+        leavesInOrder.push(id);
+        return;
+      }
+      for (const cid of node.children) visit(cid);
+    }
+    visit(root);
+
+    // Assign evenly spaced x to leaves in their visit order.
+    leavesInOrder.forEach((id, i) => {
+      x.set(id, n === 1 ? 0.5 : i / (n - 1));
+    });
+
+    // Internal nodes get the mean of their children's x.
+    function assign(id) {
+      const node = byId.get(id);
+      if (!node.children) return x.get(id);
+      const mids = node.children.map(assign);
+      const mx = mids.reduce((a, b) => a + b, 0) / mids.length;
+      x.set(id, mx);
+      return mx;
+    }
+    assign(root);
+
+    return { x, leavesInOrder, byId };
+  }
+
+  // ── State ─────────────────────────────────────────────
+  const state = {
+    n: 10,
+    Ne: 10000,
+    reps: 200,
+    seed: 0x51CE1,
+    tree: null,
+    layout: null,
+    tmrcaSamples: [],
+    meanTMRCA: 0,
+  };
+
+  // ── Ne mapping: log slider 0..1000 → Ne in [100, 100000] ──
+  function sliderToNe(s) {
+    const tMin = Math.log10(100), tMax = Math.log10(100000);
+    const t = tMin + (s / 1000) * (tMax - tMin);
+    const raw = Math.pow(10, t);
+    // Round to 2 significant figures for readable display.
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const sig = Math.round(raw / mag * 10) / 10;
+    return Math.max(100, Math.min(100000, Math.round(sig * mag)));
+  }
+  function neToSlider(Ne) {
+    const tMin = Math.log10(100), tMax = Math.log10(100000);
+    const t = Math.log10(Math.max(100, Ne));
+    return Math.round(((t - tMin) / (tMax - tMin)) * 1000);
+  }
+
+  // ── Number formatters ────────────────────────────────
+  function fmtInt(x) {
+    if (!isFinite(x)) return '—';
+    if (Math.abs(x) >= 1e6) return x.toExponential(2);
+    return Math.round(x).toLocaleString('en-US');
+  }
+  function fmtPct(x, d) {
+    if (!isFinite(x)) return '—';
+    return (x * 100).toFixed(d == null ? 1 : d) + '%';
+  }
+
+  // ── Run: simulate one tree + ensemble ─────────────────
+  function runSimulation() {
+    const rngTree = mulberry32(state.seed);
+    state.tree = simulateCoalescent(state.n, state.Ne, rngTree);
+    state.layout = layoutTree(state.tree);
+
+    // Ensemble: independent seeds derived from base seed.
+    const samples = new Array(state.reps);
+    for (let i = 0; i < state.reps; i++) {
+      const rng = mulberry32((state.seed + 0x9E3779B1 * (i + 1)) >>> 0);
+      const sim = simulateCoalescent(state.n, state.Ne, rng);
+      samples[i] = sim.tmrca;
+    }
+    state.tmrcaSamples = samples;
+    let sum = 0;
+    for (const v of samples) sum += v;
+    state.meanTMRCA = samples.length ? sum / samples.length : 0;
+  }
+
+  // ── Rendering: tree ──────────────────────────────────
+  const treeSvg = $('tree-svg');
+
+  function renderTree() {
+    clear(treeSvg);
+    if (!state.tree) return;
+
+    const W = 1000, H = 520;
+    treeSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const margin = { top: 30, right: 30, bottom: 50, left: 50 };
+    const plotW = W - margin.left - margin.right;
+    const plotH = H - margin.top - margin.bottom;
+
+    const tmrca = state.tree.tmrca || 1;
+    // y: time increases upward. present (t=0) at bottom, MRCA at top.
+    const timeToY = (t) => margin.top + plotH * (1 - t / tmrca);
+    const xToPx = (xf) => margin.left + xf * plotW;
+
+    // Axis: vertical time scale on the left.
+    const axisTicks = niceTicks(0, tmrca, 5);
+    for (const tv of axisTicks) {
+      const y = timeToY(tv);
+      treeSvg.appendChild(el('line', {
+        x1: margin.left - 6, x2: W - margin.right,
+        y1: y.toFixed(2), y2: y.toFixed(2),
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': tv === 0 ? null : '2 3',
+      }));
+      treeSvg.appendChild(el('text', {
+        x: (margin.left - 10).toFixed(2), y: (y + 4).toFixed(2),
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, fmtInt(tv)));
+    }
+
+    // Axis label.
+    treeSvg.appendChild(el('text', {
+      x: 14, y: (margin.top + plotH / 2).toFixed(2),
+      'text-anchor': 'middle',
+      transform: `rotate(-90 14 ${(margin.top + plotH / 2).toFixed(2)})`,
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      'font-weight': 600, fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+    }, 'GENERATIONS AGO'));
+
+    // Draw the tree with horizontal + vertical segments.
+    const layout = state.layout;
+    const byId = layout.byId;
+
+    for (const node of state.tree.nodes) {
+      if (!node.children) continue;
+      const yParent = timeToY(node.time);
+      const xParent = xToPx(layout.x.get(node.id));
+      for (const cid of node.children) {
+        const child = byId.get(cid);
+        const xChild = xToPx(layout.x.get(cid));
+        const yChild = timeToY(child.time);
+
+        // Vertical from child (at child.time) up to parent.time.
+        treeSvg.appendChild(el('line', {
+          x1: xChild.toFixed(2), x2: xChild.toFixed(2),
+          y1: yChild.toFixed(2), y2: yParent.toFixed(2),
+          stroke: 'var(--fg)', 'stroke-width': 1.6,
+          'stroke-linecap': 'round',
+        }));
+      }
+      // Horizontal at parent's time connecting the two children.
+      const cx1 = xToPx(layout.x.get(node.children[0]));
+      const cx2 = xToPx(layout.x.get(node.children[1]));
+      treeSvg.appendChild(el('line', {
+        x1: cx1.toFixed(2), x2: cx2.toFixed(2),
+        y1: yParent.toFixed(2), y2: yParent.toFixed(2),
+        stroke: 'var(--fg)', 'stroke-width': 1.6,
+        'stroke-linecap': 'round',
+      }));
+    }
+
+    // Coalescence event markers + labels, plus k annotation.
+    // Event ordering: events[] in simulation order, oldest last.
+    const events = state.tree.events;
+    for (const ev of events) {
+      const node = byId.get(ev.parent);
+      const y = timeToY(node.time);
+      const x = xToPx(layout.x.get(node.id));
+      // Circle.
+      treeSvg.appendChild(el('circle', {
+        cx: x.toFixed(2), cy: y.toFixed(2),
+        r: 4.2, fill: 'var(--warning)',
+        stroke: 'var(--bg-elevated)', 'stroke-width': 1.5,
+      }));
+      // Label to the right: "T_k = value".
+      const labelX = x + 8;
+      const subN = subscriptDigits(ev.k);
+      treeSvg.appendChild(el('text', {
+        x: labelX.toFixed(2), y: (y - 6).toFixed(2),
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-muted)',
+      }, `T${subN} = ${fmtInt(ev.T)}`));
+    }
+
+    // Leaf labels along the bottom.
+    const leaves = layout.leavesInOrder;
+    for (let i = 0; i < leaves.length; i++) {
+      const id = leaves[i];
+      const xPx = xToPx(layout.x.get(id));
+      const yPx = timeToY(0);
+      treeSvg.appendChild(el('circle', {
+        cx: xPx.toFixed(2), cy: yPx.toFixed(2),
+        r: 3, fill: 'var(--fg)',
+      }));
+      if (state.n <= 30) {
+        treeSvg.appendChild(el('text', {
+          x: xPx.toFixed(2), y: (yPx + 14).toFixed(2),
+          'text-anchor': 'middle',
+          'font-family': 'var(--font-mono)', 'font-size': 10,
+          fill: 'var(--fg-subtle)',
+        }, String(id + 1)));
+      }
+    }
+  }
+
+  function subscriptDigits(k) {
+    const map = { '0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉' };
+    return String(k).split('').map(d => map[d] || d).join('');
+  }
+
+  // ── Rendering: waiting-time bars ─────────────────────
+  const barsSvg = $('bars-svg');
+
+  function renderBars() {
+    clear(barsSvg);
+    if (!state.tree) return;
+
+    const W = 500, H = 360;
+    barsSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const margin = { top: 20, right: 16, bottom: 28, left: 64 };
+    const plotW = W - margin.left - margin.right;
+    const plotH = H - margin.top - margin.bottom;
+
+    const waits = state.tree.waits.slice(); // [T_n, T_{n-1}, …, T_2]
+    if (waits.length === 0) return;
+
+    const maxT = Math.max(...waits.map(w => w.T));
+    // Axis ticks at bottom.
+    const ticks = niceTicks(0, maxT, 4);
+    for (const tv of ticks) {
+      const x = margin.left + (tv / maxT) * plotW;
+      barsSvg.appendChild(el('line', {
+        x1: x.toFixed(2), x2: x.toFixed(2),
+        y1: margin.top, y2: (margin.top + plotH).toFixed(2),
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': tv === 0 ? null : '2 3',
+      }));
+      barsSvg.appendChild(el('text', {
+        x: x.toFixed(2), y: (margin.top + plotH + 14).toFixed(2),
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 9.5,
+        fill: 'var(--fg-subtle)',
+      }, fmtInt(tv)));
+    }
+    barsSvg.appendChild(el('text', {
+      x: (margin.left + plotW / 2).toFixed(2), y: (H - 4).toFixed(2),
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 10,
+      'font-weight': 600, fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+    }, 'GENERATIONS'));
+
+    // One bar per waiting time, top-to-bottom by k descending (T_n first).
+    const rowH = plotH / waits.length;
+    const barH = Math.max(4, rowH * 0.7);
+    const nMax = waits.length; // = n - 1
+
+    for (let i = 0; i < waits.length; i++) {
+      const w = waits[i];
+      const y = margin.top + i * rowH + (rowH - barH) / 2;
+      const len = (w.T / maxT) * plotW;
+
+      // Darkness: later coalescences (smaller k) → darker.
+      // Map k from [2, n] → lightness. k=n → lightest, k=2 → darkest.
+      const frac = nMax === 1 ? 1 : (i / (nMax - 1)); // 0 lightest → 1 darkest
+      // Use CSS variable tints by layering opacity on the accent colour.
+      const opacity = 0.25 + 0.7 * frac;
+
+      barsSvg.appendChild(el('rect', {
+        x: margin.left.toFixed(2), y: y.toFixed(2),
+        width: len.toFixed(2), height: barH.toFixed(2),
+        fill: 'var(--accent)', 'fill-opacity': opacity.toFixed(3),
+        stroke: 'var(--accent)', 'stroke-width': 0.5,
+        'stroke-opacity': 0.4,
+      }));
+
+      // Left-side label: T_k.
+      const subK = subscriptDigits(w.k);
+      barsSvg.appendChild(el('text', {
+        x: (margin.left - 8).toFixed(2),
+        y: (y + barH * 0.75).toFixed(2),
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg)',
+      }, `T${subK}`));
+
+      // Value to the right of the bar.
+      const valX = margin.left + len + 4;
+      const valFits = valX + 40 < W - margin.right;
+      barsSvg.appendChild(el('text', {
+        x: valFits ? valX.toFixed(2) : (margin.left + len - 4).toFixed(2),
+        y: (y + barH * 0.75).toFixed(2),
+        'text-anchor': valFits ? 'start' : 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 9.5,
+        fill: valFits ? 'var(--fg-muted)' : 'var(--bg-elevated)',
+      }, fmtInt(w.T)));
+    }
+  }
+
+  // ── Rendering: TMRCA histogram ───────────────────────
+  const histSvg = $('hist-svg');
+
+  function renderHist() {
+    clear(histSvg);
+    if (!state.tmrcaSamples || state.tmrcaSamples.length === 0) return;
+
+    const W = 500, H = 360;
+    histSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const margin = { top: 20, right: 24, bottom: 36, left: 50 };
+    const plotW = W - margin.left - margin.right;
+    const plotH = H - margin.top - margin.bottom;
+
+    const samples = state.tmrcaSamples;
+    const expected = 4 * state.Ne * (1 - 1 / state.n);
+
+    const maxVal = Math.max(...samples, expected);
+    const upper = maxVal * 1.05;
+    const binCount = Math.max(10, Math.min(30, Math.round(Math.sqrt(samples.length))));
+    const binW = upper / binCount;
+    const bins = new Array(binCount).fill(0);
+    for (const v of samples) {
+      let idx = Math.floor(v / binW);
+      if (idx >= binCount) idx = binCount - 1;
+      if (idx < 0) idx = 0;
+      bins[idx]++;
+    }
+    const maxBin = Math.max(...bins, 1);
+
+    const xPx = (v) => margin.left + (v / upper) * plotW;
+    const yPx = (c) => margin.top + plotH * (1 - c / maxBin);
+
+    // Bars.
+    for (let i = 0; i < binCount; i++) {
+      const x0 = xPx(i * binW);
+      const x1 = xPx((i + 1) * binW);
+      const y0 = yPx(bins[i]);
+      const y1 = margin.top + plotH;
+      histSvg.appendChild(el('rect', {
+        x: x0.toFixed(2), y: y0.toFixed(2),
+        width: Math.max(0, x1 - x0 - 1).toFixed(2),
+        height: Math.max(0, y1 - y0).toFixed(2),
+        fill: 'var(--accent)', 'fill-opacity': 0.55,
+      }));
+    }
+
+    // X-axis ticks.
+    const ticks = niceTicks(0, upper, 4);
+    for (const tv of ticks) {
+      const x = xPx(tv);
+      histSvg.appendChild(el('line', {
+        x1: x.toFixed(2), x2: x.toFixed(2),
+        y1: (margin.top + plotH).toFixed(2),
+        y2: (margin.top + plotH + 4).toFixed(2),
+        stroke: 'var(--border-strong)', 'stroke-width': 1,
+      }));
+      histSvg.appendChild(el('text', {
+        x: x.toFixed(2), y: (margin.top + plotH + 16).toFixed(2),
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 9.5,
+        fill: 'var(--fg-subtle)',
+      }, fmtInt(tv)));
+    }
+
+    // Axis baseline.
+    histSvg.appendChild(el('line', {
+      x1: margin.left.toFixed(2), x2: (margin.left + plotW).toFixed(2),
+      y1: (margin.top + plotH).toFixed(2),
+      y2: (margin.top + plotH).toFixed(2),
+      stroke: 'var(--border-strong)', 'stroke-width': 1,
+    }));
+
+    // Expected line.
+    const xE = xPx(expected);
+    histSvg.appendChild(el('line', {
+      x1: xE.toFixed(2), x2: xE.toFixed(2),
+      y1: margin.top.toFixed(2),
+      y2: (margin.top + plotH).toFixed(2),
+      stroke: 'var(--accent-bright)', 'stroke-width': 2,
+      'stroke-dasharray': '5 3',
+    }));
+    histSvg.appendChild(el('text', {
+      x: (xE + 4).toFixed(2), y: (margin.top + 12).toFixed(2),
+      'text-anchor': 'start',
+      'font-family': 'var(--font-mono)', 'font-size': 10,
+      fill: 'var(--accent-bright)',
+      'font-weight': 600,
+    }, `E = ${fmtInt(expected)}`));
+
+    // Observed mean line.
+    const xObs = xPx(state.meanTMRCA);
+    histSvg.appendChild(el('line', {
+      x1: xObs.toFixed(2), x2: xObs.toFixed(2),
+      y1: margin.top.toFixed(2),
+      y2: (margin.top + plotH).toFixed(2),
+      stroke: 'var(--warning)', 'stroke-width': 2,
+    }));
+    histSvg.appendChild(el('text', {
+      x: (xObs + 4).toFixed(2), y: (margin.top + 26).toFixed(2),
+      'text-anchor': 'start',
+      'font-family': 'var(--font-mono)', 'font-size': 10,
+      fill: 'var(--warning)',
+      'font-weight': 600,
+    }, `mean = ${fmtInt(state.meanTMRCA)}`));
+
+    // Axis labels.
+    histSvg.appendChild(el('text', {
+      x: (margin.left + plotW / 2).toFixed(2), y: (H - 4).toFixed(2),
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 10,
+      'font-weight': 600, fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+    }, 'TMRCA (GENERATIONS)'));
+
+    histSvg.appendChild(el('text', {
+      x: 14, y: (margin.top + plotH / 2).toFixed(2),
+      'text-anchor': 'middle',
+      transform: `rotate(-90 14 ${(margin.top + plotH / 2).toFixed(2)})`,
+      'font-family': 'var(--font-sans)', 'font-size': 10,
+      'font-weight': 600, fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+    }, 'COUNT'));
+  }
+
+  // ── Nice tick generator ──────────────────────────────
+  function niceTicks(min, max, target) {
+    if (max <= min) return [min];
+    const range = max - min;
+    const rough = range / target;
+    const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+    const norm = rough / mag;
+    let step;
+    if (norm < 1.5) step = mag;
+    else if (norm < 3) step = 2 * mag;
+    else if (norm < 7) step = 5 * mag;
+    else step = 10 * mag;
+    const first = Math.ceil(min / step) * step;
+    const out = [];
+    for (let v = first; v <= max + step * 0.001; v += step) out.push(v);
+    return out;
+  }
+
+  // ── Stats + banner ───────────────────────────────────
+  function updateStats() {
+    $('stat-n').textContent = String(state.n);
+    $('stat-ne').textContent = fmtInt(state.Ne);
+    if (!state.tree) return;
+    $('stat-tmrca').textContent = fmtInt(state.tree.tmrca);
+    $('stat-ttl').textContent = fmtInt(state.tree.totalLength);
+    const expected = 4 * state.Ne * (1 - 1 / state.n);
+    $('stat-etmrca').textContent = fmtInt(expected);
+    // T_2 share of total TMRCA for this realised tree.
+    const t2 = state.tree.waits[state.tree.waits.length - 1]?.T || 0;
+    const share = state.tree.tmrca > 0 ? (t2 / state.tree.tmrca) : 0;
+    $('stat-t2share').textContent = fmtPct(share, 0);
+  }
+
+  function updateBanner() {
+    const banner = $('banner');
+    const expected = 4 * state.Ne * (1 - 1 / state.n);
+    const obs = state.meanTMRCA;
+    $('banner-obs').textContent = fmtInt(obs);
+    $('banner-exp').textContent = fmtInt(expected);
+
+    const err = expected > 0 ? Math.abs(obs - expected) / expected : 0;
+    $('banner-match').textContent = `within ${fmtPct(err, 1)}`;
+    banner.classList.remove('match-good', 'match-warn');
+    if (err <= 0.10) banner.classList.add('match-good');
+    else if (err <= 0.25) banner.classList.add('match-warn');
+
+    // Ensemble-average T_2 share: the analytical expectation for E[T_2]/E[TMRCA]
+    // at sample size n is (n-1)/(2(n-1)·...) — simpler: E[T_2] = 2N / C(2,2) = 2N,
+    // and E[TMRCA] = 4N(1 − 1/n), so share = (n − 1)/(2·(n − 1)·(… )) — give the
+    // formula's direct value:   E[T_2] / E[TMRCA] = (2N) / (4N(1 − 1/n)) = n/(2(n−1)).
+    const t2Share = state.n > 1 ? state.n / (2 * (state.n - 1)) : NaN;
+    const note = `E[T₂]/E[TMRCA] = n/(2(n−1)) ≈ ${fmtPct(t2Share, 0)} for n=${state.n}. ` +
+                 `Doubling n barely changes TMRCA; doubling Ne doubles it.`;
+    $('banner-note').textContent = note;
+  }
+
+  // ── Full refresh ─────────────────────────────────────
+  function refresh() {
+    runSimulation();
+    renderTree();
+    renderBars();
+    renderHist();
+    updateStats();
+    updateBanner();
+  }
+
+  // ── Wiring ───────────────────────────────────────────
+  const nEl = $('n-input');
+  const neEl = $('ne-input');
+  const repsEl = $('reps-input');
+  const nValEl = $('n-value');
+  const neValEl = $('ne-value');
+  const repsValEl = $('reps-value');
+
+  // Initialise Ne slider to match the default state.
+  neEl.value = String(neToSlider(state.Ne));
+  neValEl.textContent = fmtInt(state.Ne);
+
+  nEl.addEventListener('input', () => {
+    state.n = Math.max(2, Math.min(50, +nEl.value || 2));
+    nValEl.textContent = String(state.n);
+    refresh();
+  });
+
+  neEl.addEventListener('input', () => {
+    state.Ne = sliderToNe(+neEl.value);
+    neValEl.textContent = fmtInt(state.Ne);
+    refresh();
+  });
+
+  repsEl.addEventListener('input', () => {
+    state.reps = Math.max(20, Math.min(1000, +repsEl.value || 20));
+    repsValEl.textContent = String(state.reps);
+    refresh();
+  });
+
+  $('btn-sim').addEventListener('click', () => {
+    state.seed = (state.seed * 1664525 + 1013904223) >>> 0;
+    refresh();
+  });
+
+  // ── Boot ─────────────────────────────────────────────
+  state.n = +nEl.value;
+  state.reps = +repsEl.value;
+  state.Ne = sliderToNe(+neEl.value);
+  nValEl.textContent = String(state.n);
+  neValEl.textContent = fmtInt(state.Ne);
+  repsValEl.textContent = String(state.reps);
+  refresh();
+})();
+</script>
+
+</body>
+</html>

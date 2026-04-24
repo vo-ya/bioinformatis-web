@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PSMC Demographic Reconstructor</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+
+    .artifact-head { margin-bottom: 1.5rem; }
+    .artifact-head h1 {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.25rem;
+    }
+    .artifact-head p {
+      color: var(--fg-muted);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+      max-width: 70ch;
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 0.85rem;
+      font-weight: 600;
+    }
+
+    .field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      padding: 0.5rem 0.9rem;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg-inset); border-color: var(--border-strong); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    select.field-input, input[type="number"].field-input {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-elevated);
+      color: var(--fg);
+      width: 100%;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem 1.25rem;
+    }
+
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-row .slider-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 0.5rem;
+    }
+    .slider-row .slider-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+    }
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.85rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border);
+      align-items: center;
+    }
+
+    .stage-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
+      gap: 1.1rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .stage-grid { grid-template-columns: 1fr; }
+    }
+
+    .plot-wrap {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.85rem;
+    }
+    .plot-svg { display: block; width: 100%; height: auto; }
+
+    .side-panel {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 0.95rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+    }
+    .side-panel h3 {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 0 0 0.6rem;
+    }
+    .side-panel + .side-panel { margin-top: 0.8rem; }
+
+    .hint {
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.6rem;
+      line-height: var(--leading-relaxed);
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+    .stat-grid .stat {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.35rem 0.45rem;
+    }
+    .stat .k {
+      display: block;
+      font-family: var(--font-sans);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin-bottom: 0.12rem;
+    }
+    .stat .v { color: var(--fg); font-variant-numeric: tabular-nums; }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg);
+      line-height: var(--leading-normal);
+    }
+    .banner b { color: var(--accent); font-weight: 600; }
+    .banner .sep { color: var(--fg-subtle); margin: 0 0.45rem; }
+    .banner .secondary {
+      margin-top: 0.3rem;
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+    .banner.match-good { border-color: var(--success); background: #f0fdf4; }
+    .banner.match-good b { color: var(--success); }
+    .banner.match-warn { border-color: var(--warning); background: #fffbeb; }
+    .banner.match-warn b { color: var(--warning); }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      margin-top: 0.55rem;
+    }
+    .legend-swatch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-swatch .sw {
+      display: inline-block;
+      width: 18px; height: 3px;
+      border-radius: 1px;
+    }
+    .legend-swatch .sw.truth   { background: var(--fg); }
+    .legend-swatch .sw.recov   { background: var(--accent-bright); }
+    .legend-swatch .sw.band    { background: var(--accent-bg); border: 1px solid var(--accent-bright); height: 10px; }
+    .legend-swatch .sw.range   { background: var(--warning); opacity: 0.35; height: 10px; }
+
+    .custom-editor-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(120px, 1fr));
+      gap: 0.55rem 0.75rem;
+      margin-top: 0.6rem;
+    }
+    .custom-editor-grid .hdr {
+      font-family: var(--font-sans);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+      font-weight: 600;
+    }
+    .custom-editor-grid input {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      padding: 0.3rem 0.4rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-elevated);
+      color: var(--fg);
+      width: 100%;
+    }
+    .custom-editor-grid input:disabled { background: var(--bg-inset); color: var(--fg-subtle); }
+
+    .inline-info {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+    .inline-info.ok { color: var(--success); }
+    .inline-info.warn { color: var(--warning); }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .panel { padding: 1rem; }
+      .artifact-head h1 { font-size: var(--text-2xl); }
+      .custom-editor-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<main class="artifact" data-artifact="psmc">
+
+  <header class="artifact-head">
+    <h1>PSMC Demographic Reconstructor</h1>
+    <p>Simulate a single diploid genome under a user-defined demographic history N<sub>e</sub>(t), then run a simplified PSMC-style HMM that treats the per-window coalescent time as a hidden state and inverts per-bin rates into N<sub>e</sub>(t). The recovered curve tracks ancient bottlenecks well, but loses resolution in the very recent and very ancient past &mdash; the signal simply isn't there from one diploid.</p>
+  </header>
+
+  <section class="panel">
+    <p class="panel-label">Demographic history &middot; ground truth</p>
+
+    <div class="control-grid">
+      <div>
+        <label class="field-label" for="preset-input">Preset</label>
+        <select id="preset-input" class="field-input">
+          <option value="ooa">out-of-Africa</option>
+          <option value="bottleneck">bottleneck (100 kya)</option>
+          <option value="constant">constant Ne = 10,000</option>
+          <option value="expansion">recent expansion</option>
+          <option value="custom">custom (edit below)</option>
+        </select>
+        <p class="hint">Each preset loads 3&ndash;4 (time, N<sub>e</sub>) breakpoints into the editor. Switch to <code>custom</code> to edit values.</p>
+      </div>
+
+      <div>
+        <label class="field-label">Step-function editor (time ky = boundary age; Ne applies from that boundary <i>backward</i>)</label>
+        <div class="custom-editor-grid" id="custom-editor">
+          <div class="hdr">bin</div>
+          <div class="hdr">time (kya) start</div>
+          <div class="hdr">Ne</div>
+        </div>
+        <p class="hint" id="editor-hint">Epoch 1 starts at 0 kya (present). Later rows must have increasing start times.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Simulation &amp; inference parameters</p>
+
+    <div class="control-grid">
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="mu-input">Mutation rate &mu; (/bp/gen)</label>
+          <span class="slider-value" id="mu-value">1.2e-8</span>
+        </div>
+        <input id="mu-input" type="range" min="0" max="1000" step="1" value="632">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="rr-input">Recombination rate r (/bp/gen)</label>
+          <span class="slider-value" id="rr-value">1.0e-8</span>
+        </div>
+        <input id="rr-input" type="range" min="0" max="1000" step="1" value="500">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="L-input">Genome size L (log)</label>
+          <span class="slider-value" id="L-value">100 Mb</span>
+        </div>
+        <input id="L-input" type="range" min="0" max="1000" step="1" value="500">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="win-input">Window size (log)</label>
+          <span class="slider-value" id="win-value">100 kb</span>
+        </div>
+        <input id="win-input" type="range" min="0" max="1000" step="1" value="500">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-head">
+          <label class="field-label" for="bins-input">Time bins</label>
+          <span class="slider-value" id="bins-value">40</span>
+        </div>
+        <input id="bins-input" type="range" min="10" max="64" step="1" value="40">
+      </div>
+
+      <div>
+        <label class="field-label">Window count (derived)</label>
+        <div class="inline-info" id="wincount-info">&mdash;</div>
+        <p class="hint">Capped at 2,000 windows for a responsive browser. Reduce L or increase window size to change the cap.</p>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn--primary" id="btn-sim" type="button">Simulate genome</button>
+      <button class="btn" id="btn-run" type="button">Run PSMC-like inference</button>
+      <span class="inline-info" id="sim-status">&nbsp;</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="panel-label">Recovered N<sub>e</sub>(t) vs ground truth</p>
+    <div class="stage-grid">
+      <div>
+        <div class="plot-wrap">
+          <svg id="ne-svg" class="plot-svg" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet" aria-label="Ne(t) reconstruction"></svg>
+        </div>
+        <div class="legend">
+          <span class="legend-swatch"><span class="sw truth"></span> ground truth N<sub>e</sub>(t)</span>
+          <span class="legend-swatch"><span class="sw recov"></span> PSMC recovered</span>
+          <span class="legend-swatch"><span class="sw band"></span> bootstrap uncertainty</span>
+          <span class="legend-swatch"><span class="sw range"></span> reliable window [30 kya, 500 kya]</span>
+        </div>
+      </div>
+
+      <aside>
+        <div class="side-panel">
+          <h3>Per-epoch (truth)</h3>
+          <div class="stat-grid" id="truth-grid"></div>
+        </div>
+
+        <div class="side-panel">
+          <h3>Inference summary</h3>
+          <div class="stat-grid">
+            <div class="stat"><span class="k">windows</span><span class="v" id="stat-windows">&mdash;</span></div>
+            <div class="stat"><span class="k">bins</span><span class="v" id="stat-bins">&mdash;</span></div>
+            <div class="stat"><span class="k">heterozygosity</span><span class="v" id="stat-het">&mdash;</span></div>
+            <div class="stat"><span class="k">EM iters</span><span class="v" id="stat-em">&mdash;</span></div>
+            <div class="stat"><span class="k">log-likelihood</span><span class="v" id="stat-ll">&mdash;</span></div>
+            <div class="stat"><span class="k">log-Ne RMSE</span><span class="v" id="stat-rmse">&mdash;</span></div>
+          </div>
+          <p class="hint">RMSE computed in log&#x2081;&#x2080; N<sub>e</sub> over the reliable [30 kya, 500 kya] range (assuming 25 y/gen).</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <div class="banner" id="banner">
+    <div>
+      log-N<sub>e</sub> RMSE (reliable range) <b id="banner-rmse">&mdash;</b>
+      <span class="sep">&middot;</span>
+      bottleneck recovery <b id="banner-bot">&mdash;</b>
+    </div>
+    <div class="secondary" id="banner-note">&nbsp;</div>
+  </div>
+</main>
+
+<script src="../_shared/resize.js" defer></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const GEN_YEARS = 25; // years per generation, for t(kya) conversion
+
+  // ── SVG helpers ────────────────────────────────────────
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  // ── Seeded PRNG (mulberry32) ──────────────────────────
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function expSample(rng, lambda) {
+    const u = 1 - rng();
+    return -Math.log(u) / lambda;
+  }
+  // Poisson sampler: Knuth for small lambda, normal approximation for large.
+  function poissonSample(rng, lambda) {
+    if (!isFinite(lambda) || lambda <= 0) return 0;
+    if (lambda < 30) {
+      const L = Math.exp(-lambda);
+      let k = 0, p = 1;
+      while (p > L) { k++; p *= rng(); }
+      return k - 1;
+    }
+    // Normal approx.
+    const u1 = Math.max(1e-12, rng()), u2 = rng();
+    const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    return Math.max(0, Math.round(lambda + Math.sqrt(lambda) * z));
+  }
+
+  // ── Formatters ────────────────────────────────────────
+  function fmtSci(x, d) {
+    if (!isFinite(x)) return '—';
+    if (x === 0) return '0';
+    return x.toExponential(d == null ? 1 : d);
+  }
+  function fmtInt(x) {
+    if (!isFinite(x)) return '—';
+    if (Math.abs(x) >= 1e6) return x.toExponential(2);
+    return Math.round(x).toLocaleString('en-US');
+  }
+  function fmtKya(tGens) {
+    if (!isFinite(tGens)) return '—';
+    const kya = (tGens * GEN_YEARS) / 1000;
+    if (kya < 10) return kya.toFixed(1) + ' kya';
+    return Math.round(kya) + ' kya';
+  }
+  function gensFromKya(kya) {
+    return (kya * 1000) / GEN_YEARS;
+  }
+
+  // ── Slider mappings ──────────────────────────────────
+  // μ in [0.5e-8, 2e-8]  (log)
+  function sliderToMu(s) {
+    const a = Math.log10(0.5e-8), b = Math.log10(2e-8);
+    return Math.pow(10, a + (s / 1000) * (b - a));
+  }
+  function muToSlider(mu) {
+    const a = Math.log10(0.5e-8), b = Math.log10(2e-8);
+    return Math.round(((Math.log10(mu) - a) / (b - a)) * 1000);
+  }
+  // r in [0.5e-8, 2e-8] (log) — same bounds as μ
+  function sliderToR(s) { return sliderToMu(s); }
+
+  // L in [10 Mb, 1 Gb] (log)
+  function sliderToL(s) {
+    const a = Math.log10(1e7), b = Math.log10(1e9);
+    return Math.round(Math.pow(10, a + (s / 1000) * (b - a)));
+  }
+  function LLabel(L) {
+    if (L >= 1e9) return (L / 1e9).toFixed(1) + ' Gb';
+    return Math.round(L / 1e6) + ' Mb';
+  }
+
+  // W in [10 kb, 1 Mb] (log)
+  function sliderToW(s) {
+    const a = Math.log10(1e4), b = Math.log10(1e6);
+    return Math.round(Math.pow(10, a + (s / 1000) * (b - a)));
+  }
+  function WLabel(W) {
+    if (W >= 1e6) return (W / 1e6).toFixed(2) + ' Mb';
+    return Math.round(W / 1e3) + ' kb';
+  }
+
+  // ── Presets ──────────────────────────────────────────
+  // Each preset is a list of {startKya, Ne} entries ordered by increasing time.
+  // The first epoch always starts at 0 kya.
+  const PRESETS = {
+    ooa: [
+      { startKya: 0,    Ne: 15000 },   // recent expansion
+      { startKya: 30,   Ne: 3000  },   // OoA bottleneck
+      { startKya: 200,  Ne: 12000 },   // pre-OoA ancestral
+      { startKya: 1500, Ne: 20000 },   // deep past
+    ],
+    bottleneck: [
+      { startKya: 0,    Ne: 12000 },
+      { startKya: 80,   Ne: 2000  },
+      { startKya: 150,  Ne: 12000 },
+      { startKya: 1500, Ne: 12000 },
+    ],
+    constant: [
+      { startKya: 0,    Ne: 10000 },
+      { startKya: 1500, Ne: 10000 },
+    ],
+    expansion: [
+      { startKya: 0,    Ne: 30000 },
+      { startKya: 10,   Ne: 8000  },
+      { startKya: 200,  Ne: 8000  },
+      { startKya: 1500, Ne: 8000  },
+    ],
+    custom: [
+      { startKya: 0,    Ne: 12000 },
+      { startKya: 50,   Ne: 4000  },
+      { startKya: 300,  Ne: 15000 },
+      { startKya: 1500, Ne: 10000 },
+    ],
+  };
+
+  // Convert preset to piecewise-constant N_e in generations.
+  function presetToHistory(p) {
+    return p.map(e => ({ startGens: gensFromKya(e.startKya), Ne: e.Ne }));
+  }
+  // Ne at generation t.
+  function neAt(history, tGens) {
+    let cur = history[0].Ne;
+    for (let i = 0; i < history.length; i++) {
+      if (history[i].startGens <= tGens) cur = history[i].Ne;
+      else break;
+    }
+    return cur;
+  }
+
+  // ── Simulate coalescent time under piecewise-constant Ne ──
+  // Start at t=0; survival to time t with piece-wise rate 1/(2Ne_i).
+  // Sample via inverse-CDF piece by piece.
+  function sampleCoalTime(rng, history) {
+    // Draw unit-exponential total "hazard budget", consume piece by piece.
+    let budget = -Math.log(1 - rng() + 1e-18);
+    let t = 0;
+    for (let i = 0; i < history.length; i++) {
+      const startT = history[i].startGens;
+      const endT = (i + 1 < history.length) ? history[i + 1].startGens : Infinity;
+      const rate = 1 / (2 * history[i].Ne);
+      const span = endT - startT;
+      const hazard = rate * span;
+      if (budget <= hazard) {
+        t = startT + budget / rate;
+        return t;
+      }
+      budget -= hazard;
+    }
+    // Extremely unlikely overflow; cap.
+    return 1e8;
+  }
+
+  // ── Simulate per-window coalescent trajectory (approx SMC') ──
+  // At each window, with probability ρ (per-window recombination rate),
+  // re-draw the coalescent time; otherwise keep the previous one.
+  // ρ ≈ 1 − exp(−2 r W Ne_effective). We approximate with 1 − exp(−2 r W · Ne_current).
+  function simulateWindows(rng, history, mu, r, L, W) {
+    const nWin = Math.min(2000, Math.floor(L / W));
+    const het = new Array(nWin);
+    const coalT = new Array(nWin);
+    let t = sampleCoalTime(rng, history);
+    for (let i = 0; i < nWin; i++) {
+      const NeHere = neAt(history, t);
+      const rho = 1 - Math.exp(-2 * r * W * NeHere);
+      if (i > 0 && rng() < rho) {
+        t = sampleCoalTime(rng, history);
+      }
+      coalT[i] = t;
+      const lambda = 2 * mu * t * W;
+      het[i] = poissonSample(rng, lambda);
+    }
+    return { nWin, het, coalT };
+  }
+
+  // ── Time discretisation bins (log-spaced in generations) ─
+  function makeTimeBins(K, tMin, tMax) {
+    const edges = new Array(K + 1);
+    const a = Math.log10(tMin), b = Math.log10(tMax);
+    for (let i = 0; i <= K; i++) edges[i] = Math.pow(10, a + (i / K) * (b - a));
+    const centers = new Array(K);
+    for (let i = 0; i < K; i++) centers[i] = Math.sqrt(edges[i] * edges[i + 1]);
+    return { edges, centers };
+  }
+
+  // ── Simplified PSMC-like HMM inference ────────────────
+  // Hidden state: coalescent-time bin index k ∈ {0,…,K−1}.
+  // Emission: per-window SNP count ~ Poisson(2 μ t_k W). We use the log-pmf.
+  // Transition: with prob ρ_k the trajectory re-draws; otherwise stays.
+  // Re-draw distribution Π (stationary): Π_k ∝ bin-width · coalescent density.
+  //
+  // Parameters updated by EM: λ_k = coalescent rate in bin k (=> Ne_k = 0.5/λ_k).
+  // Π_k is derived from current λ via the discretised coalescent survival.
+  function runPSMC(obs, W, mu, K, tMin, tMax, em, rng) {
+    const { edges, centers } = makeTimeBins(K, tMin, tMax);
+    const N = obs.length;
+
+    // Emission: precompute log-Poisson per (window, bin). We bucket observations
+    // to save work — but observations are small ints, so direct is fine.
+    // logP(h | k) = h·log(μ_eff·t) − μ_eff·t − log(h!)
+    // where μ_eff·t = 2·μ·W·t_k.
+    const twoMuW = 2 * mu * W;
+
+    // Initialise λ_k from uniform Ne guess.
+    const NeInit = 10000;
+    const lambda = new Array(K).fill(1 / (2 * NeInit));
+
+    // Utility: factorial table up to max observed.
+    let maxH = 0;
+    for (let i = 0; i < N; i++) if (obs[i] > maxH) maxH = obs[i];
+    const logFact = new Array(maxH + 1);
+    logFact[0] = 0;
+    for (let h = 1; h <= maxH; h++) logFact[h] = logFact[h - 1] + Math.log(h);
+
+    // Build emission log-probs table (N × K).
+    function buildEmission() {
+      const E = new Array(N);
+      for (let i = 0; i < N; i++) {
+        const row = new Float64Array(K);
+        for (let k = 0; k < K; k++) {
+          const mean = twoMuW * centers[k];
+          const h = obs[i];
+          row[k] = h * Math.log(mean + 1e-300) - mean - logFact[h];
+        }
+        E[i] = row;
+      }
+      return E;
+    }
+
+    // Stationary bin distribution Π given λ.
+    // Survival from 0 to edge_k:  S_k = exp(-Σ_{j<k} λ_j · (edge_{j+1} − edge_j))
+    // then Π_k = S_k − S_{k+1} for k < K−1; Π_{K−1} = S_{K−1}.
+    function stationary() {
+      const S = new Array(K + 1);
+      S[0] = 1;
+      for (let k = 0; k < K; k++) {
+        const dt = edges[k + 1] - edges[k];
+        S[k + 1] = S[k] * Math.exp(-lambda[k] * dt);
+      }
+      const Pi = new Array(K);
+      let sum = 0;
+      for (let k = 0; k < K; k++) { Pi[k] = S[k] - S[k + 1]; sum += Pi[k]; }
+      if (sum <= 0) { for (let k = 0; k < K; k++) Pi[k] = 1 / K; }
+      else { for (let k = 0; k < K; k++) Pi[k] = Pi[k] / sum; }
+      return Pi;
+    }
+
+    // Transition matrix approximation: stay or re-draw from Π.
+    // Per-window re-draw probability ρ depends on current bin via Ne_k:
+    //   ρ_k = 1 − exp(−2 r W · Ne_k)   (NB: r fixed at 1e-8 for simplicity)
+    // For EM we factor T_{kj} = (1−ρ_k)·δ_{kj} + ρ_k·Π_j.
+    const rInfer = 1e-8;
+
+    // Forward-backward with scaling.
+    function forwardBackward(E, Pi) {
+      const alpha = new Array(N);
+      const scale = new Array(N);
+      const rho = new Float64Array(K);
+      for (let k = 0; k < K; k++) {
+        const NeK = 0.5 / lambda[k];
+        rho[k] = 1 - Math.exp(-2 * rInfer * W * NeK);
+      }
+
+      // Initialise α₀
+      alpha[0] = new Float64Array(K);
+      let s0 = 0;
+      for (let k = 0; k < K; k++) {
+        alpha[0][k] = Pi[k] * Math.exp(E[0][k]);
+        s0 += alpha[0][k];
+      }
+      if (s0 <= 0 || !isFinite(s0)) s0 = 1e-300;
+      scale[0] = s0;
+      for (let k = 0; k < K; k++) alpha[0][k] /= s0;
+
+      for (let i = 1; i < N; i++) {
+        alpha[i] = new Float64Array(K);
+        // Compute "mix" = Σ_k α[i-1][k] · ρ_k (will transition to Π_j).
+        let mix = 0;
+        for (let k = 0; k < K; k++) mix += alpha[i - 1][k] * rho[k];
+        let s = 0;
+        // Find max log-emission for stability.
+        let maxE = -Infinity;
+        for (let j = 0; j < K; j++) if (E[i][j] > maxE) maxE = E[i][j];
+        for (let j = 0; j < K; j++) {
+          const stay = alpha[i - 1][j] * (1 - rho[j]);
+          const hop  = mix * Pi[j];
+          alpha[i][j] = (stay + hop) * Math.exp(E[i][j] - maxE);
+          s += alpha[i][j];
+        }
+        if (s <= 0 || !isFinite(s)) s = 1e-300;
+        scale[i] = s * Math.exp(maxE);
+        for (let j = 0; j < K; j++) alpha[i][j] /= s;
+      }
+
+      // Backward.
+      const beta = new Array(N);
+      beta[N - 1] = new Float64Array(K);
+      for (let k = 0; k < K; k++) beta[N - 1][k] = 1;
+
+      for (let i = N - 2; i >= 0; i--) {
+        beta[i] = new Float64Array(K);
+        // "mix_next" = Σ_j Π_j · β[i+1][j] · P(obs_{i+1} | j)
+        let mixNext = 0;
+        let maxE = -Infinity;
+        for (let j = 0; j < K; j++) if (E[i + 1][j] > maxE) maxE = E[i + 1][j];
+        const emitExp = new Float64Array(K);
+        for (let j = 0; j < K; j++) emitExp[j] = Math.exp(E[i + 1][j] - maxE);
+        for (let j = 0; j < K; j++) mixNext += Pi[j] * beta[i + 1][j] * emitExp[j];
+        let s = 0;
+        for (let k = 0; k < K; k++) {
+          const stayPart = (1 - rho[k]) * beta[i + 1][k] * emitExp[k];
+          const hopPart  = rho[k] * mixNext;
+          beta[i][k] = stayPart + hopPart;
+          s += beta[i][k];
+        }
+        if (s <= 0 || !isFinite(s)) s = 1e-300;
+        for (let k = 0; k < K; k++) beta[i][k] /= s;
+      }
+
+      // Posteriors γ.
+      const gamma = new Array(N);
+      let logLik = 0;
+      for (let i = 0; i < N; i++) {
+        gamma[i] = new Float64Array(K);
+        let s = 0;
+        for (let k = 0; k < K; k++) { gamma[i][k] = alpha[i][k] * beta[i][k]; s += gamma[i][k]; }
+        if (s <= 0) s = 1e-300;
+        for (let k = 0; k < K; k++) gamma[i][k] /= s;
+        logLik += Math.log(scale[i]);
+      }
+
+      return { gamma, logLik };
+    }
+
+    // EM loop.
+    let E = buildEmission();
+    let Pi = stationary();
+    let lastLL = -Infinity;
+    let gammaFinal = null;
+    let llFinal = -Infinity;
+    let iters = 0;
+
+    for (let it = 0; it < em; it++) {
+      const fb = forwardBackward(E, Pi);
+      gammaFinal = fb.gamma;
+      llFinal = fb.logLik;
+      iters = it + 1;
+      // M-step: per-bin expected occupancy and expected het count.
+      const occ = new Float64Array(K);
+      const hSum = new Float64Array(K);
+      for (let i = 0; i < N; i++) {
+        for (let k = 0; k < K; k++) {
+          occ[k] += fb.gamma[i][k];
+          hSum[k] += fb.gamma[i][k] * obs[i];
+        }
+      }
+      // New λ_k from expected heterozygosity rate.
+      //  h_i | k ~ Poisson(2μW · t_k)  ⇒  MLE estimate of t_k given per-bin totals:
+      //   t̂_k = hSum_k / (occ_k · 2μW).
+      // Then λ_k = 1/(2 N_e) via coalescent: Ne_k = 0.5 / λ_k. But we also want
+      // the *rate in bin k*. A standard trick: t̂_k directly parameterises
+      // the per-bin E[t | state=k]; λ_k is inferred from the bin mass:
+      //   expected occupancy ≈ Σ_i γ(k)/N.  Coalescent density:
+      //     Π_k = S_k · (1 − exp(−λ_k Δ_k)).
+      //   Solve for λ_k given Π_k and the surviving mass S_k.
+      let S = 1;
+      for (let k = 0; k < K; k++) {
+        const pk = occ[k] / N;
+        const dt = edges[k + 1] - edges[k];
+        const frac = Math.max(1e-6, Math.min(0.999999, pk / Math.max(S, 1e-12)));
+        let newLambda = -Math.log(1 - frac) / dt;
+        if (!isFinite(newLambda) || newLambda <= 0) newLambda = lambda[k];
+        // Damp updates for stability (especially in the last bin, where S→0).
+        lambda[k] = 0.5 * lambda[k] + 0.5 * newLambda;
+        // Clamp to reasonable Ne range.
+        const NeK = 0.5 / lambda[k];
+        const NeClamped = Math.max(500, Math.min(500000, NeK));
+        lambda[k] = 0.5 / NeClamped;
+        S = Math.max(1e-12, S - pk);
+      }
+      Pi = stationary();
+      E = buildEmission();
+      if (Math.abs(llFinal - lastLL) < 1e-3) break;
+      lastLL = llFinal;
+    }
+
+    // Recovered Ne per bin.
+    const NeRec = new Array(K);
+    for (let k = 0; k < K; k++) NeRec[k] = 0.5 / lambda[k];
+
+    // Uncertainty: parametric-bootstrap-like. Use sqrt(occupancy) in per-bin noise.
+    // σ_log10(Ne) ≈ 0.434 / sqrt(occ_k)  (Fisher info for Poisson-count rate).
+    const sigLog = new Array(K);
+    const occFinal = new Float64Array(K);
+    for (let i = 0; i < N; i++) for (let k = 0; k < K; k++) occFinal[k] += gammaFinal[i][k];
+    for (let k = 0; k < K; k++) {
+      const o = Math.max(1, occFinal[k]);
+      sigLog[k] = 0.434 / Math.sqrt(o);
+    }
+
+    return { centers, edges, NeRec, sigLog, occ: occFinal, logLik: llFinal, iters };
+  }
+
+  // ── State ─────────────────────────────────────────────
+  const state = {
+    preset: 'ooa',
+    history: presetToHistory(PRESETS.ooa),
+    mu: 1.2e-8,
+    r: 1e-8,
+    L: 100e6,
+    W: 100e3,
+    K: 40,
+    seed: 0x5E1F51,
+    sim: null,          // { nWin, het, coalT }
+    inference: null,    // output of runPSMC
+  };
+
+  // ── Custom-editor rendering ───────────────────────────
+  const editorContainer = $('custom-editor');
+  const editorHint = $('editor-hint');
+
+  function renderEditor() {
+    clear(editorContainer);
+    // Rebuild header row.
+    const hdr1 = document.createElement('div'); hdr1.className = 'hdr'; hdr1.textContent = 'epoch';
+    const hdr2 = document.createElement('div'); hdr2.className = 'hdr'; hdr2.textContent = 'start (kya)';
+    const hdr3 = document.createElement('div'); hdr3.className = 'hdr'; hdr3.textContent = 'Ne';
+    editorContainer.appendChild(hdr1); editorContainer.appendChild(hdr2); editorContainer.appendChild(hdr3);
+
+    const preset = PRESETS[state.preset] || PRESETS.custom;
+    const editable = (state.preset === 'custom');
+    for (let i = 0; i < preset.length; i++) {
+      const lbl = document.createElement('div');
+      lbl.textContent = 'ep ' + (i + 1);
+      lbl.style.fontFamily = 'var(--font-mono)';
+      lbl.style.fontSize = 'var(--text-xs)';
+      lbl.style.color = 'var(--fg-muted)';
+      editorContainer.appendChild(lbl);
+
+      const tInput = document.createElement('input');
+      tInput.type = 'number';
+      tInput.step = '1';
+      tInput.min = '0';
+      tInput.value = String(preset[i].startKya);
+      tInput.disabled = !editable || i === 0;
+      tInput.dataset.idx = String(i);
+      tInput.dataset.field = 'startKya';
+      editorContainer.appendChild(tInput);
+
+      const nInput = document.createElement('input');
+      nInput.type = 'number';
+      nInput.step = '100';
+      nInput.min = '100';
+      nInput.value = String(preset[i].Ne);
+      nInput.disabled = !editable;
+      nInput.dataset.idx = String(i);
+      nInput.dataset.field = 'Ne';
+      editorContainer.appendChild(nInput);
+    }
+
+    editorHint.innerHTML = editable
+      ? 'Custom mode. Edit Ne or start-times; times must be monotonically increasing.'
+      : 'Preset mode &mdash; switch to <code>custom</code> to edit.';
+
+    // Wire the inputs.
+    editorContainer.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('change', () => {
+        if (state.preset !== 'custom') return;
+        const idx = +inp.dataset.idx;
+        const field = inp.dataset.field;
+        let v = +inp.value;
+        if (field === 'startKya') {
+          if (idx === 0) v = 0;
+          // Enforce monotonicity.
+          const p = PRESETS.custom;
+          const prev = idx > 0 ? p[idx - 1].startKya : 0;
+          const next = idx + 1 < p.length ? p[idx + 1].startKya : Infinity;
+          if (v <= prev) v = prev + 1;
+          if (v >= next) v = next - 1;
+          if (v < 0) v = 0;
+          PRESETS.custom[idx].startKya = v;
+        } else {
+          v = Math.max(100, Math.min(1e7, v));
+          PRESETS.custom[idx].Ne = v;
+        }
+        inp.value = String(v);
+        state.history = presetToHistory(PRESETS.custom);
+        renderNePlot();
+        updateTruthGrid();
+      });
+    });
+  }
+
+  // ── Simulate + infer + render ─────────────────────────
+  function runFullPipeline() {
+    const rngSim = mulberry32(state.seed);
+    const sim = simulateWindows(rngSim, state.history, state.mu, state.r, state.L, state.W);
+    state.sim = sim;
+
+    const rngInfer = mulberry32((state.seed ^ 0xA5A5A5) >>> 0);
+    // Build time range for inference bins from simulated coal-time range.
+    let tMin = Infinity, tMax = 0;
+    for (let i = 0; i < sim.coalT.length; i++) {
+      if (sim.coalT[i] < tMin) tMin = sim.coalT[i];
+      if (sim.coalT[i] > tMax) tMax = sim.coalT[i];
+    }
+    // Pad range and enforce sane minima/maxima.
+    tMin = Math.max(100, tMin * 0.5);
+    tMax = Math.max(tMin * 10, tMax * 1.5);
+    tMax = Math.min(tMax, 2e8);
+
+    const inf = runPSMC(sim.het, state.W, state.mu, state.K, tMin, tMax, 12, rngInfer);
+    state.inference = inf;
+    renderNePlot();
+    updateTruthGrid();
+    updateStats();
+    updateBanner();
+  }
+
+  // ── Rendering: Ne(t) plot ─────────────────────────────
+  const neSvg = $('ne-svg');
+
+  function renderNePlot() {
+    clear(neSvg);
+    const W = 1000, H = 520;
+    neSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const margin = { top: 30, right: 30, bottom: 60, left: 70 };
+    const plotW = W - margin.left - margin.right;
+    const plotH = H - margin.top - margin.bottom;
+
+    // x: log time in years (kya). y: log Ne.
+    // Range: 1 kya to 5 Mya by default; Ne from 1e3 to 1e5 (log).
+    const tKyaMin = 1, tKyaMax = 5000;
+    const xKyaToPx = (k) => {
+      const a = Math.log10(tKyaMin), b = Math.log10(tKyaMax);
+      return margin.left + ((Math.log10(Math.max(tKyaMin, k)) - a) / (b - a)) * plotW;
+    };
+    const NeMin = 1e3, NeMax = 1e5;
+    const NeToPx = (n) => {
+      const a = Math.log10(NeMin), b = Math.log10(NeMax);
+      const clampedN = Math.max(NeMin, Math.min(NeMax, n));
+      return margin.top + plotH * (1 - (Math.log10(clampedN) - a) / (b - a));
+    };
+
+    // Reliable-range shading: [30 kya, 500 kya].
+    const relX0 = xKyaToPx(30), relX1 = xKyaToPx(500);
+    neSvg.appendChild(el('rect', {
+      x: relX0.toFixed(2), y: margin.top.toFixed(2),
+      width: (relX1 - relX0).toFixed(2), height: plotH.toFixed(2),
+      fill: 'var(--warning)', 'fill-opacity': '0.08',
+    }));
+    neSvg.appendChild(el('text', {
+      x: ((relX0 + relX1) / 2).toFixed(2), y: (margin.top + 14).toFixed(2),
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 10,
+      fill: 'var(--warning)', 'font-weight': 600,
+      'letter-spacing': '0.08em',
+    }, 'RELIABLE RANGE'));
+
+    // Grid + axis ticks.
+    // X ticks: 1, 10, 100, 1000 kya.
+    const xTicks = [1, 3, 10, 30, 100, 300, 1000, 3000];
+    for (const xt of xTicks) {
+      const x = xKyaToPx(xt);
+      neSvg.appendChild(el('line', {
+        x1: x.toFixed(2), x2: x.toFixed(2),
+        y1: margin.top, y2: (margin.top + plotH).toFixed(2),
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': '2 3',
+      }));
+      neSvg.appendChild(el('text', {
+        x: x.toFixed(2), y: (margin.top + plotH + 16).toFixed(2),
+        'text-anchor': 'middle',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, xt < 1000 ? xt + ' kya' : (xt / 1000) + ' Mya'));
+    }
+
+    // Y ticks: 1e3, 3e3, 1e4, 3e4, 1e5.
+    const yTicks = [1e3, 3e3, 1e4, 3e4, 1e5];
+    for (const yt of yTicks) {
+      const y = NeToPx(yt);
+      neSvg.appendChild(el('line', {
+        x1: margin.left.toFixed(2), x2: (margin.left + plotW).toFixed(2),
+        y1: y.toFixed(2), y2: y.toFixed(2),
+        stroke: 'var(--border)', 'stroke-width': 1,
+        'stroke-dasharray': '2 3',
+      }));
+      neSvg.appendChild(el('text', {
+        x: (margin.left - 8).toFixed(2), y: (y + 4).toFixed(2),
+        'text-anchor': 'end',
+        'font-family': 'var(--font-mono)', 'font-size': 10,
+        fill: 'var(--fg-subtle)',
+      }, yt >= 1000 ? (yt / 1000) + 'k' : String(yt)));
+    }
+
+    // Axis labels.
+    neSvg.appendChild(el('text', {
+      x: (margin.left + plotW / 2).toFixed(2), y: (H - 14).toFixed(2),
+      'text-anchor': 'middle',
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      'font-weight': 600, fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+    }, 'TIME (kya, log)'));
+    neSvg.appendChild(el('text', {
+      x: 16, y: (margin.top + plotH / 2).toFixed(2),
+      'text-anchor': 'middle',
+      transform: `rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})`,
+      'font-family': 'var(--font-sans)', 'font-size': 11,
+      'font-weight': 600, fill: 'var(--fg-muted)',
+      'letter-spacing': '0.1em',
+    }, 'EFFECTIVE POP Ne (log)'));
+
+    // ── Ground truth step function ───────────────────
+    // Build step path from history.
+    const hist = state.history;
+    const pathTruth = [];
+    for (let i = 0; i < hist.length; i++) {
+      const startKya = hist[i].startGens * GEN_YEARS / 1000;
+      const endKya = (i + 1 < hist.length)
+        ? hist[i + 1].startGens * GEN_YEARS / 1000
+        : tKyaMax;
+      const y = NeToPx(hist[i].Ne);
+      // Left edge
+      const xL = xKyaToPx(Math.max(tKyaMin, startKya));
+      const xR = xKyaToPx(Math.min(tKyaMax, endKya));
+      if (pathTruth.length === 0) pathTruth.push(`M ${xL.toFixed(2)} ${y.toFixed(2)}`);
+      else pathTruth.push(`L ${xL.toFixed(2)} ${y.toFixed(2)}`);
+      pathTruth.push(`L ${xR.toFixed(2)} ${y.toFixed(2)}`);
+    }
+    neSvg.appendChild(el('path', {
+      d: pathTruth.join(' '),
+      fill: 'none',
+      stroke: 'var(--fg)',
+      'stroke-width': 2.4,
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+    }));
+
+    // ── Recovered curve + uncertainty band ───────────
+    if (state.inference) {
+      const { centers, NeRec, sigLog } = state.inference;
+      // Uncertainty band as polygon (upper then reversed lower).
+      const upper = [], lower = [];
+      for (let k = 0; k < centers.length; k++) {
+        const tKya = centers[k] * GEN_YEARS / 1000;
+        const x = xKyaToPx(Math.max(tKyaMin, Math.min(tKyaMax, tKya)));
+        const logN = Math.log10(NeRec[k]);
+        const yU = NeToPx(Math.pow(10, logN + sigLog[k]));
+        const yL = NeToPx(Math.pow(10, logN - sigLog[k]));
+        upper.push([x, yU]);
+        lower.push([x, yL]);
+      }
+      const bandPts = upper.concat(lower.slice().reverse());
+      let d = `M ${bandPts[0][0].toFixed(2)} ${bandPts[0][1].toFixed(2)}`;
+      for (let i = 1; i < bandPts.length; i++) d += ` L ${bandPts[i][0].toFixed(2)} ${bandPts[i][1].toFixed(2)}`;
+      d += ' Z';
+      neSvg.appendChild(el('path', {
+        d, fill: 'var(--accent-bright)', 'fill-opacity': '0.12', stroke: 'none',
+      }));
+
+      // Recovered broken line.
+      let dLine = '';
+      for (let k = 0; k < centers.length; k++) {
+        const tKya = centers[k] * GEN_YEARS / 1000;
+        const x = xKyaToPx(Math.max(tKyaMin, Math.min(tKyaMax, tKya)));
+        const y = NeToPx(NeRec[k]);
+        dLine += (k === 0 ? 'M' : 'L') + ` ${x.toFixed(2)} ${y.toFixed(2)} `;
+      }
+      neSvg.appendChild(el('path', {
+        d: dLine,
+        fill: 'none',
+        stroke: 'var(--accent-bright)',
+        'stroke-width': 2,
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round',
+      }));
+
+      // Recovered points.
+      for (let k = 0; k < centers.length; k++) {
+        const tKya = centers[k] * GEN_YEARS / 1000;
+        if (tKya < tKyaMin || tKya > tKyaMax) continue;
+        const x = xKyaToPx(tKya);
+        const y = NeToPx(NeRec[k]);
+        neSvg.appendChild(el('circle', {
+          cx: x.toFixed(2), cy: y.toFixed(2),
+          r: 2.4, fill: 'var(--accent-bright)',
+        }));
+      }
+    }
+  }
+
+  // ── Truth grid ──────────────────────────────────────
+  function updateTruthGrid() {
+    const container = $('truth-grid');
+    container.innerHTML = '';
+    const hist = state.history;
+    for (let i = 0; i < hist.length; i++) {
+      const startKya = Math.round(hist[i].startGens * GEN_YEARS / 1000);
+      const endKya = (i + 1 < hist.length)
+        ? Math.round(hist[i + 1].startGens * GEN_YEARS / 1000)
+        : '→';
+      const cell = document.createElement('div');
+      cell.className = 'stat';
+      const k = document.createElement('span'); k.className = 'k';
+      k.textContent = `ep ${i + 1}  ${startKya}–${endKya} kya`;
+      const v = document.createElement('span'); v.className = 'v';
+      v.textContent = fmtInt(hist[i].Ne);
+      cell.appendChild(k); cell.appendChild(v);
+      container.appendChild(cell);
+    }
+  }
+
+  // ── Stats + banner ──────────────────────────────────
+  function updateStats() {
+    if (!state.sim || !state.inference) return;
+    $('stat-windows').textContent = String(state.sim.nWin);
+    $('stat-bins').textContent = String(state.K);
+    let hetSum = 0;
+    for (let i = 0; i < state.sim.het.length; i++) hetSum += state.sim.het[i];
+    const hetRate = hetSum / (state.sim.nWin * state.W);
+    $('stat-het').textContent = fmtSci(hetRate, 2) + ' /bp';
+    $('stat-em').textContent = String(state.inference.iters);
+    $('stat-ll').textContent = state.inference.logLik.toFixed(0);
+    $('stat-rmse').textContent = computeRMSE().toFixed(3);
+  }
+
+  // Compute log-Ne RMSE in the reliable range [30 kya, 500 kya].
+  function computeRMSE() {
+    if (!state.inference) return NaN;
+    const { centers, NeRec } = state.inference;
+    const lo = gensFromKya(30), hi = gensFromKya(500);
+    let sumSq = 0, n = 0;
+    for (let k = 0; k < centers.length; k++) {
+      const t = centers[k];
+      if (t < lo || t > hi) continue;
+      const truth = neAt(state.history, t);
+      const d = Math.log10(NeRec[k]) - Math.log10(truth);
+      sumSq += d * d; n++;
+    }
+    return n > 0 ? Math.sqrt(sumSq / n) : NaN;
+  }
+
+  // Detect whether a planted bottleneck is recovered.
+  // Heuristic: find the minimum Ne epoch (if substantially smaller than flanking),
+  // then check whether recovered Ne at the midpoint is within 0.5 log-units.
+  function bottleneckDiagnostic() {
+    const hist = state.history;
+    if (hist.length < 3) return { hasBot: false };
+    let minIdx = -1, minNe = Infinity;
+    for (let i = 0; i < hist.length; i++) {
+      if (hist[i].Ne < minNe) { minNe = hist[i].Ne; minIdx = i; }
+    }
+    if (minIdx <= 0 || minIdx >= hist.length - 1) return { hasBot: false };
+    const flankMean = 0.5 * (hist[minIdx - 1].Ne + hist[minIdx + 1].Ne);
+    if (minNe > flankMean * 0.6) return { hasBot: false };
+
+    const startT = hist[minIdx].startGens;
+    const endT = hist[minIdx + 1].startGens;
+    const midT = 0.5 * (startT + endT);
+    const midKya = midT * GEN_YEARS / 1000;
+
+    if (!state.inference) return { hasBot: true, recovered: false, midKya, truthNe: minNe };
+    const { centers, NeRec } = state.inference;
+    // Find the bin whose center is nearest midT.
+    let closest = 0, bestDist = Infinity;
+    for (let k = 0; k < centers.length; k++) {
+      const d = Math.abs(Math.log10(centers[k]) - Math.log10(midT));
+      if (d < bestDist) { bestDist = d; closest = k; }
+    }
+    const recNe = NeRec[closest];
+    const err = Math.abs(Math.log10(recNe) - Math.log10(minNe));
+    const recovered = err < 0.35;
+    return { hasBot: true, recovered, midKya, truthNe: minNe, recNe, err };
+  }
+
+  function updateBanner() {
+    const banner = $('banner');
+    const rmse = computeRMSE();
+    $('banner-rmse').textContent = isFinite(rmse) ? rmse.toFixed(3) : '—';
+
+    const bot = bottleneckDiagnostic();
+    let botTxt;
+    if (!bot.hasBot) botTxt = 'no clear bottleneck';
+    else if (bot.recovered) botTxt = `recovered at ~${Math.round(bot.midKya)} kya`;
+    else botTxt = `missed (~${Math.round(bot.midKya)} kya)`;
+    $('banner-bot').textContent = botTxt;
+
+    banner.classList.remove('match-good', 'match-warn');
+    if (isFinite(rmse) && rmse <= 0.3) banner.classList.add('match-good');
+    else if (isFinite(rmse) && rmse <= 0.6) banner.classList.add('match-warn');
+
+    let note;
+    if (!bot.hasBot) {
+      note = 'No planted bottleneck. Watch how PSMC still tracks a flat Ne well inside the reliable range.';
+    } else if (bot.midKya < 20) {
+      note = `Bottleneck at ${Math.round(bot.midKya)} kya is too recent for a single diploid — few coalescences occur in the last ~20 ky, so the bin is under-constrained.`;
+    } else if (bot.midKya > 2000) {
+      note = `Bottleneck at ${Math.round(bot.midKya)} kya is too ancient — very few lineages survive that long before coalescing, so the ancient bins hold almost no mass.`;
+    } else if (bot.recovered) {
+      note = `Δlog Ne at bottleneck midpoint = ${bot.err.toFixed(2)}. Ancient bottlenecks like this are exactly what PSMC is built to detect.`;
+    } else {
+      note = `Δlog Ne at bottleneck midpoint = ${bot.err.toFixed(2)} — bin variance dominates; try more windows or more EM iterations.`;
+    }
+    $('banner-note').textContent = note;
+  }
+
+  // ── UI wiring ────────────────────────────────────────
+  const presetEl = $('preset-input');
+  const muEl = $('mu-input');
+  const rEl = $('rr-input');
+  const LEl = $('L-input');
+  const winEl = $('win-input');
+  const binsEl = $('bins-input');
+
+  function syncParamDisplays() {
+    $('mu-value').textContent = fmtSci(state.mu, 1);
+    $('rr-value').textContent = fmtSci(state.r, 1);
+    $('L-value').textContent = LLabel(state.L);
+    $('win-value').textContent = WLabel(state.W);
+    $('bins-value').textContent = String(state.K);
+    const nWin = Math.min(2000, Math.floor(state.L / state.W));
+    const capped = (state.L / state.W) > 2000;
+    $('wincount-info').innerHTML =
+      `<b>${nWin.toLocaleString('en-US')}</b> windows${capped ? ' <span style="color:var(--warning)">(capped at 2,000)</span>' : ''}`;
+  }
+
+  presetEl.addEventListener('change', () => {
+    state.preset = presetEl.value;
+    state.history = presetToHistory(PRESETS[state.preset]);
+    renderEditor();
+    renderNePlot();
+    updateTruthGrid();
+    $('sim-status').textContent = 'preset loaded — click Simulate genome to re-run.';
+    $('sim-status').className = 'inline-info warn';
+  });
+
+  muEl.addEventListener('input', () => {
+    state.mu = sliderToMu(+muEl.value);
+    syncParamDisplays();
+  });
+  rEl.addEventListener('input', () => {
+    state.r = sliderToR(+rEl.value);
+    syncParamDisplays();
+  });
+  LEl.addEventListener('input', () => {
+    state.L = sliderToL(+LEl.value);
+    syncParamDisplays();
+  });
+  winEl.addEventListener('input', () => {
+    state.W = sliderToW(+winEl.value);
+    syncParamDisplays();
+  });
+  binsEl.addEventListener('input', () => {
+    state.K = +binsEl.value;
+    syncParamDisplays();
+  });
+
+  $('btn-sim').addEventListener('click', () => {
+    state.seed = (state.seed * 1664525 + 1013904223) >>> 0;
+    runFullPipeline();
+    $('sim-status').textContent = 'simulation + inference complete.';
+    $('sim-status').className = 'inline-info ok';
+  });
+  $('btn-run').addEventListener('click', () => {
+    // Re-run inference on existing simulation if present; else simulate too.
+    if (!state.sim) { runFullPipeline(); return; }
+    const rngInfer = mulberry32((state.seed ^ 0xDE1A5) >>> 0);
+    let tMin = Infinity, tMax = 0;
+    for (let i = 0; i < state.sim.coalT.length; i++) {
+      if (state.sim.coalT[i] < tMin) tMin = state.sim.coalT[i];
+      if (state.sim.coalT[i] > tMax) tMax = state.sim.coalT[i];
+    }
+    tMin = Math.max(100, tMin * 0.5);
+    tMax = Math.max(tMin * 10, tMax * 1.5);
+    tMax = Math.min(tMax, 2e8);
+    state.inference = runPSMC(state.sim.het, state.W, state.mu, state.K, tMin, tMax, 15, rngInfer);
+    renderNePlot();
+    updateStats();
+    updateBanner();
+    $('sim-status').textContent = 'inference re-run on existing genome.';
+    $('sim-status').className = 'inline-info ok';
+  });
+
+  // ── Boot ─────────────────────────────────────────────
+  state.mu = sliderToMu(+muEl.value);
+  state.r = sliderToR(+rEl.value);
+  state.L = sliderToL(+LEl.value);
+  state.W = sliderToW(+winEl.value);
+  state.K = +binsEl.value;
+  syncParamDisplays();
+  renderEditor();
+  runFullPipeline();
+  $('sim-status').textContent = 'default out-of-Africa simulation + inference loaded.';
+  $('sim-status').className = 'inline-info ok';
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 14 — Data Engineering, File Formats, and Reproducibility · Bioinformatics for EE</title>
+  <meta name="description" content="FASTQ, BAM, CRAM, VCF, BCF, HDF5, Zarr, Parquet; public repositories; reference management; containers and conda; workflow languages; GIAB benchmarking; the open-source culture of bioinformatics.">
+
+  <meta property="og:title" content="Lecture 14 — Data Engineering, File Formats, and Reproducibility">
+  <meta property="og:description" content="File formats as partial-access problems · reference management · containers · workflow languages · GIAB benchmarks · the field's open-source culture.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — File Formats and Tradeoffs</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Why formats matter</a></li>
+          <li><a href="#sec-1-2">1.2 FASTQ, BAM, CRAM</a></li>
+          <li><a href="#sec-1-3">1.3 VCF and BCF</a></li>
+          <li><a href="#sec-1-4">1.4 HDF5, Zarr, Parquet</a></li>
+          <li><a href="#sec-1-5">1.5 Schema evolution</a></li>
+          <li><a href="#sec-1-6">1.6 A note on scale</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Where Data Lives</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 Public data ecosystem</a></li>
+          <li><a href="#sec-2-2">2.2 Cloud-hosted data</a></li>
+          <li><a href="#sec-2-3">2.3 Accessions &amp; metadata</a></li>
+          <li><a href="#sec-2-4">2.4 SRA toolkit</a></li>
+          <li><a href="#sec-2-5">2.5 Preprints &amp; archival</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Reference Data Management</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Which GRCh38?</a></li>
+          <li><a href="#sec-3-2">3.2 Reference tools</a></li>
+          <li><a href="#sec-3-3">3.3 GTF, GFF, BED</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Containerization</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Dependency hell</a></li>
+          <li><a href="#sec-4-2">4.2 Docker, Singularity</a></li>
+          <li><a href="#sec-4-3">4.3 Conda, mamba, pixi</a></li>
+          <li><a href="#sec-4-4">4.4 Pinning for reproducibility</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Workflow Languages</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 Why workflow languages</a></li>
+          <li><a href="#sec-5-2">5.2 Nextflow, Snakemake, WDL, CWL</a></li>
+          <li><a href="#sec-5-3">5.3 Resume, retry, resources</a></li>
+          <li><a href="#sec-5-4">5.4 nf-core community</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Benchmarking and Validation</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 GIAB truth sets</a></li>
+          <li><a href="#sec-6-2">6.2 hap.py, precision/recall</a></li>
+          <li><a href="#sec-6-3">6.3 Benchmark culture</a></li>
+          <li><a href="#sec-6-4">6.4 What benchmarks miss</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — The Culture</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 Preprints</a></li>
+          <li><a href="#sec-7-2">7.2 Open-source norms</a></li>
+          <li><a href="#sec-7-3">7.3 Institutions</a></li>
+          <li><a href="#sec-7-4">7.4 Reproducibility crisis</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 14</div>
+      <h1 class="lecture-title">Data Engineering, File Formats, and Reproducibility</h1>
+      <p class="lecture-subtitle">The engineering layer under every algorithm in this course: formats that support random access, repositories that survive a PI, containers that outlive the host OS, workflows that resume from where they died, and benchmarks that make "which caller is better" a question with an answer.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — File formats and tradeoffs</a></li>
+        <li><a href="#part-2">Part 2 — Where data lives</a></li>
+        <li><a href="#part-3">Part 3 — Reference data management</a></li>
+        <li><a href="#part-4">Part 4 — Containerization</a></li>
+        <li><a href="#part-5">Part 5 — Workflow languages</a></li>
+        <li><a href="#part-6">Part 6 — Benchmarking and validation</a></li>
+        <li><a href="#part-7">Part 7 — The culture</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Seven moves:</em>
+        <span class="lecture-tagline-beat">pick a format that supports the query</span>,
+        <span class="lecture-tagline-beat">fetch from the right repository</span>,
+        <span class="lecture-tagline-beat">pin the reference by hash</span>,
+        <span class="lecture-tagline-beat">ship the tool in a container</span>,
+        <span class="lecture-tagline-beat">wire it together as a DAG</span>,
+        <span class="lecture-tagline-beat">benchmark against a truth set</span>,
+        <span class="lecture-tagline-beat">archive so it still runs in ten years</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Describe the major bioinformatics file formats (FASTQ, BAM, CRAM, VCF/BCF, HDF5/Zarr, Parquet, GFA) and the engineering tradeoffs that distinguish them.</li>
+          <li>Explain CRAM as content-aware compression vs BAM's generic gzip and estimate compression ratios for typical sequencing data.</li>
+          <li>Navigate the public bioinformatics data ecosystem: SRA/ENA, GEO, dbGaP, EGA, cloud-hosted datasets. Identify which repositories are suitable for which data types and access models.</li>
+          <li>Diagnose "which GRCh38 am I using" problems: decoy contigs, ALT loci, ALT-aware vs ALT-unaware mapping. Pick a reference build appropriately.</li>
+          <li>Explain why bioinformatics has unusually severe dependency hell, and evaluate containers (Docker, Singularity/Apptainer) and environment managers (conda, mamba, pixi) as solutions.</li>
+          <li>Compare workflow languages (Nextflow, Snakemake, WDL, CWL) as specialised dataflow languages with resume-on-failure, resource management, and cloud execution.</li>
+          <li>Interpret a GIAB-based precision/recall benchmark (hap.py) of a variant caller; explain what the benchmark guarantees and what it does not.</li>
+          <li>Describe the cultural and institutional practices of the field: preprints (bioRxiv), nf-core pipeline curation, community ownership of open-source tooling.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 40 min</span>
+          File Formats and Their Tradeoffs
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Why file formats matter</h3>
+
+          <p>Most lectures in this course have focused on algorithms — how to align reads, call variants, integrate modalities. But every algorithm sits on top of file formats that dictate what operations are fast and what operations are painful. A good format lets you random-access into a 100&nbsp;GB file in microseconds; a bad format forces you to stream 100&nbsp;GB to extract 100 bytes.</p>
+
+          <p>Bioinformatics has accumulated ~30 years of formats, some elegant, some regrettable. Learning them isn't glamorous but it's most of the skill needed to work productively at scale. Every industry role in computational biology will ask: "given this data in format X, produce this answer in format Y, at this scale, on this budget." Knowing what each format costs is the prerequisite.</p>
+
+          <p>Four design dimensions matter for any genomics format:</p>
+
+          <ul>
+            <li><strong>Random access</strong> — can I jump to "the reads covering chr7:12345–12500" without reading the whole file?</li>
+            <li><strong>Compression ratio</strong> — how much space does the format save vs raw text?</li>
+            <li><strong>Schema evolution</strong> — can I add a new field without breaking readers of old files?</li>
+            <li><strong>Tool ecosystem</strong> — which libraries / languages can read it?</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-14/01-format-comparison.svg"
+                 alt="Horizontal-bar comparison of bioinformatics file-format sizes for a 30× human WGS sample. FASTQ.gz about 45 GB, BAM about 80 GB, CRAM about 25 GB. VCF.gz about 1.5 GB, BCF about 0.5 GB. Each bar annotated with compression ratio and random-access capability.">
+            <figcaption>Figure 1. File-format footprints for one 30× human WGS sample. Compression is only part of the story — random access via bgzip + index is what makes CRAM and BCF usable where flat gzip is not.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 FASTQ, BAM, CRAM</h3>
+
+          <p><strong>FASTQ</strong> — four lines per read: <code>@ID</code>, sequence, <code>+</code>, quality string. Human-readable text; near-universal input format for raw sequencing. Typically gzip-compressed, producing ~3× reduction over raw text. Limits: no random access, no alignment, no metadata beyond the header line. Good for "move raw reads from sequencer to first-step tool"; terrible for "show me reads at chr7:12345."</p>
+
+          <p><strong>BAM</strong> (Binary Alignment/Map) — the binary version of SAM. BAM is bgzipped (blocked gzip with 64&nbsp;KB blocks) so that a <code>.bai</code> index can specify offsets to jump into specific genomic regions. Every alignment record has: read name, flags, reference position, CIGAR, mate position, quality scores, optional tags.</p>
+
+          <p>BAM was the standard for ~15 years. But its compression is generic zlib per-block — the same compression you'd get on any random binary data, ignoring the fact that genomics data has enormous redundancy (most reads match the reference).</p>
+
+          <p><strong>CRAM</strong> (Compressed Reference-based Alignment/Map; Cochrane, Cochrane &amp; Birney 2013) exploits that redundancy. The key insight: for each aligned read, you don't need to store the full sequence — only the <em>differences</em> from the reference (which is already on every genomics workstation). CRAM stores:</p>
+
+          <ul>
+            <li>Per-read metadata (name, flags, position) in columnar, compressed blocks.</li>
+            <li>Per-base differences from the reference (substitutions, insertions, deletions), not the full base sequence.</li>
+            <li>Quality scores, which are now the dominant cost, compressed with specialised codecs (often with lossy binning — "q ≥ 30" vs "&lt; 30" buckets).</li>
+          </ul>
+
+          <p>Compression result: CRAM is typically 40–60% smaller than BAM, often 4× smaller if quality-score binning is enabled. With a reference file present, decompressing a CRAM costs you a reference lookup per base difference; without the correct reference, a CRAM is <strong>useless</strong> — you can't recover the read sequences.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-14/02-cram-scheme.svg"
+                 alt="Schematic comparing BAM and CRAM encodings of the same aligned read. BAM stores the full 150-base read sequence plus quality string, about 300 bytes. CRAM stores position plus a list of diffs from the reference plus a compressed quality block, about 60 bytes. Bottom shows decoding: reference loaded, position slice extracted, diffs applied to recover the read.">
+            <figcaption>Figure 2. CRAM as content-aware lossless compression. The encoder knows what a read <em>is</em> — a position plus diffs from the reference — and stores exactly that, column by column. Lose the reference, lose the data.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — CRAM as content-aware compression</span>
+            <p>BAM is generic zlib — it treats its input as an opaque byte stream and finds whatever patterns it can. CRAM is <strong>content-aware</strong>: the encoder knows the data is a stream of aligned reads and stores only what's new (positions, diffs, quality). This is the same move that separates JPEG (exploits 2-D spatial correlation in images) from BMP (raw pixels), or H.264 (exploits temporal redundancy) from uncompressed video. CRAM is to BAM what JPEG is to BMP: exploit the structure you know about.</p>
+          </aside>
+
+          <p>The cost: CRAM requires the reference genome to be present at decode time, and the reference identity must be recorded and fetchable. Mismatches between the CRAM-writing reference and the decode-time reference corrupt the data silently. Modern CRAM files record a reference MD5 hash to catch this; old files sometimes don't, and those become unreadable over time. Ref-lookup tooling (<code>REF_CACHE</code>, <code>REF_PATH</code>, the EBI reference-fetch server) exists to paper over this.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Sanger and others lost or corrupted &gt;50&nbsp;TB of archival CRAM due to reference-management failures circa 2018. Not a hypothetical. "We compressed it with CRAM" is not an archival strategy unless you also archived the exact reference.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 VCF and BCF</h3>
+
+          <p><strong>VCF</strong> (Variant Call Format, §Lecture&nbsp;4) — tab-delimited text, one row per variant site, with genotype columns per sample. Fields: <code>CHROM</code>, <code>POS</code>, <code>ID</code>, <code>REF</code>, <code>ALT</code>, <code>QUAL</code>, <code>FILTER</code>, <code>INFO</code> (semi-structured key-value), <code>FORMAT</code> (per-sample fields, e.g. GT, DP, GQ). The FORMAT columns are where most of the per-sample data lives. Bgzipped + tabix-indexed VCF is the working standard.</p>
+
+          <p><strong>BCF</strong> (Binary Call Format) — the binary companion. Same data, ~3× smaller, ~5× faster to parse. Random access via <code>.csi</code> index. For cohorts with &gt; 1,000 samples, BCF is essentially mandatory.</p>
+
+          <p>The pain point: VCF/BCF scales badly in the number-of-samples dimension. A VCF with 500k samples (UK Biobank) is ~500&nbsp;GB for common variants alone and doesn't fit the "per-row is cheap" assumption that tooling makes. Format extensions (sparse VCF, GVCF, project-VCF formats like Hail's MatrixTable) handle biobank scale by splitting or reformatting.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-14/03-vcf-structure.svg"
+                 alt="Layout diagram of a VCF record. Top shows the ## metadata header and the #CHROM column line. Middle shows one tab-delimited row annotated with CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO, FORMAT, and five sample columns. Bottom shows the same row as compact BCF binary records. Footer annotation notes tabix / csi indexing for coordinate-based seek.">
+            <figcaption>Figure 3. A VCF record unpacked, with its BCF binary counterpart below. Identical information, different ergonomics: VCF is text for inspection; BCF is binary for scale.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 HDF5, Zarr, AnnData, Parquet</h3>
+
+          <p>The flat-file-with-index model breaks for high-dimensional data. Single-cell (§Lectures&nbsp;7&nbsp;and&nbsp;8) produces matrices of counts (cells × genes × modalities × batches). Methylation (§Lecture&nbsp;10) produces per-CpG-per-sample matrices. GWAS summary statistics (§Lecture&nbsp;13) produce trait × SNP tables. These need <strong>chunked, random-access, compressible multi-dimensional</strong> containers.</p>
+
+          <p><strong>HDF5</strong> — hierarchical data format, binary, self-describing. Groups (like directories) containing datasets (like files) with named attributes. Chunked storage with per-chunk compression. The standard for single-cell: AnnData (<code>.h5ad</code>) is HDF5 under the hood, with conventions for <code>X</code> (main matrix), <code>obs</code> (cell metadata), <code>var</code> (gene metadata), <code>obsm</code> / <code>varm</code> (reduced dimensions). Limits: HDF5 is a single-file format with a proprietary-ish binary structure; parallel writes are possible but fiddly; cloud access requires downloading the whole file (or partial-range requests, which work but are clunky).</p>
+
+          <p><strong>Zarr</strong> — chunked multi-dim arrays stored as <strong>a directory of small files</strong> (one per chunk). Each chunk has a deterministic path. Perfect for cloud object stores (S3, GCS) because each chunk is a single HTTP GET. Schema-evolution via <code>.zmetadata</code>. Used by modern single-cell tooling (AnnData v0.10+ supports Zarr backend; MuData uses it for multi-modal).</p>
+
+          <p><strong>Parquet</strong> — columnar format from the Apache data-lake world, now adopted by bioinformatics for summary-statistic tables. Columnar layout enables fast aggregation (sum / mean / filter over a column without reading other columns). Standard for GWAS summary stats in UK Biobank and other large studies. Supported by every data-processing ecosystem — Spark, Dask, DuckDB, Polars.</p>
+
+          <p><strong>GFA</strong> (Graphical Fragment Assembly) — text format for pangenome graphs, covered in §Lecture&nbsp;11. Listed here to emphasise that <strong>graphs don't fit neatly</strong> into table formats; GFA is the current standard but has its own ergonomics.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>Every format in this section is answering one engineering question — <em>"how do I get partial access without reading the whole thing?"</em> FASTQ/BAM do it with byte offsets and per-block indices. VCF/BCF do it with tabix-style coordinate indices. HDF5 and Zarr do it with chunk indices on an n-dimensional grid. Parquet does it with column-major layout plus row-group indices. Same pattern every time: arrange the bytes so common queries land on contiguous ranges, and keep an index pointing to them.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-5">
+          <h3>1.5 Schema evolution</h3>
+
+          <p>A format is only good long-term if it lets you add fields without breaking old readers. VCF does this well (INFO / FORMAT fields are self-describing; unknown fields are ignored). HDF5 does this well (datasets are self-describing). BAM does this moderately (TAG fields are extensible; core fields are fixed). FASTQ does this poorly (the format is ad hoc; there's no "new field" story).</p>
+
+          <p>The format ecosystem is not static. Every decade or so the field introduces a new format (SAM → BAM, BAM → CRAM; HDF5 → Zarr) that supersedes an older one. Not all transitions succeed: BAM → CRAM took ~8 years to become standard; BGZF → modern alternatives hasn't happened. Adoption depends on tool ecosystem, not format merits alone.</p>
+        </section>
+
+        <section id="sec-1-6">
+          <h3>1.6 A quick note on scale</h3>
+
+          <p>Typical scales a 2025 bioinformatician encounters:</p>
+
+          <ul>
+            <li><strong>Single-sample WGS</strong> at 30× coverage: ~90&nbsp;Gb raw → 45&nbsp;GB FASTQ.gz → 80&nbsp;GB BAM → 25&nbsp;GB CRAM.</li>
+            <li><strong>Cohort WGS</strong>: 100k samples × 25&nbsp;GB CRAM ≈ 2.5&nbsp;PB.</li>
+            <li><strong>Single-cell</strong>: 1&nbsp;M cells × 30k genes × 4&nbsp;bytes ≈ 120&nbsp;GB; with multi-modal extensions (RNA + ATAC + protein) 3–5×.</li>
+            <li><strong>GWAS summary stats</strong>: 10&nbsp;M SNPs × 10 fields × 8&nbsp;bytes ≈ 800&nbsp;MB per trait; thousands of traits = multi-TB.</li>
+          </ul>
+
+          <p>Whatever you think you'll work on, assume it won't fit in RAM. Every design question in the field is shaped by this.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 1 — File-Format Size and Compression Explorer.</strong> Slide coverage, read length, and sample count; watch expected on-disk sizes for FASTQ.gz, BAM, CRAM (with and without quality binning), VCF.gz, and BCF. The key insight: at biobank scale, CRAM + quality binning is 4× smaller than BAM — the petabyte-to-gigabyte savings are real money, not cosmetic.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-14/01-format-sizes.html" loading="lazy" title="Artifact 1 — File-Format Size Explorer"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 30 min</span>
+          Where Data Lives
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 The public data ecosystem</h3>
+
+          <p>Bioinformatics has unusual public-data norms. Major journals require raw sequencing data be deposited before publication in one of a handful of repositories:</p>
+
+          <ul>
+            <li><strong>SRA</strong> (Sequence Read Archive, NIH). US canonical home for raw sequencing data. Free access. Accessions: <code>SRP…</code> project, <code>SRR…</code> run, <code>SRS…</code> sample.</li>
+            <li><strong>ENA</strong> (European Nucleotide Archive, EBI). European counterpart; mirrors SRA. Accessions start <code>ERP…</code>, <code>ERR…</code>, <code>ERS…</code>.</li>
+            <li><strong>DDBJ Sequence Read Archive</strong> (Japan). Third leg of the INSDC collaboration; mirrors SRA/ENA.</li>
+            <li><strong>GEO</strong> (Gene Expression Omnibus, NIH). Processed-data repository for microarray and RNA-seq — usually count matrices, metadata, sometimes processed figures. Most RNA-seq studies deposit raw reads in SRA and processed counts in GEO.</li>
+            <li><strong>ArrayExpress</strong> (EBI). GEO's European counterpart.</li>
+          </ul>
+
+          <p>All four above are free, open-access, and mirror each other. <strong>Controlled-access repositories</strong> (restricted by IRB / data-use committee):</p>
+
+          <ul>
+            <li><strong>dbGaP</strong> (database of Genotypes and Phenotypes, NIH). Access requires a data-use agreement and approval. Holds individual-level genotype + phenotype data from US cohorts.</li>
+            <li><strong>EGA</strong> (European Genome-phenome Archive, EBI/CRG). European controlled-access equivalent. UK Biobank, FinnGen, many clinical cohorts deposit here.</li>
+            <li><strong>GDC</strong> (Genomic Data Commons, NCI). Cancer genomics; hosts TCGA, TARGET, other NCI-funded projects.</li>
+          </ul>
+
+          <p>Every clinical cohort with identifiable genomic data sits in dbGaP / EGA / GDC, not SRA / ENA.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-14/04-repositories.svg"
+                 alt="World-map style diagram showing open-access repositories on the left (SRA, ENA, GEO, ArrayExpress) and controlled-access on the right (dbGaP, EGA, GDC). Arrows indicate cross-mirroring (SRA to ENA). Accession prefixes and short descriptors annotate each repository.">
+            <figcaption>Figure 4. The public-data landscape. Open-access on the left mirrors internationally; controlled-access on the right gates identifiable human data behind data-use committees. Every modern paper should cite one or more of these accession IDs.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 Cloud-hosted public data</h3>
+
+          <p>For large public datasets, direct download from FTP is slow and awkward. Cloud-hosted copies have become the de facto standard:</p>
+
+          <ul>
+            <li><strong>1000 Genomes</strong> on AWS (<code>s3://1000genomes</code>), GCS, and Azure.</li>
+            <li><strong>gnomAD</strong> on Google Cloud Storage (<code>gs://gcp-public-data--gnomad</code>).</li>
+            <li><strong>GTEx</strong> on AnVIL (Terra-based).</li>
+            <li><strong>UK Biobank</strong> RAP (Research Analysis Platform, DNAnexus-hosted). Not free — compute is billed to the researcher.</li>
+            <li><strong>All of Us</strong> on the All of Us Researcher Workbench (Terra).</li>
+            <li><strong>HPRC</strong> pangenome releases on AWS + GitHub.</li>
+          </ul>
+
+          <p>Two cost models:</p>
+
+          <ul>
+            <li><strong>Free egress</strong> (most open-access cloud mirrors): you pay for compute on the same cloud but data transfer is free within the same region.</li>
+            <li><strong>Requester-pays</strong> buckets: the person running the query pays for byte-egress. How most large cloud datasets monetise or cover their storage costs.</li>
+          </ul>
+
+          <p>The politics: cloud-hosting has shifted who bears cost. Before cloud, the repository paid for storage and bandwidth (i.e. NIH taxpayers). Now, researchers pay per-analysis on the compute side, and the repositories pay for baseline storage only. This is mostly a transparency improvement but it shifts the burden of analysis cost from the agency to the PI. For long-tail / small-lab research this can matter a lot.</p>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>You're writing a grant proposing to analyse 100&nbsp;TB of WGS data from a dbGaP cohort. The data is accessible only via dbGaP → cloud-hosted copy with requester-pays egress at ~$0.01/GB. What does the compute cost line in your budget need to include, and what compromises are available if the cost is prohibitive? (Options: work entirely on a cloud instance in the same region as the data; request a TRE / secure-enclave analysis environment; pre-aggregate on-cloud and bring only summary statistics local; subset samples; wait for open-access equivalents.)</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Accessions, metadata, and citation</h3>
+
+          <p>Every public dataset has a deposition record with:</p>
+
+          <ul>
+            <li>An <strong>accession ID</strong> (stable, citable). For SRA: <code>SRP…</code> project, <code>SRR…</code> run, <code>SRS…</code> sample, <code>SRX…</code> experiment, <code>PRJNA…</code> BioProject.</li>
+            <li><strong>Metadata</strong>: sample characteristics (tissue, disease status, age, sex), experimental protocol (library prep, sequencer model, read length), processing pipeline.</li>
+            <li><strong>Associated publications</strong>: when cited, links the data record to the paper.</li>
+          </ul>
+
+          <p>A paper's "data availability" statement should point to the accessions. Citation format varies but the accession itself is the citable artefact — not the URL, not the file hash, not the FTP path. For processed data (e.g. a public count matrix in GEO), the accession (<code>GSE…</code>, <code>GSM…</code>) carries the same role.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 2 — SRA / GEO Accession Parser.</strong> Paste any accession ID (SRA, ENA, GEO, dbGaP) and watch it resolve to the right repository, inferred record type (project / run / sample / experiment), and a canonical URL for metadata and data download. The aha: accessions are URIs with a sensible grammar; once you know the prefix patterns you never need to Google "what kind of ID is <code>PRJEB…</code>" again.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-14/02-accession-parser.html" loading="lazy" title="Artifact 2 — Accession Parser"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 The SRA toolkit and friends</h3>
+
+          <p>Standard tools for repository access:</p>
+
+          <ul>
+            <li><code>sra-tools</code> / <code>prefetch</code> + <code>fasterq-dump</code>: NIH's SRA download tools.</li>
+            <li><code>enaBrowserTool</code>: Python + command-line client for ENA.</li>
+            <li><code>aria2c</code> with parallel connections: generic accelerator for any HTTP mirror.</li>
+            <li><code>awscli</code> / <code>gcloud storage cp</code>: for cloud-hosted copies.</li>
+          </ul>
+
+          <p>Typical pain points: "download is slow" (default tools use a single TCP stream — split into many parallel streams with <code>aria2c -x 16</code>); "I can't download 500k files at once" (cloud sync tools like <code>aws s3 sync</code> are designed for this); "I downloaded the wrong version" (repositories rarely delete, they re-version — pin the accession and submission date).</p>
+        </section>
+
+        <section id="sec-2-5">
+          <h3>2.5 Preprints and archival culture</h3>
+
+          <p>Bioinformatics shares with other ML-heavy fields a strong preprint culture: <strong>bioRxiv</strong> is where most new methods land before peer review. Peer review still happens downstream but the community reads preprints routinely. This matters for reproducibility: when a tool paper lands on bioRxiv, its code, Docker image, and benchmark data are usually already on GitHub + Zenodo + BioContainers; waiting for peer review to access the artefacts is exceptional.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 20 min</span>
+          Reference Data Management
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 Why "which GRCh38" is a question</h3>
+
+          <p>Lecture&nbsp;11 discussed the reference-genome evolution (GRCh37/hg19 → GRCh38/hg38 → T2T-CHM13). But "GRCh38" itself has multiple variants:</p>
+
+          <ul>
+            <li><strong>Primary assembly only</strong> — chromosomes 1–22, X, Y, MT. What most basic analyses use.</li>
+            <li><strong>Primary + unplaced contigs</strong> — chromosomes plus ~300 unassembled pieces (short, mostly repetitive). Some aligners use these to prevent mis-mapping to chromosomes.</li>
+            <li><strong>Primary + alt loci</strong> — chromosomes plus ~250 "alternate loci" (genomic regions with common large-scale variation, like the HLA region). Mapping against alt loci requires ALT-aware tools; doing it wrong fragments coverage.</li>
+            <li><strong>Primary + unplaced + alt loci + decoys</strong> — plus ~2,300 "decoy" sequences: artificial sequences that capture known reads not matching the main reference (centromeres, viral / bacterial contamination). Prevents mis-mapping of these reads onto real chromosomes.</li>
+            <li><strong>GRCh38-p14</strong> — the fourteenth patch release, adding and fixing a modest number of sequences since the original GRCh38 release in 2013.</li>
+          </ul>
+
+          <p>Different tools expect different variants. BWA-MEM with default settings wants "primary only" for simplicity. ALT-aware mappers (BWA-MEM with <code>-K</code> and <code>.alt</code> file) want the full variant. DeepVariant's recommended pipelines expect a specific variant with a specific decoy set (NCBI's <code>GRCh38_full_analysis_set_plus_decoy_hla.fa</code>).</p>
+
+          <p>Mixing — running DeepVariant expecting decoys against a reference without decoys — produces garbage silently. Most reference-mismatch bugs cause no crash; they just produce subtly wrong results.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>"Decoy sequences" sound exotic but the idea is simple. Reads from viruses, bacteria, contamination, or centromeric repeats don't match any real human chromosome well, but they can match a <em>random</em> human region just well enough to look like a low-confidence alignment there. If you leave them homeless, they get scattered as artefacts onto real chromosomes. Decoys give these reads a "drain" to flow into — a sink sequence outside the main assembly where they land instead of contaminating your analyses. ALT loci are the opposite: real alternative haplotypes (e.g. the hyper-variable HLA region) that some individuals carry, and alt-aware aligners know to distribute reads correctly across them rather than cramming everything onto one canonical path.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-14/05-which-grch38.svg"
+                 alt="Stacked-layer diagram of the GRCh38 reference variants. Four horizontal bands from bottom to top: primary chromosomes, plus unplaced contigs, plus alt loci, plus decoys. Each band annotated with approximate byte size (from about 3.0 GB primary only up to about 3.4 GB full) and use-case tags such as BWA default or DeepVariant recommended.">
+            <figcaption>Figure 5. Which GRCh38? The same assembly name covers four or five compatibility tiers. The right answer depends on what your downstream tool expects — pick deliberately, pin by MD5.</figcaption>
+          </figure>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>GRCh38 reference mismatches are one of the most common silent bug sources in bioinformatics. Symptoms range from "a few percent of reads mis-mapped" (easy to miss) to "wrong variants called in HLA" (potentially clinical). Always record the <strong>MD5 hash</strong> of the reference used for alignment, not just its filename — filenames are ambiguous across tool distributions. BAM and CRAM headers carry the reference MD5 in <code>@SQ&nbsp;M5:</code>; check it every time you hand off data between steps.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Reference management tools</h3>
+
+          <p>Ad-hoc reference management is a minor nightmare: a typical genomics team accumulates dozens of "GRCh38" files across users, years, and projects, each subtly different.</p>
+
+          <ul>
+            <li><strong>iGenomes</strong> (Illumina). A bundled reference distribution with hg19, hg38, mouse, rat, etc., plus pre-built aligner indices. Widely used because "grab the tarball" is fast. Downside: heavyweight (~100&nbsp;GB per genome with all indices), and the maintainers update slowly.</li>
+            <li><strong>refgenie</strong> (Stolarczyk et al. 2020). A reference-asset management server. Stores references and derived artefacts (BWA index, STAR index, GTF, etc.) by a stable hash-based ID. CLI fetches specific assets on demand. Multi-user; supports remote servers.</li>
+            <li><strong>Ensembl FASTA releases</strong> (EBI). Versioned FASTAs with consistent naming (<code>Homo_sapiens.GRCh38.dna.primary_assembly.fa</code>). Tracked by release number (e.g. Ensembl 110). Widely used because naming is clean.</li>
+            <li><strong>NCBI datasets CLI</strong>. NCBI's modern interface for reference downloads; replaces the older <code>efetch</code> toolkit for most use cases.</li>
+          </ul>
+
+          <p>Best practices at a team scale: pin the reference version by its MD5 (not by filename); store references in a well-known path (e.g. <code>/shared/refs/GRCh38/</code>), not per-user; co-locate the derived indices (<code>.fai</code>, <code>.dict</code>, BWA index, STAR index, Salmon index) so a downstream tool pointed at the FASTA also has the index it needs; record the reference used in every analysis artefact (BAM, VCF header, pipeline metadata).</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 7 — Reference Build Chooser.</strong> Given a use case (tool + pipeline goal), suggest which GRCh38 variant to use (primary / +decoys / +alts / +HLA). Shows expected file size and which tools require each. Look up popular bundles (iGenomes, <code>GRCh38_full_analysis_set_plus_decoy_hla.fa</code>, Ensembl release <em>N</em>). Aha: reference choice is a deliberate decision driven by the downstream tool's expectations, not a default.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-14/07-reference-chooser.html" loading="lazy" title="Artifact 7 — Reference Build Chooser"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Annotations — GTF, GFF, BED</h3>
+
+          <p>Beyond the raw sequence, annotations (gene models, transcripts, exons, coding regions) are tracked in separate files:</p>
+
+          <ul>
+            <li><strong>GFF3</strong> (General Feature Format v3). Human-readable tab-delimited; 9 columns; hierarchical (gene → transcript → exon via <code>Parent=</code> attribute). Current standard for gene-model exchange.</li>
+            <li><strong>GTF</strong> (Gene Transfer Format). A simpler GFF predecessor still in heavy use. Less strict parent-tracking; every line independent.</li>
+            <li><strong>BED</strong> (Browser Extensible Data). Tab-delimited, minimal (3–12 columns). Used for everything that doesn't need GFF's hierarchy: ChIP peaks, CpG regions, enhancer annotations, blacklists. Genome browsers (UCSC, IGV) consume BED natively.</li>
+          </ul>
+
+          <p>Pain point: gene-model sources differ. Ensembl and RefSeq disagree on where some transcripts start / end; UCSC's <code>knownGene</code> is yet another track. Cross-referencing annotations from different sources requires careful name-space conversion. Tools like <code>gffcompare</code> and <code>agat</code> help.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 30 min</span>
+          Containerization
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 Why dependency hell is bad in bioinformatics</h3>
+
+          <p>Every scientific computing discipline has dependency problems, but bioinformatics has them <em>especially</em> badly. Reasons:</p>
+
+          <ol>
+            <li><strong>Mixed ecosystems.</strong> A typical pipeline uses R (statistics), Python (ML + glue), and C/C++ tools (aligners, variant callers), plus shell scripts. Each has its own dependency management that was not designed to cooperate.</li>
+            <li><strong>System-level dependencies.</strong> Many tools compile against specific versions of libhts, zlib, openssl, glibc. A tool that worked on Ubuntu 18.04 may not work on Ubuntu 22.04 because libcrypto was bumped.</li>
+            <li><strong>Unmaintained academic software.</strong> A paper published in 2014 with a GitHub repo often has zero maintenance since. The README says "run <code>./install.sh</code>"; the <code>install.sh</code> assumes Python 2.7. Attempting to use this in 2025 is a multi-day project.</li>
+            <li><strong>Unstable APIs in R/Bioconductor.</strong> Bioconductor releases update every six months; packages often break on major releases. Pinning R + Bioconductor versions is essential.</li>
+            <li><strong>GPU drivers + CUDA.</strong> Deep-learning tools (AlphaFold, Enformer, scVI, deep-variant caller variants) need specific CUDA + driver combinations. Local mismatches cause cryptic failures.</li>
+          </ol>
+
+          <p>The result: before containers became standard, "getting the damn thing to run" frequently dominated actual analysis time. Stories of spending a week on a tool install are commonplace.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>A container is a lunchbox for a tool. Instead of trying to install BWA into your shared kitchen (host OS) — where someone else's R&nbsp;4.3 install might have broken the libcurl that BWA needs — you pack BWA with all its groceries into its own sealed lunchbox and ship the whole box around. When it's time to run, you pop open the box, the tool eats its own groceries, you pick up its output, and you throw the box away. Nothing on your host changes. No version collides with anything. The only thing the lunchbox shares with the kitchen is the counter (the kernel), which is why containers are cheap (no emulated hardware) but also why they need a compatible Linux host.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-14/06-dependency-hell.svg"
+                 alt="Exploded-view diagram of a pipeline as a stack of dependency layers from top to bottom: user's Python script, Snakemake glue, R DE-analysis scripts, Python scVI scripts, C binaries like BWA and samtools, system libraries libhts zlib libcurl, and OS kernel. Arrows show cascading version conflicts between layers. Annotation notes that containers isolate the whole stack.">
+            <figcaption>Figure 6. Bioinformatics dependency hell. A "pipeline" is a stack of layers from shell glue down to glibc; a version bump anywhere can cascade through everything above it. Containers freeze the whole stack.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 Containers — Docker, Singularity, Apptainer</h3>
+
+          <p>A <strong>container</strong> is an OS-level package that bundles an application plus all its userland dependencies (libraries, binaries, data), sharing only the host's kernel. Not a VM — no hypervisor, no emulated hardware, ~0 overhead. Introduced in Linux via cgroups + namespaces (circa 2008); popularised by Docker (2013); adopted by bioinformatics around 2016.</p>
+
+          <p><strong>Docker</strong>: the industry standard. Images are layered (each instruction in a Dockerfile is a layer); images are stored in registries (Docker Hub, quay.io, GitHub Container Registry). Pulling an image and running it is one command: <code>docker run -v $PWD:/data biocontainers/bwa:0.7.17 bwa mem …</code>. Caveat: Docker requires root-level privileges on the host to manage its daemon; most academic clusters block it.</p>
+
+          <p><strong>Singularity / Apptainer</strong>: the HPC/academic answer. Runs containers as the invoking user (no root daemon), reads Docker images natively (via conversion to Singularity's <code>.sif</code> format). Dominant on academic clusters. <code>apptainer exec image.sif bwa mem …</code> is the common workflow. Apptainer is the community fork after the Singularity project went commercial; most academic deployments are on Apptainer now.</p>
+
+          <p><strong>Podman</strong>: Red Hat's rootless Docker alternative. Used mostly by system administrators; rarely by end-user scientists.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-14/07-container-vm.svg"
+                 alt="Side-by-side stack diagrams. Left: virtual machine — hardware, hypervisor, guest OS, application. Right: container — hardware, host OS kernel, container runtime, application. Annotations note VM about 1 GB overhead and slow boot versus container under 10 MB overhead and instant start. Below, three bioinformatics use cases BWA AlphaFold scVI each wrapped in a small container box.">
+            <figcaption>Figure 7. Container vs VM. A container shares the kernel with the host and isolates everything else via namespaces; a VM emulates hardware. For packaging one tool per image, containers are vastly cheaper.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — containerization as namespace virtualization</span>
+            <p>A container is lightweight virtualisation: instead of virtualising the hardware, it namespace-isolates processes / filesystem / network. The kernel is shared; everything else is sandboxed. This is the software-engineering analogue of <strong>system-on-chip IP blocks</strong>: treat "BWA with its exact libhts version plus its config files" as a black box with well-defined inputs and outputs, regardless of what else coexists on the host. Nothing about the container is novel — it's a packaging / isolation pattern — but bioinformatics benefits disproportionately because per-tool complexity is unusually high.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Conda, mamba, pixi</h3>
+
+          <p>Before containers dominated, <strong>conda</strong> was the dependency-management solution. Conda installs packages into per-project "environments" (isolated directories); packages include prebuilt binaries (not just Python — also C libs, R, etc.); conda solves a SAT-like problem to find a mutually-consistent version set ("dependency resolution"). Problem: conda's default solver is slow (often minutes for a moderate environment) and sometimes fails to find a solution.</p>
+
+          <p><strong>Mamba</strong> — a drop-in replacement for conda using libsolv (Red Hat's fast SAT solver). Much faster dependency resolution. Community default.</p>
+
+          <p><strong>Pixi</strong> — a newer alternative (2023+) that unifies conda packages with project-based lockfiles (like <code>package-lock.json</code>). Gaining adoption for reproducible project setup.</p>
+
+          <p>Conda vs containers: conda is <strong>lighter</strong> (no root, no container runtime), faster to iterate on. Containers are <strong>more isolated</strong> (entire OS layer), reproducible across machines, not dependent on conda-forge being up. Modern practice: use conda locally for development; package the final pipeline as a container for deployment.</p>
+
+          <p><strong>BioContainers</strong> (bioconda → Docker → quay.io) is a community project that automatically converts conda packages to Docker / Singularity containers. A <code>bioconda</code> recipe produces a BioContainer image with the tool + exact dependencies. ~8k tools covered. Effectively free packaging for any bioconda-distributed tool.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 4 — Container vs Conda Environment Isolation.</strong> Simulate a shared host running three tools (BWA, samtools, a Python script). Compare three strategies: all in the host's Python (collision), each in its own conda env (userland isolation), each in its own container (full-stack isolation). Watch the same dependency conflict resolve differently per strategy. Aha: containers capture the full stack; conda envs capture userland only.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-14/04-containers.html" loading="lazy" title="Artifact 4 — Container vs Conda"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Reproducibility through pinning</h3>
+
+          <p>The fundamental reproducibility question: <strong>"can someone else run my analysis, on their hardware, and get identical results?"</strong> Containers plus explicit pinning get you most of the way.</p>
+
+          <p>What needs to be pinned:</p>
+
+          <ol>
+            <li><strong>OS / kernel version</strong> — pinned by the container.</li>
+            <li><strong>Language runtime version</strong> (Python 3.11.4, R 4.3.2) — pinned in the container image.</li>
+            <li><strong>Package versions</strong> — either frozen in a lockfile (<code>pip-compile</code>, <code>conda-lock</code>, <code>renv.lock</code>) or baked into the container image.</li>
+            <li><strong>Reference data versions</strong> — pinned by file MD5 or by refgenie asset ID.</li>
+            <li><strong>Random seeds</strong> — fix them explicitly in any probabilistic step (MCMC, imputation, simulation).</li>
+            <li><strong>Pipeline version</strong> — tag the pipeline code with a git SHA.</li>
+          </ol>
+
+          <p>If all six are pinned, you reproduce results bit-for-bit (assuming no non-determinism in hardware / CUDA kernels).</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>"I used a container, so it's reproducible" is <strong>not true</strong> by itself. Containers pin software but they don't pin reference data (unless baked in), random seeds, or compute hardware. GPU-based tools (AlphaFold, Enformer) can produce different outputs on different GPU models even with the same container. A fully reproducible pipeline requires an explicit pinning strategy across all six layers, not just the tool layer.</p>
+          </aside>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>Docker launched in 2013 and reached bioinformatics adoption around 2016–2017 via Singularity for HPC. BioContainers launched in 2017 and passed 5,000 available images by 2019. Before this, the field ran on ad-hoc conda environments, module systems (<code>module load samtools/1.9</code>), and per-user installs. The shift to containerised pipelines essentially enabled the nf-core / modern workflow-manager era — without portable packaging, writing a pipeline that ran anywhere was infeasible.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 40 min</span>
+          Workflow Languages as a Class
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 Why workflow languages exist</h3>
+
+          <p>A real analysis pipeline has dozens of steps: FASTQ QC → adapter trimming → alignment → sorting → duplicate marking → BQSR → variant calling → annotation → filtering → summary. Each step uses a different tool, produces intermediate files, has different CPU / memory / time requirements, and can be run in parallel across samples. Shell scripts get you to step 5 before breaking down. Problems:</p>
+
+          <ul>
+            <li><strong>No resume</strong>: if step 10 fails, you re-run everything from step 1.</li>
+            <li><strong>No parallelism beyond <code>&amp;</code></strong>: coordinating 100 concurrent samples is manual.</li>
+            <li><strong>No resource management</strong>: asking for 200&nbsp;GB of RAM per sample on a cluster requires knowing the cluster's scheduler API.</li>
+            <li><strong>No provenance</strong>: reproducing the exact input → output mapping months later is hard.</li>
+            <li><strong>No cloud portability</strong>: scripts for Slurm don't run on AWS Batch don't run on Google Cloud.</li>
+          </ul>
+
+          <p><strong>Workflow managers</strong> solve these. They express the pipeline as a <strong>DAG</strong> — each node is a step, each edge is a data dependency. The manager figures out what to run, when to run it, and on which compute resource.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-14/08-workflow-dag.svg"
+                 alt="Directed acyclic graph of a typical variant-calling pipeline. Nodes: FASTQ, fastp QC, BWA-MEM align, samtools sort, samtools markdup, samtools calmd, DeepVariant call, bcftools filter, annotation. Parallel branches per chromosome shown. Per-node annotations list CPU, RAM, estimated runtime. Dashed edges show data dependencies; solid edges show within-sample execution order.">
+            <figcaption>Figure 8. A variant-calling pipeline as a DAG. Nodes are tools with resource specs; edges are data dependencies. The workflow manager turns this graph into a scheduled execution plan.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Nextflow, Snakemake, WDL, CWL</h3>
+
+          <p>Four major workflow languages dominate.</p>
+
+          <p><strong>Nextflow</strong> (Di Tommaso et al. 2017). Dataflow-oriented; channels and processes. DSL based on Groovy. Strong cloud support: AWS Batch, Azure, Google Cloud Life Sciences all supported natively. Auto-resume via <code>-resume</code> flag. Primary community: <strong>nf-core</strong>, a curated repository of &gt;100 pipelines maintained to a common style guide. Industry-heavy adoption.</p>
+
+          <p><strong>Snakemake</strong> (Köster &amp; Rahmann 2012). Make-inspired; rules with input/output files. DSL based on Python. Academic-heavy adoption; excellent for ad-hoc pipeline development. Less cloud-native than Nextflow but catching up (<code>--executor slurm</code>, <code>--executor kubernetes</code>).</p>
+
+          <p><strong>WDL</strong> (Workflow Description Language; Broad Institute 2015). Designed for the Cromwell execution engine. Task + workflow structure; static typing. Dominant in Broad/Cromwell ecosystem (Terra, GDC). Verbose but clear.</p>
+
+          <p><strong>CWL</strong> (Common Workflow Language; 2016+ standard). Standardised workflow description; multiple execution engines. Heavy use in European bioinformatics infrastructure (ELIXIR). Less adoption in industry / GitHub-native projects.</p>
+
+          <table>
+            <thead><tr><th></th><th>Nextflow</th><th>Snakemake</th><th>WDL</th><th>CWL</th></tr></thead>
+            <tbody>
+              <tr><td>Paradigm</td><td>Dataflow</td><td>Make-rules</td><td>Task-based</td><td>Task-based</td></tr>
+              <tr><td>DSL base</td><td>Groovy</td><td>Python</td><td>Custom</td><td>YAML/JSON</td></tr>
+              <tr><td>Cloud native</td><td>Excellent</td><td>Growing</td><td>Cromwell-centric</td><td>Moderate</td></tr>
+              <tr><td>Community</td><td>nf-core</td><td>Academic</td><td>Broad/Terra</td><td>ELIXIR</td></tr>
+              <tr><td>Learning curve</td><td>Moderate</td><td>Easy</td><td>Easy-mod</td><td>Steep</td></tr>
+              <tr><td>Reproducibility</td><td>Strong</td><td>Strong</td><td>Strong</td><td>Strong</td></tr>
+            </tbody>
+          </table>
+
+          <p>Which to choose? If you're joining a team, use whatever they use. For a new project: Nextflow if production / cloud / industry; Snakemake if research / rapid prototyping / academic cluster.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — workflow languages as dataflow programming</span>
+            <p>A workflow manager is a specialised <strong>dataflow language</strong>. Processes are nodes producing outputs as a function of inputs; the runtime schedules execution by topological sort of the dependency DAG, handles retries, caches intermediates for resume, and parallelises independent branches. This is the same abstraction as Apache Spark's DAG scheduler, TensorFlow's computation graph, or the Unix <code>make</code> utility (for a single-machine variant). Bioinformatics re-invented the idea for domain-specific reasons (data size, container packaging), but the core is a classic dataflow runtime.</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Resume, retry, resource management</h3>
+
+          <p>What you actually get from a workflow manager:</p>
+
+          <p><strong>Resume on failure</strong>. Every tool output is cached by hash (input files + tool version + command line). If step 10 fails and you fix the bug, rerunning skips everything up through step 9 because the cache hits. Nextflow's <code>.nextflow/cache</code> and Snakemake's output-file-timestamp tracking implement this. In practice: a 6-hour pipeline that fails at hour 5 restarts at hour 5 + 1 minute.</p>
+
+          <p><strong>Per-process retry</strong>. If a tool fails spuriously (OOM-killed, transient network error), the workflow retries with backoff. Typical config: 3 retries with exponential backoff, optionally doubling memory on each retry.</p>
+
+          <p><strong>Per-process resources</strong>. CPU, memory, time, queue / partition, container image. Declared per-process, respected by the scheduler. Example Nextflow:</p>
+
+          <pre class="code-block">process bwa_mem {
+    cpus 16
+    memory '32 GB'
+    time '4 h'
+    container 'quay.io/biocontainers/bwa:0.7.17'
+    ...
+}</pre>
+
+          <p><strong>Execution backends</strong>: Slurm, PBS, SGE, AWS Batch, Azure, Google Cloud Life Sciences, local — specified via a config file, not the pipeline definition. Same pipeline runs on any backend.</p>
+
+          <p><strong>Provenance + reports</strong>: every run produces an HTML report documenting which steps ran, their inputs / outputs, and runtimes. Nextflow Tower / Seqera Platform productionises this for teams.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-14/09-resume-logic.svg"
+                 alt="A linear pipeline DAG with five steps. Run 1 shows step 3 failing with a red X. Cache state snapshot after Run 1 shows steps 1 and 2 complete and cached. Run 2 with resume flag shows cache hits for steps 1 and 2 in grey labelled cached, step 3 re-runs and succeeds, steps 4 and 5 run normally. Annotation: cache keyed on input hash times tool version times command line.">
+            <figcaption>Figure 9. Resume-on-failure. Every process output is cached by a hash of its inputs and command line; a retried run skips cached steps and restarts at the first miss.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 3 — Workflow DAG Visualiser.</strong> Load a small pipeline description (preset or custom); render the DAG; toggle "step 3 fails" and watch which steps must re-run vs which are cached; inspect parallelisation potential. Aha: workflow managers automate what you'd have to do by hand in shell — the DAG + cache + scheduler <em>is</em> the core abstraction.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-14/03-workflow-dag.html" loading="lazy" title="Artifact 3 — Workflow DAG Visualiser"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Nextflow's nf-core community</h3>
+
+          <p><strong>nf-core</strong> is a curated collection of Nextflow pipelines with:</p>
+
+          <ul>
+            <li><strong>Standardised style</strong> (testing, linting, documentation, config layout).</li>
+            <li><strong>Community maintenance</strong> — actively developed by a global team of maintainers.</li>
+            <li><strong>CI/CD</strong> — every PR runs the pipeline on test data; breaks in tool updates are caught before release.</li>
+            <li><strong>Container support</strong> — every tool wrapped in a BioContainer; pipeline runs anywhere.</li>
+            <li><strong>Institutional infrastructure</strong> — Slack, monthly calls, hackathons.</li>
+          </ul>
+
+          <p>Flagship pipelines: <code>nf-core/rnaseq</code>, <code>nf-core/sarek</code> (germline + somatic variants), <code>nf-core/atacseq</code>, <code>nf-core/scrnaseq</code>, <code>nf-core/proteomics</code>, <code>nf-core/methylseq</code>, <code>nf-core/fetchngs</code>.</p>
+
+          <p>Not everyone uses nf-core pipelines, but <em>most</em> modern production bioinformatics runs on something nf-core-shaped. If your lab has a "which pipeline for X" problem, check nf-core first — you'll probably find it.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-14/12-nf-core-flow.svg"
+                 alt="Horizontal flow with five stations: contributor pull request, lint and test CI, community review, merge and tag, release artefact with Docker/Singularity image and Zenodo DOI. Below the flow, an infrastructure band shows GitHub Actions, BioContainers registry, Zenodo, Slack. Right side lists top nf-core pipelines with star counts. Annotation: community-curated ≠ vendor-curated — pipelines stay alive because dozens of users care.">
+            <figcaption>Figure 12. nf-core as a pipeline-curation factory. Every release is CI-tested, containerised, and DOI-archived. Community-curated ≠ vendor-curated: nf-core pipelines stay alive because dozens of users care.</figcaption>
+          </figure>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>You've joined a lab whose current analysis pipeline is a 2,000-line bash script with ad-hoc <code>if</code> statements for resuming failed runs. You've been asked to modernise it. What would you pick (Nextflow vs Snakemake vs WDL) and why? What tradeoffs would you flag — migration cost, team skillset, planned cloud deployment, pipeline complexity, publication timeline? (No single right answer. The interesting question is: what drives the choice?)</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 25 min</span>
+          Benchmarking and Validation
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 GIAB — the ground-truth datasets</h3>
+
+          <p>The <strong>Genome In A Bottle (GIAB)</strong> Consortium (Zook et al. 2014+; NIST-led) produces highly-validated "truth sets" for human variant calling. The canonical GIAB sample: <strong>HG002</strong> (an Ashkenazi-Jewish trio member), sequenced with every major technology, variant-called by every major caller, manually curated. The resulting "high-confidence variant set" + "confident-region BED" is the gold standard for variant-caller benchmarking.</p>
+
+          <p>GIAB releases:</p>
+
+          <ul>
+            <li><strong>v3.2.2</strong> (2016) — early confidence set; widely cited in variant-caller papers 2016–2019.</li>
+            <li><strong>v4.2.1</strong> (2021) — expanded to more samples, improved SV coverage.</li>
+            <li><strong>v5.0</strong> (2024) — T2T-based; handles pericentromeric / repetitive regions previously excluded.</li>
+          </ul>
+
+          <p>Each release has a <strong>truth VCF</strong> (the set of real variants), a <strong>confident region BED</strong> (regions where the truth set is reliable), and per-region <strong>callability metrics</strong>. Outside confident regions, the ground truth is unreliable (often because the region is too repetitive for any current tech). Benchmarking a new variant caller against GIAB is the field's way of establishing baseline performance.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-14/10-giab-schema.svg"
+                 alt="Schematic of the GIAB data layout. Reference genome track at the top with an overlay of the confident-region BED as grey bands. Within bands, the truth variant VCF appears as tick marks. Excluded regions such as segmental duplications, centromeres, and telomeres are hatched. Annotation: outside confident regions precision and recall are not defined by GIAB.">
+            <figcaption>Figure 10. The GIAB truth-set schema. Confident regions (bands) + truth variants (ticks) + callability metadata. Outside confident regions, "accuracy" is not a defined quantity.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 hap.py and precision/recall</h3>
+
+          <p><strong>hap.py</strong> (Illumina; now Google-maintained fork) is the standard variant-calling benchmarker. Given a test VCF and the GIAB truth + confident region, hap.py:</p>
+
+          <ol>
+            <li>Normalises both VCFs (left-align, split multi-allelics, deduplicate).</li>
+            <li>Restricts to the confident region.</li>
+            <li>Matches test variants to truth variants — tricky because representation can differ (e.g. the same deletion expressed as <code>REF=AC ALT=A</code> vs <code>REF=CA ALT=C</code>).</li>
+            <li>Classifies each variant as TP, FP, or FN.</li>
+            <li>Reports precision, recall, F1, and per-variant-type breakdowns.</li>
+          </ol>
+
+          <p>Per-variant-type metrics matter because a caller can be great at SNVs and terrible at small indels. A single "F1 = 0.997" doesn't distinguish them. hap.py's output table typically has rows for SNV, INDEL_1–5, INDEL_6–15, INDEL_16+, each with its own precision / recall.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-14/11-precision-recall.svg"
+                 alt="Precision-vs-recall scatter plot. Each dot is one variant-caller run on HG002 against GIAB v4.2.1. Callers plotted: DeepVariant, GATK HaplotypeCaller, DeepVariant PacBio, Sniffles for SVs. Per-caller annotations near dots show SNV F1 and INDEL F1. Iso-F1 contour lines drawn. Annotation: top-right cluster above 0.999 F1 on SNVs is the 2024 state of the art; INDELs remain materially lower.">
+            <figcaption>Figure 11. Precision / recall on GIAB HG002 v4.2.1. Modern callers cluster above F1 = 0.999 for SNVs; INDEL performance is materially worse across every caller. Per-variant-type reporting is not optional.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 5 — GIAB Precision/Recall Simulator.</strong> Simulate a "caller output" with tunable SNV / indel quality profile; benchmark against a GIAB-style truth set; compute per-variant-type precision / recall / F1; watch the confusion matrix and how results move with the quality threshold. Aha: F1 aggregates away the per-type detail; always look at the breakdown — SNV and INDEL F1 diverge.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-14/05-giab-precision-recall.html" loading="lazy" title="Artifact 5 — GIAB P/R Simulator"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 Beyond variant calling — benchmark culture</h3>
+
+          <p>Every major sub-field has a benchmark:</p>
+
+          <ul>
+            <li><strong>Variant calling</strong>: GIAB + hap.py.</li>
+            <li><strong>RNA-seq quantification</strong>: SQANTI, SRA test sets.</li>
+            <li><strong>Structural variants</strong>: GIAB SV benchmark + Truvari.</li>
+            <li><strong>Single-cell</strong>: cellxgene "nice tissues" benchmarks; <code>sccloud</code> benchmark for integration.</li>
+            <li><strong>Protein structure</strong>: CASP (biennial, covered in L15).</li>
+            <li><strong>Genome assembly</strong>: QUAST.</li>
+            <li><strong>Metagenomics</strong>: CAMI.</li>
+          </ul>
+
+          <p>The common pattern: a well-characterised ground truth, a reference evaluation script, and a community norm of reporting performance on the benchmark in every methods paper. "If you report a new variant caller without a GIAB benchmark, reviewers will ask."</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — GIAB as ground-truth ML benchmarking</span>
+            <p>GIAB is bioinformatics's ImageNet: a community-curated, field-standard benchmark that (a) defines a precise evaluation protocol, (b) is maintained by a neutral party, (c) has per-category breakdowns so you see where methods succeed vs fail, and (d) is expected of every new method paper. The same function as ImageNet (image classification), GLUE (NLP), CASP (protein structure) — let the field compare methods objectively and drive iterative improvement. Without benchmarks of this kind, method rankings are anecdotal and progress stalls.</p>
+          </aside>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 What benchmarks do and don't guarantee</h3>
+
+          <p>Benchmarks measure performance on the specific data they evaluate. Trade-offs:</p>
+
+          <ul>
+            <li><strong>Overfitting.</strong> Published methods can be implicitly tuned on GIAB HG002. A new method's 0.001 F1 improvement may not generalise to other samples.</li>
+            <li><strong>Coverage.</strong> GIAB covers ~95% of the autosomes for SNVs but much less for SVs, repeat regions, HLA. Method rankings outside the confident region are undefined.</li>
+            <li><strong>Population.</strong> HG002 is Ashkenazi; GIAB has smaller trio sets for African and Asian samples, but coverage is less mature. Ranking on GIAB doesn't guarantee performance in diverse populations.</li>
+            <li><strong>Technology.</strong> Benchmarks historically grew around Illumina short reads; long-read benchmarks are newer and less mature.</li>
+          </ul>
+
+          <p>A 2025 reader should interpret "F1 = 0.997 on GIAB HG002" as "this method is competitive on standard human WGS in European-ancestry samples." Deployment in other contexts (clinical tumour samples, non-human species, rare conditions) requires additional validation.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — precision/recall at biobank scale</span>
+            <p>Variant-calling benchmarks are textbook detection theory: TP, FP, TN, FN against a ground truth; ROC and PR curves over a threshold; F1 as the harmonic-mean summary. At biobank scale (millions of variants per sample × 500k samples) absolute counts are enormous even at small error rates: a 0.1% FP rate × 5&nbsp;M variants × 500k samples = 2.5 billion false-positive variant records. Per-sample / per-variant-type calibration is not optional at this scale.</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 6 — VCF/BCF Record Explorer.</strong> Paste or pick a small VCF text; parse and render each record field; inspect INFO key/values and per-sample FORMAT + GT/DP/GQ. Compare the text VCF to the same data in BCF's binary encoding. Aha: VCF is text with a schema; BCF preserves exactly the same data in binary — the choice is ergonomics (VCF) vs size + speed (BCF).
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-14/06-vcf-explorer.html" loading="lazy" title="Artifact 6 — VCF/BCF Explorer"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 15 min</span>
+          The Culture
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 Preprints and bioRxiv</h3>
+
+          <p>Bioinformatics / genomics has embraced preprints harder than most biomedical fields:</p>
+
+          <ul>
+            <li><strong>bioRxiv</strong> (2013+) — the standard genomics/biology preprint server. Most methods papers land here before peer review; the community reads them routinely.</li>
+            <li><strong>medRxiv</strong> (2019+) — the clinical / epidemiology counterpart.</li>
+            <li><strong>arXiv</strong> — still used for ML-heavy papers (AlphaFold, scVI, Enformer), especially when cross-listed to bioRxiv or stat/ML venues.</li>
+          </ul>
+
+          <p>Typical flow: preprint on bioRxiv → feedback from community (tweets, GitHub issues, direct emails) → revised version → journal submission → peer review → publication. The time between preprint and formal publication is 6–18 months; citations begin accumulating on the preprint version. Consequence: your job as a reader is to evaluate preprints on technical merit, not wait for peer review.</p>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Open-source norms</h3>
+
+          <p>Bioinformatics has an unusually strong open-source culture:</p>
+
+          <ul>
+            <li><strong>Code</strong>: Almost all new tools are GitHub-hosted with permissive licenses (MIT, BSD, Apache). Tools that refuse to share code are viewed with suspicion.</li>
+            <li><strong>Data</strong>: covered in Part 2 — repositories require deposition of raw data before publication.</li>
+            <li><strong>Benchmarks</strong>: GIAB, CASP, etc. are open, community-curated.</li>
+            <li><strong>Pipelines</strong>: nf-core, Snakemake-Workflows, pipelines-community maintain open, documented pipelines for common tasks.</li>
+            <li><strong>Documentation</strong>: Bioconductor requires a package vignette; modern Python tools produce Sphinx / MkDocs sites automatically.</li>
+          </ul>
+
+          <p>Why? Partly because the field is academic-majority (at least by origin). Partly because the data economy requires open software to even be usable (you can't sell a variant caller when the inputs are free). Partly because the community has self-selected for openness over generations. Consequence for EE students entering the field: your published work is expected to come with working code. "My tool is proprietary / I'll share by request" is a weak signal to the community.</p>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 Institutional infrastructure</h3>
+
+          <p>The field runs on a surprisingly small set of core institutions:</p>
+
+          <ul>
+            <li><strong>NIH</strong> (NHGRI, NCBI) — funding + repositories (SRA, GenBank, dbGaP).</li>
+            <li><strong>EBI</strong> (Wellcome Sanger / EMBL) — European counterpart; ENA, Ensembl.</li>
+            <li><strong>Broad Institute</strong> — major methods source (GATK, DeepVariant-adjacent pipelines, much of the Cromwell/WDL ecosystem).</li>
+            <li><strong>Sanger Institute</strong> — major methods source (Nextflow + nf-core, HGI, pangenome).</li>
+            <li><strong>UCSC</strong> — genome browser, reference-assembly curation historically.</li>
+          </ul>
+
+          <p>Commercial players matter less than in most fields. Illumina dominates sequencing hardware; tool ecosystems are community-driven.</p>
+        </section>
+
+        <section id="sec-7-4">
+          <h3>7.4 The reproducibility crisis</h3>
+
+          <p>Bioinformatics has its own reproducibility crisis: old papers frequently can't be rerun because (a) data access changed (dbGaP permissions expired), (b) tool versions were unpinned, (c) reference builds were mismatched, (d) authors left for industry and GitHub repos went stale. Estimates suggest ≥30% of published bioinformatics pipelines can't be re-executed 5 years later.</p>
+
+          <p>Modern norms — containerised pipelines, pinned references, archival of code in Zenodo with DOI — are a response to this. Whether they work at 10-year timescales is an open question.</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>A pipeline that "worked last year" may not work this year even with no user changes. Upstream packages update, CDN URLs change, GitHub repos are deleted, container registries rotate. Archival of the <strong>exact container image</strong> at a stable registry (Zenodo's DOI system, the Software Heritage Archive, AWS S3 Glacier) is the only durable solution. "My code is on GitHub" is not archival.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup" class="lecture-wrapup">
+        <h2>
+          <span class="part-kicker">Wrap-up · 10 min</span>
+          Takeaways, homework, and next lecture
+        </h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Format design is about partial access.</strong> Every good bioinformatics format — BAM, BCF, HDF5, Zarr, Parquet — lays out data so common queries touch contiguous bytes, with an index for seek. CRAM goes further with content-aware compression.</li>
+          <li><strong>Reference management is its own discipline.</strong> "GRCh38" is multiple references; know which variant your tool expects; pin by MD5 not filename. Reference mismatches are the silent-failure king.</li>
+          <li><strong>Data lives in repositories that distinguish open-access from controlled-access.</strong> SRA/ENA/GEO for open; dbGaP/EGA/GDC for clinical-identifiable. Cloud-hosted copies are the working standard for large datasets; requester-pays buckets shift cost to the analyst.</li>
+          <li><strong>Dependency hell is worse in bioinformatics than most fields.</strong> Mixed language ecosystems + aging academic software + system-level deps. Containers (Docker, Apptainer) + environment managers (conda, mamba) solve it; BioContainers + conda-forge automate packaging.</li>
+          <li><strong>Workflow languages are specialised dataflow runtimes.</strong> Nextflow, Snakemake, WDL, CWL all express the pipeline as a DAG + tools + resource spec. Resume-on-failure, parallelism, and cloud execution are first-class features. Nextflow + nf-core is the production-cloud standard; Snakemake is the research-cluster standard.</li>
+          <li><strong>Benchmarks anchor the field.</strong> GIAB is bioinformatics's ImageNet. Every variant-caller paper benchmarks against GIAB + hap.py. A method without a benchmark is under-evaluated.</li>
+          <li><strong>Open-source, preprint-first, institution-anchored.</strong> Code, data, and pipelines are expected outputs of new methods; institutional repositories (NCBI, EBI, Broad, Sanger) are foundational.</li>
+          <li><strong>Reproducibility requires pinning everything.</strong> Containers, references, seeds, pipeline code — all versioned and archived. "My code is on GitHub" is necessary but not sufficient; archival in Zenodo / Software Heritage Archive is the durable version.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Protein structure prediction in the AlphaFold era. Primary → tertiary structure; the classical era (Modeller, threading, CASP); MSA-based contact prediction (DCA, EVfold); AlphaFold2's Evoformer + structure module; AlphaFold3's diffusion; inverse folding (ProteinMPNN, RFDiffusion); what the field has and hasn't been transformed by.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Convert a single 30× WGS BAM to CRAM with quality binning. Measure the size before and after, and the time to read a 10 kb region with <code>samtools view</code> on both. Report the ratios.</li>
+          <li>Pick a recent variant-caller paper from bioRxiv. Try to run its pipeline end-to-end on HG002. Document every dependency issue and how you resolved it. (Optional: submit a PR to fix a broken README.)</li>
+          <li>Take an existing shell-script pipeline (yours or someone else's) with 5+ steps and port it to Snakemake or Nextflow. Run it twice with <code>-resume</code> — first with clean state, second after deleting an intermediate. Report the runtime savings.</li>
+          <li>Download the GIAB HG002 v4.2.1 truth set and run hap.py against a public DeepVariant VCF on the same sample. Report SNV and INDEL precision / recall.</li>
+          <li>Read the Nextflow Tower documentation or the Snakemake Workflow Management System paper. Summarise the resume-on-failure mechanism in your own words: how does the manager know which steps need to re-run?</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Cochrane, G., Cochrane, D., &amp; Birney, E. (2013). Efficient storage of high throughput DNA sequencing data using reference-based compression. <em>Genome Research</em> 21, 734–740. (CRAM.)</li>
+          <li>Danecek, P., Bonfield, J. K., Liddle, J., et al. (2021). Twelve years of SAMtools and BCFtools. <em>GigaScience</em> 10, giab008.</li>
+          <li>Wolf, F. A., Angerer, P., &amp; Theis, F. J. (2018). SCANPY: large-scale single-cell gene expression data analysis. <em>Genome Biology</em> 19, 15. (AnnData + HDF5.)</li>
+          <li>Miles, A., Kirkham, J., Durant, M., et al. (2020+). Zarr specification. <em>Zenodo</em>.</li>
+          <li>Di Tommaso, P., Chatzou, M., Floden, E. W., et al. (2017). Nextflow enables reproducible computational workflows. <em>Nature Biotechnology</em> 35, 316–319.</li>
+          <li>Köster, J., &amp; Rahmann, S. (2012). Snakemake — a scalable bioinformatics workflow engine. <em>Bioinformatics</em> 28, 2520–2522.</li>
+          <li>Ewels, P. A., Peltzer, A., Fillinger, S., et al. (2020). The nf-core framework for community-curated bioinformatics pipelines. <em>Nature Biotechnology</em> 38, 276–278.</li>
+          <li>Zook, J. M., Chapman, B., Wang, J., et al. (2014). Integrating human sequence data sets provides a resource of benchmark SNP and indel genotype calls. <em>Nature Biotechnology</em> 32, 246–251. (GIAB.)</li>
+          <li>Krusche, P., Trigg, L., Boutros, P. C., et al. (2019). Best practices for benchmarking germline small-variant calls in human genomes. <em>Nature Biotechnology</em> 37, 555–560. (hap.py.)</li>
+          <li>Stolarczyk, M., Reuter, V. P., Smith, J. P., et al. (2020). Refgenie: a reference genome resource manager. <em>GigaScience</em> 9, giz149.</li>
+          <li>Kurtzer, G. M., Sochat, V., &amp; Bauer, M. W. (2017). Singularity: Scientific containers for mobility of compute. <em>PLoS ONE</em> 12, e0177459.</li>
+          <li>da Veiga Leprevost, F., Grüning, B. A., Alves Aflitos, S., et al. (2017). BioContainers: an open-source and community-driven framework for software standardization. <em>Bioinformatics</em> 33, 2580–2582.</li>
+          <li>bioRxiv: <a href="https://www.biorxiv.org/" target="_blank" rel="noopener">biorxiv.org</a>. nf-core: <a href="https://nf-co.re/" target="_blank" rel="noopener">nf-co.re</a>. GIAB: <a href="https://www.nist.gov/programs-projects/genome-bottle" target="_blank" rel="noopener">nist.gov/genome-bottle</a>.</li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — File Formats and Their Tradeoffs</td>   <td>40&nbsp;min</td><td>0:40</td></tr>
+            <tr><td>Part 2 — Where Data Lives</td>                   <td>30&nbsp;min</td><td>1:10</td></tr>
+            <tr><td>Part 3 — Reference Data Management</td>          <td>20&nbsp;min</td><td>1:30</td></tr>
+            <tr><td>Part 4 — Containerization</td>                   <td>30&nbsp;min</td><td>2:00</td></tr>
+            <tr><td>Part 5 — Workflow Languages as a Class</td>      <td>40&nbsp;min</td><td>2:40</td></tr>
+            <tr><td>Part 6 — Benchmarking and Validation</td>        <td>25&nbsp;min</td><td>3:05</td></tr>
+            <tr><td>Part 7 — The Culture</td>                        <td>15&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                     <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys())
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) {
+          f.style.height = d.height + 'px';
+        }
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

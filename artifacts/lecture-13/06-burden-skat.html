@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burden and SKAT Simulator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1100px; margin: 0 auto; }
+    .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0 0 1.2rem; max-width: 72ch; }
+    .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+    .slider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-head { display: flex; justify-content: space-between; align-items: baseline; }
+    .slider-head label { font-size: var(--text-sm); font-weight: 500; }
+    .slider-val { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--accent); font-weight: 500; }
+    input[type="range"] { width: 100%; }
+    .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 0.6rem; }
+    .btn.secondary { background: #fff; color: var(--fg); border: 1px solid var(--border); margin-right: 0.5rem; }
+    svg { width: 100%; height: auto; display: block; }
+    .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; font-family: var(--font-mono); }
+    @media (max-width: 720px){ .results-grid { grid-template-columns: 1fr; } }
+    .result-box { padding: 0.8rem 1rem; border-radius: 6px; border: 1px solid var(--border); }
+    .result-box.burden { background: #fff7ed; border-color: #fdba74; }
+    .result-box.skat { background: #eff6ff; border-color: #bfdbfe; }
+    .result-box.skato { background: #f0fdf4; border-color: #bbf7d0; }
+    .result-box .name { font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-subtle); font-weight: 600; }
+    .result-box .stat { font-size: 1rem; margin-top: 0.4rem; }
+    .result-box .p { font-size: 1.4rem; font-weight: 600; margin-top: 0.4rem; }
+    .winner { font-family: var(--font-sans); font-weight: 700; color: var(--accent); margin-top: 0.5rem; text-align: center; font-size: 0.95rem; }
+    .outcome { background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+    .outcome .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+    .outcome .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+    .preset-row { margin-top: 0.4rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Burden and SKAT Simulator</h1>
+    <p>Simulate a gene with a user-defined mix of deleterious / protective / neutral rare variants. Compute Burden, SKAT, and SKAT-O statistics. Target aha: the right test depends on the underlying directional pattern — SKAT-O hedges when that pattern is unknown.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="slider-grid">
+      <div class="slider-row"><div class="slider-head"><label># rare variants</label><span class="slider-val" id="v_v">20</span></div><input id="v" type="range" min="5" max="50" step="1" value="20"></div>
+      <div class="slider-row"><div class="slider-head"><label>Fraction deleterious</label><span class="slider-val" id="v_del">1.00</span></div><input id="del" type="range" min="0" max="1" step="0.02" value="1.0"></div>
+      <div class="slider-row"><div class="slider-head"><label>Fraction protective</label><span class="slider-val" id="v_pro">0.00</span></div><input id="pro" type="range" min="0" max="1" step="0.02" value="0"></div>
+      <div class="slider-row"><div class="slider-head"><label>Effect size (SD)</label><span class="slider-val" id="v_b">0.50</span></div><input id="b" type="range" min="0.1" max="1.0" step="0.05" value="0.5"></div>
+      <div class="slider-row"><div class="slider-head"><label>Mean MAF</label><span class="slider-val" id="v_maf">0.003</span></div><input id="maf" type="range" min="-4" max="-2" step="0.05" value="-2.52"></div>
+      <div class="slider-row"><div class="slider-head"><label>Sample size N (log)</label><span class="slider-val" id="v_n">20,000</span></div><input id="n" type="range" min="3" max="5.3" step="0.05" value="4.3"></div>
+    </div>
+    <div class="preset-row">
+      <button class="btn secondary" data-preset="all-del">All deleterious</button>
+      <button class="btn secondary" data-preset="mixed">Mixed directions</button>
+      <button class="btn secondary" data-preset="neutral">Mostly neutral</button>
+      <button class="btn" id="resim">Re-simulate</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Gene cartoon</p>
+    <svg id="gene" viewBox="0 0 1080 90"></svg>
+    <div style="font-family:var(--font-sans);font-size:var(--text-xs);color:var(--fg-muted);margin-top:0.5rem;">
+      <span style="color:#c4342c;">■</span> deleterious (β&gt;0)
+      <span style="color:#059669;margin-left:1rem;">■</span> protective (β&lt;0)
+      <span style="color:#9ca3af;margin-left:1rem;">■</span> neutral (β=0)
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Test results</p>
+    <div class="results-grid">
+      <div class="result-box burden">
+        <div class="name">Burden</div>
+        <div class="stat">T = <span id="burden_T">—</span></div>
+        <div class="p">p = <span id="burden_p">—</span></div>
+        <div style="font-size:var(--text-xs);color:var(--fg-muted);margin-top:0.3rem;font-family:var(--font-sans);">matched filter on count</div>
+      </div>
+      <div class="result-box skat">
+        <div class="name">SKAT</div>
+        <div class="stat">Q = <span id="skat_Q">—</span></div>
+        <div class="p">p = <span id="skat_p">—</span></div>
+        <div style="font-size:var(--text-xs);color:var(--fg-muted);margin-top:0.3rem;font-family:var(--font-sans);">quadratic-form variance</div>
+      </div>
+      <div class="result-box skato">
+        <div class="name">SKAT-O</div>
+        <div class="stat">optimal ρ</div>
+        <div class="p">p = <span id="skato_p">—</span></div>
+        <div style="font-size:var(--text-xs);color:var(--fg-muted);margin-top:0.3rem;font-family:var(--font-sans);">adaptive combiner</div>
+      </div>
+    </div>
+    <div class="winner" id="winner"></div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+let _seed = 7301;
+function seed(n){_seed=n|0;}
+function rand(){_seed|=0;_seed=_seed+0x6D2B79F5|0;let t=_seed;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;}
+function gauss(){const u=Math.max(1e-12,rand()),v=rand();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function erf(x){const s=x<0?-1:1;x=Math.abs(x);const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;const t=1/(1+p*x);return s*(1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x));}
+function normSf(z){return 0.5*(1-erf(z/Math.SQRT2));}
+function pTwoSided(z){const a=Math.abs(z);if(a<7)return 2*normSf(a);const logSf=-0.5*a*a-Math.log(a)-0.5*Math.log(2*Math.PI);return 2*Math.exp(logSf);}
+// chi-squared survival function for df=v: approximate via gamma tail
+// For df=1: p = 2*normSf(sqrt(chi))
+// For general: use Wilson-Hilferty approximation
+function chiSqSf(q, v){
+  if (v===1) return 2*normSf(Math.sqrt(Math.max(0,q)));
+  const a = Math.pow(q/v, 1/3);
+  const mu = 1 - 2/(9*v);
+  const sd = Math.sqrt(2/(9*v));
+  return 1 - 0.5*(1+erf((a-mu)/(sd*Math.SQRT2)));
+}
+
+const state = { V:20, del:1.0, pro:0.0, beta:0.5, MAF:0.003, N:20000 };
+
+function simulate(){
+  const { V, del, pro, beta, MAF, N } = state;
+  // Clamp fractions
+  const neu = Math.max(0, 1 - del - pro);
+  // Assign variant classes
+  const sign = new Int8Array(V);
+  // Sort variants by desired direction
+  for (let j=0;j<V;j++){
+    const r = rand();
+    if (r < del) sign[j] = 1;
+    else if (r < del+pro) sign[j] = -1;
+    else sign[j] = 0;
+  }
+  // MAF per variant: around MAF with lognormal spread
+  const maf = new Float64Array(V);
+  for (let j=0;j<V;j++){
+    maf[j] = Math.max(0.0001, Math.min(0.05, MAF * Math.exp(0.4*gauss())));
+  }
+  // Effects
+  const betaVec = new Float64Array(V);
+  for (let j=0;j<V;j++) betaVec[j] = sign[j] * beta;
+
+  // Simulate genotypes and phenotype for a modest subsample (full computation)
+  const nSim = Math.min(N, 4000);
+  const G = new Int8Array(nSim * V);
+  for (let i=0;i<nSim;i++){
+    for (let j=0;j<V;j++){
+      const g = (rand()<maf[j]?1:0)+(rand()<maf[j]?1:0);
+      G[i*V+j] = g;
+    }
+  }
+  const Y = new Float64Array(nSim);
+  for (let i=0;i<nSim;i++){
+    let s = 0;
+    for (let j=0;j<V;j++) s += betaVec[j] * G[i*V+j];
+    Y[i] = s + gauss();
+  }
+  // Centre Y
+  let muY=0; for (let i=0;i<nSim;i++) muY += Y[i]; muY/=nSim;
+  for (let i=0;i<nSim;i++) Y[i] -= muY;
+
+  // Burden: S = sum_j G_ij (unweighted for simplicity); regress Y on S
+  const S = new Float64Array(nSim);
+  for (let i=0;i<nSim;i++){
+    let s = 0;
+    for (let j=0;j<V;j++) s += G[i*V+j];
+    S[i] = s;
+  }
+  let muS = 0; for (let i=0;i<nSim;i++) muS += S[i]; muS/=nSim;
+  let sSY=0, sSS=0;
+  for (let i=0;i<nSim;i++){ const ds = S[i]-muS; sSY += ds*Y[i]; sSS += ds*ds; }
+  const bBurden = sSY/Math.max(1e-9, sSS);
+  let ssRes=0;
+  for (let i=0;i<nSim;i++){ const d = S[i]-muS; const r = Y[i]-bBurden*d; ssRes += r*r; }
+  const sigB = Math.sqrt(ssRes/Math.max(1,(nSim-1)));
+  const seB = sigB/Math.sqrt(Math.max(1e-9,sSS));
+  const zBurden = bBurden/Math.max(1e-9,seB);
+  // Scale burden by effective sample size factor (we simulated nSim < N)
+  const scale = Math.sqrt(N/nSim);
+  const tBurden = zBurden * scale;
+  const pBurden = pTwoSided(tBurden);
+
+  // SKAT: Q = sum_j w_j² * (Σ_i G_ij * Y_i)²
+  // w_j = 1/sqrt(maf_j*(1-maf_j)) (MAF-inverse weight, simple)
+  const w = new Float64Array(V);
+  for (let j=0;j<V;j++) w[j] = 1/Math.sqrt(maf[j]*(1-maf[j]));
+  const U = new Float64Array(V);  // score per variant
+  for (let j=0;j<V;j++){
+    let s=0;
+    for (let i=0;i<nSim;i++) s += G[i*V+j] * Y[i];
+    U[j] = s;
+  }
+  // Variance: approximate under null each U_j ~ N(0, Var(Y)*Σ G_ij²)
+  let varY = 0;
+  for (let i=0;i<nSim;i++) varY += Y[i]*Y[i];
+  varY /= Math.max(1,(nSim-1));
+  const sigmaJ = new Float64Array(V);
+  for (let j=0;j<V;j++){
+    let gg=0;
+    for (let i=0;i<nSim;i++) gg += G[i*V+j]*G[i*V+j];
+    sigmaJ[j] = Math.sqrt(Math.max(1e-9, varY*gg));
+  }
+  // Z_j = U_j / sigmaJ_j
+  // SKAT statistic: Q = Σ w_j² * Z_j² * sigmaJ_j² / sigmaJ_j² = Σ w_j² * Z_j²  (unit variance)
+  // under null Q ≈ Σ w_j² * χ²_1 ≈ a mixture. Use Satterthwaite approximation: scale by c, df = v.
+  let Q = 0;
+  let sumW2 = 0, sumW4 = 0;
+  for (let j=0;j<V;j++){
+    const zj = U[j]/sigmaJ[j];
+    const wj2 = w[j]*w[j];
+    Q += wj2 * zj*zj;
+    sumW2 += wj2;
+    sumW4 += wj2*wj2;
+  }
+  // Satterthwaite: c = sumW4/sumW2, v = sumW2²/sumW4
+  const c = sumW4/Math.max(1e-9,sumW2);
+  const v = sumW2*sumW2/Math.max(1e-9,sumW4);
+  // Scale for sample size
+  const Qscaled = Q * (N/nSim);
+  const pSKAT = chiSqSf(Qscaled/c, v);
+
+  // SKAT-O: try ρ ∈ {0, 0.1, ..., 1}; ρ=0 is SKAT; ρ=1 is burden (on same scale as Z_j).
+  // For simplicity: take minimum over the grid, then multiply by grid-size adjustment factor (0.5)
+  // (approx bonferroni over ρ grid)
+  const rhoGrid = [0, 0.25, 0.5, 0.75, 1.0];
+  let bestRho = 0, bestP = Infinity;
+  for (const rho of rhoGrid){
+    // Q_rho = (1-rho)*Q_skat + rho * Q_burden_analog
+    // Q_burden_analog = (Σ w_j Z_j)² (single quadratic form)
+    let sumSigned = 0;
+    for (let j=0;j<V;j++) sumSigned += w[j] * U[j]/sigmaJ[j];
+    const Qb = sumSigned*sumSigned;
+    const Qrho = (1-rho)*Q + rho*Qb;
+    // Effective df under weighted combo
+    // approximation: use Satterthwaite on mixed
+    // for ρ=0: (c, v)
+    // for ρ=1: Qb ~ chi²_1 * sumW2
+    let cRho, vRho;
+    if (rho===0){ cRho=c; vRho=v; }
+    else if (rho===1){ cRho=sumW2; vRho=1; }
+    else {
+      // weighted mixture — rough approximation
+      const c1 = sumW4/Math.max(1e-9,sumW2);
+      const c2 = sumW2;
+      cRho = (1-rho)*c1 + rho*c2;
+      vRho = (1-rho)*v + rho*1;
+    }
+    const Qr = Qrho*(N/nSim);
+    const pR = chiSqSf(Qr/cRho, vRho);
+    if (pR < bestP){ bestP = pR; bestRho = rho; }
+  }
+  // Light Bonferroni adjustment for grid
+  const pSKATO = Math.min(1, bestP * Math.min(2, rhoGrid.length*0.35));
+
+  return { V, sign, maf, betaVec, tBurden, pBurden, Q:Qscaled, pSKAT, pSKATO, bestRho };
+}
+
+function svgEl(tag, attrs, text){
+  const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for (const k in attrs) el.setAttribute(k,attrs[k]);
+  if (text!==undefined) el.textContent=text;
+  return el;
+}
+
+function drawGene(r){
+  const svg = document.getElementById('gene');
+  svg.innerHTML='';
+  const W=1080, H=90;
+  const pad={l:30,r:30};
+  // gene body
+  svg.appendChild(svgEl('rect',{x:pad.l,y:38,width:W-pad.l-pad.r,height:14,fill:'#e5e7eb',stroke:'#9ca3af',rx:3}));
+  // introns/exons decoration
+  for (let e=0;e<4;e++){
+    const ex = pad.l + (0.1 + e*0.2 + 0.05)*(W-pad.l-pad.r);
+    const ew = (W-pad.l-pad.r)*0.12;
+    svg.appendChild(svgEl('rect',{x:ex,y:32,width:ew,height:26,fill:'#d1d5db',stroke:'#6b7280',rx:2}));
+  }
+  // variant tick marks
+  for (let j=0;j<r.V;j++){
+    const x = pad.l + (j+0.5)/r.V*(W-pad.l-pad.r);
+    const s = r.sign[j];
+    const col = s>0 ? '#c4342c' : (s<0 ? '#059669' : '#9ca3af');
+    const h = s===0 ? 14 : 24;
+    svg.appendChild(svgEl('line',{x1:x,y1:45-h/2,x2:x,y2:45+h/2,stroke:col,'stroke-width':2.5}));
+    // small arrow
+    if (s!==0){
+      const dir = s>0?1:-1;
+      const y0 = 45 - dir*14;
+      svg.appendChild(svgEl('polygon',{points:`${x-3},${y0} ${x+3},${y0} ${x},${y0-dir*4}`,fill:col}));
+    }
+  }
+}
+
+function fmtP(p){
+  if (p >= 0.001) return p.toFixed(3);
+  if (p < 1e-30) return '< 10⁻³⁰';
+  const exp = Math.floor(Math.log10(p));
+  const mant = p/Math.pow(10,exp);
+  return `${mant.toFixed(1)} × 10^${exp}`;
+}
+
+function renderOutcome(r){
+  document.getElementById('burden_T').textContent = r.tBurden.toFixed(2);
+  document.getElementById('burden_p').textContent = fmtP(r.pBurden);
+  document.getElementById('skat_Q').textContent = r.Q.toFixed(1);
+  document.getElementById('skat_p').textContent = fmtP(r.pSKAT);
+  document.getElementById('skato_p').textContent = fmtP(r.pSKATO);
+
+  // Winner
+  const ps = { Burden:r.pBurden, SKAT:r.pSKAT, 'SKAT-O':r.pSKATO };
+  const winner = Object.entries(ps).sort((a,b)=>a[1]-b[1])[0];
+  document.getElementById('winner').textContent = `Lowest p: ${winner[0]}  (ρ_opt = ${r.bestRho.toFixed(2)})`;
+
+  const delF = state.del, proF = state.pro;
+  let scenario = '', verdict = '';
+  if (delF > 0.85 && proF < 0.1) { scenario = 'All (or nearly all) deleterious'; verdict = 'Burden wins — directional signal stacks perfectly in the count.'; }
+  else if (delF > 0.35 && proF > 0.35) { scenario = 'Mixed directions'; verdict = 'Burden cancels across opposing signs; SKAT still detects variance contribution.'; }
+  else if (delF + proF < 0.2) { scenario = 'Mostly neutral gene'; verdict = 'No signal; all tests return non-significant p-values (as expected).'; }
+  else { scenario = 'Partial signal'; verdict = 'SKAT-O hedges between burden and variance regimes.'; }
+
+  document.getElementById('outcome').innerHTML = `
+    <div>Scenario: ${scenario}  |  V = ${state.V}  MAF ≈ ${state.MAF.toFixed(4)}  N = ${state.N.toLocaleString()}  β = ${state.beta.toFixed(2)}</div>
+    <div>p_burden = ${fmtP(r.pBurden)}   p_SKAT = ${fmtP(r.pSKAT)}   p_SKAT-O = ${fmtP(r.pSKATO)}   ρ_opt = ${r.bestRho.toFixed(2)}</div>
+    <div class="verdict">${verdict}</div>
+    <div class="hint">Try all-deleterious → burden wins. Flip half to protective → burden p climbs above 0.05, SKAT p stays small. Raise neutral fraction → all tests go null.</div>
+  `;
+}
+
+function rerun(){ const r=simulate(); drawGene(r); renderOutcome(r); }
+
+function bind(id, key, parser, label){
+  const el=document.getElementById(id),out=document.getElementById('v_'+key);
+  const apply=()=>{ const v=parser(parseFloat(el.value)); state[key==='v'?'V':key==='del'?'del':key==='pro'?'pro':key==='b'?'beta':key==='maf'?'MAF':key==='n'?'N':key]=v; out.textContent=label(v); };
+  el.addEventListener('input',()=>{apply();
+    // enforce del+pro <= 1
+    if (state.del + state.pro > 1){
+      if (key==='del') { state.pro = 1 - state.del; document.getElementById('pro').value=state.pro; document.getElementById('v_pro').textContent=state.pro.toFixed(2); }
+      else { state.del = 1 - state.pro; document.getElementById('del').value=state.del; document.getElementById('v_del').textContent=state.del.toFixed(2); }
+    }
+    rerun();
+  });
+  apply();
+}
+bind('v','v',v=>v|0,v=>v.toString());
+bind('del','del',v=>v,v=>v.toFixed(2));
+bind('pro','pro',v=>v,v=>v.toFixed(2));
+bind('b','b',v=>v,v=>v.toFixed(2));
+bind('maf','maf',v=>Math.pow(10,v),v=>v.toFixed(4));
+bind('n','n',v=>Math.round(Math.pow(10,v)),v=>v.toLocaleString());
+document.getElementById('resim').addEventListener('click',()=>{seed((Math.random()*1e9)|0);rerun();});
+
+document.querySelectorAll('button[data-preset]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const p = btn.getAttribute('data-preset');
+    const set = (id, val) => { const el=document.getElementById(id); el.value=val; el.dispatchEvent(new Event('input')); };
+    if (p==='all-del'){ set('del',1.0); set('pro',0); }
+    if (p==='mixed'){ set('del',0.5); set('pro',0.5); }
+    if (p==='neutral'){ set('del',0.1); set('pro',0.1); }
+  });
+});
+
+seed(1234);
+rerun();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

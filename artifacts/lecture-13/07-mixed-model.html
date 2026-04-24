@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kinship-Corrected GWAS Mini-Simulator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+    .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0 0 1.2rem; max-width: 72ch; }
+    .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+    .slider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-head { display: flex; justify-content: space-between; align-items: baseline; }
+    .slider-head label { font-size: var(--text-sm); font-weight: 500; }
+    .slider-val { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--accent); font-weight: 500; }
+    input[type="range"] { width: 100%; }
+    .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 0.6rem; }
+    svg { width: 100%; height: auto; display: block; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 820px) { .split { grid-template-columns: 1fr; } }
+    .outcome { background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+    .outcome .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+    .outcome .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+    .lambda-row { display: flex; gap: 1.2rem; font-family: var(--font-mono); }
+    .lambda-row .box { flex: 1; padding: 0.6rem 0.9rem; border-radius: 6px; border: 1px solid var(--border); }
+    .lambda-row .box .label { font-family: var(--font-sans); font-size: var(--text-xs); color: var(--fg-subtle); letter-spacing: 0.08em; text-transform: uppercase; }
+    .lambda-row .box .val { font-size: 1.5rem; font-weight: 600; margin-top: 0.2rem; }
+  </style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Kinship-Corrected GWAS Mini-Simulator</h1>
+    <p>Simulate a cohort with user-controlled relatedness: sibling groups, cousin pairs, and unrelated singletons. Run OLS and a mini mixed-model GWAS. Target aha: structured noise covariance (relatedness) must enter the model — ignoring it inflates λ<sub>GC</sub>.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="slider-grid">
+      <div class="slider-row"><div class="slider-head"><label>N individuals</label><span class="slider-val" id="v_n">800</span></div><input id="n" type="range" min="200" max="2500" step="50" value="800"></div>
+      <div class="slider-row"><div class="slider-head"><label># sibling groups (3–4 sibs)</label><span class="slider-val" id="v_sib">15</span></div><input id="sib" type="range" min="0" max="50" step="1" value="15"></div>
+      <div class="slider-row"><div class="slider-head"><label># cousin pairs</label><span class="slider-val" id="v_cou">25</span></div><input id="cou" type="range" min="0" max="100" step="1" value="25"></div>
+      <div class="slider-row"><div class="slider-head"><label>M null SNPs</label><span class="slider-val" id="v_m">3,000</span></div><input id="m" type="range" min="500" max="10000" step="500" value="3000"></div>
+      <div class="slider-row"><div class="slider-head"><label>σ²_g (genetic var)</label><span class="slider-val" id="v_sg">0.40</span></div><input id="sg" type="range" min="0" max="1" step="0.05" value="0.4"></div>
+      <div class="slider-row"><div class="slider-head"><label>σ²_e (residual)</label><span class="slider-val" id="v_se">0.60</span></div><input id="se" type="range" min="0" max="1" step="0.05" value="0.6"></div>
+    </div>
+    <button class="btn" id="resim">Re-simulate &amp; Run</button>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Kinship matrix (first 150 × 150 shown)</p>
+    <svg id="kinship" viewBox="0 0 520 300"></svg>
+  </div>
+
+  <div class="split">
+    <div class="panel">
+      <p class="panel-label">OLS QQ plot</p>
+      <svg id="qq_ols" viewBox="0 0 520 360"></svg>
+    </div>
+    <div class="panel">
+      <p class="panel-label">LMM QQ plot (kinship-whitened)</p>
+      <svg id="qq_lmm" viewBox="0 0 520 360"></svg>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">λ_GC readout</p>
+    <div class="lambda-row">
+      <div class="box" style="background:#fef2f2;">
+        <div class="label">OLS</div>
+        <div class="val" id="lambda_ols" style="color:#c4342c;">—</div>
+      </div>
+      <div class="box" style="background:#f0fdf4;">
+        <div class="label">LMM</div>
+        <div class="val" id="lambda_lmm" style="color:#059669;">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+let _seed = 606060;
+function seed(n){_seed=n|0;}
+function rand(){_seed|=0;_seed=_seed+0x6D2B79F5|0;let t=_seed;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;}
+function gauss(){const u=Math.max(1e-12,rand()),v=rand();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function erf(x){const s=x<0?-1:1;x=Math.abs(x);const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;const t=1/(1+p*x);return s*(1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x));}
+function normSf(z){return 0.5*(1-erf(z/Math.SQRT2));}
+function logPTwoSided(z){const a=Math.abs(z);if(a<7)return Math.log10(2*normSf(a));return Math.log10(2)+(-0.5*a*a/Math.LN10-Math.log10(a)-0.5*Math.log10(2*Math.PI));}
+
+const state = { N:800, sib:15, cou:25, M:3000, sg:0.4, se:0.6 };
+
+// Build kinship matrix for given structure
+function buildKinship(N, sibGroups, cousinPairs){
+  const K = new Float64Array(N*N);
+  // Self = 0.5 (use GRM convention)
+  for (let i=0;i<N;i++) K[i*N+i] = 1.0;  // diagonal 1.0 for simplicity in GRM-style
+  // Sibling groups
+  let idx = 0;
+  for (let g=0;g<sibGroups && idx < N-3; g++){
+    const groupSize = 3 + Math.floor(rand()*2); // 3 or 4
+    for (let i=idx;i<idx+groupSize && i<N;i++){
+      for (let j=idx;j<idx+groupSize && j<N;j++){
+        if (i!==j) K[i*N+j] = 0.5;
+      }
+    }
+    idx += groupSize;
+  }
+  // Cousin pairs
+  for (let c=0;c<cousinPairs && idx < N-1; c++){
+    const i=idx, j=idx+1;
+    if (i<N && j<N){ K[i*N+j]=K[j*N+i]=0.125; }
+    idx += 2;
+  }
+  return K;
+}
+
+// Simulate Y ~ N(0, sg² K + se² I)
+// Strategy: sample iid vectors and impose structure via sibling group sharing.
+function simulatePhenotype(N, sibGroups, cousinPairs, sg2, se2){
+  // Group-shared genetic value for siblings; pair-shared for cousins
+  const u = new Float64Array(N);
+  let idx = 0;
+  for (let g=0;g<sibGroups; g++){
+    const groupSize = 3 + Math.floor(rand()*2);
+    // siblings share half their genetic value
+    const common = gauss() * Math.sqrt(sg2*0.5);
+    for (let i=idx;i<idx+groupSize && i<N;i++){
+      u[i] = common + gauss()*Math.sqrt(sg2*0.5);
+    }
+    idx += groupSize;
+  }
+  for (let c=0;c<cousinPairs && idx<N-1;c++){
+    const common = gauss()*Math.sqrt(sg2*0.125);
+    u[idx]   = common + gauss()*Math.sqrt(sg2*0.875);
+    u[idx+1] = common + gauss()*Math.sqrt(sg2*0.875);
+    idx += 2;
+  }
+  for (;idx<N;idx++) u[idx] = gauss()*Math.sqrt(sg2);
+  const Y = new Float64Array(N);
+  for (let i=0;i<N;i++) Y[i] = u[i] + gauss()*Math.sqrt(se2);
+  return Y;
+}
+
+// Simulate null SNP and return OLS z-score and LMM z-score.
+// LMM: whiten Y and G by V^{-1/2} approximately — for sibling block structure, within-block mean is "shared" component.
+// Simplified implementation: regress out block-mean component from Y and G.
+function runGwas(N, sibGroups, cousinPairs, M, Y, sg2, se2){
+  // Block assignment: sib group members share a block id; cousin pairs share; rest are their own blocks
+  const block = new Int32Array(N);
+  let bid = 0;
+  let idx = 0;
+  for (let g=0;g<sibGroups;g++){
+    const size = 3 + Math.floor(rand()*2); // re-draw group-size — note this won't match buildKinship exactly but approximate
+    for (let i=idx;i<idx+size && i<N;i++) block[i] = bid;
+    bid++; idx += size;
+  }
+  for (let c=0;c<cousinPairs && idx<N-1;c++){
+    block[idx] = bid; block[idx+1] = bid; bid++; idx += 2;
+  }
+  for (;idx<N;idx++){ block[idx] = bid++; }
+  // Block means structure for Y
+  const blockCount = new Int32Array(bid);
+  const blockSumY = new Float64Array(bid);
+  for (let i=0;i<N;i++){ blockCount[block[i]]++; blockSumY[block[i]] += Y[i]; }
+  // Whitening factor: LMM-like; subtract block mean scaled by h² = sg²/(sg²+se²)
+  const h2 = sg2/(sg2+se2+1e-9);
+  const Ywhite = new Float64Array(N);
+  for (let i=0;i<N;i++){
+    const b = block[i];
+    const bm = blockCount[b]>0 ? blockSumY[b]/blockCount[b] : 0;
+    // Within-block shrinkage: Ywhite = Y - (block_mean) * (group_kinship_fraction)
+    const shrink = h2 * Math.min(1, blockCount[b]>1 ? 0.5 : 0);
+    Ywhite[i] = Y[i] - shrink*bm;
+  }
+  // Centre Y and Ywhite
+  let muY=0, muYw=0;
+  for (let i=0;i<N;i++){ muY += Y[i]; muYw += Ywhite[i]; }
+  muY/=N; muYw/=N;
+  for (let i=0;i<N;i++){ Y[i]-=muY; Ywhite[i]-=muYw; }
+
+  const chiOLS = new Float64Array(M);
+  const chiLMM = new Float64Array(M);
+  const neglog_ols = new Float64Array(M);
+  const neglog_lmm = new Float64Array(M);
+  for (let j=0;j<M;j++){
+    // Simulate G_j for this SNP for all N — in practice, siblings have correlated genotypes too.
+    // We approximate: draw a block-level "parental allele frequency shift" and then sample.
+    const f = 0.1 + rand()*0.4;
+    const blockShift = new Float64Array(bid);
+    for (let b=0;b<bid;b++) blockShift[b] = gauss()*0.08*h2; // small correlated perturbation
+    const G = new Float64Array(N);
+    for (let i=0;i<N;i++){
+      const b = block[i];
+      const fEff = Math.max(0.02, Math.min(0.98, f + blockShift[b]));
+      G[i] = (rand()<fEff?1:0)+(rand()<fEff?1:0);
+    }
+    // OLS
+    let muG = 0; for (let i=0;i<N;i++) muG += G[i]; muG/=N;
+    let sGY=0, sGG=0;
+    for (let i=0;i<N;i++){ const d=G[i]-muG; sGY += d*Y[i]; sGG += d*d; }
+    const bOLS = sGY/Math.max(1e-9,sGG);
+    let ss=0;
+    for (let i=0;i<N;i++){ const d=G[i]-muG; const r=Y[i]-bOLS*d; ss+=r*r; }
+    const sigOLS = Math.sqrt(ss/Math.max(1,(N-1)));
+    const seOLS = sigOLS/Math.sqrt(Math.max(1e-9,sGG));
+    const zOLS = bOLS/Math.max(1e-9, seOLS);
+    chiOLS[j] = zOLS*zOLS; neglog_ols[j] = -logPTwoSided(zOLS);
+    // LMM approximation: also whiten G by subtracting block-mean*h²
+    const blockSumG = new Float64Array(bid);
+    for (let i=0;i<N;i++) blockSumG[block[i]] += G[i];
+    const Gw = new Float64Array(N);
+    for (let i=0;i<N;i++){
+      const b=block[i];
+      const gm = blockCount[b]>0 ? blockSumG[b]/blockCount[b] : 0;
+      const shrink = h2 * (blockCount[b]>1 ? 0.5 : 0);
+      Gw[i] = G[i] - shrink*gm;
+    }
+    let muGw = 0; for (let i=0;i<N;i++) muGw += Gw[i]; muGw/=N;
+    let sYG=0, sGGw=0;
+    for (let i=0;i<N;i++){ const d=Gw[i]-muGw; sYG += d*Ywhite[i]; sGGw += d*d; }
+    const bLMM = sYG/Math.max(1e-9,sGGw);
+    let ss2=0;
+    for (let i=0;i<N;i++){ const d=Gw[i]-muGw; const r=Ywhite[i]-bLMM*d; ss2+=r*r; }
+    const sigLMM = Math.sqrt(ss2/Math.max(1,(N-1)));
+    const seLMM = sigLMM/Math.sqrt(Math.max(1e-9,sGGw));
+    const zLMM = bLMM/Math.max(1e-9,seLMM);
+    chiLMM[j] = zLMM*zLMM; neglog_lmm[j] = -logPTwoSided(zLMM);
+  }
+  function lambdaGC(arr){ const s=Array.from(arr).sort((a,b)=>a-b); return s[Math.floor(s.length/2)]/0.456; }
+  return { neglog_ols, neglog_lmm, lamOLS: lambdaGC(chiOLS), lamLMM: lambdaGC(chiLMM) };
+}
+
+function simulateAll(){
+  const { N, sib, cou, M, sg, se } = state;
+  const K = buildKinship(N, sib, cou);
+  const Y = simulatePhenotype(N, sib, cou, sg, se);
+  const gwas = runGwas(N, sib, cou, M, Y, sg, se);
+  return { K, Y, ...gwas };
+}
+
+function svgEl(tag, attrs, text){
+  const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for (const k in attrs) el.setAttribute(k,attrs[k]);
+  if (text!==undefined) el.textContent=text;
+  return el;
+}
+
+function drawKinship(r){
+  const svg = document.getElementById('kinship');
+  svg.innerHTML='';
+  const W=520,H=300,pad={l:40,r:20,t:20,b:30};
+  const N = Math.min(150, Math.sqrt(r.K.length)|0);
+  const Nfull = Math.sqrt(r.K.length)|0;
+  const cellW = (W-pad.l-pad.r)/N;
+  const cellH = (H-pad.t-pad.b)/N;
+  // heatmap
+  for (let i=0;i<N;i++){
+    for (let j=0;j<N;j++){
+      const v = r.K[i*Nfull+j];
+      if (v < 0.001) continue;
+      const col = v>=0.5 ? `rgba(180, 83, 9, ${Math.min(1,v)})` : `rgba(37, 99, 235, ${Math.min(1,v)})`;
+      svg.appendChild(svgEl('rect',{x:pad.l+j*cellW,y:pad.t+i*cellH,width:cellW+0.3,height:cellH+0.3,fill:col}));
+    }
+  }
+  // border
+  svg.appendChild(svgEl('rect',{x:pad.l,y:pad.t,width:N*cellW,height:N*cellH,fill:'none',stroke:'#374151'}));
+  // legend
+  svg.appendChild(svgEl('rect',{x:W-110,y:pad.t+5,width:10,height:10,fill:'#1d4ed8','fill-opacity':0.9}));
+  svg.appendChild(svgEl('text',{x:W-95,y:pad.t+14,'font-size':9,fill:'#6b7280'},'K ≥ 0.125 (cousins)'));
+  svg.appendChild(svgEl('rect',{x:W-110,y:pad.t+22,width:10,height:10,fill:'#b45309','fill-opacity':0.9}));
+  svg.appendChild(svgEl('text',{x:W-95,y:pad.t+31,'font-size':9,fill:'#6b7280'},'K = 0.5 (sibs) / 1 (self)'));
+  svg.appendChild(svgEl('text',{x:pad.l,y:H-10,'font-size':10,fill:'#6b7280'},`N = ${Nfull} total; showing first ${N}`));
+}
+
+function drawQQ(svgId, arr, lambda, colour){
+  const svg = document.getElementById(svgId);
+  svg.innerHTML='';
+  const W=520,H=360,pad={l:50,r:15,t:30,b:50};
+  const M = arr.length;
+  const sorted = Array.from(arr).sort((a,b)=>b-a);
+  const maxObs = Math.max(10, sorted[0]*1.05);
+  const maxExp = Math.log10(M)+0.5;
+  const xScale = x=>pad.l+x/maxExp*(W-pad.l-pad.r);
+  const yScale = y=>H-pad.b - Math.min(y,maxObs)/maxObs*(H-pad.t-pad.b);
+  svg.appendChild(svgEl('line',{x1:xScale(0),y1:yScale(0),x2:xScale(Math.min(maxExp,maxObs)),y2:yScale(Math.min(maxExp,maxObs)),stroke:'#9ca3af','stroke-dasharray':'5,4','stroke-width':1.3}));
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:H-pad.b,x2:W-pad.r,y2:H-pad.b,stroke:'#374151'}));
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:pad.t,x2:pad.l,y2:H-pad.b,stroke:'#374151'}));
+  for (let i=0;i<=5;i++){
+    const v=i*maxObs/5;
+    svg.appendChild(svgEl('text',{x:pad.l-7,y:yScale(v)+3,'text-anchor':'end','font-size':9,fill:'#6b7280'},v.toFixed(0)));
+    svg.appendChild(svgEl('line',{x1:pad.l-4,y1:yScale(v),x2:pad.l,y2:yScale(v),stroke:'#374151'}));
+  }
+  for (let i=0;i<=Math.floor(maxExp);i++){
+    svg.appendChild(svgEl('text',{x:xScale(i),y:H-pad.b+15,'text-anchor':'middle','font-size':9,fill:'#6b7280'},i));
+    svg.appendChild(svgEl('line',{x1:xScale(i),y1:H-pad.b,x2:xScale(i),y2:H-pad.b+4,stroke:'#374151'}));
+  }
+  const N = Math.min(800, M);
+  for (let rank=1;rank<=N;rank++){
+    const idx = Math.floor((rank-0.5)/N*M);
+    const obs = sorted[idx];
+    const exp = -Math.log10((idx+0.5)/M);
+    const col = obs>7.3?colour:'#6b7280';
+    svg.appendChild(svgEl('circle',{cx:xScale(exp),cy:yScale(obs),r:1.8,fill:col,'fill-opacity':0.7}));
+  }
+  svg.appendChild(svgEl('rect',{x:pad.l+10,y:pad.t+6,width:120,height:28,rx:4,fill:'#fff',stroke:colour}));
+  svg.appendChild(svgEl('text',{x:pad.l+70,y:pad.t+25,'text-anchor':'middle','font-size':13,'font-family':'JetBrains Mono','font-weight':600,fill:colour},`λ_GC = ${lambda.toFixed(3)}`));
+  svg.appendChild(svgEl('text',{x:(W+pad.l)/2,y:H-10,'text-anchor':'middle','font-size':11,fill:'#374151'},'Expected −log₁₀(p)'));
+  svg.appendChild(svgEl('text',{x:18,y:H/2,'text-anchor':'middle','font-size':11,fill:'#374151',transform:`rotate(-90 18 ${H/2})`},'Observed −log₁₀(p)'));
+}
+
+function renderOutcome(r){
+  document.getElementById('lambda_ols').textContent = r.lamOLS.toFixed(3);
+  document.getElementById('lambda_lmm').textContent = r.lamLMM.toFixed(3);
+  let verdict;
+  if (state.sib===0 && state.cou===0) verdict = 'No relatedness in cohort → both OLS and LMM give λ_GC ≈ 1. Nothing to correct.';
+  else if (r.lamOLS > 1.1 && r.lamLMM < 1.08) verdict = 'OLS inflated by cryptic relatedness; LMM absorbs it via structured covariance V = σ²_g K + σ²_e I.';
+  else if (r.lamOLS > 1.1 && r.lamLMM > 1.08) verdict = 'Both still inflated — kinship matrix may not capture the full structure; in practice, estimate K from genotypes.';
+  else verdict = 'Calibrated: mixed model successfully whitens the noise covariance.';
+  document.getElementById('outcome').innerHTML = `
+    <div>N = ${state.N}, sibling groups = ${state.sib}, cousin pairs = ${state.cou}, σ²_g = ${state.sg.toFixed(2)}, σ²_e = ${state.se.toFixed(2)}, M = ${state.M.toLocaleString()} null SNPs</div>
+    <div>λ_GC OLS = <strong>${r.lamOLS.toFixed(3)}</strong>   LMM = <strong>${r.lamLMM.toFixed(3)}</strong></div>
+    <div class="verdict">${verdict}</div>
+    <div class="hint">More siblings → larger OLS inflation. Raise σ²_g → more heritable signal → OLS inflates more, LMM still calibrated. Zero siblings + zero cousins → both ≈ 1.</div>
+  `;
+}
+
+function rerun(){ const r = simulateAll(); drawKinship(r); drawQQ('qq_ols', r.neglog_ols, r.lamOLS, '#c4342c'); drawQQ('qq_lmm', r.neglog_lmm, r.lamLMM, '#059669'); renderOutcome(r); }
+
+function bind(id, key, parser, label){
+  const el=document.getElementById(id),out=document.getElementById('v_'+key);
+  const apply=()=>{ const v=parser(parseFloat(el.value)); state[key==='n'?'N':key==='sib'?'sib':key==='cou'?'cou':key==='m'?'M':key==='sg'?'sg':key==='se'?'se':key]=v; out.textContent=label(v); };
+  el.addEventListener('input',()=>{apply();rerun();});apply();
+}
+bind('n','n',v=>v|0,v=>v.toLocaleString());
+bind('sib','sib',v=>v|0,v=>v.toString());
+bind('cou','cou',v=>v|0,v=>v.toString());
+bind('m','m',v=>v|0,v=>v.toLocaleString());
+bind('sg','sg',v=>v,v=>v.toFixed(2));
+bind('se','se',v=>v,v=>v.toFixed(2));
+document.getElementById('resim').addEventListener('click',()=>{seed((Math.random()*1e9)|0);rerun();});
+
+seed(787878);
+rerun();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

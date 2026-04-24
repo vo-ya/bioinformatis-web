@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Population Stratification + PCA Correction</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1180px; margin: 0 auto; }
+    .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0 0 1.2rem; max-width: 72ch; }
+    .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+    .slider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-head { display: flex; justify-content: space-between; align-items: baseline; }
+    .slider-head label { font-size: var(--text-sm); font-weight: 500; }
+    .slider-val { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--accent); font-weight: 500; }
+    input[type="range"] { width: 100%; }
+    .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 0.6rem; }
+    svg { width: 100%; height: auto; display: block; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 820px) { .split { grid-template-columns: 1fr; } }
+    .outcome { background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+    .outcome .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+    .outcome .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+    .lambda-row { display: flex; gap: 1.2rem; font-family: var(--font-mono); }
+    .lambda-row .box { flex: 1; padding: 0.6rem 0.9rem; border-radius: 6px; border: 1px solid var(--border); }
+    .lambda-row .box .label { font-family: var(--font-sans); font-size: var(--text-xs); color: var(--fg-subtle); letter-spacing: 0.08em; text-transform: uppercase; }
+    .lambda-row .box .val { font-size: 1.5rem; font-weight: 600; margin-top: 0.2rem; }
+  </style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Population Stratification + PCA Correction</h1>
+    <p>Simulate a two-subpopulation cohort with an ancestry-correlated phenotype and <strong>zero</strong> true SNP effects. Run GWAS with and without top PCs as covariates. Target aha: confounding is real and PCA correction resolves it by projecting out the ancestry direction.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="slider-grid">
+      <div class="slider-row"><div class="slider-head"><label>Subpop A fraction</label><span class="slider-val" id="v_fa">0.60</span></div><input id="fa" type="range" min="0.1" max="0.9" step="0.02" value="0.6"></div>
+      <div class="slider-row"><div class="slider-head"><label>F_ST (divergence)</label><span class="slider-val" id="v_fst">0.10</span></div><input id="fst" type="range" min="0" max="0.3" step="0.01" value="0.10"></div>
+      <div class="slider-row"><div class="slider-head"><label>Phenotype–ancestry ρ</label><span class="slider-val" id="v_rho">0.30</span></div><input id="rho" type="range" min="0" max="0.6" step="0.02" value="0.30"></div>
+      <div class="slider-row"><div class="slider-head"><label>N individuals (log)</label><span class="slider-val" id="v_n">2,000</span></div><input id="n" type="range" min="2.7" max="3.9" step="0.05" value="3.30"></div>
+      <div class="slider-row"><div class="slider-head"><label>M SNPs (log)</label><span class="slider-val" id="v_m">1,500</span></div><input id="m" type="range" min="3" max="3.7" step="0.05" value="3.18"></div>
+      <div class="slider-row"><div class="slider-head"><label># PCs included</label><span class="slider-val" id="v_k">0</span></div><input id="k" type="range" min="0" max="10" step="1" value="0"></div>
+    </div>
+    <button class="btn" id="resim">Re-simulate</button>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">PCA Scatter (PC1 vs PC2)</p>
+    <svg id="pca" viewBox="0 0 520 300"></svg>
+  </div>
+
+  <div class="split">
+    <div class="panel">
+      <p class="panel-label">QQ (no correction)</p>
+      <svg id="qq_raw" viewBox="0 0 520 360"></svg>
+    </div>
+    <div class="panel">
+      <p class="panel-label">QQ (with <span id="pc_count_lbl">0</span> PCs)</p>
+      <svg id="qq_pc" viewBox="0 0 520 360"></svg>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">λ_GC readout</p>
+    <div class="lambda-row">
+      <div class="box" style="background:#fef2f2;">
+        <div class="label">no correction</div>
+        <div class="val" id="lambda_raw" style="color:#c4342c;">—</div>
+      </div>
+      <div class="box" style="background:#f0fdf4;">
+        <div class="label">with PCs</div>
+        <div class="val" id="lambda_pc" style="color:#059669;">—</div>
+      </div>
+      <div class="box" style="background:#f3f4f6;">
+        <div class="label">spurious hits</div>
+        <div class="val"><span id="hits_raw" style="color:#c4342c;">—</span> → <span id="hits_pc" style="color:#059669;">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+let _seed = 1111;
+function seed(n){_seed=n|0;}
+function rand(){_seed|=0;_seed=_seed+0x6D2B79F5|0;let t=_seed;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;}
+function gauss(){const u=Math.max(1e-12,rand()),v=rand();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function erf(x){const s=x<0?-1:1;x=Math.abs(x);const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;const t=1/(1+p*x);return s*(1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x));}
+function normSf(z){return 0.5*(1-erf(z/Math.SQRT2));}
+function logPTwoSided(z){const a=Math.abs(z);if (a<7) return Math.log10(2*normSf(a));return Math.log10(2)+(-0.5*a*a/Math.LN10-Math.log10(a)-0.5*Math.log10(2*Math.PI));}
+
+const state = { fa:0.6, fst:0.1, rho:0.3, N:2000, M:1500, k:0 };
+
+function simulate(){
+  const { fa, fst, rho, N, M, k } = state;
+  // Ancestry indicator a_i ∈ {0,1}: 0 for A, 1 for B
+  const Na = Math.round(N*fa), Nb = N-Na;
+  const ancestry = new Int8Array(N);
+  for (let i=0;i<Na;i++) ancestry[i] = 0;
+  for (let i=Na;i<N;i++) ancestry[i] = 1;
+  // Allele frequencies: Balding-Nichols.  Global f_j ~ U(0.05, 0.5)
+  // per-pop f: f_A = Beta((1-fst)/fst * f, (1-fst)/fst * (1-f)); simulate via Gaussian perturbation for speed
+  const fA = new Float64Array(M);
+  const fB = new Float64Array(M);
+  for (let j=0;j<M;j++){
+    const f = 0.1 + rand()*0.4;
+    const sd = Math.sqrt(fst * f * (1-f));
+    fA[j] = Math.max(0.02, Math.min(0.98, f + sd*gauss()));
+    fB[j] = Math.max(0.02, Math.min(0.98, f + sd*gauss()));
+  }
+  // Phenotype: Y = rho * ancestry + noise; no SNP effects
+  const Y = new Float64Array(N);
+  for (let i=0;i<N;i++){
+    Y[i] = rho * (ancestry[i]===0 ? -1 : 1) + gauss();
+  }
+  // Centre Y
+  let meanY = 0; for (let i=0;i<N;i++) meanY += Y[i]; meanY /= N;
+  for (let i=0;i<N;i++) Y[i] -= meanY;
+
+  // For GWAS we compute per-SNP OLS z-score.  We don't store full genotype matrix; we sample block-wise.
+  // But to compute PCs, we DO need genotype matrix. Use a subsample.
+  // Use all N individuals, but only a subset of SNPs (the analysis SNPs) for GWAS, and a larger set for PCA.
+  const M_pca = Math.min(M, 2000);
+  // Genotype matrix for PCA: sample indiv × SNP
+  // To keep memory small: compute Z = (G - 2f)/sqrt(2f(1-f)) on-the-fly once, and store M_pca × N compact
+  const Gflat = new Int8Array(N * M);
+  for (let i=0;i<N;i++){
+    const pop = ancestry[i];
+    for (let j=0;j<M;j++){
+      const fj = pop===0 ? fA[j] : fB[j];
+      const g = (rand()<fj?1:0) + (rand()<fj?1:0);
+      Gflat[i*M+j] = g;
+    }
+  }
+  // Centred normalised genotype for PCA (M_pca SNPs only)
+  // For speed, use randomised projection to estimate top-2 PCs: project onto 10 random Gaussian vectors, then QR.
+  // Simpler: compute GRM = (1/M_pca) sum_j z_ij z_ij' where z is normalised.  Then top-2 eigenvectors of GRM.
+  // Use power-iteration on GRM.
+  // Build centred normalised matrix Z (N × M_pca)
+  const Z = new Float64Array(N * M_pca);
+  for (let j=0;j<M_pca;j++){
+    // sample-based mean & sd
+    let s=0, s2=0;
+    for (let i=0;i<N;i++){ const g=Gflat[i*M+j]; s+=g; s2+=g*g; }
+    const mu = s/N;
+    const sd = Math.sqrt(Math.max(1e-6, s2/N - mu*mu));
+    for (let i=0;i<N;i++){ Z[i*M_pca+j] = (Gflat[i*M+j]-mu)/sd; }
+  }
+  // GRM vector-apply: given w (length N), return (ZZ'w / M_pca)
+  function grmApply(w){
+    // t = Z'w   (length M_pca)
+    const t = new Float64Array(M_pca);
+    for (let j=0;j<M_pca;j++){
+      let s=0; for (let i=0;i<N;i++) s += Z[i*M_pca+j]*w[i];
+      t[j] = s;
+    }
+    const out = new Float64Array(N);
+    for (let i=0;i<N;i++){
+      let s=0; for (let j=0;j<M_pca;j++) s += Z[i*M_pca+j]*t[j];
+      out[i] = s/M_pca;
+    }
+    return out;
+  }
+  // Power iteration for top PCs (up to 10 or k+2 for display)
+  const maxK = Math.max(2, Math.min(10, k>0?k:2));
+  const PCs = [];
+  for (let p=0;p<maxK;p++){
+    let v = new Float64Array(N);
+    for (let i=0;i<N;i++) v[i] = gauss();
+    for (let iter=0;iter<6;iter++){
+      // orthogonalise against prior PCs
+      for (const u of PCs){
+        let dot=0; for (let i=0;i<N;i++) dot += v[i]*u[i];
+        for (let i=0;i<N;i++) v[i] -= dot*u[i];
+      }
+      v = grmApply(v);
+      // normalise
+      let nrm=0; for (let i=0;i<N;i++) nrm += v[i]*v[i];
+      nrm = Math.sqrt(Math.max(1e-12,nrm));
+      for (let i=0;i<N;i++) v[i] /= nrm;
+    }
+    PCs.push(v);
+  }
+  // GWAS: two versions
+  // Version 1: OLS Y on G (centered)
+  // Version 2: OLS Y on G | PCs[0..k-1]
+  // For efficiency: first regress Y on PCs once to get residual Y', then regress G_j on PCs and get residual G_j', then OLS on residuals.
+  let Yresid = Float64Array.from(Y);
+  const covMat = [];
+  for (let p=0;p<k;p++) covMat.push(PCs[p]);
+  // Gram-Schmidt of PCs is already ortho/unit.  Residualise Y.
+  for (const u of covMat){
+    let dot=0; for (let i=0;i<N;i++) dot += u[i]*Yresid[i];
+    for (let i=0;i<N;i++) Yresid[i] -= dot*u[i];
+  }
+  // Per-SNP raw and corrected z-scores
+  const neglog_raw = new Float64Array(M);
+  const neglog_pc = new Float64Array(M);
+  let hitsRaw = 0, hitsPC = 0;
+  const chiRaw = new Float64Array(M), chiPC = new Float64Array(M);
+  for (let j=0;j<M;j++){
+    // Centre Gj
+    let muG = 0; for (let i=0;i<N;i++) muG += Gflat[i*M+j]; muG /= N;
+    const Gj = new Float64Array(N);
+    for (let i=0;i<N;i++) Gj[i] = Gflat[i*M+j] - muG;
+    // RAW OLS
+    let sgy=0, sgg=0;
+    for (let i=0;i<N;i++){ sgy += Gj[i]*Y[i]; sgg += Gj[i]*Gj[i]; }
+    const bRaw = sgy/Math.max(1e-9,sgg);
+    // residual variance
+    let ssRes = 0;
+    for (let i=0;i<N;i++){ const r = Y[i]-bRaw*Gj[i]; ssRes += r*r; }
+    const sigRaw = Math.sqrt(ssRes/(N-1));
+    const seRaw = sigRaw/Math.sqrt(Math.max(1e-9,sgg));
+    const zRaw = bRaw/Math.max(1e-9, seRaw);
+    const lpRaw = -logPTwoSided(zRaw);
+    neglog_raw[j] = lpRaw; chiRaw[j] = zRaw*zRaw;
+    if (lpRaw>7.3) hitsRaw++;
+    // PC-corrected
+    let Gresid = Gj;
+    if (k>0){
+      Gresid = Float64Array.from(Gj);
+      for (const u of covMat){
+        let dot=0; for (let i=0;i<N;i++) dot += u[i]*Gresid[i];
+        for (let i=0;i<N;i++) Gresid[i] -= dot*u[i];
+      }
+    }
+    let sgy2=0,sgg2=0;
+    for (let i=0;i<N;i++){ sgy2 += Gresid[i]*Yresid[i]; sgg2 += Gresid[i]*Gresid[i]; }
+    const bPC = sgy2/Math.max(1e-9,sgg2);
+    let ssRes2 = 0;
+    for (let i=0;i<N;i++){ const r = Yresid[i]-bPC*Gresid[i]; ssRes2 += r*r; }
+    const sigPC = Math.sqrt(ssRes2/Math.max(1,(N-1-k)));
+    const sePC = sigPC/Math.sqrt(Math.max(1e-9,sgg2));
+    const zPC = bPC/Math.max(1e-9, sePC);
+    const lpPC = -logPTwoSided(zPC);
+    neglog_pc[j] = lpPC; chiPC[j] = zPC*zPC;
+    if (lpPC>7.3) hitsPC++;
+  }
+  // λ_GC
+  function lambdaGC(arr){
+    const s = Array.from(arr).sort((a,b)=>a-b);
+    return s[Math.floor(s.length/2)]/0.456;
+  }
+  const lamRaw = lambdaGC(chiRaw);
+  const lamPC = lambdaGC(chiPC);
+  return { PCs, ancestry, neglog_raw, neglog_pc, lamRaw, lamPC, hitsRaw, hitsPC };
+}
+
+function svgEl(tag, attrs, text){
+  const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for (const k in attrs) el.setAttribute(k,attrs[k]);
+  if (text!==undefined) el.textContent=text;
+  return el;
+}
+
+function drawPCA(r){
+  const svg = document.getElementById('pca');
+  svg.innerHTML='';
+  const W=520,H=300,pad={l:40,r:15,t:15,b:40};
+  const pc1 = r.PCs[0], pc2 = r.PCs[1];
+  const N = pc1.length;
+  // normalise to visual scale
+  let mn1=Infinity,mx1=-Infinity,mn2=Infinity,mx2=-Infinity;
+  for (let i=0;i<N;i++){ if(pc1[i]<mn1)mn1=pc1[i]; if(pc1[i]>mx1)mx1=pc1[i]; if(pc2[i]<mn2)mn2=pc2[i]; if(pc2[i]>mx2)mx2=pc2[i]; }
+  const xScale = x=>pad.l + (x-mn1)/(mx1-mn1+1e-9)*(W-pad.l-pad.r);
+  const yScale = y=>pad.t + (y-mn2)/(mx2-mn2+1e-9)*(H-pad.t-pad.b);
+  // axes
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:H-pad.b,x2:W-pad.r,y2:H-pad.b,stroke:'#374151'}));
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:pad.t,x2:pad.l,y2:H-pad.b,stroke:'#374151'}));
+  // subsample if N is big
+  const step = Math.max(1, Math.floor(N/1500));
+  for (let i=0;i<N;i+=step){
+    const col = r.ancestry[i]===0 ? '#2563eb' : '#c4342c';
+    svg.appendChild(svgEl('circle',{cx:xScale(pc1[i]),cy:yScale(pc2[i]),r:1.8,fill:col,'fill-opacity':0.55}));
+  }
+  // legend
+  svg.appendChild(svgEl('circle',{cx:W-120,cy:pad.t+12,r:4,fill:'#2563eb'}));
+  svg.appendChild(svgEl('text',{x:W-108,y:pad.t+15,'font-size':10,fill:'#6b7280'},'Subpop A'));
+  svg.appendChild(svgEl('circle',{cx:W-120,cy:pad.t+28,r:4,fill:'#c4342c'}));
+  svg.appendChild(svgEl('text',{x:W-108,y:pad.t+31,'font-size':10,fill:'#6b7280'},'Subpop B'));
+  svg.appendChild(svgEl('text',{x:(W+pad.l)/2,y:H-10,'text-anchor':'middle','font-size':11,fill:'#374151'},'PC1'));
+  svg.appendChild(svgEl('text',{x:14,y:H/2,'text-anchor':'middle','font-size':11,fill:'#374151',transform:`rotate(-90 14 ${H/2})`},'PC2'));
+}
+
+function drawQQ(svgId, arr, lambda, colour){
+  const svg = document.getElementById(svgId);
+  svg.innerHTML='';
+  const W=520,H=360,pad={l:50,r:15,t:30,b:50};
+  const M = arr.length;
+  const sorted = Array.from(arr).sort((a,b)=>b-a);
+  const maxObs = Math.max(10, sorted[0]*1.05);
+  const maxExp = Math.log10(M)+0.5;
+  const xScale = x=>pad.l + x/maxExp*(W-pad.l-pad.r);
+  const yScale = y=>H-pad.b - Math.min(y,maxObs)/maxObs*(H-pad.t-pad.b);
+  svg.appendChild(svgEl('line',{x1:xScale(0),y1:yScale(0),x2:xScale(Math.min(maxExp,maxObs)),y2:yScale(Math.min(maxExp,maxObs)),stroke:'#9ca3af','stroke-dasharray':'5,4','stroke-width':1.3}));
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:H-pad.b,x2:W-pad.r,y2:H-pad.b,stroke:'#374151'}));
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:pad.t,x2:pad.l,y2:H-pad.b,stroke:'#374151'}));
+  for (let i=0;i<=5;i++){
+    const v = i*maxObs/5;
+    svg.appendChild(svgEl('text',{x:pad.l-7,y:yScale(v)+3,'text-anchor':'end','font-size':9,fill:'#6b7280'},v.toFixed(0)));
+    svg.appendChild(svgEl('line',{x1:pad.l-4,y1:yScale(v),x2:pad.l,y2:yScale(v),stroke:'#374151'}));
+  }
+  for (let i=0;i<=Math.floor(maxExp);i++){
+    svg.appendChild(svgEl('text',{x:xScale(i),y:H-pad.b+15,'text-anchor':'middle','font-size':9,fill:'#6b7280'},i));
+    svg.appendChild(svgEl('line',{x1:xScale(i),y1:H-pad.b,x2:xScale(i),y2:H-pad.b+4,stroke:'#374151'}));
+  }
+  const N = Math.min(800, M);
+  for (let rank=1;rank<=N;rank++){
+    const idx = Math.floor((rank-0.5)/N*M);
+    const obs = sorted[idx];
+    const exp = -Math.log10((idx+0.5)/M);
+    const col = obs>7.3 ? colour : '#6b7280';
+    svg.appendChild(svgEl('circle',{cx:xScale(exp),cy:yScale(obs),r:1.8,fill:col,'fill-opacity':0.7}));
+  }
+  svg.appendChild(svgEl('rect',{x:pad.l+10,y:pad.t+6,width:120,height:28,rx:4,fill:'#fff',stroke:colour}));
+  svg.appendChild(svgEl('text',{x:pad.l+70,y:pad.t+25,'text-anchor':'middle','font-size':13,'font-family':'JetBrains Mono','font-weight':600,fill:colour},`λ_GC = ${lambda.toFixed(3)}`));
+  svg.appendChild(svgEl('text',{x:(W+pad.l)/2,y:H-10,'text-anchor':'middle','font-size':11,fill:'#374151'},'Expected −log₁₀(p)'));
+  svg.appendChild(svgEl('text',{x:18,y:H/2,'text-anchor':'middle','font-size':11,fill:'#374151',transform:`rotate(-90 18 ${H/2})`},'Observed −log₁₀(p)'));
+}
+
+function renderOutcome(r){
+  document.getElementById('lambda_raw').textContent = r.lamRaw.toFixed(3);
+  document.getElementById('lambda_pc').textContent = r.lamPC.toFixed(3);
+  document.getElementById('hits_raw').textContent = r.hitsRaw.toString();
+  document.getElementById('hits_pc').textContent = r.hitsPC.toString();
+  document.getElementById('pc_count_lbl').textContent = state.k;
+  const el = document.getElementById('outcome');
+  let verdict;
+  if (state.rho < 0.05) verdict = 'No phenotype–ancestry correlation → no confounding to correct for. Both QQ plots look calibrated.';
+  else if (state.k === 0) verdict = `Uncorrected GWAS: λ_GC = ${r.lamRaw.toFixed(2)}, spurious hits everywhere. These SNPs are not causal — they just track ancestry.`;
+  else if (r.lamPC < 1.05 && r.lamRaw > 1.15) verdict = `Including ${state.k} PCs brought λ_GC from ${r.lamRaw.toFixed(2)} → ${r.lamPC.toFixed(2)}. Confounding was real; PCA absorbed it.`;
+  else if (r.lamPC > 1.1) verdict = 'Some residual inflation after PC correction — try more PCs or larger N.';
+  else verdict = 'Correction working as expected.';
+  el.innerHTML = `
+    <div>N = ${state.N.toLocaleString()}, M = ${state.M.toLocaleString()} SNPs, A fraction = ${state.fa.toFixed(2)}, F_ST = ${state.fst.toFixed(2)}, phenotype–ancestry ρ = ${state.rho.toFixed(2)}, PCs included = ${state.k}</div>
+    <div><strong>Zero causal SNPs planted.</strong> Any hit is spurious.</div>
+    <div>λ_GC raw → PC: <strong>${r.lamRaw.toFixed(3)}</strong> → <strong>${r.lamPC.toFixed(3)}</strong>   hits raw → PC: <strong>${r.hitsRaw}</strong> → <strong>${r.hitsPC}</strong></div>
+    <div class="verdict">${verdict}</div>
+    <div class="hint">Default → λ_GC ≫ 1. Slide PCs to 2 → λ_GC returns to ~1 and hits vanish. Slide ρ to 0 → no inflation regardless of correction.</div>
+  `;
+}
+
+function rerun(){ const r = simulate(); drawPCA(r); drawQQ('qq_raw', r.neglog_raw, r.lamRaw, '#c4342c'); drawQQ('qq_pc', r.neglog_pc, r.lamPC, '#059669'); renderOutcome(r); }
+
+function bind(id, key, parser, label){
+  const el=document.getElementById(id),out=document.getElementById('v_'+key);
+  const apply=()=>{ const v=parser(parseFloat(el.value)); state[key==='fa'?'fa':key==='fst'?'fst':key==='rho'?'rho':key==='n'?'N':key==='m'?'M':key==='k'?'k':key]=v; out.textContent=label(v); };
+  el.addEventListener('input',()=>{apply();rerun();});apply();
+}
+bind('fa','fa',v=>v,v=>v.toFixed(2));
+bind('fst','fst',v=>v,v=>v.toFixed(2));
+bind('rho','rho',v=>v,v=>v.toFixed(2));
+bind('n','n',v=>Math.round(Math.pow(10,v)),v=>v.toLocaleString());
+bind('m','m',v=>Math.round(Math.pow(10,v)),v=>v.toLocaleString());
+bind('k','k',v=>v|0,v=>v.toString());
+document.getElementById('resim').addEventListener('click',()=>{seed((Math.random()*1e9)|0);rerun();});
+
+seed(33333);
+rerun();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manhattan + QQ Plot Inspector</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1140px; margin: 0 auto; }
+    .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0 0 1.2rem; max-width: 70ch; }
+    .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+    .slider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-head { display: flex; justify-content: space-between; align-items: baseline; }
+    .slider-head label { font-size: var(--text-sm); font-weight: 500; }
+    .slider-val { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--accent); font-weight: 500; }
+    input[type="range"] { width: 100%; }
+    .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 0.6rem; }
+    .btn:hover { filter: brightness(1.1); }
+    svg { width: 100%; height: auto; display: block; }
+    .split { display: grid; grid-template-columns: 1.3fr 1fr; gap: 1rem; }
+    @media (max-width:820px){ .split{grid-template-columns:1fr;} }
+    .outcome { background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+    .outcome .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+    .outcome .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+    .stats-box { font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.6; }
+    .stats-box .big { font-size: 1.6rem; font-weight: 600; color: var(--accent); }
+  </style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Manhattan + QQ Plot Inspector</h1>
+    <p>Simulate a GWAS with user-controlled polygenicity, stratification, and sample size. Render the Manhattan plot and the QQ plot, compute λ<sub>GC</sub>. Target aha: polygenic signal lifts QQ only at top-right; confounding lifts it from the origin — same λ<sub>GC</sub>, different shapes.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="slider-grid">
+      <div class="slider-row"><div class="slider-head"><label># causal SNPs</label><span class="slider-val" id="v_k">50</span></div><input id="k" type="range" min="0" max="500" step="5" value="50"></div>
+      <div class="slider-row"><div class="slider-head"><label>Avg effect (SD)</label><span class="slider-val" id="v_b">0.04</span></div><input id="b" type="range" min="0.01" max="0.1" step="0.005" value="0.04"></div>
+      <div class="slider-row"><div class="slider-head"><label>Stratification σ</label><span class="slider-val" id="v_s">0.00</span></div><input id="s" type="range" min="0" max="1.0" step="0.02" value="0"></div>
+      <div class="slider-row"><div class="slider-head"><label>Sample size N (log)</label><span class="slider-val" id="v_n">200,000</span></div><input id="n" type="range" min="3" max="6" step="0.02" value="5.301"></div>
+      <div class="slider-row"><div class="slider-head"><label>SNP count M</label><span class="slider-val" id="v_m">20,000</span></div><input id="m" type="range" min="5000" max="50000" step="1000" value="20000"></div>
+    </div>
+    <button class="btn" id="resim">Re-simulate</button>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Manhattan Plot</p>
+    <svg id="manhattan" viewBox="0 0 1080 320"></svg>
+  </div>
+
+  <div class="split">
+    <div class="panel">
+      <p class="panel-label">QQ Plot</p>
+      <svg id="qq" viewBox="0 0 520 420"></svg>
+    </div>
+    <div class="panel stats-box">
+      <p class="panel-label">Statistics</p>
+      <div>λ<sub>GC</sub></div>
+      <div class="big" id="lambda">—</div>
+      <div style="margin-top:1rem;"># genome-wide hits: <span id="nhits" style="color:var(--accent);font-weight:600;">—</span></div>
+      <div># causal recovered: <span id="nrec" style="color:#b45309;font-weight:600;">—</span> / <span id="ntrue">—</span></div>
+      <div style="margin-top:1rem;">QQ shape: <span id="shape" style="color:#059669;font-weight:600;">—</span></div>
+    </div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+let _seed = 12345;
+function seed(n){ _seed = n|0; }
+function rand(){ _seed |= 0; _seed = _seed + 0x6D2B79F5 | 0; let t=_seed; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }
+function gauss(){ const u=Math.max(1e-12,rand()),v=rand(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function erf(x){ const s=x<0?-1:1; x=Math.abs(x); const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911; const t=1/(1+p*x); return s*(1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x)); }
+function normSf(z){ return 0.5*(1-erf(z/Math.SQRT2)); }
+function logPTwoSided(z){
+  const a = Math.abs(z);
+  if (a < 7) return Math.log10(2*normSf(a));
+  // log10 survival approximation: -a²/(2 ln10) - log10(a) - 0.5*log10(2π)
+  return Math.log10(2) + (-0.5*a*a/Math.LN10 - Math.log10(a) - 0.5*Math.log10(2*Math.PI));
+}
+
+const state = { k:50, beta:0.04, strat:0, N:200000, M:20000 };
+let _last = null;
+
+function chiSqFromZ(z){ return z*z; }
+
+function simulate(){
+  const { k, beta, strat, N, M } = state;
+  // Assign causal SNPs
+  const causalIdx = new Set();
+  while (causalIdx.size < Math.min(k,M)) causalIdx.add(Math.floor(rand()*M));
+  // Per-SNP allele frequency (around 0.3 for simplicity)
+  const pvals = new Float64Array(M);
+  const neglog = new Float64Array(M);
+  // LD-correlated stratification effect in blocks of 500
+  const blockSize = 500;
+  const nBlocks = Math.ceil(M/blockSize);
+  const blockDelta = new Float64Array(nBlocks);
+  for (let b=0;b<nBlocks;b++) blockDelta[b] = gauss();
+  let recovered = 0;
+  const thresh = 7.3;
+  for (let j=0;j<M;j++){
+    const freq = 0.05 + rand()*0.45;
+    const se = 1/Math.sqrt(N * 2*freq*(1-freq));
+    let zNull = gauss();
+    const delta = strat * blockDelta[Math.floor(j/blockSize)] * 0.5 + strat * gauss() * 0.3;
+    let z;
+    if (causalIdx.has(j)){
+      const bj = beta * (0.5 + rand()*1.0) * (rand()<0.5?-1:1);
+      z = bj/se + zNull + delta;
+    } else {
+      z = zNull + delta;
+    }
+    const lp = -logPTwoSided(z);
+    neglog[j] = lp;
+    pvals[j] = z*z;
+    if (causalIdx.has(j) && lp > thresh) recovered++;
+  }
+  // λ_GC = median(chi²)/0.456
+  const chi = Array.from(pvals).sort((a,b)=>a-b);
+  const med = chi[Math.floor(chi.length/2)];
+  const lambda = med / 0.456;
+  // Hits
+  let hits = 0;
+  for (let j=0;j<M;j++) if (neglog[j] > thresh) hits++;
+  return { neglog, pvals, lambda, hits, recovered, causalSet: causalIdx };
+}
+
+function svgEl(tag, attrs, text){
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  if (text!==undefined) el.textContent = text;
+  return el;
+}
+
+function drawManhattan(r){
+  const svg = document.getElementById('manhattan');
+  svg.innerHTML='';
+  const W=1080,H=320,pad={l:50,r:15,t:20,b:40};
+  const M = r.neglog.length;
+  const maxY = Math.max(10, Math.min(40, Math.max(...r.neglog)*1.1));
+  const xScale = i => pad.l + (i/M)*(W-pad.l-pad.r);
+  const yScale = y => H-pad.b - Math.min(y,maxY)/maxY*(H-pad.t-pad.b);
+  // chromosome bands (22 virtual)
+  const nChr=22;
+  for (let c=0;c<nChr;c++){
+    const x0 = xScale(c/nChr*M), x1 = xScale((c+1)/nChr*M);
+    svg.appendChild(svgEl('rect',{x:x0,y:pad.t,width:x1-x0,height:H-pad.t-pad.b,fill:c%2?'#f9fafb':'#f3f4f6'}));
+  }
+  // axes
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:H-pad.b,x2:W-pad.r,y2:H-pad.b,stroke:'#374151'}));
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:pad.t,x2:pad.l,y2:H-pad.b,stroke:'#374151'}));
+  // threshold lines
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:yScale(7.3),x2:W-pad.r,y2:yScale(7.3),stroke:'#b45309','stroke-width':1.3,'stroke-dasharray':'5,3'}));
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:yScale(5.3),x2:W-pad.r,y2:yScale(5.3),stroke:'#6b7280','stroke-width':1,'stroke-dasharray':'3,4',opacity:0.5}));
+  // y ticks
+  const nYt = 5;
+  for (let i=0;i<=nYt;i++){
+    const v = i*maxY/nYt;
+    svg.appendChild(svgEl('line',{x1:pad.l-4,y1:yScale(v),x2:pad.l,y2:yScale(v),stroke:'#374151'}));
+    svg.appendChild(svgEl('text',{x:pad.l-7,y:yScale(v)+3,'text-anchor':'end','font-size':9,fill:'#6b7280'},v.toFixed(0)));
+  }
+  // chromosome labels
+  for (let c=0;c<nChr;c+=2){
+    const x = xScale((c+0.5)/nChr*M);
+    svg.appendChild(svgEl('text',{x,y:H-pad.b+14,'text-anchor':'middle','font-size':9,fill:'#6b7280'},c+1));
+  }
+  // dots (sampled if huge)
+  const stride = Math.max(1, Math.floor(M/4000));
+  for (let j=0;j<M;j+=stride){
+    const v = r.neglog[j];
+    if (v < 0.3) continue; // skip tiny
+    const chr = Math.floor(j/M*nChr);
+    const col = v > 7.3 ? '#1d4ed8' : (v > 5.3 ? '#6366f1' : (chr%2 ? '#9ca3af' : '#6b7280'));
+    const rad = v > 7.3 ? 1.8 : 1.1;
+    svg.appendChild(svgEl('circle',{cx:xScale(j),cy:yScale(v),r:rad,fill:col,'fill-opacity':v>7.3?0.85:0.55}));
+  }
+  // axis labels
+  svg.appendChild(svgEl('text',{x:(W+pad.l)/2,y:H-8,'text-anchor':'middle','font-size':11,fill:'#374151'},'Chromosome'));
+  svg.appendChild(svgEl('text',{x:16,y:H/2,'text-anchor':'middle','font-size':11,fill:'#374151',transform:`rotate(-90 16 ${H/2})`},'−log₁₀(p)'));
+  // threshold label
+  svg.appendChild(svgEl('text',{x:W-pad.r-6,y:yScale(7.3)-4,'text-anchor':'end','font-size':9,fill:'#b45309','font-family':'JetBrains Mono'},'5×10⁻⁸'));
+}
+
+function drawQQ(r){
+  const svg = document.getElementById('qq');
+  svg.innerHTML='';
+  const W=520,H=420,pad={l:55,r:20,t:30,b:50};
+  const M = r.neglog.length;
+  const sorted = Array.from(r.neglog).sort((a,b)=>b-a);
+  // take every nth for plotting
+  const N = Math.min(1000, M);
+  const maxObs = Math.max(10, sorted[0]*1.05);
+  const maxExp = Math.log10(M)+0.5;
+  const xScale = x => pad.l + x/maxExp*(W-pad.l-pad.r);
+  const yScale = y => H-pad.b - Math.min(y,maxObs)/maxObs*(H-pad.t-pad.b);
+  // background
+  svg.appendChild(svgEl('rect',{x:pad.l,y:pad.t,width:W-pad.l-pad.r,height:H-pad.t-pad.b,fill:'#fafaf9'}));
+  // 45 line
+  svg.appendChild(svgEl('line',{x1:xScale(0),y1:yScale(0),x2:xScale(Math.min(maxExp,maxObs)),y2:yScale(Math.min(maxExp,maxObs)),stroke:'#9ca3af','stroke-width':1.5,'stroke-dasharray':'5,4'}));
+  // axes
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:H-pad.b,x2:W-pad.r,y2:H-pad.b,stroke:'#374151'}));
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:pad.t,x2:pad.l,y2:H-pad.b,stroke:'#374151'}));
+  // y ticks
+  for (let i=0;i<=5;i++){
+    const v = i*maxObs/5;
+    svg.appendChild(svgEl('line',{x1:pad.l-4,y1:yScale(v),x2:pad.l,y2:yScale(v),stroke:'#374151'}));
+    svg.appendChild(svgEl('text',{x:pad.l-7,y:yScale(v)+3,'text-anchor':'end','font-size':9,fill:'#6b7280'},v.toFixed(0)));
+  }
+  // x ticks
+  for (let i=0;i<=Math.floor(maxExp);i++){
+    svg.appendChild(svgEl('line',{x1:xScale(i),y1:H-pad.b,x2:xScale(i),y2:H-pad.b+4,stroke:'#374151'}));
+    svg.appendChild(svgEl('text',{x:xScale(i),y:H-pad.b+15,'text-anchor':'middle','font-size':9,fill:'#6b7280'},i));
+  }
+  // dots: expected = -log10((rank-0.5)/M)
+  for (let rank=1; rank<=N; rank++){
+    const idx = Math.floor((rank-0.5)/N * M);
+    const obs = sorted[idx];
+    const exp = -Math.log10((idx+0.5)/M);
+    const col = obs > 7.3 ? '#1d4ed8' : '#6b7280';
+    svg.appendChild(svgEl('circle',{cx:xScale(exp),cy:yScale(obs),r:1.8,fill:col,'fill-opacity':0.7}));
+  }
+  // λ_GC badge
+  const badge = svgEl('rect',{x:pad.l+10,y:pad.t+10,width:120,height:30,rx:4,fill:'#fff',stroke:'#bfdbfe'});
+  svg.appendChild(badge);
+  svg.appendChild(svgEl('text',{x:pad.l+70,y:pad.t+30,'text-anchor':'middle','font-size':13,fill:'#1d4ed8','font-family':'JetBrains Mono','font-weight':600},`λ_GC = ${r.lambda.toFixed(3)}`));
+  // axis labels
+  svg.appendChild(svgEl('text',{x:(W+pad.l)/2,y:H-10,'text-anchor':'middle','font-size':11,fill:'#374151'},'Expected −log₁₀(p)'));
+  svg.appendChild(svgEl('text',{x:18,y:H/2,'text-anchor':'middle','font-size':11,fill:'#374151',transform:`rotate(-90 18 ${H/2})`},'Observed −log₁₀(p)'));
+}
+
+function classifyShape(r){
+  // early lift-off detection: check quantile at rank = 50% vs expected
+  const M = r.neglog.length;
+  const sorted = Array.from(r.neglog).sort((a,b)=>b-a);
+  const midIdx = Math.floor(M*0.5);
+  const obsMid = sorted[midIdx];
+  const expMid = -Math.log10((midIdx+0.5)/M);
+  const midRatio = obsMid / Math.max(0.01, expMid);
+  const tailIdx = Math.floor(M*0.001);
+  const obsTail = sorted[tailIdx];
+  const expTail = -Math.log10((tailIdx+0.5)/M);
+  const tailRatio = obsTail / Math.max(0.01, expTail);
+  if (state.strat > 0.1 && midRatio > 1.3) return 'early lift (confounding)';
+  if (r.lambda > 1.08 && tailRatio > 1.3 && midRatio < 1.3) return 'late lift (polygenic)';
+  if (r.lambda < 1.05) return 'calibrated';
+  return 'mixed';
+}
+
+function renderOutcome(r){
+  document.getElementById('lambda').textContent = r.lambda.toFixed(3);
+  document.getElementById('nhits').textContent = r.hits.toString();
+  document.getElementById('nrec').textContent = r.recovered.toString();
+  document.getElementById('ntrue').textContent = state.k;
+  const shape = classifyShape(r);
+  document.getElementById('shape').textContent = shape;
+  const el = document.getElementById('outcome');
+  let verdict;
+  if (state.strat < 0.05 && state.k > 0) verdict = 'Clean polygenic signal: QQ lifts only near the top. λ_GC reflects real genetic architecture, not confounding.';
+  else if (state.strat > 0.15 && state.k === 0) verdict = 'Pure stratification, no causal SNPs: QQ inflates from the origin; every point above the 45° line is spurious.';
+  else if (state.strat > 0.1) verdict = 'Mixed inflation: some signal is real, some is confounding. Can\'t tell from λ_GC alone — LDSC intercept would separate them.';
+  else verdict = state.k===0 ? 'Null genome-wide: points hug the 45° line; no hits.' : 'Well-behaved GWAS: real hits lift off only at the top of the QQ plot.';
+  el.innerHTML = `
+    <div>Simulated ${state.M.toLocaleString()} SNPs, ${state.k} truly causal, N = ${state.N.toLocaleString()}, stratification σ = ${state.strat.toFixed(2)}</div>
+    <div>λ_GC = <strong>${r.lambda.toFixed(3)}</strong>   genome-wide hits: <strong>${r.hits}</strong>   causal recovered: <strong>${r.recovered}/${state.k}</strong></div>
+    <div class="verdict">${verdict}</div>
+    <div class="hint">Try σ_strat = 0 with 50 causal → late lift-off, λ_GC just above 1. Now set k = 0, σ_strat = 0.3 → similar λ_GC but QQ lifts from the origin.</div>
+  `;
+}
+
+function rerun(){ const r = simulate(); _last = r; drawManhattan(r); drawQQ(r); renderOutcome(r); }
+
+function bind(id, key, parser, label){
+  const el=document.getElementById(id), out=document.getElementById('v_'+key);
+  const apply = () => { const v = parser(parseFloat(el.value)); state[key==='n'?'N':key==='m'?'M':key==='k'?'k':key==='b'?'beta':key==='s'?'strat':key]=v; out.textContent = label(v); };
+  el.addEventListener('input', () => { apply(); rerun(); });
+  apply();
+}
+bind('k','k',v=>v|0, v=>v.toString());
+bind('b','b',v=>v, v=>v.toFixed(3));
+bind('s','s',v=>v, v=>v.toFixed(2));
+bind('n','n',v=>Math.round(Math.pow(10,v)), v=>v.toLocaleString());
+bind('m','m',v=>v|0, v=>v.toLocaleString());
+document.getElementById('resim').addEventListener('click', () => { seed((Math.random()*1e9)|0); rerun(); });
+
+seed(7777);
+rerun();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

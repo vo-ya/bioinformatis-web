@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fine-Mapping Credible Set Viewer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+  <link rel="stylesheet" href="../_shared/artifact-theme.css">
+
+  <style>
+    body { padding: 2rem; }
+    .artifact { max-width: 1140px; margin: 0 auto; }
+    .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0 0 1.2rem; max-width: 72ch; }
+    .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+    .slider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+    .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .slider-head { display: flex; justify-content: space-between; align-items: baseline; }
+    .slider-head label { font-size: var(--text-sm); font-weight: 500; }
+    .slider-val { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--accent); font-weight: 500; }
+    input[type="range"] { width: 100%; }
+    .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 0.6rem; }
+    svg { width: 100%; height: auto; display: block; }
+    .outcome { background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+    .outcome .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+    .outcome .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+  </style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Fine-Mapping Credible Set Viewer</h1>
+    <p>Plant 1–3 causal variants in a locus with user-controlled LD. Run a SuSiE-style inference and visualise the credible set. Target aha: LD tightness fundamentally limits resolution — more data helps less than breaking LD.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="slider-grid">
+      <div class="slider-row"><div class="slider-head"><label># causal variants L_true</label><span class="slider-val" id="v_ltrue">2</span></div><input id="ltrue" type="range" min="1" max="3" step="1" value="2"></div>
+      <div class="slider-row"><div class="slider-head"><label>LD block tightness</label><span class="slider-val" id="v_ld">0.80</span></div><input id="ld" type="range" min="0" max="0.95" step="0.01" value="0.80"></div>
+      <div class="slider-row"><div class="slider-head"><label>Sample size N (log)</label><span class="slider-val" id="v_n">200,000</span></div><input id="n" type="range" min="4" max="6" step="0.02" value="5.301"></div>
+      <div class="slider-row"><div class="slider-head"><label>Effect size β</label><span class="slider-val" id="v_b">0.05</span></div><input id="b" type="range" min="0.02" max="0.15" step="0.005" value="0.05"></div>
+      <div class="slider-row"><div class="slider-head"><label># SNPs in locus</label><span class="slider-val" id="v_m">100</span></div><input id="m" type="range" min="50" max="300" step="10" value="100"></div>
+      <div class="slider-row"><div class="slider-head"><label>Fitted L_susie</label><span class="slider-val" id="v_ls">3</span></div><input id="ls" type="range" min="1" max="5" step="1" value="3"></div>
+    </div>
+    <button class="btn" id="resim">Re-simulate &amp; run</button>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Three-Track View</p>
+    <svg id="tracks" viewBox="0 0 1080 560"></svg>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+let _seed = 4242;
+function seed(n){_seed=n|0;}
+function rand(){_seed|=0;_seed=_seed+0x6D2B79F5|0;let t=_seed;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;}
+function gauss(){const u=Math.max(1e-12,rand()),v=rand();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function erf(x){const s=x<0?-1:1;x=Math.abs(x);const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;const t=1/(1+p*x);return s*(1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x));}
+function normSf(z){return 0.5*(1-erf(z/Math.SQRT2));}
+function logPTwoSided(z){const a=Math.abs(z);if (a<7) return Math.log10(2*normSf(a));return Math.log10(2)+(-0.5*a*a/Math.LN10-Math.log10(a)-0.5*Math.log10(2*Math.PI));}
+
+const state = { Ltrue:2, ld:0.80, N:200000, beta:0.05, M:100, Lsusie:3 };
+
+function simulate(){
+  const { Ltrue, ld, N, beta, M, Lsusie } = state;
+  // Build LD block structure: 1 block covering whole locus split into sub-blocks
+  // Actually: divide M into 4 blocks of equal size
+  const nBlocks = 4;
+  const blockSize = Math.floor(M/nBlocks);
+  // R_ij = ld if same block, 0 otherwise; diagonal = 1
+  const R = new Float64Array(M*M);
+  for (let i=0;i<M;i++){
+    const bi = Math.floor(i/blockSize);
+    for (let j=0;j<M;j++){
+      const bj = Math.floor(j/blockSize);
+      R[i*M+j] = (i===j) ? 1 : (bi===bj ? ld : 0);
+    }
+  }
+  // Plant causal SNPs: one per block (round-robin), signs alternate
+  const causal = [];
+  for (let c=0;c<Ltrue;c++){
+    const bidx = c % nBlocks;
+    const snp = bidx*blockSize + Math.floor(blockSize/2);
+    const sign = c%2===0 ? 1 : -1;
+    causal.push({ snp, beta: beta*sign });
+  }
+  // z_j = sqrt(N * 2p(1-p)) * β_eff where β_eff = sum_c R_{j,c} * β_c
+  const neglog = new Float64Array(M);
+  const z = new Float64Array(M);
+  const se = 1/Math.sqrt(N*2*0.25*0.75); // assume p=0.25
+  for (let j=0;j<M;j++){
+    let b_eff = 0;
+    for (const c of causal) b_eff += R[j*M+c.snp] * c.beta;
+    const zj = b_eff/se + gauss();
+    z[j] = zj;
+    neglog[j] = -logPTwoSided(zj);
+  }
+  // Simplified SuSiE: iteratively assign each of L_susie signals to a SNP by conditional z².
+  // Strategy: pick top SNP, down-weight its LD partners, pick next, etc.
+  const pip = new Float64Array(M);
+  const assigned = new Int8Array(M);
+  const signals = []; // array of {alpha: Float64Array of M length}
+  const zWork = Float64Array.from(z);
+  for (let s=0; s<Lsusie; s++){
+    // Posterior over which SNP is causal for this signal:
+    // alpha_j ∝ exp(0.5 * z_j²) * prior
+    // With the constraint that we don't double-count already picked causal.
+    const logPost = new Float64Array(M);
+    let maxLog = -Infinity;
+    for (let j=0;j<M;j++){
+      if (assigned[j]) { logPost[j] = -1e9; continue; }
+      logPost[j] = 0.5*zWork[j]*zWork[j];
+      if (logPost[j] > maxLog) maxLog = logPost[j];
+    }
+    // If no signal detected, stop
+    if (maxLog < 2.0) break;
+    const alpha = new Float64Array(M);
+    let sum=0;
+    for (let j=0;j<M;j++){ alpha[j] = Math.exp(logPost[j]-maxLog); sum += alpha[j]; }
+    for (let j=0;j<M;j++) alpha[j] /= sum;
+    signals.push(alpha);
+    // For PIP: take union (1 - ∏(1-α_j,s))
+    // Find the "lead" in this signal and down-weight its LD partners in subsequent rounds
+    let lead = 0, leadA = -1;
+    for (let j=0;j<M;j++) if (alpha[j]>leadA){ leadA=alpha[j]; lead=j; }
+    // "regress out" by zeroing the z in that block
+    const bLead = Math.floor(lead/blockSize);
+    for (let j=0;j<M;j++) if (Math.floor(j/blockSize)===bLead){ zWork[j] = 0; assigned[j]=1; }
+  }
+  // Compute PIP
+  for (let j=0;j<M;j++){
+    let prodNot = 1;
+    for (const a of signals) prodNot *= (1 - a[j]);
+    pip[j] = 1 - prodNot;
+  }
+  // Build 95% credible sets per signal
+  const credibleSets = signals.map(alpha => {
+    const indices = [...Array(M).keys()].sort((a,b)=>alpha[b]-alpha[a]);
+    const set = [];
+    let cumul = 0;
+    for (const idx of indices){
+      set.push(idx);
+      cumul += alpha[idx];
+      if (cumul >= 0.95) break;
+    }
+    const totalPIP = cumul;
+    return { members: set, totalPIP, leadIdx: indices[0] };
+  });
+  return { M, R, neglog, z, pip, causal, signals, credibleSets };
+}
+
+function svgEl(tag, attrs, text){
+  const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for (const k in attrs) el.setAttribute(k,attrs[k]);
+  if (text!==undefined) el.textContent=text;
+  return el;
+}
+
+function draw(r){
+  const svg = document.getElementById('tracks');
+  svg.innerHTML='';
+  const W=1080, H=560;
+  const pad={l:60,r:20};
+  const M = r.M;
+  const xScale = j => pad.l + j/(M-1)*(W-pad.l-pad.r);
+
+  // Track 1: -log p
+  const t1 = { y0:30, h:130 };
+  svg.appendChild(svgEl('text',{x:pad.l,y:20,'font-size':12,'font-weight':600,fill:'#374151'},'GWAS −log₁₀(p)'));
+  const maxLP = Math.max(10, Math.max(...r.neglog)*1.1);
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:t1.y0+t1.h,x2:W-pad.r,y2:t1.y0+t1.h,stroke:'#374151'}));
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:t1.y0,x2:pad.l,y2:t1.y0+t1.h,stroke:'#374151'}));
+  // threshold
+  const yThresh = t1.y0 + t1.h - 7.3/maxLP*t1.h;
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:yThresh,x2:W-pad.r,y2:yThresh,stroke:'#b45309','stroke-dasharray':'4,3',opacity:0.5}));
+  for (let j=0;j<M;j++){
+    const y = t1.y0 + t1.h - r.neglog[j]/maxLP*t1.h;
+    const isCausal = r.causal.some(c=>c.snp===j);
+    const col = isCausal ? '#c4342c' : (r.neglog[j]>7.3 ? '#1d4ed8' : '#6b7280');
+    const rd = isCausal ? 4 : (r.neglog[j]>7.3 ? 2.2 : 1.6);
+    svg.appendChild(svgEl('circle',{cx:xScale(j),cy:y,r:rd,fill:col,'fill-opacity':0.85}));
+  }
+  // causal annotations
+  for (const c of r.causal){
+    svg.appendChild(svgEl('text',{x:xScale(c.snp),y:t1.y0-3,'text-anchor':'middle','font-size':9,fill:'#c4342c','font-weight':600},'★'));
+  }
+  // y ticks
+  for (let i=0;i<=4;i++){
+    const v = i*maxLP/4;
+    const yy = t1.y0 + t1.h - v/maxLP*t1.h;
+    svg.appendChild(svgEl('text',{x:pad.l-7,y:yy+3,'text-anchor':'end','font-size':9,fill:'#6b7280'},v.toFixed(0)));
+  }
+
+  // Track 2: LD heatmap
+  const t2 = { y0:185, h:170 };
+  svg.appendChild(svgEl('text',{x:pad.l,y:t2.y0-8,'font-size':12,'font-weight':600,fill:'#374151'},'LD matrix (r²)'));
+  const cellW = (W-pad.l-pad.r)/M;
+  const cellH = t2.h/M;
+  for (let i=0;i<M;i++){
+    for (let j=0;j<M;j++){
+      const r2 = r.R[i*M+j]*r.R[i*M+j];
+      if (r2 < 0.02) continue;
+      // sequential red
+      const a = Math.min(1, r2);
+      const col = `rgba(196, 52, 44, ${a})`;
+      svg.appendChild(svgEl('rect',{x:xScale(j),y:t2.y0+i*cellH,width:cellW+0.5,height:cellH+0.5,fill:col}));
+    }
+  }
+  // box border
+  svg.appendChild(svgEl('rect',{x:pad.l,y:t2.y0,width:W-pad.l-pad.r,height:t2.h,fill:'none',stroke:'#374151','stroke-width':1}));
+
+  // Track 3: PIP
+  const t3 = { y0:385, h:140 };
+  svg.appendChild(svgEl('text',{x:pad.l,y:t3.y0-8,'font-size':12,'font-weight':600,fill:'#374151'},'SuSiE PIP (highlighted = credible set member)'));
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:t3.y0+t3.h,x2:W-pad.r,y2:t3.y0+t3.h,stroke:'#374151'}));
+  svg.appendChild(svgEl('line',{x1:pad.l,y1:t3.y0,x2:pad.l,y2:t3.y0+t3.h,stroke:'#374151'}));
+  // Identify CS members
+  const csMembers = new Set();
+  r.credibleSets.forEach(cs => cs.members.forEach(m => csMembers.add(m)));
+  for (let j=0;j<M;j++){
+    const pipVal = r.pip[j];
+    if (pipVal < 0.005) continue;
+    const h = pipVal * t3.h;
+    const inCS = csMembers.has(j);
+    svg.appendChild(svgEl('rect',{x:xScale(j)-cellW/2,y:t3.y0+t3.h-h,width:Math.max(1.5,cellW),height:h,fill: inCS?'#b45309':'#93c5fd','fill-opacity': inCS?0.9:0.6}));
+  }
+  // y ticks
+  for (let i=0;i<=4;i++){
+    const v = i/4;
+    const yy = t3.y0+t3.h-v*t3.h;
+    svg.appendChild(svgEl('line',{x1:pad.l-4,y1:yy,x2:pad.l,y2:yy,stroke:'#374151'}));
+    svg.appendChild(svgEl('text',{x:pad.l-7,y:yy+3,'text-anchor':'end','font-size':9,fill:'#6b7280'},v.toFixed(2)));
+  }
+  svg.appendChild(svgEl('text',{x:16,y:t3.y0+t3.h/2,'text-anchor':'middle','font-size':10,fill:'#374151',transform:`rotate(-90 16 ${t3.y0+t3.h/2})`},'PIP'));
+  // x axis
+  svg.appendChild(svgEl('text',{x:(W+pad.l)/2,y:t3.y0+t3.h+28,'text-anchor':'middle','font-size':11,fill:'#374151'},'SNP index'));
+  for (let tk=0; tk<=5; tk++){
+    const j = Math.round(tk/5*(M-1));
+    svg.appendChild(svgEl('line',{x1:xScale(j),y1:t3.y0+t3.h,x2:xScale(j),y2:t3.y0+t3.h+4,stroke:'#374151'}));
+    svg.appendChild(svgEl('text',{x:xScale(j),y:t3.y0+t3.h+16,'text-anchor':'middle','font-size':9,fill:'#6b7280'},j));
+  }
+}
+
+function renderOutcome(r){
+  const el = document.getElementById('outcome');
+  const rows = r.credibleSets.map((cs,i)=>{
+    const contains = r.causal.some(c=>cs.members.includes(c.snp));
+    return `Set ${i+1}: ${cs.members.length} SNPs, total PIP = ${cs.totalPIP.toFixed(2)}, lead = SNP ${cs.leadIdx} ${contains?'<strong style="color:#059669">✓ contains true causal</strong>':'<strong style="color:#c4342c">✗ no causal in set</strong>'}`;
+  }).join('</div><div>');
+  const avgSize = r.credibleSets.length>0 ? (r.credibleSets.reduce((a,b)=>a+b.members.length,0)/r.credibleSets.length).toFixed(1) : '—';
+  let verdict;
+  if (state.ld > 0.85) verdict = 'Tight LD: credible sets are wide. You cannot resolve which variant is causal — LD has smeared the signal across many SNPs.';
+  else if (state.ld < 0.3) verdict = 'Loose LD: credible sets shrink to 1–3 SNPs. Resolution is approaching the variant level.';
+  else verdict = 'Moderate LD: credible sets of a handful of SNPs; good localisation but not single-variant precision.';
+  el.innerHTML = `
+    <div>L_true = ${state.Ltrue}, LD tightness = ${state.ld.toFixed(2)}, N = ${state.N.toLocaleString()}, β = ${state.beta.toFixed(3)}, L_susie = ${state.Lsusie}</div>
+    <div>Average credible-set size: <strong>${avgSize}</strong> SNPs per signal</div>
+    <div>${rows}</div>
+    <div class="verdict">${verdict}</div>
+    <div class="hint">Tightness → 0.2: sets narrow to a few SNPs. Tightness → 0.95: sets merge, SuSiE struggles to separate causals. Doubling N helps less than halving LD.</div>
+  `;
+}
+
+function rerun(){ const r = simulate(); draw(r); renderOutcome(r); }
+function bind(id, key, parser, label){
+  const el=document.getElementById(id),out=document.getElementById('v_'+key);
+  const apply=()=>{ const v=parser(parseFloat(el.value)); state[key==='ltrue'?'Ltrue':key==='ld'?'ld':key==='n'?'N':key==='b'?'beta':key==='m'?'M':key==='ls'?'Lsusie':key]=v; out.textContent=label(v); };
+  el.addEventListener('input',()=>{apply();rerun();});apply();
+}
+bind('ltrue','ltrue',v=>v|0,v=>v.toString());
+bind('ld','ld',v=>v,v=>v.toFixed(2));
+bind('n','n',v=>Math.round(Math.pow(10,v)),v=>v.toLocaleString());
+bind('b','b',v=>v,v=>v.toFixed(3));
+bind('m','m',v=>v|0,v=>v.toString());
+bind('ls','ls',v=>v|0,v=>v.toString());
+document.getElementById('resim').addEventListener('click',()=>{seed((Math.random()*1e9)|0);rerun();});
+
+seed(55555);
+rerun();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

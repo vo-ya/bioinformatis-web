@@ -505,11 +505,11 @@ Its L character is 'C'. Prepend it: "CG".
         <section id="sec-3-4">
           <h3>3.4 Checkpoints: the space–time tradeoff made explicit</h3>
 
-          <p>There is a problem hidden in Section 3.3. Computing <code>rank(c, i)</code> on demand requires scanning L from the beginning up to position <em>i</em> and counting, which is <em>O</em>(|<em>R</em>|) — worse than brute force per query. Storing <code>rank</code> fully precomputed for every position of L and every character costs <em>O</em>(|<em>R</em>| · |Σ|) — for the human genome and a 4-character DNA alphabet, that is 12 GB of 32-bit integers, and we're back to suffix-array-scale memory. Neither extreme works.</p>
+          <p>There is a problem hidden in Section 3.3. Computing <code>rank(c, i)</code> on demand requires scanning L from the beginning up to position <em>i</em> and counting, which is <em>O</em>(|<em>R</em>|) — worse than brute force per query. Storing <code>rank</code> fully precomputed for every position of L and every character costs <em>O</em>(|<em>R</em>| · |Σ|) — for the human genome and a 4-character DNA alphabet, that is <strong>48 GB</strong> of 32-bit integers, about four times the suffix array and firmly in no-can-do territory. Neither extreme works.</p>
 
           <p>The FM-index implementation every production aligner uses takes the middle path. Precompute and store <code>rank</code> at every <em>d</em>-th position of L — say, every 32 or every 128 — and count the residue on the fly from the nearest stored checkpoint. Memory is divided by <em>d</em>; query cost is multiplied by <em>d</em> (with a small constant per character of scan, typically implemented with SIMD POPCNT instructions so the scan is bytes per nanosecond). The knob is explicit: you pick <em>d</em> to balance RAM against latency.</p>
 
-          <p>For the human genome, <em>d</em> = 128 is typical. Memory for the rank arrays drops from 12 GB to under 100 MB, and the extra scan adds a nanosecond or two per character of read. The index as a whole — BWT, C-table, sparse suffix array, sparse rank arrays — fits in about 4 GB for a human reference. <code>bwa index</code> produces it; <code>bwa mem</code> uses it.</p>
+          <p>For the human genome, <em>d</em> = 128 is typical. Memory for the rank arrays drops from 48 GB to a few hundred megabytes, and the extra scan adds a nanosecond or two per character of read. The index as a whole — BWT, C-table, sparse suffix array, sparse rank arrays — fits in about 4 GB for a human reference. <code>bwa index</code> produces it; <code>bwa mem</code> uses it.</p>
 
           <figure class="figure figure--wide">
             <img src="../diagrams/lecture-02/07-fm-checkpoints-tradeoff.svg"

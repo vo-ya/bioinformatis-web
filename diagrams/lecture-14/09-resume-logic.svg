@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 480" width="1080" height="480" font-family="Inter, sans-serif">
+  <defs>
+    <style>
+      text { font-family: Inter, sans-serif; }
+      .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+    </style>
+    <marker id="arr6" markerWidth="6" markerHeight="5" refX="5" refY="2.5" orient="auto">
+      <polygon points="0 0, 6 2.5, 0 5" fill="#6b7280"/>
+    </marker>
+  </defs>
+  <rect width="1080" height="480" fill="#fafaf9" rx="6"/>
+
+  <text x="540" y="26" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">Resume-on-failure — how the cache turns a 6-hour retry into a 1-minute retry</text>
+
+  <!-- Divider -->
+  <line x1="540" y1="55" x2="540" y2="400" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- Run 1 (left) -->
+  <text x="270" y="68" text-anchor="middle" font-size="12" font-weight="600" fill="#c4342c">Run 1 — initial run fails at step 3</text>
+
+  <g font-size="10">
+    <!-- Step 1 -->
+    <rect x="90" y="90" width="360" height="42" fill="#d1fae5" stroke="#059669" rx="4"/>
+    <text x="105" y="108" font-weight="600" fill="#065f46">Step 1 · fastp</text>
+    <text x="105" y="124" fill="#374151" class="mono">5 min → cached ✓</text>
+    <text x="435" y="115" text-anchor="end" font-size="14" fill="#059669">●</text>
+
+    <!-- Step 2 -->
+    <rect x="90" y="140" width="360" height="42" fill="#d1fae5" stroke="#059669" rx="4"/>
+    <text x="105" y="158" font-weight="600" fill="#065f46">Step 2 · bwa-mem</text>
+    <text x="105" y="174" fill="#374151" class="mono">120 min → cached ✓</text>
+    <text x="435" y="165" text-anchor="end" font-size="14" fill="#059669">●</text>
+
+    <!-- Step 3 (fails) -->
+    <rect x="90" y="190" width="360" height="42" fill="#fef2f2" stroke="#c4342c" stroke-width="2" rx="4"/>
+    <text x="105" y="208" font-weight="600" fill="#991b1b">Step 3 · samtools markdup</text>
+    <text x="105" y="224" fill="#991b1b" class="mono">fails at 30 min — OOM</text>
+    <text x="435" y="215" text-anchor="end" font-size="14" fill="#c4342c">✗</text>
+
+    <!-- Step 4 (never run) -->
+    <rect x="90" y="240" width="360" height="42" fill="#f3f4f6" stroke="#d1d5db" stroke-dasharray="3,3" rx="4"/>
+    <text x="105" y="258" fill="#9ca3af">Step 4 · calmd</text>
+    <text x="105" y="274" fill="#9ca3af" class="mono" font-style="italic">not reached</text>
+
+    <!-- Step 5 (never run) -->
+    <rect x="90" y="290" width="360" height="42" fill="#f3f4f6" stroke="#d1d5db" stroke-dasharray="3,3" rx="4"/>
+    <text x="105" y="308" fill="#9ca3af">Step 5 · deepvariant</text>
+    <text x="105" y="324" fill="#9ca3af" class="mono" font-style="italic">not reached</text>
+  </g>
+
+  <!-- Cache state panel -->
+  <rect x="90" y="345" width="360" height="52" fill="#f0fdf4" stroke="#86efac"/>
+  <text x="105" y="363" font-size="10" font-weight="600" fill="#059669">.nextflow/cache/</text>
+  <g class="mono" font-size="9" fill="#065f46">
+    <text x="105" y="378">  s1_fastp_hash_3a8f2c…       OK</text>
+    <text x="105" y="390">  s2_bwamem_hash_d41b9e…      OK</text>
+  </g>
+
+  <!-- Run 2 (right) -->
+  <text x="810" y="68" text-anchor="middle" font-size="12" font-weight="600" fill="#059669">Run 2 — <tspan class="mono">nextflow run … -resume</tspan></text>
+
+  <g font-size="10">
+    <!-- Step 1 cached -->
+    <rect x="630" y="90" width="360" height="42" fill="#f3f4f6" stroke="#9ca3af" stroke-dasharray="3,3" rx="4"/>
+    <text x="645" y="108" font-weight="600" fill="#6b7280">Step 1 · fastp</text>
+    <text x="645" y="124" fill="#6b7280" class="mono">0 s · CACHED</text>
+    <text x="975" y="115" text-anchor="end" font-size="14" fill="#9ca3af">⊘</text>
+
+    <!-- Step 2 cached -->
+    <rect x="630" y="140" width="360" height="42" fill="#f3f4f6" stroke="#9ca3af" stroke-dasharray="3,3" rx="4"/>
+    <text x="645" y="158" font-weight="600" fill="#6b7280">Step 2 · bwa-mem</text>
+    <text x="645" y="174" fill="#6b7280" class="mono">0 s · CACHED</text>
+    <text x="975" y="165" text-anchor="end" font-size="14" fill="#9ca3af">⊘</text>
+
+    <!-- Step 3 re-runs -->
+    <rect x="630" y="190" width="360" height="42" fill="#d1fae5" stroke="#059669" stroke-width="2" rx="4"/>
+    <text x="645" y="208" font-weight="600" fill="#065f46">Step 3 · samtools markdup</text>
+    <text x="645" y="224" fill="#065f46" class="mono">re-runs, succeeds — bug fixed</text>
+    <text x="975" y="215" text-anchor="end" font-size="14" fill="#059669">●</text>
+
+    <!-- Step 4 -->
+    <rect x="630" y="240" width="360" height="42" fill="#d1fae5" stroke="#059669" rx="4"/>
+    <text x="645" y="258" font-weight="600" fill="#065f46">Step 4 · calmd</text>
+    <text x="645" y="274" fill="#374151" class="mono">runs normally</text>
+    <text x="975" y="265" text-anchor="end" font-size="14" fill="#059669">●</text>
+
+    <!-- Step 5 -->
+    <rect x="630" y="290" width="360" height="42" fill="#d1fae5" stroke="#059669" rx="4"/>
+    <text x="645" y="308" font-weight="600" fill="#065f46">Step 5 · deepvariant</text>
+    <text x="645" y="324" fill="#374151" class="mono">runs normally</text>
+    <text x="975" y="315" text-anchor="end" font-size="14" fill="#059669">●</text>
+  </g>
+
+  <rect x="630" y="345" width="360" height="52" fill="#f0fdf4" stroke="#86efac"/>
+  <text x="645" y="363" font-size="10" font-weight="600" fill="#059669">cache updated after Run 2</text>
+  <g class="mono" font-size="9" fill="#065f46">
+    <text x="645" y="378">  s1, s2 (hit) · s3, s4, s5 (new)</text>
+    <text x="645" y="390">  wall-clock: ~ 30 min instead of 6 h</text>
+  </g>
+
+  <!-- Footer -->
+  <rect x="40" y="420" width="1000" height="45" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="55" y="439" font-size="11" font-weight="600" fill="#1d4ed8">Cache key</text>
+  <text x="55" y="455" font-size="10" class="mono" fill="#374151">hash( input_files · tool_version · command_line · resource_spec )  —  bit-for-bit identical invocation ⇒ cache hit</text>
+</svg>

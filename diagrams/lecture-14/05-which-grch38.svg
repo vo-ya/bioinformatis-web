@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 440" width="1080" height="440" font-family="Inter, sans-serif">
+  <defs>
+    <style>
+      text { font-family: Inter, sans-serif; }
+      .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+    </style>
+  </defs>
+  <rect width="1080" height="440" fill="#fafaf9" rx="6"/>
+
+  <text x="540" y="26" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">"GRCh38" is multiple references — picking the wrong one fails silently</text>
+
+  <!-- Four stacked layers from narrow to wide -->
+  <!-- Layer 1: Primary (narrowest) -->
+  <g>
+    <rect x="140" y="60" width="500" height="55" fill="#dbeafe" stroke="#1e40af" rx="4"/>
+    <text x="160" y="82" font-size="12" font-weight="600" fill="#1e40af">Primary assembly</text>
+    <text x="160" y="101" font-size="10" fill="#6b7280">chrs 1–22, X, Y, MT only · 25 contigs</text>
+    <text x="635" y="91" text-anchor="end" class="mono" fill="#1e40af">~3.0 GB</text>
+    <!-- compatibility -->
+    <rect x="660" y="60" width="280" height="55" fill="#fff" stroke="#d1d5db"/>
+    <text x="670" y="77" font-size="10" font-weight="600" fill="#374151">Compatible:</text>
+    <text x="670" y="93" font-size="10" class="mono" fill="#6b7280">BWA default · STAR default</text>
+    <text x="670" y="107" font-size="10" class="mono" fill="#6b7280">most academic pipelines</text>
+  </g>
+
+  <!-- Layer 2: +unplaced -->
+  <g>
+    <rect x="120" y="125" width="540" height="55" fill="#bfdbfe" stroke="#1e40af" rx="4"/>
+    <text x="140" y="147" font-size="12" font-weight="600" fill="#1e40af">+ Unplaced contigs</text>
+    <text x="140" y="166" font-size="10" fill="#6b7280">plus ~300 unassembled repetitive fragments</text>
+    <text x="655" y="156" text-anchor="end" class="mono" fill="#1e40af">~3.05 GB</text>
+    <rect x="680" y="125" width="280" height="55" fill="#fff" stroke="#d1d5db"/>
+    <text x="690" y="142" font-size="10" font-weight="600" fill="#374151">Compatible:</text>
+    <text x="690" y="158" font-size="10" class="mono" fill="#6b7280">any ALT-unaware tool</text>
+    <text x="690" y="172" font-size="10" class="mono" fill="#6b7280">recommended for BWA+samtools</text>
+  </g>
+
+  <!-- Layer 3: +alt loci -->
+  <g>
+    <rect x="100" y="190" width="580" height="55" fill="#93c5fd" stroke="#1e40af" rx="4"/>
+    <text x="120" y="212" font-size="12" font-weight="600" fill="#1e40af">+ ALT loci</text>
+    <text x="120" y="231" font-size="10" fill="#6b7280">plus ~250 alternative haplotypes (HLA, KIR, LILR)</text>
+    <text x="675" y="221" text-anchor="end" class="mono" fill="#1e40af">~3.15 GB</text>
+    <rect x="700" y="190" width="280" height="55" fill="#fff" stroke="#d1d5db"/>
+    <text x="710" y="207" font-size="10" font-weight="600" fill="#374151">Compatible:</text>
+    <text x="710" y="223" font-size="10" class="mono" fill="#6b7280">BWA-MEM + .alt file</text>
+    <text x="710" y="237" font-size="10" class="mono" fill="#6b7280">ALT-aware callers</text>
+  </g>
+
+  <!-- Layer 4: +decoys -->
+  <g>
+    <rect x="80" y="255" width="620" height="55" fill="#60a5fa" stroke="#1e40af" rx="4"/>
+    <text x="100" y="277" font-size="12" font-weight="600" fill="#fff">+ Decoys + HLA ALTs</text>
+    <text x="100" y="296" font-size="10" fill="#e0e7ff">plus ~2,300 decoy sequences + HLA ALT loci (full bundle)</text>
+    <text x="695" y="286" text-anchor="end" class="mono" fill="#fff">~3.40 GB</text>
+    <rect x="720" y="255" width="280" height="55" fill="#fff" stroke="#d1d5db"/>
+    <text x="730" y="272" font-size="10" font-weight="600" fill="#374151">Compatible:</text>
+    <text x="730" y="288" font-size="10" class="mono" fill="#6b7280">DeepVariant recommended</text>
+    <text x="730" y="302" font-size="10" class="mono" fill="#6b7280">Broad + most 2024+ clinical</text>
+  </g>
+
+  <!-- Annotation for the bundle file name -->
+  <text x="400" y="336" text-anchor="middle" font-size="10" fill="#1e40af" class="mono">GRCh38_full_analysis_set_plus_decoy_hla.fa</text>
+
+  <!-- Warning band -->
+  <rect x="40" y="360" width="1000" height="64" fill="#fef2f2" stroke="#fca5a5"/>
+  <text x="55" y="381" font-size="11" font-weight="600" fill="#991b1b">⚠ Silent-error territory</text>
+  <text x="55" y="398" font-size="10" fill="#7f1d1d">Mixing references across pipeline steps is one of the most common silent bug classes in bioinformatics. Symptoms</text>
+  <text x="55" y="412" font-size="10" fill="#7f1d1d">range from "few percent of reads mis-mapped" to "wrong variants in HLA". Record reference MD5 (@SQ M5:) on every handoff.</text>
+</svg>

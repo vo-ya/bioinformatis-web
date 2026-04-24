@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 520" width="1080" height="520" font-family="Inter, sans-serif">
+  <defs>
+    <style>
+      text { font-family: Inter, sans-serif; }
+      .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+    </style>
+  </defs>
+  <rect width="1080" height="520" fill="#fafaf9" rx="6"/>
+
+  <text x="540" y="26" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">The bioinformatics dependency stack — why containers exist</text>
+
+  <!-- Stack (left) -->
+  <g>
+    <!-- Layer heights 40 each, stacked from y=60 down -->
+    <!-- User pipeline -->
+    <rect x="60" y="60" width="600" height="40" fill="#bfdbfe" stroke="#1e40af"/>
+    <text x="75" y="85" font-size="11" font-weight="600" fill="#1e40af">User pipeline code</text>
+    <text x="640" y="85" text-anchor="end" class="mono" fill="#1e40af">Snakemake / Nextflow config</text>
+
+    <!-- Tools -->
+    <rect x="60" y="100" width="600" height="60" fill="#dbeafe" stroke="#2563eb"/>
+    <text x="75" y="125" font-size="11" font-weight="600" fill="#1e40af">Bioinformatics tools</text>
+    <text x="75" y="143" class="mono" fill="#374151">BWA 0.7.17 · samtools 1.19 · GATK 4.5 · DeepVariant 1.6 · Nextflow 23.10</text>
+    <text x="75" y="155" class="mono" fill="#c4342c">⚠ libhts 1.15 vs 1.17 collision</text>
+
+    <!-- Domain libs -->
+    <rect x="60" y="160" width="600" height="60" fill="#f3f4f6" stroke="#6b7280"/>
+    <text x="75" y="185" font-size="11" font-weight="600" fill="#374151">Domain libraries</text>
+    <text x="75" y="203" class="mono" fill="#374151">NumPy · pysam · Rsamtools · Bioconductor 3.18 · AnnData · scVI</text>
+    <text x="75" y="215" class="mono" fill="#c4342c">⚠ Bioconductor 3.18 breaks pkgs for 3.15</text>
+
+    <!-- Language runtimes -->
+    <rect x="60" y="220" width="600" height="50" fill="#e5e7eb" stroke="#6b7280"/>
+    <text x="75" y="243" font-size="11" font-weight="600" fill="#374151">Language runtimes</text>
+    <text x="75" y="261" class="mono" fill="#374151">Python 3.11 · R 4.3 · Perl 5.36 · JVM 17</text>
+
+    <!-- OS libs -->
+    <rect x="60" y="270" width="600" height="60" fill="#d1d5db" stroke="#4b5563"/>
+    <text x="75" y="295" font-size="11" font-weight="600" fill="#1f2937">OS libraries</text>
+    <text x="75" y="313" class="mono" fill="#1f2937">libcurl · libssl · zlib · libhts · libcrypto · CUDA 12.1</text>
+    <text x="75" y="325" class="mono" fill="#c4342c">⚠ CUDA 11.8 vs 12.1 mismatch breaks AlphaFold</text>
+
+    <!-- Kernel -->
+    <rect x="60" y="330" width="600" height="40" fill="#9ca3af" stroke="#4b5563"/>
+    <text x="75" y="355" font-size="11" font-weight="600" fill="#1f2937">Kernel + glibc</text>
+    <text x="640" y="355" text-anchor="end" class="mono" fill="#1f2937">Linux 6.5 · glibc 2.39</text>
+  </g>
+
+  <!-- Red slash collisions overlay -->
+  <g stroke="#c4342c" stroke-width="2" opacity="0.7">
+    <line x1="160" y1="120" x2="420" y2="220"/>
+    <line x1="250" y1="200" x2="510" y2="330"/>
+    <line x1="350" y1="280" x2="610" y2="360"/>
+  </g>
+
+  <!-- Right: isolation box -->
+  <rect x="700" y="60" width="320" height="310" fill="#eff6ff" stroke="#2563eb" stroke-width="2" rx="8"/>
+  <text x="860" y="88" text-anchor="middle" font-size="13" font-weight="600" fill="#1d4ed8">Container isolation</text>
+  <text x="720" y="110" font-size="10" fill="#374151">Docker / Apptainer pin the entire stack</text>
+  <text x="720" y="124" font-size="10" fill="#374151">from kernel-adjacent libraries upward.</text>
+  <text x="720" y="148" font-size="10" fill="#374151">Each tool lives in its own image:</text>
+  <g class="mono" font-size="10" fill="#1e40af">
+    <rect x="720" y="158" width="280" height="30" fill="#fff" stroke="#93c5fd"/>
+    <text x="732" y="177">bwa:0.7.17  (self-contained)</text>
+    <rect x="720" y="192" width="280" height="30" fill="#fff" stroke="#93c5fd"/>
+    <text x="732" y="211">deepvariant:1.6  (self-contained)</text>
+    <rect x="720" y="226" width="280" height="30" fill="#fff" stroke="#93c5fd"/>
+    <text x="732" y="245">alphafold:2.3 + cuda 12.1  (self)</text>
+  </g>
+  <text x="720" y="278" font-size="10" fill="#374151">Collisions become impossible: each image</text>
+  <text x="720" y="292" font-size="10" fill="#374151">carries its own libhts, its own CUDA, its</text>
+  <text x="720" y="306" font-size="10" fill="#374151">own language runtime. Only the host kernel</text>
+  <text x="720" y="320" font-size="10" fill="#374151">is shared.</text>
+  <text x="720" y="348" font-size="10" font-style="italic" fill="#059669">BioContainers: 8k+ tools, auto-built from bioconda.</text>
+
+  <!-- Footer: pre-container pain -->
+  <rect x="40" y="410" width="1000" height="94" fill="#fef2f2" stroke="#fca5a5"/>
+  <text x="55" y="432" font-size="11" font-weight="600" fill="#991b1b">Why bioinformatics especially</text>
+  <text x="55" y="452" font-size="10" fill="#7f1d1d">Mixed ecosystems (R + Python + C + shell) × aging academic software × system-level deps × unstable Bioconductor APIs × GPU/CUDA mismatches.</text>
+  <text x="55" y="468" font-size="10" fill="#7f1d1d">Before containers became standard (2016–17 in bioinformatics), "getting the tool to run" routinely dominated actual analysis time.</text>
+  <text x="55" y="484" font-size="10" fill="#7f1d1d">Stories of losing a week to a single tool install are common. Containers collapsed that into a <tspan class="mono" fill="#059669">docker pull</tspan>.</text>
+</svg>

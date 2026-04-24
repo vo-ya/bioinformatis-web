@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 13 — GWAS and Statistical Genetics · Bioinformatics for EE</title>
+  <meta name="description" content="Per-SNP regression as multi-channel detection, Manhattan and QQ plots, genome-wide significance at 5×10⁻⁸, population stratification as noise coloring, PCA correction as noise whitening, polygenic risk scores and their portability problem, fine-mapping as a sparse inverse problem, and rare-variant burden and SKAT tests.">
+
+  <meta property="og:title" content="Lecture 13 — GWAS and Statistical Genetics">
+  <meta property="og:description" content="GWAS as massively-multichannel detection · Manhattan + QQ plots · 5×10⁻⁸ threshold · PCA correction as noise whitening · PRS portability · fine-mapping as sparse inverse problem · burden and SKAT.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — The GWAS Framework</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Why association testing</a></li>
+          <li><a href="#sec-1-2">1.2 Per-SNP regression</a></li>
+          <li><a href="#sec-1-3">1.3 Scale: millions of SNPs</a></li>
+          <li><a href="#sec-1-4">1.4 What a successful GWAS looks like</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Manhattan Plot and What It Shows</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 Manhattan plots</a></li>
+          <li><a href="#sec-2-2">2.2 QQ plots and inflation</a></li>
+          <li><a href="#sec-2-3">2.3 Peak structure via LD</a></li>
+          <li><a href="#sec-2-4">2.4 Manhattan plots as spectra</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Multiple Testing at SNP Scale</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Why 5×10⁻⁸</a></li>
+          <li><a href="#sec-3-2">3.2 FWER vs FDR</a></li>
+          <li><a href="#sec-3-3">3.3 Power calculations</a></li>
+          <li><a href="#sec-3-4">3.4 Callback thread</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Confounders and Corrections</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Population stratification</a></li>
+          <li><a href="#sec-4-2">4.2 PCA correction</a></li>
+          <li><a href="#sec-4-3">4.3 Cryptic relatedness and kinship</a></li>
+          <li><a href="#sec-4-4">4.4 Mixed-model regression</a></li>
+          <li><a href="#sec-4-5">4.5 Batch effects</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Heritability and Polygenic Risk</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 Heritability</a></li>
+          <li><a href="#sec-5-2">5.2 LD Score regression</a></li>
+          <li><a href="#sec-5-3">5.3 Missing heritability</a></li>
+          <li><a href="#sec-5-4">5.4 Polygenic Risk Scores</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Fine-Mapping and Colocalization</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 From peak to causal variant</a></li>
+          <li><a href="#sec-6-2">6.2 SuSiE, FINEMAP, CAVIAR</a></li>
+          <li><a href="#sec-6-3">6.3 Colocalization</a></li>
+          <li><a href="#sec-6-4">6.4 Fine-mapping as spectral inversion</a></li>
+          <li><a href="#sec-6-5">6.5 When fine-mapping fails</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — Rare-Variant Association</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 Why single-SNP fails on rare variants</a></li>
+          <li><a href="#sec-7-2">7.2 Burden tests</a></li>
+          <li><a href="#sec-7-3">7.3 SKAT and SKAT-O</a></li>
+          <li><a href="#sec-7-4">7.4 Data sources: gnomAD</a></li>
+          <li><a href="#sec-7-5">7.5 Rare-variant caveats</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 13</div>
+      <h1 class="lecture-title">GWAS and Statistical Genetics</h1>
+      <p class="lecture-subtitle">Which genetic variants affect a phenotype? A bank of 10⁶ parallel regression tests, controlled at genome-wide significance 5×10⁻⁸, corrected for population structure, and extended to fine-mapping as a sparse inverse problem and PRS as a linear combiner with a portability problem.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — The GWAS Framework</a></li>
+        <li><a href="#part-2">Part 2 — Manhattan plot and what it shows</a></li>
+        <li><a href="#part-3">Part 3 — Multiple testing at SNP scale</a></li>
+        <li><a href="#part-4">Part 4 — Confounders and corrections</a></li>
+        <li><a href="#part-5">Part 5 — Heritability and polygenic risk</a></li>
+        <li><a href="#part-6">Part 6 — Fine-mapping and colocalization</a></li>
+        <li><a href="#part-7">Part 7 — Rare-variant association</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Seven moves:</em>
+        <span class="lecture-tagline-beat">regress phenotype on genotype per SNP</span>,
+        <span class="lecture-tagline-beat">correct for ancestry</span>,
+        <span class="lecture-tagline-beat">threshold at 5×10⁻⁸</span>,
+        <span class="lecture-tagline-beat">aggregate into a PRS</span>,
+        <span class="lecture-tagline-beat">fine-map as a sparse inverse problem</span>,
+        <span class="lecture-tagline-beat">colocalize with eQTLs</span>,
+        <span class="lecture-tagline-beat">aggregate rare variants by gene</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Describe the GWAS experimental design (cases vs controls, quantitative trait cohorts) and write down the per-SNP regression model used to test association.</li>
+          <li>Read a Manhattan plot and a QQ plot, interpret genome-wide significance ($5 \times 10^{-8}$), and diagnose inflation and LD-driven peak structure.</li>
+          <li>Explain why the GWAS significance threshold is $5 \times 10^{-8}$ in terms of the number of effectively independent tests across the genome.</li>
+          <li>Diagnose population-stratification confounding and correct for it using principal-component covariates and mixed-model regression (BOLT-LMM, SAIGE, REGENIE).</li>
+          <li>Compute a basic polygenic risk score (PRS) from GWAS summary statistics and explain the portability problem across ancestries.</li>
+          <li>Describe the fine-mapping problem as a sparse inverse problem, and apply SuSiE-style credible-set reasoning to a locus.</li>
+          <li>Distinguish single-variant and rare-variant association tests (burden and SKAT), and explain when each is appropriate.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 25 min</span>
+          The GWAS Framework
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Why association testing</h3>
+
+          <p>By Lecture 12 you know how allele frequencies are distributed in populations and how they evolve. A fundamentally different question motivates this lecture: <strong>which genetic variants affect a phenotype?</strong> Is there a SNP whose allele count correlates with disease risk, height, LDL cholesterol, or schizophrenia susceptibility?</p>
+
+          <p>The simple answer (ignoring confounders for one more subsection): for each SNP in the genome, test whether its allele count is associated with the phenotype. That's a regression problem — one per SNP.</p>
+
+          <p>Genome-Wide Association Studies (GWAS) scale this to <strong>millions of SNPs across tens of thousands to millions of individuals</strong>. First landmark: the Wellcome Trust Case Control Consortium (WTCCC) 2007 paper testing ~500,000 SNPs in 17,000 individuals for seven common diseases. Most modern studies are 10–1000× larger: UK Biobank (~500k participants), FinnGen (~500k), All of Us (~1M), Million Veteran Program (~1M).</p>
+
+          <p>GWAS is now the default first-pass analysis for any genetic contribution to any trait — disease, anthropometric, behavioural, molecular. The mechanics are the same; the scale is enormous.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-13/01-cohort-design.svg"
+                 alt="Two panels showing GWAS cohort designs. Left: case-control design with cases (disease) and controls (no disease) each having genotype arrays, compared via per-SNP chi-squared test. Right: quantitative-trait design with a cohort of individuals each having a continuous phenotype and genotypes, tested via linear regression beta. Caption: both designs run one regression per SNP across M approximately 10 to the 6 tests at genome-wide significance 5 times 10 to the minus 8.">
+            <figcaption>Figure 1. The two canonical GWAS designs. Case-control studies test allele-frequency differences between affected and unaffected individuals; quantitative-trait studies regress a continuous measurement on genotype. Either way the output is one regression coefficient and one p-value per SNP.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 Per-SNP regression</h3>
+
+          <p>The model at a single SNP is a simple regression. For a quantitative trait $Y$ (e.g. height), individual $i$, genotype $G_i \in \{0, 1, 2\}$ (count of the "effect" allele under the additive model):</p>
+
+          <p>$$Y_i = \beta_0 + \beta \cdot G_i + \boldsymbol{\gamma}^T \mathbf{X}_i + \varepsilon_i$$</p>
+
+          <p>where $\mathbf{X}_i$ is a vector of covariates (age, sex, PCs — more in §4), $\boldsymbol{\gamma}$ is the covariate effect vector, and $\varepsilon_i$ is noise. The test is: $H_0 : \beta = 0$ vs $H_1 : \beta \ne 0$.</p>
+
+          <p>For a binary trait (case / control), swap linear for logistic:</p>
+
+          <p>$$\log \frac{P(Y_i = 1)}{P(Y_i = 0)} = \beta_0 + \beta \cdot G_i + \boldsymbol{\gamma}^T \mathbf{X}_i$$</p>
+
+          <p>Three genetic models are standard:</p>
+
+          <ul>
+            <li><strong>Additive</strong> ($G \in \{0, 1, 2\}$ as a numeric predictor). Default in most GWAS. Assumes each extra allele copy has the same effect.</li>
+            <li><strong>Dominant</strong> ($G \in \{0, 1\}$: has at least one effect allele vs none). For traits where a single copy is sufficient.</li>
+            <li><strong>Recessive</strong> ($G \in \{0, 1\}$: has two copies vs not). For traits where both copies matter.</li>
+          </ul>
+
+          <p>The additive model is the workhorse. Most published GWAS assume it by default.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-13/02-single-snp-regression.svg"
+                 alt="Scatter plot with genotype 0, 1, 2 on the x-axis and phenotype such as LDL cholesterol on the y-axis. Three clusters of points with a regression line through the means annotated with slope beta and intercept beta-zero. Right inset shows null and alternative Gaussian sampling distributions for beta-hat with the observed estimate marked and the p-value tail shaded.">
+            <figcaption>Figure 2. The additive genetic regression model. Each additional copy of the effect allele shifts the phenotype by $\beta$ — the slope of the regression line through the three genotype means. The right panel shows the sampling distribution of $\hat{\beta}$ under the null and alternative; the p-value is the probability of observing a $z$-score this extreme or larger if $\beta = 0$.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 1 — GWAS Single-SNP Association Explorer.</strong> Slide allele frequency $p$, effect size $\beta$, sample size $N$, and noise level $\sigma$. Watch the genotype scatter, the null and alternative sampling distributions for $\hat{\beta}$, and the computed p-value and power. The key insight: GWAS effect sizes are tiny ($\beta \approx 0.01$–$0.05$ SD) — you need biobank-scale $N$ to resolve them at $5 \times 10^{-8}$.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-13/01-single-snp-test.html" loading="lazy" title="Artifact 1 — GWAS Single-SNP Association Explorer"></iframe>
+          </figure>
+
+          <aside class="callout callout--note">
+            <p class="callout-label">Historical pointer</p>
+            <p>The first widely-cited GWAS was Klein et al. 2005, testing 116,204 SNPs in 96 cases (age-related macular degeneration) + 50 controls, finding a hit in the complement factor H (CFH) gene. The WTCCC 2007 paper is the field's "big bang" moment — 500k SNPs × 17,000 individuals × 7 diseases, explicitly demonstrating that common diseases have many common-variant contributions. Nearly every methodological standard used today — genome-wide significance at $5 \times 10^{-8}$, Manhattan plot presentation, QQ plot inflation diagnostics, PCA-based stratification correction — was established or consolidated in the 2005–2010 window.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 Scale: millions of SNPs, millions of people</h3>
+
+          <p>GWAS data objects:</p>
+
+          <ul>
+            <li><strong>Genotype matrix</strong>: $N$ individuals × $M$ SNPs. Modern arrays genotype ~1M SNPs directly; imputation (using a reference panel like TOPMed, HRC, or the HPRC pangenome) expands this to ~10M SNPs with imputed dosages.</li>
+            <li><strong>Phenotype vector</strong>: $N$-long vector of trait values.</li>
+            <li><strong>Covariate matrix</strong>: age, sex, principal components, cohort indicators — typically 10–30 columns.</li>
+          </ul>
+
+          <p>The per-SNP regression runs $M$ times, producing $M$ $\hat{\beta}$ values, $M$ p-values, $M$ effect-size standard errors. The output is a <strong>GWAS summary statistic table</strong> — arguably the dominant data product of the whole field, since many downstream analyses (PRS, fine-mapping, LDSC) operate on summary stats rather than raw genotypes.</p>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">EE framing — GWAS as massively-multichannel detection</p>
+            <p>A GWAS is a bank of $M \approx 10^6$ parallel single-channel detectors, one per SNP, running a classical likelihood-ratio test (t-statistic / Wald / logistic z-score) and reporting the p-value at each channel. The genome is the frequency axis of a coarse filter bank; each SNP is one filter; the phenotype is the signal being correlated against each channel. You then have to control the genome-wide false-alarm rate across all $M$ channels — a multi-hypothesis detection problem, identical in structure to multi-band radar, multi-target tracking, or multi-pixel anomaly detection in imaging. The two defining problems — how to control genome-wide FAR (Part 3), and how to handle correlated channels via LD (Parts 2, 6) — are familiar problems in disguise.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 What a successful GWAS looks like</h3>
+
+          <p>When everything works:</p>
+
+          <ul>
+            <li>Hundreds to thousands of SNPs exceed the genome-wide significance threshold.</li>
+            <li>Peaks cluster into dozens to hundreds of independent loci (because nearby SNPs are correlated by LD).</li>
+            <li>Effect sizes are uniformly small: $\beta$ in units of the trait's SD is typically 0.01–0.05 for common variants; odds ratios (OR) for binary traits are usually 1.02–1.2.</li>
+            <li>Heritability explained is often modest — only 10–30% of the genetic variance attributable to the detected SNPs, the rest being "missing heritability" (Part 5).</li>
+          </ul>
+
+          <p>Key cohorts to know:</p>
+
+          <ul>
+            <li><strong>UK Biobank</strong> (~500k participants; deep phenotyping; permissive access).</li>
+            <li><strong>FinnGen</strong> (~500k Finns; founder-population-specific variants).</li>
+            <li><strong>Biobank Japan, China Kadoorie, All of Us, Million Veteran Program, H3Africa</strong> — filling out global representation.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 25 min</span>
+          The Manhattan Plot and What It Shows
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 Manhattan plots</h3>
+
+          <p>A <strong>Manhattan plot</strong> is the canonical GWAS visualisation: one dot per SNP, x-axis is genomic position across all 22 autosomes plus X, y-axis is $-\log_{10}(p)$. Alternating chromosome colours make the boundaries visible. Peaks rising far above the horizontal significance line are the "hits."</p>
+
+          <p>What to read off it:</p>
+
+          <ul>
+            <li><strong>Number of peaks above $5 \times 10^{-8}$</strong>: count of independent hits.</li>
+            <li><strong>Peak heights</strong>: strength of the association. Very tall peaks mean either very large effects or very large sample sizes.</li>
+            <li><strong>Peak shapes</strong>: a tall column with neighbouring SNPs also elevated signals LD-driven structure — the peak is driven by a few causal variants propagating their signal to correlated neighbours (Part 6, fine-mapping).</li>
+            <li><strong>Chromosome patterns</strong>: clustering of hits on specific chromosomes for polygenic traits often reflects chromosome-length and gene-density effects.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-13/03-manhattan-plot.svg"
+                 alt="Manhattan plot spanning 22 autosomes on the x-axis with alternating chromosome tints and minus log base 10 of p on the y-axis from 0 to 30. A horizontal dashed line at 7.3 marks genome-wide significance at 5 times 10 to the minus 8. Three or four tall peaks annotated with nearby gene names FTO, TCF7L2, LCT, HLA rise clearly above the threshold. Many near-significant bumps scattered across the genome. Label at top left indicates N equals 300,000 participants and M equals 10 to the 6 SNPs tested.">
+            <figcaption>Figure 3. A Manhattan plot from a well-powered GWAS. Each dot is one SNP; peaks above the dashed threshold are genome-wide significant hits. The LD-driven peak shape (a cluster of elevated neighbours around each lead SNP) is visible at each locus.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 QQ plots and inflation</h3>
+
+          <p>A <strong>QQ (quantile-quantile) plot</strong> compares observed vs expected $-\log_{10}(p)$ values. Under the null (no real signals, no confounding), the observed quantiles should match the expected ones — a straight 45° line.</p>
+
+          <p>Two kinds of deviation:</p>
+
+          <ul>
+            <li><strong>Late departure (upper right)</strong>: the top-right of the plot lifts above the diagonal. This is what you want to see — the strongest hits are real signals, exceeding what you'd see under pure null.</li>
+            <li><strong>Early departure (origin outwards)</strong>: even small-p SNPs are above the diagonal. This is <strong>inflation</strong>: the whole distribution of test statistics is shifted up. Causes: population stratification (Part 4), cryptic relatedness, genotyping-batch effects, incorrect covariance modelling.</li>
+          </ul>
+
+          <p>The <strong>genomic control inflation factor</strong> $\lambda_{GC}$ quantifies this:</p>
+
+          <p>$$\lambda_{GC} = \frac{\text{median}(\chi^2_{\text{observed}})}{\text{median}(\chi^2_{\text{null}})} = \frac{\text{median}(\chi^2_{\text{observed}})}{0.456}$$</p>
+
+          <p>where the denominator is the median of a $\chi^2_1$ distribution. $\lambda_{GC} = 1$ means no inflation. $\lambda_{GC} > 1.05$ suggests confounding. $\lambda_{GC} > 1.2$ is a red flag. But note: for polygenic traits with real widespread signal, $\lambda_{GC}$ also goes up above 1 because of genuine genetic signal, not just confounding. Modern practice: use <strong>LD Score regression</strong> (Part 5) to partition $\lambda_{GC}$ into "real polygenic signal" and "true confounding" components.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-13/04-qq-plot.svg"
+                 alt="Two side-by-side QQ plots of observed versus expected minus log base 10 of p. Left panel shows a well-controlled GWAS where dots follow the 45-degree reference line until the upper right where they lift off, annotated lambda GC equals 1.02, titled Well-controlled GWAS: late departure equals real signal. Right panel shows an inflated GWAS where dots lift above the line starting near the origin, annotated lambda GC equals 1.25, titled Inflated GWAS: early departure equals confounding. Bottom caption: lambda GC greater than 1.05 warrants investigation.">
+            <figcaption>Figure 4. The QQ plot is the calibration check for a GWAS. A well-controlled study (left) follows the diagonal and lifts only at the top-right where real hits live. An inflated study (right) lifts early, indicating widespread test-statistic elevation from confounders.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Interpreting peak structure via LD</h3>
+
+          <p>A single SNP with a true effect isn't alone on a Manhattan plot. It sits in an LD block (Lecture 12) with many correlated SNPs; each of those neighbours also exceeds significance because their genotypes are correlated with the causal variant's. The "peak" around a true hit typically spans 10 kb to 1 Mb, consisting of tens to hundreds of sub-significant SNPs with only one or two causal.</p>
+
+          <p>This is both a blessing and a curse:</p>
+
+          <ul>
+            <li><strong>Blessing</strong>: robust hits stand out — the peak shape (cluster of hits) is harder to fake than a single isolated tall SNP.</li>
+            <li><strong>Curse</strong>: you can't tell from the Manhattan plot which SNP is causal. The "lead SNP" (highest $-\log_{10}(p)$) is often not the causal variant; it's the best tag in your genotyping / imputation panel. Fine-mapping (Part 6) tries to narrow down.</li>
+          </ul>
+
+          <p>Practical consequence: the first-round output of a GWAS isn't usually "this SNP causes this disease." It's "this locus (a ~100kb window) harbours a variant affecting this disease." Going from locus to causal variant is a separate analysis.</p>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Manhattan plots as spectra</h3>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">EE framing — Manhattan plot as genome-wide periodogram</p>
+            <p>Lay the genome along an axis; at each position compute a test statistic and its p-value. The Manhattan plot is a 1D "spectrum" of signal strength along the genome coordinate. Peaks above threshold are detections; the clutter below is the null. LD-driven peak width is analogous to <strong>filter bandwidth</strong> — each causal variant's signal leaks into correlated neighbours, broadening its footprint on the spectrum. Wider LD blocks = broader peaks = fewer effective independent tests (Part 3). Just as a coarse periodogram trades resolution for noise floor, a GWAS trades per-SNP precision for genome-wide coverage.</p>
+          </aside>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">Intuition box</p>
+            <p>The Manhattan plot is to GWAS what a spectrogram is to an audio signal. You're looking for peaks above the noise floor. A well-powered study with genuine hits shows a handful of clear peaks over a flat background. A study that's too small or too confounded shows either nothing clear (too small) or a noisy haze with ambiguous bumps (confounded). Learning to read Manhattans is most of the skill needed to assess a GWAS paper.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 25 min</span>
+          Multiple Testing at SNP Scale
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 Why $5 \times 10^{-8}$</h3>
+
+          <p>If you run $M$ independent tests at per-test significance level $\alpha$, the expected number of false positives is $M \alpha$. Under <strong>Bonferroni correction</strong>, you demand $\alpha_{\text{adjusted}} = \alpha / M$ to keep the family-wise false-positive rate below $\alpha$.</p>
+
+          <p>For a 0.05 FWER threshold and $M = 1{,}000{,}000$ independent tests:</p>
+
+          <p>$$\alpha_{\text{adjusted}} = 0.05 / 10^6 = 5 \times 10^{-8}$$</p>
+
+          <p>That's the origin of the $5 \times 10^{-8}$ genome-wide threshold. The key number is $10^6$ — the <strong>effective number of independent tests</strong> across the genome. Empirically (Risch &amp; Merikangas 1996; Pe'er et al. 2008), the number of LD-independent SNPs in European populations is about $10^6$, despite there being ~10M SNPs after imputation. Similar exercises in African populations give ~1.5×10⁶ because of shorter LD blocks.</p>
+
+          <p>Why not use all 10M imputed SNPs as the test count? Because they're <strong>not independent</strong> — adjacent SNPs are in LD, so testing each of them gives correlated p-values. Using the physical SNP count in Bonferroni would over-correct dramatically; using 1 million (the LD-independent count) is right.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-13/05-effective-tests.svg"
+                 alt="Three stacked rows all sharing a genomic coordinate axis representing 1 megabase. Top row: approximately 300 dense tick marks labelled approximately 10 million SNPs genome-wide imputed with badge M raw approximately 10 to the 7. Middle row: same position but tick marks grouped into about 30 wider LD block rectangles labelled approximately 1 million LD-independent blocks with badge M effective approximately 10 to the 6. Bottom: large equation alpha adjusted equals 0.05 divided by M effective equals 0.05 divided by 10 to the 6 equals 5 times 10 to the minus 8 labelled as the genome-wide significance threshold.">
+            <figcaption>Figure 5. The Bonferroni threshold of $5 \times 10^{-8}$ comes from the effective (LD-independent) count of tests, not the raw SNP count. SNPs in the same LD block are correlated, so they count as one test for multiple-testing purposes.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 FWER vs FDR</h3>
+
+          <p>Two different error-control philosophies:</p>
+
+          <ul>
+            <li><strong>Family-Wise Error Rate (FWER)</strong>: probability of any false positive across all tests. Controlled by Bonferroni or its variants (Holm, Hochberg). Strict and conservative.</li>
+            <li><strong>False Discovery Rate (FDR)</strong>: expected fraction of discoveries that are false. Controlled by the Benjamini-Hochberg procedure. Lets more real hits through at the cost of a known contamination rate.</li>
+          </ul>
+
+          <p>GWAS traditionally uses FWER (Bonferroni at $5 \times 10^{-8}$). Reason: the field wants near-certainty at each reported hit, because each hit becomes a biological hypothesis that downstream work will spend years investigating. A 5% FDR would mean 1 in 20 hits is bogus — too noisy for the downstream fine-mapping, functional validation, and clinical interpretation to absorb.</p>
+
+          <p>Some sub-fields (e.g. transcriptome-wide association studies of gene expression) use FDR instead. The choice depends on what downstream tolerance for false positives looks like.</p>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Power calculations</h3>
+
+          <p>For any GWAS, <strong>power</strong> depends on four quantities:</p>
+
+          <ol>
+            <li>Effect size $\beta$ (smaller = harder to detect).</li>
+            <li>Allele frequency $p$ (lower = harder because fewer informative individuals).</li>
+            <li>Sample size $N$.</li>
+            <li>Significance threshold $\alpha$.</li>
+          </ol>
+
+          <p>The test statistic for an additive model is roughly:</p>
+
+          <p>$$\chi^2 \approx N \cdot 2p(1-p) \cdot \beta^2 / \sigma^2$$</p>
+
+          <p>To detect $\beta = 0.02$ SD at $p = 0.2$ (common variant) with $\alpha = 5 \times 10^{-8}$ and power 0.8, you need approximately $N \approx 226{,}000$. Hundreds of thousands of samples for a single $\beta = 0.02$ variant. This is why GWAS cohort sizes have been racing upward.</p>
+
+          <p>For rare variants ($p = 0.001$, $\beta = 0.1$), power at $N = 10^5$ is ~3%. Single-variant testing on rare variants is underpowered; Part 7 covers the alternative.</p>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Callback thread</h3>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">Intuition box</p>
+            <p>This is the fourth time in the course you've seen controlled false-alarm rate at scale. Lecture 4 (variant calling): FDR on per-site variant calls. Lecture 6 (expression): FDR on differential-expression genes. Lecture 9 (peak calling): FDR on ChIP/ATAC peaks. Lecture 12 (selection scans): FDR on neutrality test statistics. Now: GWAS at 10⁶ tests. Each domain has the same mathematical structure (null distribution + test statistic + multi-hypothesis correction) but different null distributions, different notions of "independent tests," and different tolerances. Pay attention to <em>what defines the effective number of independent tests</em> in each — LD blocks (GWAS), gene co-expression (differential expression), peak spacing (ChIP), coalescent null (selection).</p>
+          </aside>
+
+          <aside class="callout callout--warning">
+            <p class="callout-label">Warning box</p>
+            <p>Genome-wide significant does <strong>not</strong> mean "true." It means "unlikely under the pure-null hypothesis of zero effect and no confounding." In practice, confounding from population stratification, genotyping batch effects, phenotype measurement error, and survivorship bias all produce genome-wide significant hits that aren't causal. Replication in an independent cohort, PheWAS checks, and mechanistic follow-up are required to call a hit real. $5 \times 10^{-8}$ is a necessary condition, not a sufficient one.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 40 min</span>
+          Confounders and Corrections
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 Population stratification</h3>
+
+          <p>The biggest confounder in GWAS is <strong>population stratification</strong>: systematic allele-frequency differences between groups that also differ in phenotype for non-genetic reasons.</p>
+
+          <p>Classic toy example: if your cohort is 60% North European and 40% South European, and the trait is something cultural (say, a dietary preference), then SNPs whose allele frequencies differ between the two groups will "predict" the trait — through ancestry, not genetics. The association is real (allele counts correlate with phenotype) but causally spurious (the actual driver is ancestry).</p>
+
+          <p>Stratification is the default state of any non-randomised cohort. It can never be eliminated; it can only be corrected. Without correction, a GWAS inflates across the board — visible as QQ-plot early departure and $\lambda_{GC} > 1$.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-13/06-pca-structure.svg"
+                 alt="Two side-by-side scatter plots of PC1 versus PC2 of a GWAS cohort's genotype matrix. Left: points coloured by ancestry showing five visible clusters labeled European in cobalt, East Asian in red, African in amber, South Asian in green, and admixed American in violet. Axis labels PC1 explains 4.2 percent and PC2 explains 1.8 percent. Right: same point positions but coloured by phenotype value on a continuous grey-to-amber scale. A gradient visible with lower values on the European side and higher values on the African side. Annotation reads: phenotype tracks ancestry and uncorrected GWAS will call ancestry-differentiated SNPs significant.">
+            <figcaption>Figure 6. Population structure in PCA space. The top two PCs of the genotype matrix cleanly separate ancestry groups (left). When phenotype tracks ancestry (right), any SNP with allele-frequency differences between groups will spuriously associate with the trait.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 PCA correction</h3>
+
+          <p>The standard first-line correction: compute principal components of the genotype matrix (SNP × individual) and include the top $k$ PCs as covariates in every per-SNP regression.</p>
+
+          <p>Algorithm:</p>
+
+          <ol>
+            <li>Centre and scale the genotype matrix. Optionally prune it to common, unlinked SNPs.</li>
+            <li>Compute the top $k$ eigenvectors of the genotype covariance matrix (typically $k = 5$–$20$).</li>
+            <li>For each individual, extract their loadings on these PCs.</li>
+            <li>Include them as covariates in the per-SNP regression.</li>
+          </ol>
+
+          <p>The intuition: the top PCs capture population structure (inter-individual variation in allele frequencies that has a low-rank structure). Conditioning on them removes the between-group signal and keeps the within-group genetic variation.</p>
+
+          <p>How many PCs? Typically 10 for homogeneous cohorts, 20 for heterogeneous ones (UK Biobank uses 40 for some analyses). Too few leaves residual stratification; too many eats statistical power (each PC costs one degree of freedom).</p>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">EE framing — PCA correction as noise whitening</p>
+            <p>A GWAS with population structure is a detection problem where the "noise" (per-SNP test statistic under the null) has a non-white covariance — test statistics at SNPs with similar allele-frequency differentiation patterns are correlated. Top PCA components of the genotype matrix are the principal eigen-directions of this noise covariance. Including them as covariates is equivalent to projecting out those directions — exactly <strong>noise whitening</strong> from adaptive-array signal processing or matched-filter detection against non-white noise. The residual test statistic is then closer to white noise, restoring valid per-SNP inference.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Cryptic relatedness and kinship</h3>
+
+          <p>A second confounder: <strong>cryptic relatedness</strong>. Even in nominally-unrelated cohorts, by chance some pairs of participants are cousins or more distant relatives. Relatives share alleles beyond what's expected by chance; failure to account for this inflates test statistics at correlated SNPs.</p>
+
+          <p>Solution: compute a <strong>kinship matrix</strong> $\mathbf{K}$ (or Genetic Relationship Matrix, GRM) capturing pairwise genetic similarity across all participants. Entry $K_{ij}$ is roughly the fraction of alleles shared identical-by-descent between individuals $i$ and $j$. For unrelated pairs, $K_{ij} \approx 0$. For parent-child, $K_{ij} \approx 0.5$. For second cousins, $K_{ij} \approx 0.03$.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-13/07-kinship-matrix.svg"
+                 alt="A square 100 by 100 kinship matrix heatmap with colour scale from white at kinship zero (unrelated) to deep cobalt at kinship 0.5 (first-degree relative). The diagonal is uniformly dark cobalt. Two small off-diagonal blocks highlighted with amber rectangles: a 3 by 3 block near position 20 (a sibling trio) and a 2 by 2 block near position 70 (a parent-child pair). Colour legend on the right: 0.0 unrelated, 0.05 second cousin, 0.25 half-sibling, 0.5 MZ twin or self. Annotation below: BOLT-LMM, SAIGE, and REGENIE all consume this matrix as a random-effect covariance component.">
+            <figcaption>Figure 7. The kinship matrix (Genetic Relationship Matrix) for a cohort of 100 individuals. The diagonal is 0.5 (self-relatedness); family clusters appear as small off-diagonal blocks. Modern mixed-model tools incorporate this matrix as a structured covariance term to prevent inflation.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Mixed-model regression</h3>
+
+          <p>The modern workhorse for GWAS at biobank scale is <strong>mixed-model regression</strong>: fit each SNP with both fixed (per-SNP effect, covariates) and random (individual-level residuals with kinship-structured covariance) effects.</p>
+
+          <p>Model for a quantitative trait:</p>
+
+          <p>$$\mathbf{Y} = \mathbf{X} \boldsymbol{\gamma} + G \beta + \mathbf{u} + \boldsymbol{\varepsilon}$$</p>
+
+          <p>where $\mathbf{u} \sim \mathcal{N}(0, \sigma_g^2 \mathbf{K})$ is a random effect with <strong>kinship-structured covariance</strong>, and $\boldsymbol{\varepsilon} \sim \mathcal{N}(0, \sigma_e^2 \mathbf{I})$ is residual noise.</p>
+
+          <p>This is a <strong>generalised least squares</strong> problem. The per-SNP estimate is:</p>
+
+          <p>$$\hat{\beta} = (G^T \mathbf{V}^{-1} G)^{-1} G^T \mathbf{V}^{-1} \mathbf{Y}$$</p>
+
+          <p>where $\mathbf{V} = \sigma_g^2 \mathbf{K} + \sigma_e^2 \mathbf{I}$ is the total-covariance matrix. Modern tools use algorithmic shortcuts to avoid full $N^2$ matrix inversion:</p>
+
+          <ul>
+            <li><strong>BOLT-LMM</strong> (Loh et al. 2015): iterative methods + spectral tricks; scales to N &gt; 500k. Default for quantitative traits.</li>
+            <li><strong>SAIGE</strong> (Zhou et al. 2018): saddle-point approximation for case-control imbalance. Default for imbalanced binary traits.</li>
+            <li><strong>REGENIE</strong> (Mbatchou et al. 2021): two-stage ridge regression + single-SNP test; scales to UK Biobank's 500k × 10M SNPs.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-13/08-lmm-vs-ols.svg"
+                 alt="Two side-by-side QQ panels for the same cohort. Left panel: OLS regression QQ plot where the dot cloud lifts above the 45-degree reference line starting at low minus log p, annotated OLS lambda GC equals 1.15 and No kinship adjustment inflated. Right panel: LMM regression QQ plot where dots follow the reference line closely and only lift off in the upper right tail, annotated LMM lambda GC equals 1.02 and Kinship-structured covariance absorbs relatedness. A small arrow between panels labelled noise whitening via V inverse. Shared caption: same cohort, two methods. OLS: GLS with V equals I. LMM: GLS with V equals sigma g squared K plus sigma e squared I.">
+            <figcaption>Figure 8. Mixed-model vs OLS regression on the same cohort. OLS treats residuals as i.i.d., inflating test statistics when individuals are related. The LMM absorbs kinship into the covariance matrix $\mathbf{V}$, restoring proper calibration — the noise-whitening interpretation.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">EE framing — mixed models as GLS with structured covariance</p>
+            <p>A mixed-model GWAS is generalised least squares with a specific covariance structure: total-residual covariance = genetic-kinship component + environmental-noise component. The kinship matrix $\mathbf{K}$ encodes who is related to whom. Standard LS assumes $\mathbf{I}$ covariance — white noise; the test statistic is then wrong whenever residuals are correlated across individuals. GLS with $\mathbf{V}^{-1}$ as the inverse-covariance weight is the optimal linear unbiased estimator in this setting (Gauss-Markov). BOLT-LMM, SAIGE, REGENIE are efficient approximations to this GLS for biobank-scale data.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 Batch effects and technical confounders</h3>
+
+          <p>Beyond genetics, technical confounders are widespread:</p>
+
+          <ul>
+            <li><strong>Genotyping batch</strong>: different plates, machines, or time periods produce systematically different genotype calls. Include batch indicator as a covariate.</li>
+            <li><strong>DNA source</strong> (blood vs saliva): occasionally produces SNP-specific biases.</li>
+            <li><strong>Imputation quality</strong>: imputed SNPs with low confidence scores inflate the test.</li>
+            <li><strong>Phenotype measurement heterogeneity</strong> (multi-centre studies): include centre indicators.</li>
+          </ul>
+
+          <aside class="callout callout--warning">
+            <p class="callout-label">Warning box</p>
+            <p>PCA correction is not always sufficient. For recently-admixed populations (Hispanic/Latino, African American cohorts), a handful of PCs miss fine-scale structure. Mixed models with the full kinship matrix usually correct better. For populations with strong founder effects (Finns, Ashkenazi), a smaller number of PCs plus mixed models is standard. Always inspect the QQ plot and $\lambda_{GC}$ <strong>after</strong> correction; if still inflated, you're probably missing structure.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 30 min</span>
+          Beyond Single-SNP: Heritability and Polygenic Risk
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 Heritability</h3>
+
+          <p><strong>Heritability</strong> $h^2$ is the fraction of phenotypic variance explained by genetic variation:</p>
+
+          <p>$$h^2 = \sigma_g^2 / \sigma_p^2$$</p>
+
+          <p>where $\sigma_g^2$ is genetic variance, $\sigma_p^2$ is total phenotypic variance. Two flavours:</p>
+
+          <ul>
+            <li><strong>Broad-sense heritability</strong> $H^2$: all genetic effects (additive + dominance + epistasis).</li>
+            <li><strong>Narrow-sense heritability</strong> $h^2$: additive genetic effects only.</li>
+          </ul>
+
+          <p>GWAS typically targets $h^2$ (additive). Modern SNP-heritability estimates use GWAS data directly:</p>
+
+          <ul>
+            <li><strong>GCTA</strong> (Yang et al. 2011): computes $h^2$ from the kinship matrix + phenotype via REML.</li>
+            <li><strong>LDSC</strong> (Bulik-Sullivan et al. 2015): computes $h^2$ from summary statistics alone, exploiting the relationship between a SNP's LD score and its expected $\chi^2$ under polygenic signal.</li>
+          </ul>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 LD Score regression</h3>
+
+          <p><strong>LDSC</strong> is the most influential summary-statistic method of the 2010s. The idea: under polygenic signal, a SNP's expected $\chi^2$ statistic should scale with how many other SNPs it's in LD with (its "LD score"). Specifically:</p>
+
+          <p>$$\mathbb{E}[\chi^2_j] = 1 + N h^2 \ell_j / M + N a$$</p>
+
+          <p>where $\ell_j$ is the LD score of SNP $j$ (sum of $r^2$ with all neighbouring SNPs), $N$ is sample size, $M$ is total SNP count, and $a$ captures confounding.</p>
+
+          <p>Regressing $\chi^2$ on LD score across all SNPs gives:</p>
+
+          <ul>
+            <li><strong>Slope</strong> $\propto h^2$ (the polygenic signal).</li>
+            <li><strong>Intercept</strong> $\approx 1 + a$ (the confounding offset).</li>
+          </ul>
+
+          <p>This separates real polygenic signal from confounding inflation — the key diagnostic $\lambda_{GC}$ alone can't do. A GWAS with high $\lambda_{GC}$ and high LDSC slope but intercept near 1 is polygenic, not confounded.</p>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">EE framing — LDSC as spectral decomposition</p>
+            <p>LDSC is a linear regression of per-SNP test statistic on LD score. The LD score $\ell_j$ is the $j$th diagonal entry of $\mathbf{R} \mathbf{R}^T$ where $\mathbf{R}$ is the SNP-SNP LD matrix. The regression slope is a scalar summary of how polygenic signal spreads across the LD-eigenvalue spectrum — a spectral decomposition of the kinship-driven covariance. The intercept isolates confounding (a uniform offset across the spectrum) from the slope (the spectral footprint of true polygenic signal).</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Missing heritability</h3>
+
+          <p>Heritability estimates for polygenic traits (height, IQ, schizophrenia) are typically $h^2 \approx 0.5$–$0.8$ from twin studies. But summing up the effects of GWAS-significant hits explains only a fraction — perhaps 10–40% — of the variance. The rest is "missing."</p>
+
+          <p>Where is it?</p>
+
+          <ul>
+            <li><strong>Many small effects below genome-wide significance.</strong> Individual SNPs don't cross $5 \times 10^{-8}$ but contribute collectively. PRS (§5.4) captures these implicitly.</li>
+            <li><strong>Rare variants.</strong> Common-SNP arrays miss low-frequency variation; sequencing + burden tests (Part 7) recover some.</li>
+            <li><strong>Structural variants.</strong> Under-captured by SNP arrays; better with long-read sequencing (Lecture 11) and pangenome references.</li>
+            <li><strong>Gene × environment interactions.</strong> Hard to estimate; some missing heritability hides here.</li>
+          </ul>
+
+          <p>Current consensus: for most common diseases, genuine common-variant polygenic contribution is large (70–80% of heritability is capturable in principle) but individual variants are so weak that power-limited GWAS hasn't found them all yet. Larger cohorts progressively recover more.</p>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Polygenic Risk Scores</h3>
+
+          <p>A <strong>polygenic risk score (PRS)</strong> aggregates signal across many SNPs into a single per-individual score. For individual $i$:</p>
+
+          <p>$$\text{PRS}_i = \sum_j \hat{\beta}_j G_{ij}$$</p>
+
+          <p>where $\hat{\beta}_j$ is the GWAS-estimated effect of SNP $j$ and $G_{ij}$ is the individual's allele count. Variants include "clumping + thresholding" (C+T; only include SNPs at $p &lt; \alpha$, pruned for LD), Bayesian shrinkage methods (LDpred, PRS-CS, SBayesR), and deep-learning extensions.</p>
+
+          <p>PRS is becoming clinically relevant:</p>
+
+          <ul>
+            <li>Coronary artery disease: top 1% of PRS has ~3× the population risk — comparable to rare Mendelian variants for this trait.</li>
+            <li>Breast cancer: PRS identifies a ~20% of women in whom lifetime risk approaches BRCA1-carrier risk.</li>
+            <li>Psychiatric traits: PRS-schizophrenia accounts for a meaningful fraction of within-family variance.</li>
+          </ul>
+
+          <p><strong>The portability problem</strong>: A PRS trained in European individuals performs ~3–5× worse in non-European ancestry. Reasons:</p>
+
+          <ol>
+            <li><strong>Allele frequencies differ</strong> — SNPs common in Europeans are rare or absent in Africans; those SNPs contribute nothing in the wrong population.</li>
+            <li><strong>LD patterns differ</strong> — the "tag SNPs" in the training cohort aren't tagging the same causal variants in a different ancestry.</li>
+            <li><strong>Effect-size heterogeneity</strong> — real causal variants have different effects across ancestries (gene-environment interactions, epistasis with background).</li>
+          </ol>
+
+          <p>The practical and ethical consequences are severe. PRS-based clinical tools trained exclusively on European data underperform in minority populations, potentially worsening health disparities. Resolving this requires <strong>equally-sized GWAS in each ancestry</strong>, which doesn't yet exist for most traits.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-13/09-prs-portability.svg"
+                 alt="Left panel: three stacked violin plots of PRS distribution per ancestry (EUR, EAS, AFR) all centred near 0 with similar spread. Right panel: bar chart of R-squared of PRS versus phenotype per ancestry. EUR bar cobalt R-squared equals 0.12 (tallest). EAS bar amber R-squared equals 0.05. AFR bar red R-squared equals 0.03. Baseline dashed line at R-squared equals 0. Caption: PRS trained on UK-Biobank-style European GWAS. Portability drops with genetic distance from training population. Remedies: diverse GWAS plus ancestry-aware PRS methods.">
+            <figcaption>Figure 9. PRS portability across ancestries. A PRS trained on European GWAS loses 3–5× predictive power when applied to non-European populations, primarily due to differing LD patterns and allele frequencies between training and test cohorts.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 2 — Manhattan + QQ Plot Inspector.</strong> Simulate a GWAS with tunable polygenicity, stratification strength, and $N$. Render Manhattan + QQ; compute $\lambda_{GC}$; diagnose inflation vs polygenic signal. The key insight: the QQ plot distinguishes inflation (early departure) from real polygenic signal (late departure) — you need it alongside the Manhattan.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-13/02-manhattan-qq.html" loading="lazy" title="Artifact 2 — Manhattan + QQ Plot Inspector"></iframe>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 3 — PRS Portability Simulator.</strong> Train a PRS on one simulated ancestry; test on another with different LD and allele-frequency structure. See $R^2$ drop. Toggle divergence factor from 0 (identical populations) to 1 (full divergence). The key insight: portability loss is dominated by differing LD patterns, not by allele-frequency absence alone.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-13/03-prs-portability.html" loading="lazy" title="Artifact 3 — PRS Portability Simulator"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 30 min</span>
+          Fine-Mapping and Colocalization
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 From peak to causal variant</h3>
+
+          <p>A GWAS peak is not a variant; it's a locus containing tens to hundreds of correlated SNPs, one or a few of which is causal. <strong>Fine-mapping</strong> is the inverse problem of identifying the causal variant(s) from the peak.</p>
+
+          <p>This is hard because:</p>
+
+          <ul>
+            <li>SNPs in LD have highly correlated test statistics. The most-significant SNP often isn't the causal one; it's the closest tag in the array / imputation panel.</li>
+            <li>Multiple causal variants can coexist in a locus — the sum of their LD-propagated signals is the visible peak.</li>
+            <li>Rare causal variants in LD with more common tagging SNPs mis-attribute signal to the common tag.</li>
+          </ul>
+
+          <p>Classical fine-mapping used conditional analysis: regress on the top SNP, re-test all others, identify whether any remaining peak survives. Modern approaches are statistical (Bayesian) and return a <strong>credible set</strong> — a set of SNPs guaranteed to contain the causal variant with specified posterior probability.</p>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 SuSiE, FINEMAP, CAVIAR</h3>
+
+          <p><strong>SuSiE</strong> (Sum of Single Effects; Wang et al. 2020) reformulates fine-mapping as sparse Bayesian regression:</p>
+
+          <p>$$\mathbf{Y} = \sum_{l=1}^{L} \sum_{j=1}^{M} \gamma_{lj} X_j \beta_{lj} + \boldsymbol{\varepsilon}$$</p>
+
+          <p>where $L$ is the assumed number of causal signals per locus, and $\gamma_{lj}$ is a one-hot indicator of which SNP drives signal $l$. Output: a <strong>posterior inclusion probability (PIP)</strong> for each SNP, and one <strong>credible set per signal</strong> (a set of SNPs whose total PIP &gt; 0.95 for that signal).</p>
+
+          <p><strong>FINEMAP</strong> (Benner et al. 2016): shotgun stochastic search over configurations of causal SNPs (0, 1, 2, … simultaneously causal). Posterior over configurations; credible sets derived.</p>
+
+          <p><strong>CAVIAR</strong> (Hormozdiari et al. 2014): early, elegant Bayesian formulation. Assumes a maximum number of causal variants and enumerates configurations.</p>
+
+          <p>All three require the LD matrix $\mathbf{R}$ as input — typically computed from the GWAS cohort itself or a reference panel. They need summary statistics and LD; they don't need individual-level genotype data.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-13/10-fine-mapping.svg"
+                 alt="Three stacked genomic tracks sharing a 300 kilobase coordinate axis. Top track: minus log p per SNP with a clear peak rising to 25 at the centre. Middle track: LD (r-squared) colour scale from grey below 0.2 to orange 0.2 to 0.5 to deep red above 0.8 for each SNP relative to the lead SNP, showing a classic LD block shape. Bottom track: SuSiE posterior inclusion probability bars per SNP, most near zero and five SNPs highlighted in amber as the 95 percent credible set annotated: 95 percent credible set 5 SNPs total PIP equals 0.97. One SNP has PIP 0.48. Caption: fine-mapping narrows 200 peak SNPs to 5 candidates.">
+            <figcaption>Figure 10. Fine-mapping with SuSiE at a GWAS locus. The top track shows the GWAS signal; the middle shows LD to the lead SNP; the bottom shows posterior inclusion probabilities. The 95% credible set narrows the locus from ~200 peak SNPs down to 5 candidates that collectively cover the causal variant with 95% posterior probability.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 4 — Fine-Mapping Credible Set Viewer.</strong> Simulate a locus with tunable LD structure and 1–3 planted causal variants. Run SuSiE-like credible-set inference. The key insight: strong LD merges signals into wide credible sets; breaking LD (or adding more data) shrinks them. LD tightness fundamentally limits resolution more than sample size.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-13/04-fine-mapping.html" loading="lazy" title="Artifact 4 — Fine-Mapping Credible Set Viewer"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">EE framing — fine-mapping as sparse inverse problem</p>
+            <p>At a GWAS locus, the observed test-statistic vector is the LD matrix times the sparse causal-effect vector, plus noise: $\mathbf{z} = \mathbf{R} \boldsymbol{\beta}_c / \sqrt{N} + \boldsymbol{\varepsilon}$ where $\boldsymbol{\beta}_c$ has a handful of non-zero entries (the causal variants). Recovering $\boldsymbol{\beta}_c$ from $\mathbf{z}$ given $\mathbf{R}$ is a <strong>sparse linear inverse problem</strong> — exactly compressed sensing / basis pursuit / LASSO / L0 regularised reconstruction. SuSiE's "sum of single effects" is an explicit sparse decomposition; FINEMAP's model-averaging is Bayesian sparse recovery. LD-block shape (autocorrelation of $\mathbf{R}$) determines whether the inverse is well-posed. The genomics community discovered this framework independently of the signal-processing community; the underlying math is identical.</p>
+          </aside>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 Colocalization</h3>
+
+          <p>A GWAS signal says <em>a</em> variant in the locus affects the trait. It doesn't say <em>which</em> gene or <em>how</em>. Colocalization adds a mechanistic layer: <strong>does the GWAS signal match the signal from an expression QTL (eQTL)?</strong></p>
+
+          <p><strong>coloc</strong> (Giambartolomei et al. 2014) tests five hypotheses at each locus:</p>
+
+          <ul>
+            <li>$H_0$: no association with either trait.</li>
+            <li>$H_1$: association with trait 1 only.</li>
+            <li>$H_2$: association with trait 2 only.</li>
+            <li>$H_3$: both associated, but different causal variants.</li>
+            <li>$H_4$: both associated, same causal variant.</li>
+          </ul>
+
+          <p>$P(H_4) &gt; 0.8$ is the standard threshold for claiming colocalization. Large eQTL datasets (GTEx, eQTLGen, CommonMind) make colocalization routine. Typical success rate: ~20–40% of GWAS loci colocalise with at least one eQTL tissue.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-13/11-colocalization.svg"
+                 alt="Two stacked locus-zoom panels sharing a 200 kilobase genomic coordinate axis. Top panel: GWAS minus log p for LDL cholesterol with a peak at position approximately 100 kb rising to 18. Bottom panel: eQTL minus log p for SORT1 in liver tissue with a peak at the same position rising to 15. Both lead SNPs annotated at the same location. A vertical dashed line through both panels marks the shared peak position. Annotation box on right showing coloc output: P H0 equals 0.00, P H1 equals 0.02, P H2 equals 0.00, P H3 equals 0.05, P H4 equals 0.93. Arrow and label: colocalizes and SORT1 is a candidate causal gene for LDL regulation.">
+            <figcaption>Figure 11. Colocalization of a GWAS signal and an eQTL. The GWAS peak for LDL cholesterol and the eQTL peak for <em>SORT1</em> expression in liver tissue coincide at the same position. The coloc posterior $P(H_4) = 0.93$ indicates these signals share a causal variant, implicating <em>SORT1</em> as the mediating gene.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 Fine-mapping as spectral inversion</h3>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">Intuition box</p>
+            <p>Colocalization asks a visually simple question — do the GWAS trace and the eQTL trace for the candidate gene peak at the same place along the genome? If yes, a single variant plausibly drives both; the gene whose eQTL co-peaks is the causal candidate. The coloc machinery formalises this with Bayesian posteriors because two traces peaking near each other can either share a causal variant ($H_4$) or have nearby-but-distinct causal variants ($H_3$), and LD makes these visually indistinguishable. The mental picture is: two 1D signals lined up on the genome axis — you want peak coincidence, not just peak proximity.</p>
+          </aside>
+        </section>
+
+        <section id="sec-6-5">
+          <h3>6.5 When fine-mapping fails</h3>
+
+          <p>Fine-mapping fails when:</p>
+
+          <ul>
+            <li><strong>Credible sets remain huge</strong> (&gt;50 SNPs): locus has many equally-good candidates, often because the causal variant isn't in the panel or because LD is very tight. Improving the panel (WGS imputation, denser reference) shrinks the set.</li>
+            <li><strong>Multiple signals present but poorly separated</strong>: SuSiE with $L = 5$ finds 5 signals, but credible sets overlap heavily. Usually needs more data.</li>
+            <li><strong>Causal variant is structural</strong>: fine-mapping assumes SNP-based signal. If the causal is a CNV or SV not captured by the array, fine-mapping converges to a tagging SNP nearby the SV but isn't causal.</li>
+          </ul>
+
+          <p>Realistic success rate: for well-powered loci (lead $p &lt; 10^{-20}$ in large European cohorts), single-variant resolution is achieved at maybe 30% of loci. The rest remain candidate-set-level.</p>
+
+          <aside class="callout callout--warning">
+            <p class="callout-label">Warning box</p>
+            <p>A 95% credible set contains the causal variant with 95% posterior probability only if the prior assumptions (sparsity $L$, LD matrix accuracy, causal-effect prior) are correct. In practice, the prior on $L$ is a hyperparameter; the LD matrix may be mis-estimated from a reference panel that doesn't match the GWAS cohort; and effect priors assume a functional form that may not hold. Credible sets should be read as "strong candidates," not "the causal variant is certainly in here."</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 25 min</span>
+          Rare-Variant Association
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 Why single-SNP fails on rare variants</h3>
+
+          <p>For very rare variants ($\text{MAF} &lt; 0.01$), single-variant GWAS is underpowered:</p>
+
+          <ul>
+            <li>Variance of $\hat{\beta}$ scales as $1 / [N \cdot 2p(1-p)]$.</li>
+            <li>At $p = 0.001$, $2p(1-p) \approx 0.002$ — 250× smaller than at $p = 0.5$.</li>
+            <li>Detecting $\beta = 0.1$ at $\alpha = 5 \times 10^{-8}$ with 80% power needs $N \approx 10^8$ — no cohort is that large.</li>
+          </ul>
+
+          <p><strong>The workaround</strong>: aggregate rare variants within some grouping (usually a gene) and test the group collectively for association. If a gene harbours many rare loss-of-function variants in cases but few in controls, there's signal even though no individual variant is individually significant.</p>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Burden tests</h3>
+
+          <p><strong>Burden tests</strong> collapse all rare variants in a gene into a single summary statistic per individual, then regress phenotype on that summary:</p>
+
+          <p>$$\text{BurdenScore}_i = \sum_{j \in \text{gene}} w_j G_{ij}$$</p>
+
+          <p>where $G_{ij}$ is genotype at rare variant $j$ in the gene and $w_j$ is a weight (often 1, or inverse-allele-frequency weighted, or functional-impact weighted).</p>
+
+          <p>The regression:</p>
+
+          <p>$$Y_i = \beta_0 + \beta_{\text{burden}} \cdot \text{BurdenScore}_i + \boldsymbol{\gamma}^T \mathbf{X}_i + \varepsilon_i$$</p>
+
+          <p>One test per gene → ~20,000 tests, not millions. Bonferroni threshold is $0.05 / 20{,}000 = 2.5 \times 10^{-6}$ — much less stringent than single-SNP.</p>
+
+          <p>Works great when: most rare variants in the gene have effects in the same direction (e.g. all loss-of-function). Fails when variants have mixed directions (some gain of function, some loss) — they cancel in the sum.</p>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 SKAT and SKAT-O</h3>
+
+          <p><strong>SKAT</strong> (Sequence Kernel Association Test; Wu et al. 2011) fixes the "mixed directions" problem:</p>
+
+          <p>$$Q = (\mathbf{Y} - \boldsymbol{\mu})^T \mathbf{G} \mathbf{W} \mathbf{G}^T (\mathbf{Y} - \boldsymbol{\mu})$$</p>
+
+          <p>where $\mathbf{G}$ is the gene's genotype matrix (rare variants only) and $\mathbf{W}$ is a diagonal weight matrix. Under the null, $Q$ follows a mixture of chi-squared distributions (Davies approximation).</p>
+
+          <p>Intuition: SKAT is a <strong>kernel test</strong> — it compares the phenotype variance explained by the gene's genotype kernel against a null. Unlike the burden test, SKAT doesn't assume directional concordance; it just asks "does this gene's genotype collectively explain phenotype variance?"</p>
+
+          <p><strong>SKAT-O</strong> (Lee et al. 2012) combines burden and SKAT adaptively: an optimally-weighted hybrid that gets the best of both depending on the underlying directional pattern of variants. Default choice for modern rare-variant GWAS.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-13/12-burden-skat.svg"
+                 alt="Three side-by-side gene cartoons, each a long horizontal rectangle representing a gene with approximately 20 rare variant tick marks along its body coloured by direction. Left case: all variants coloured red (deleterious) with label all same direction and annotation burden test fires. Middle case: variants mixed red and green (deleterious and protective) with label mixed directions and annotation burden cancels but SKAT detects. Right case: most variants grey (neutral) with a few large red variants with label mostly neutral few large effects and annotation SKAT detects through kernel weighting. Table below summarising which test wins in each regime.">
+            <figcaption>Figure 12. When burden tests vs SKAT win. Burden tests aggregate directional signals and win when effects are concordant (left). SKAT detects variance explained by genotype even when effects are bidirectional (middle). SKAT-O adapts to whichever regime is present.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-7-4">
+          <h3>7.4 Data sources: gnomAD and friends</h3>
+
+          <p>Rare-variant testing needs sequencing, not arrays. Key resources:</p>
+
+          <ul>
+            <li><strong>gnomAD</strong> (Karczewski et al. 2020): &gt;800k exomes + &gt;150k genomes from healthy populations. Standard source for rare-variant allele frequencies. Every clinical genetics pipeline uses gnomAD as the "is this variant rare?" reference.</li>
+            <li><strong>UK Biobank exome / WGS releases</strong>: exomes for all 500k; WGS for ~500k (released 2022–23). Powers rare-variant burden tests across hundreds of traits.</li>
+            <li><strong>TOPMed</strong> (~150k whole genomes, US multi-ethnic): rare variants in diverse populations.</li>
+          </ul>
+        </section>
+
+        <section id="sec-7-5">
+          <h3>7.5 Rare-variant caveats</h3>
+
+          <ul>
+            <li><strong>Annotation-dependent</strong>: burden tests require a definition of "rare functional variants in this gene." Definitions vary (LoF only vs LoF + missense, allele-frequency cutoffs at 0.01 vs 0.001, etc.). Sensitivity analyses across definitions are standard.</li>
+            <li><strong>Genotyping / calling errors are amplified</strong>: false-positive rare variant calls directly inflate the burden. QC is more demanding than for common variants.</li>
+            <li><strong>Case-control imbalance is severe</strong>: SAIGE-GENE / REGENIE-GENE handle this.</li>
+          </ul>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 5 — Population Stratification + PCA Correction.</strong> Simulate a two-subpopulation cohort with an ancestry-correlated phenotype and zero true SNP effects. Run GWAS without correction → massive inflation. Include top PCs → $\lambda_{GC}$ returns to 1. The key insight: without correction every SNP with inter-group allele-frequency difference fires spuriously; PCA correction is noise whitening.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-13/05-pca-correction.html" loading="lazy" title="Artifact 5 — Population Stratification + PCA Correction"></iframe>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 6 — Burden and SKAT Simulator.</strong> Simulate a gene with user-controlled mix of LoF, missense, and neutral rare variants at user-controlled frequencies and effect sizes. Compute burden, SKAT, and SKAT-O statistics and their p-values. The key insight: burden dominates when directions agree; SKAT dominates when mixed; SKAT-O approximates whichever is better per locus.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-13/06-burden-skat.html" loading="lazy" title="Artifact 6 — Burden and SKAT Simulator"></iframe>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 7 — Kinship-Corrected GWAS Mini-Simulator.</strong> Simulate a small cohort with relatedness (siblings, cousins). Run OLS GWAS and a mixed-model GWAS; compare QQ plots and $\lambda_{GC}$ values. The key insight: with cryptic relatedness, OLS inflates and the fix is to model the kinship covariance explicitly.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-13/07-mixed-model.html" loading="lazy" title="Artifact 7 — Kinship-Corrected GWAS Mini-Simulator"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <p class="callout-label">EE framing — burden testing as matched filter on rare-variant count</p>
+            <p>A burden test aggregates rare variants in a gene into one linear summary, then regresses phenotype on that summary. Equivalent to a <strong>matched filter</strong> where the template is "sum of rare damaging variants in gene $G$" and the signal is phenotype. SKAT is the kernel version, using a quadratic form $\mathbf{Y}^T \mathbf{K} \mathbf{Y}$ with $\mathbf{K} = \mathbf{G} \mathbf{W} \mathbf{G}^T$ — variance-based detection that doesn't require directional alignment. SKAT-O is adaptive combination of the two detectors, analogous to a <strong>composite-hypothesis matched filter</strong> that doesn't assume the signal template's exact form.</p>
+          </aside>
+
+          <aside class="callout callout--discussion">
+            <p class="callout-label">Discussion prompt</p>
+            <p>You run a burden test at $N = 10{,}000$ exomes with 80% power to detect OR = 3 for a gene with MAF-sum 1%. No genes are significant at $\alpha = 2.5 \times 10^{-6}$. Three explanations: (a) no rare-variant signal exists for this trait, (b) the trait has rare-variant signal but your cohort is too small, (c) rare variants exist but with mixed directional effects that burden cancelled. How would you distinguish these? What additional analysis would you run, and how does scaling to $N = 100{,}000$ exomes change the picture?</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ──────────────────────────────────────── -->
+      <section id="wrapup" class="lecture-wrapup">
+        <h2>
+          <span class="part-kicker">Wrap-up · 10 min</span>
+          Takeaways, homework, and next lecture
+        </h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>GWAS is a bank of per-SNP regressions</strong> with the phenotype as outcome, genotype as predictor, covariates including PCs, age, sex, and batch. At biobank scale this is a massively-multichannel detection problem.</li>
+          <li><strong>Genome-wide significance is $5 \times 10^{-8}$</strong> — Bonferroni correction for ~10⁶ LD-independent tests. The Manhattan plot displays the signal; the QQ plot checks calibration.</li>
+          <li><strong>Population stratification inflates every SNP uniformly.</strong> PCA correction (top 10–40 PCs as covariates) is the first line of defence; mixed-model regression with kinship (BOLT-LMM, SAIGE, REGENIE) is the modern workhorse.</li>
+          <li><strong>LD Score regression separates polygenic signal from confounding</strong> using summary statistics alone. Slope ∝ heritability; intercept ∝ confounding.</li>
+          <li><strong>Polygenic Risk Scores aggregate signal across the genome into a per-individual score.</strong> PRS has real clinical utility for coronary disease, breast cancer, schizophrenia — but portability across ancestries is ~3–5× worse when training data is European-dominated.</li>
+          <li><strong>Fine-mapping is a sparse inverse problem.</strong> SuSiE, FINEMAP, CAVIAR return credible sets — small groups of SNPs that collectively explain the locus signal with specified posterior probability.</li>
+          <li><strong>Colocalization links GWAS loci to genes</strong> via matched eQTL signal. coloc's $P(H_4) &gt; 0.8$ is the standard threshold.</li>
+          <li><strong>Rare-variant GWAS uses burden tests and SKAT.</strong> Single-variant testing fails below MAF ~0.01; aggregation across a gene recovers power. gnomAD is the standard rare-variant reference.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Data engineering, file formats, and reproducibility. FASTQ → BAM/CRAM; VCF/BCF; HDF5/Zarr for single-cell; Parquet for tabular omics. SRA/ENA/GEO/dbGaP data repositories. Containerization (Docker, Singularity) and the dependency-hell problem. Workflow languages (Nextflow, Snakemake, WDL). GIAB truth sets and benchmarking. The culture of bioinformatics: preprints, nf-core, open-source norms.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Download the 1000 Genomes chr22 genotype data + a simulated phenotype. Run a per-SNP linear regression. Plot the Manhattan and QQ plots. Report $\lambda_{GC}$.</li>
+          <li>Re-run the same GWAS including 10 principal components as covariates. Report the new QQ plot and $\lambda_{GC}$. Did inflation go down?</li>
+          <li>Compute a PRS from a published GWAS summary statistic (e.g. for height from the Yengo et al. meta-analysis). Apply it to a held-out cohort. Report $R^2$ of PRS vs phenotype.</li>
+          <li>At a single well-known GWAS locus (e.g. <em>FTO</em> for BMI), run SuSiE on the summary statistics + LD. Report the credible set(s). What's the smallest credible set you can achieve?</li>
+          <li>Use gnomAD to check the allele frequency of three variants: rs334 (sickle cell), rs80357906 (BRCA1), and rs1815739 (ACTN3). Comment on how MAF and population structure affect each.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Klein, R. J. et al. (2005). Complement factor H polymorphism in age-related macular degeneration. <em>Science</em> 308, 385–389. (First widely-cited GWAS.)</li>
+          <li>Wellcome Trust Case Control Consortium (2007). Genome-wide association study of 14,000 cases of seven common diseases and 3,000 shared controls. <em>Nature</em> 447, 661–678.</li>
+          <li>Visscher, P. M., Wray, N. R., Zhang, Q., et al. (2017). 10 years of GWAS discovery: biology, function, and translation. <em>American Journal of Human Genetics</em> 101, 5–22.</li>
+          <li>Price, A. L., Patterson, N. J., Plenge, R. M., et al. (2006). Principal components analysis corrects for stratification in genome-wide association studies. <em>Nature Genetics</em> 38, 904–909.</li>
+          <li>Loh, P. R., Tucker, G., Bulik-Sullivan, B. K., et al. (2015). Efficient Bayesian mixed-model analysis increases association power in large cohorts. <em>Nature Genetics</em> 47, 284–290. (BOLT-LMM.)</li>
+          <li>Zhou, W., Nielsen, J. B., Fritsche, L. G., et al. (2018). Efficiently controlling for case-control imbalance and sample relatedness in large-scale genetic association studies. <em>Nature Genetics</em> 50, 1335–1341. (SAIGE.)</li>
+          <li>Mbatchou, J., Barnard, L., Backman, J., et al. (2021). Computationally efficient whole-genome regression for quantitative and binary traits. <em>Nature Genetics</em> 53, 1097–1103. (REGENIE.)</li>
+          <li>Bulik-Sullivan, B. K., Loh, P. R., Finucane, H. K., et al. (2015). LD Score regression distinguishes confounding from polygenicity in genome-wide association studies. <em>Nature Genetics</em> 47, 291–295. (LDSC.)</li>
+          <li>Wang, G., Sarkar, A., Carbonetto, P., &amp; Stephens, M. (2020). A simple new approach to variable selection in regression, with application to genetic fine-mapping. <em>Journal of the Royal Statistical Society, Series B</em> 82, 1273–1300. (SuSiE.)</li>
+          <li>Giambartolomei, C., Vukcevic, D., Schadt, E. E., et al. (2014). Bayesian test for colocalisation between pairs of genetic association studies using summary statistics. <em>PLoS Genetics</em> 10, e1004383. (coloc.)</li>
+          <li>Wu, M. C., Lee, S., Cai, T., et al. (2011). Rare-variant association testing for sequencing data with the sequence kernel association test. <em>American Journal of Human Genetics</em> 89, 82–93. (SKAT.)</li>
+          <li>Lee, S., Emond, M. J., Bamshad, M. J., et al. (2012). Optimal unified approach for rare-variant association testing with application to small-sample case-control whole-exome sequencing studies. <em>American Journal of Human Genetics</em> 91, 224–237. (SKAT-O.)</li>
+          <li>Karczewski, K. J., Francioli, L. C., Tiao, G., et al. (2020). The mutational constraint spectrum quantified from variation in 141,456 humans. <em>Nature</em> 581, 434–443. (gnomAD.)</li>
+          <li>Martin, A. R., Kanai, M., Kamatani, Y., et al. (2019). Clinical use of current polygenic risk scores may exacerbate health disparities. <em>Nature Genetics</em> 51, 584–591. (PRS portability.)</li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — The GWAS Framework</td>                              <td>25&nbsp;min</td><td>0:25</td></tr>
+            <tr><td>Part 2 — The Manhattan Plot and What It Shows</td>             <td>25&nbsp;min</td><td>0:50</td></tr>
+            <tr><td>Part 3 — Multiple Testing at SNP Scale</td>                    <td>25&nbsp;min</td><td>1:15</td></tr>
+            <tr><td>Part 4 — Confounders and Corrections</td>                       <td>40&nbsp;min</td><td>1:55</td></tr>
+            <tr><td>Part 5 — Beyond Single-SNP: Heritability and PRS</td>           <td>30&nbsp;min</td><td>2:25</td></tr>
+            <tr><td>Part 6 — Fine-Mapping and Colocalization</td>                   <td>30&nbsp;min</td><td>2:55</td></tr>
+            <tr><td>Part 7 — Rare-Variant Association</td>                           <td>25&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                                     <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys())
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) {
+          f.style.height = d.height + 'px';
+        }
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

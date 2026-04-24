@@ -649,10 +649,22 @@
     $('noise-read').textContent = (+noiseEl.value).toFixed(1);
   }
 
+  const DEFAULT_TEMPLATE = 'GATTACAGATTACAGATTACAGA';
   templateEl.addEventListener('input', () => {
-    templateEl.value = sanitize(templateEl.value);
-    state.template = templateEl.value || 'GATTACAGATTACAGATTACAGA';
+    const v = sanitize(templateEl.value);
+    templateEl.value = v;
+    // The basecaller compares against every 5-mer, so the template must carry at
+    // least K bases. Anything shorter falls back to the default and we surface a
+    // hint rather than running the sim on an undefined k-mer (→ NaN squiggle).
+    if (v.length >= K) {
+      state.template = v;
+    } else {
+      state.template = DEFAULT_TEMPLATE;
+    }
     resetSim();
+    if (v.length > 0 && v.length < K) {
+      bcHint.textContent = `Template must be at least ${K} bases (the basecaller's k-mer size). Using default until you add more.`;
+    }
   });
   randomBtn.addEventListener('click', () => {
     templateEl.value = randomDna(24 + Math.floor(Math.random() * 12));

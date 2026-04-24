@@ -242,20 +242,24 @@ function drawQQ(r){
 }
 
 function classifyShape(r){
-  // early lift-off detection: check quantile at rank = 50% vs expected
+  // Infer the QQ-plot shape purely from the sorted observed −log10(p) values, not from
+  // simulation knobs. "Early lift" = bulk of the distribution already deviates from the
+  // diagonal (confounding). "Late lift" = only the tail deviates (real polygenic signal).
   const M = r.neglog.length;
-  const sorted = Array.from(r.neglog).sort((a,b)=>b-a);
-  const midIdx = Math.floor(M*0.5);
-  const obsMid = sorted[midIdx];
-  const expMid = -Math.log10((midIdx+0.5)/M);
-  const midRatio = obsMid / Math.max(0.01, expMid);
-  const tailIdx = Math.floor(M*0.001);
-  const obsTail = sorted[tailIdx];
-  const expTail = -Math.log10((tailIdx+0.5)/M);
-  const tailRatio = obsTail / Math.max(0.01, expTail);
-  if (state.strat > 0.1 && midRatio > 1.3) return 'early lift (confounding)';
-  if (r.lambda > 1.08 && tailRatio > 1.3 && midRatio < 1.3) return 'late lift (polygenic)';
-  if (r.lambda < 1.05) return 'calibrated';
+  const sorted = Array.from(r.neglog).sort((a,b)=>b-a);  // descending
+  function ratioAtQuantile(q){
+    const idx = Math.floor(M*q);
+    const obs = sorted[idx];
+    const exp = -Math.log10((idx+0.5)/M);
+    return obs / Math.max(0.01, exp);
+  }
+  // Bulk-of-distribution test: average ratio over 25th–75th quantile of the sorted values.
+  // For a calibrated GWAS these should all sit on the 45° line ⇒ ratio ≈ 1.
+  const bulkRatio = (ratioAtQuantile(0.25) + ratioAtQuantile(0.50) + ratioAtQuantile(0.75)) / 3;
+  const tailRatio = ratioAtQuantile(0.001);
+  if (bulkRatio > 1.25) return 'early lift (confounding)';
+  if (tailRatio > 1.3 && bulkRatio < 1.15) return 'late lift (polygenic)';
+  if (r.lambda < 1.05 && bulkRatio < 1.1) return 'calibrated';
   return 'mixed';
 }
 

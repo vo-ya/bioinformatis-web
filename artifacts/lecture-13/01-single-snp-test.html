@@ -154,32 +154,26 @@ function invNormCdf(p){
 const state = { p:0.30, beta:0.05, N:100000, sigma:1.0, alpha:5e-8 };
 let _lastRun = null;
 
-// --- Simulation: compute sufficient stats analytically (exact OLS), subsample for plot only ---
+// --- Simulation: draw β̂ from its N-sample distribution, then sample 400 points around that β̂
+//     so the plotted scatter, cluster means, and regression line are visually coherent.
 function simulate(){
   const { p, beta, N, sigma } = state;
-  // True genotype distribution: mean 2p, variance 2p(1-p)
-  // Simulate exact OLS fit on N individuals, but we only need summary stats.
-  // Use sampled moments (unbiased) for realistic noise.
-  let sumG=0, sumG2=0, sumY=0, sumGY=0;
-  // Sample sufficient moments using law of large numbers + Gaussian approximation
-  // Deterministic population means plus Gaussian noise with exact variance.
   const varG = 2*p*(1-p);
-  const muG = 2*p;
-  // For plot: subsample a few hundred points
-  const nPlot = 400;
-  const plotG = [], plotY = [];
-  for (let i=0;i<nPlot;i++){
-    const g = binom2(p);
-    const y = beta*g + sigma*gauss();
-    plotG.push(g); plotY.push(y);
-  }
-  // Exact-ish: simulate β̂ with its known sampling distribution.
-  // β̂ ~ N(β, σ² / (N·var(G)))
+  // β̂ ~ N(β, σ² / (N·var(G))) under the working linear model.
   const se = sigma / Math.sqrt(N * varG);
   const betaHat = beta + se*gauss();
   const z = betaHat / se;
   const pval = pTwoSided(z);
   const pw = power(Math.abs(beta/se), state.alpha);
+  // Scatter of 400 points drawn from Y = β̂·G + ε so the visible regression line passes
+  // through the sample cluster means.
+  const nPlot = 400;
+  const plotG = [], plotY = [];
+  for (let i=0;i<nPlot;i++){
+    const g = binom2(p);
+    const y = betaHat*g + sigma*gauss();
+    plotG.push(g); plotY.push(y);
+  }
   return { plotG, plotY, betaHat, se, z, pval, power:pw, varG };
 }
 

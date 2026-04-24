@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accession Parser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1000px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 70ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .input-row { display: flex; gap: 0.5rem; }
+  .input-row input { flex: 1; font-family: var(--font-mono); font-size: 1.1rem; padding: 0.55rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; }
+  .input-row input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; }
+  .btn.secondary { background: #fff; color: var(--fg); border: 1px solid var(--border); }
+  .presets { margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .kv { display: grid; grid-template-columns: 180px 1fr; gap: 0.5rem 1rem; font-family: var(--font-mono); font-size: var(--text-sm); }
+  .kv .k { color: var(--fg-subtle); font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; padding-top: 0.15rem; }
+  .kv .v { color: var(--fg); }
+  .urls { display: grid; gap: 0.4rem; font-family: var(--font-mono); font-size: var(--text-sm); }
+  .urls a { color: var(--accent); word-break: break-all; }
+  .err { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; padding: 0.75rem 1rem; color: #991b1b; font-size: var(--text-sm); margin-top: 0.5rem; display: none; }
+  .err.show { display: block; }
+  .badge { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 10px; font-size: 0.75rem; font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  .badge.open { background: #dbeafe; color: #1d4ed8; }
+  .badge.ctrl { background: #fef3c7; color: #92400e; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .outcome .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .outcome .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>SRA / GEO / EGA Accession Parser</h1>
+    <p>Every public bioinformatics dataset has an accession ID with a meaningful prefix. Paste any accession below to see its repository, record type, and canonical access URLs. Once you know the prefix patterns you never need to Google "what is a <code>PRJEB…</code>" again.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Accession</p>
+    <div class="input-row">
+      <input id="acc" type="text" spellcheck="false" value="SRP123456" placeholder="e.g. SRP123456, GSE142345, phs000424.v8.p2, EGAD00001006677">
+      <button class="btn" id="parseBtn">Parse</button>
+    </div>
+    <div class="presets">
+      <button class="btn secondary" data-ex="SRP123456">SRP project</button>
+      <button class="btn secondary" data-ex="SRR1234567">SRR run</button>
+      <button class="btn secondary" data-ex="SRS0012345">SRS sample</button>
+      <button class="btn secondary" data-ex="PRJNA012345">PRJNA BioProject</button>
+      <button class="btn secondary" data-ex="ERP123456">ERP (ENA)</button>
+      <button class="btn secondary" data-ex="GSE142345">GSE (GEO)</button>
+      <button class="btn secondary" data-ex="GSM3456789">GSM sample</button>
+      <button class="btn secondary" data-ex="phs000424.v8.p2">phs (dbGaP)</button>
+      <button class="btn secondary" data-ex="EGAD00001006677">EGAD dataset</button>
+      <button class="btn secondary" data-ex="E-MTAB-12345">E-MTAB (ArrayExpress)</button>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Parsed</p>
+    <div class="kv" id="parsed"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Canonical URLs</p>
+    <div class="urls" id="urls"></div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  // Prefix table: regex → { repo, access, type, note }
+  const PATTERNS = [
+    { re: /^SRP\d{6,}$/i,        repo: 'SRA (NIH)',     access: 'open', type: 'Study / Project', mirror: s => s.toUpperCase().replace(/^SRP/, 'ERP') },
+    { re: /^SRR\d{6,}$/i,        repo: 'SRA (NIH)',     access: 'open', type: 'Run',             mirror: s => s.toUpperCase().replace(/^SRR/, 'ERR') },
+    { re: /^SRS\d{6,}$/i,        repo: 'SRA (NIH)',     access: 'open', type: 'Sample',          mirror: s => s.toUpperCase().replace(/^SRS/, 'ERS') },
+    { re: /^SRX\d{6,}$/i,        repo: 'SRA (NIH)',     access: 'open', type: 'Experiment',      mirror: s => s.toUpperCase().replace(/^SRX/, 'ERX') },
+    { re: /^ERP\d{6,}$/i,        repo: 'ENA (EBI)',     access: 'open', type: 'Study / Project', mirror: s => s.toUpperCase().replace(/^ERP/, 'SRP') },
+    { re: /^ERR\d{6,}$/i,        repo: 'ENA (EBI)',     access: 'open', type: 'Run',             mirror: s => s.toUpperCase().replace(/^ERR/, 'SRR') },
+    { re: /^ERS\d{6,}$/i,        repo: 'ENA (EBI)',     access: 'open', type: 'Sample',          mirror: s => s.toUpperCase().replace(/^ERS/, 'SRS') },
+    { re: /^PRJNA\d+$/i,         repo: 'NCBI BioProject', access: 'open', type: 'BioProject (umbrella)', mirror: s => s.toUpperCase().replace(/^PRJNA/, 'PRJEB') },
+    { re: /^PRJEB\d+$/i,         repo: 'ENA BioProject', access: 'open', type: 'BioProject (umbrella)', mirror: s => s.toUpperCase().replace(/^PRJEB/, 'PRJNA') },
+    { re: /^GSE\d{3,}$/i,        repo: 'GEO (NIH)',     access: 'open', type: 'Series (study)',  mirror: null },
+    { re: /^GSM\d{3,}$/i,        repo: 'GEO (NIH)',     access: 'open', type: 'Sample',          mirror: null },
+    { re: /^E-[A-Z]{4}-\d+$/i,   repo: 'ArrayExpress (EBI)', access: 'open', type: 'Experiment',  mirror: null },
+    { re: /^phs\d+(\.v\d+)?(\.p\d+)?$/i, repo: 'dbGaP (NIH)',  access: 'controlled', type: 'Study — individual-level genotype+phenotype', mirror: null },
+    { re: /^EGAS\d+$/i,          repo: 'EGA (EBI/CRG)', access: 'controlled', type: 'Study',       mirror: null },
+    { re: /^EGAD\d+$/i,          repo: 'EGA (EBI/CRG)', access: 'controlled', type: 'Dataset',     mirror: null },
+    { re: /^EGAN\d+$/i,          repo: 'EGA (EBI/CRG)', access: 'controlled', type: 'Sample',      mirror: null },
+    { re: /^TCGA-[A-Z0-9-]+$/i,  repo: 'GDC (NCI)',     access: 'controlled', type: 'Case / sample', mirror: null },
+  ];
+
+  function parse(acc) {
+    const a = acc.trim();
+    if (!a) return { ok: false, err: 'Enter an accession ID.' };
+    for (const p of PATTERNS) {
+      if (p.re.test(a)) {
+        return { ok: true, acc: a, ...p, mirrorId: p.mirror ? p.mirror(a) : null };
+      }
+    }
+    return { ok: false, err: `Unrecognised prefix. Known prefixes: SRP/SRR/SRS/SRX (SRA), ERP/ERR/ERS (ENA), PRJNA/PRJEB (BioProject), GSE/GSM (GEO), E-XXXX (ArrayExpress), phs (dbGaP), EGAS/EGAD/EGAN (EGA), TCGA (GDC).` };
+  }
+
+  function urls(r) {
+    const a = r.acc;
+    const upper = a.toUpperCase();
+    const out = [];
+    if (r.repo.includes('SRA')) {
+      out.push({ label: 'NCBI Trace metadata', href: `https://trace.ncbi.nlm.nih.gov/Traces/?run=${upper}` });
+      out.push({ label: 'ENA mirror',           href: `https://www.ebi.ac.uk/ena/browser/view/${r.mirrorId || upper}` });
+      out.push({ label: 'sra-tools CLI',        href: `prefetch ${upper}`, cmd: true });
+      out.push({ label: 'AWS Open Data',        href: `s3://sra-pub-src-1/${upper}/` });
+    } else if (r.repo.includes('ENA')) {
+      out.push({ label: 'ENA Browser',          href: `https://www.ebi.ac.uk/ena/browser/view/${upper}` });
+      out.push({ label: 'SRA mirror',           href: `https://trace.ncbi.nlm.nih.gov/Traces/?run=${r.mirrorId || upper}` });
+    } else if (r.repo.includes('GEO')) {
+      out.push({ label: 'NCBI GEO',             href: `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${upper}` });
+      out.push({ label: 'Associated SRA',       href: `https://trace.ncbi.nlm.nih.gov/Traces/sdfeta?s=${upper}` });
+    } else if (r.repo.includes('ArrayExpress')) {
+      out.push({ label: 'ArrayExpress',         href: `https://www.ebi.ac.uk/biostudies/arrayexpress/studies/${upper}` });
+    } else if (r.repo.includes('BioProject')) {
+      const isNCBI = r.repo.includes('NCBI');
+      out.push({ label: isNCBI ? 'NCBI BioProject' : 'ENA Project', href: isNCBI ? `https://www.ncbi.nlm.nih.gov/bioproject/?term=${upper}` : `https://www.ebi.ac.uk/ena/browser/view/${upper}` });
+      out.push({ label: 'Mirror',               href: `https://www.ebi.ac.uk/ena/browser/view/${r.mirrorId || upper}` });
+    } else if (r.repo.includes('dbGaP')) {
+      out.push({ label: 'dbGaP study page',     href: `https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=${upper}` });
+      out.push({ label: 'Access model',         href: 'https://www.ncbi.nlm.nih.gov/gap/', info: 'requires DUA + IRB approval via dbGaP Authorized Access', info: true });
+    } else if (r.repo.includes('EGA')) {
+      out.push({ label: 'EGA portal',           href: `https://ega-archive.org/datasets/${upper}` });
+    } else if (r.repo.includes('GDC')) {
+      out.push({ label: 'GDC portal',           href: `https://portal.gdc.cancer.gov/cases/${upper}` });
+    }
+    return out;
+  }
+
+  function render(r) {
+    if (!r.ok) {
+      $('err').textContent = r.err;
+      $('err').classList.add('show');
+      $('parsed').innerHTML = '';
+      $('urls').innerHTML = '';
+      $('outcome').innerHTML = `<div class="verdict">Not recognised</div><div class="hint">${r.err}</div>`;
+      return;
+    }
+    $('err').classList.remove('show');
+    const badgeCls = r.access === 'controlled' ? 'ctrl' : 'open';
+    const badgeLbl = r.access === 'controlled' ? 'controlled 🔒' : 'open access';
+    $('parsed').innerHTML = `
+      <div class="k">Accession</div><div class="v">${r.acc}</div>
+      <div class="k">Repository</div><div class="v">${r.repo}</div>
+      <div class="k">Record type</div><div class="v">${r.type}</div>
+      <div class="k">Access model</div><div class="v"><span class="badge ${badgeCls}">${badgeLbl}</span></div>
+      ${r.mirrorId ? `<div class="k">Mirror ID</div><div class="v">${r.mirrorId}</div>` : ''}
+    `;
+    const us = urls(r);
+    $('urls').innerHTML = us.map(u => u.cmd
+      ? `<div><span style="color:#6b7280">$</span> ${u.href}</div>`
+      : `<div><a href="${u.href}" target="_blank" rel="noopener">${u.label} ↗</a> <span style="color:#9ca3af;font-family:var(--font-sans);font-size:0.75rem;">${u.href}</span></div>`
+    ).join('');
+    $('outcome').innerHTML = `
+      <div>${r.acc} → <strong>${r.repo}</strong> · <strong>${r.type}</strong> · <strong>${r.access === 'controlled' ? 'controlled 🔒' : 'open'}</strong></div>
+      ${r.mirrorId ? `<div>Mirror: <strong>${r.mirrorId}</strong></div>` : ''}
+      <div class="verdict">${r.access === 'controlled'
+        ? 'Controlled access: requires a data-use agreement; raw data is not on SRA/ENA.'
+        : 'Open access: free to download; journal deposition is required before publication.'}</div>
+      <div class="hint">Try different prefix presets to see the full namespace. SRP/ERP mirror across SRA/ENA; GSE sits separately in GEO for processed data.</div>
+    `;
+  }
+
+  function go() {
+    render(parse($('acc').value));
+  }
+
+  $('parseBtn').addEventListener('click', go);
+  $('acc').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  document.querySelectorAll('button[data-ex]').forEach(b => b.addEventListener('click', () => {
+    $('acc').value = b.getAttribute('data-ex'); go();
+  }));
+
+  go();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

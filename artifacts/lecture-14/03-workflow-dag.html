@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflow DAG Visualiser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1120px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .ctrl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; align-items: end; }
+  .ctrl-row { display: flex; flex-direction: column; gap: 0.3rem; }
+  .ctrl-row label { font-size: var(--text-sm); font-weight: 500; }
+  select, input[type="range"] { width: 100%; }
+  select { font-family: var(--font-sans); font-size: var(--text-sm); padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); }
+  .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; }
+  .btn.secondary { background: #fff; color: var(--fg); border: 1px solid var(--border); }
+  .btn-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+  svg.dag { width: 100%; height: auto; display: block; }
+  .cache { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: var(--text-sm); }
+  .cache th, .cache td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; }
+  .cache th { background: var(--bg-muted); font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-subtle); }
+  .state-ok { color: #059669; font-weight: 600; }
+  .state-fail { color: #c4342c; font-weight: 600; }
+  .state-cached { color: #6b7280; }
+  .state-pend { color: #b45309; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .outcome .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .outcome .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Workflow DAG Visualiser</h1>
+    <p>Pick a pipeline preset, inject a failure at any step, then resume. Watch the DAG light up: green = ran, grey = cached hit, red = failed, amber = pending. The aha: the workflow manager's whole job is a hash-keyed cache + a dependency scheduler.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="ctrl-grid">
+      <div class="ctrl-row"><label>Preset pipeline</label>
+        <select id="preset">
+          <option value="variant" selected>Variant calling (WGS)</option>
+          <option value="rnaseq">RNA-seq quantification</option>
+          <option value="toy">Toy 4-step</option>
+        </select>
+      </div>
+      <div class="ctrl-row"><label>Samples (fan-out)</label><input id="samples" type="range" min="1" max="20" step="1" value="5"></div>
+      <div class="ctrl-row"><label>Inject failure at</label>
+        <select id="failAt"></select>
+      </div>
+      <div class="ctrl-row">
+        <label><input type="checkbox" id="fix" checked> Apply fix &amp; resume on run 2</label>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="run1">Run 1</button>
+      <button class="btn secondary" id="run2">Run 2 (-resume)</button>
+      <button class="btn secondary" id="reset">Reset cache</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">DAG state</p>
+    <svg class="dag" id="dag" viewBox="0 0 1080 320"></svg>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Cache</p>
+    <table class="cache" id="cacheTbl"><thead><tr><th>Step</th><th>Hash</th><th>State</th><th>Wall time</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const PRESETS = {
+    variant: [
+      { id: 'fastp',     time: 5,   fanout: true },
+      { id: 'bwa-mem',   time: 120, fanout: true },
+      { id: 'sort',      time: 8,   fanout: true },
+      { id: 'markdup',   time: 15,  fanout: true },
+      { id: 'deepvariant', time: 40, fanout: true },
+      { id: 'bcftools',  time: 3,   fanout: false },
+    ],
+    rnaseq: [
+      { id: 'fastp',     time: 5,   fanout: true },
+      { id: 'salmon',    time: 12,  fanout: true },
+      { id: 'tximport',  time: 2,   fanout: false },
+      { id: 'deseq2',    time: 4,   fanout: false },
+    ],
+    toy: [
+      { id: 'load',      time: 1,   fanout: true },
+      { id: 'process',   time: 3,   fanout: true },
+      { id: 'merge',     time: 2,   fanout: false },
+      { id: 'report',    time: 1,   fanout: false },
+    ],
+  };
+
+  const state = {
+    preset: 'variant',
+    samples: 5,
+    failAt: null,
+    fix: true,
+    toolVersions: {},  // per-step version, default 1 (increment to invalidate cache)
+    cache: {},         // key = `${step}|${version}|${sample}` → hashed
+  };
+
+  function steps() { return PRESETS[state.preset]; }
+
+  function populateFailAt() {
+    const sel = $('failAt');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">none</option>' + steps().map(s => `<option value="${s.id}">${s.id}</option>`).join('');
+    if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+  }
+
+  function djb2(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h; }
+  function hashKey(step, ver, sample) { return djb2(`${step}|${ver}|${sample}`).toString(16).padStart(8, '0').slice(0, 8); }
+
+  // nodeStates: map step id → array of { sample, state, time, hash }
+  let nodeStates = {};
+
+  function resetRun() {
+    nodeStates = {};
+    for (const s of steps()) {
+      nodeStates[s.id] = [];
+      const n = s.fanout ? state.samples : 1;
+      for (let i = 0; i < n; i++) nodeStates[s.id].push({ sample: i, state: 'pending', time: 0, hash: null });
+    }
+  }
+
+  function run(run2) {
+    if (!run2) resetRun();
+    const fail = $('failAt').value || null;
+    let stopped = false;
+    for (const s of steps()) {
+      for (const inst of nodeStates[s.id]) {
+        if (stopped) { inst.state = 'pending'; continue; }
+        const ver = state.toolVersions[s.id] || 1;
+        const key = `${s.id}|${ver}|${inst.sample}`;
+        const keyHash = hashKey(s.id, ver, inst.sample);
+        if (state.cache[key]) {
+          inst.state = 'cached';
+          inst.time = 0;
+          inst.hash = keyHash;
+        } else if (run2 && state.fix && s.id === fail) {
+          // Fix means the step now succeeds
+          inst.state = 'ok';
+          inst.time = s.time;
+          inst.hash = keyHash;
+          state.cache[key] = true;
+        } else if (s.id === fail && !run2) {
+          inst.state = 'fail';
+          inst.time = Math.round(s.time * 0.3);
+          inst.hash = null;
+          stopped = true;
+        } else if (s.id === fail && run2 && !state.fix) {
+          inst.state = 'fail';
+          inst.time = Math.round(s.time * 0.3);
+          inst.hash = null;
+          stopped = true;
+        } else {
+          inst.state = 'ok';
+          inst.time = s.time;
+          inst.hash = keyHash;
+          state.cache[key] = true;
+        }
+      }
+      if (stopped) break;
+    }
+  }
+
+  function drawDAG() {
+    const svg = $('dag');
+    svg.innerHTML = '';
+    const S = steps();
+    const W = 1080;
+    const stepW = 140;
+    const gap = (W - S.length * stepW) / (S.length + 1);
+    const cy = 160;
+    // edges
+    for (let i = 0; i < S.length - 1; i++) {
+      const x1 = gap + i * (stepW + gap) + stepW;
+      const x2 = gap + (i + 1) * (stepW + gap);
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1); line.setAttribute('y1', cy);
+      line.setAttribute('x2', x2); line.setAttribute('y2', cy);
+      line.setAttribute('stroke', '#6b7280'); line.setAttribute('stroke-width', 1.5);
+      line.setAttribute('marker-end', 'url(#aend)');
+      svg.appendChild(line);
+    }
+    // arrow marker
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    defs.innerHTML = `<marker id="aend" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#6b7280"/></marker>`;
+    svg.appendChild(defs);
+    // nodes
+    S.forEach((s, i) => {
+      const x = gap + i * (stepW + gap);
+      const insts = nodeStates[s.id];
+      // fan-out stack shadow for parallel
+      if (s.fanout && state.samples > 1) {
+        for (let k = Math.min(3, state.samples) - 1; k >= 1; k--) {
+          const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          r.setAttribute('x', x + k * 4); r.setAttribute('y', cy - 34 + k * 4);
+          r.setAttribute('width', stepW); r.setAttribute('height', 68); r.setAttribute('rx', 8);
+          r.setAttribute('fill', '#dbeafe'); r.setAttribute('opacity', 0.25 + k * 0.05);
+          svg.appendChild(r);
+        }
+      }
+      // Node colour: most severe state wins (fail > ok > cached > pending)
+      const hasFail = insts.some(i => i.state === 'fail');
+      const hasOk = insts.some(i => i.state === 'ok');
+      const hasPending = insts.some(i => i.state === 'pending');
+      const allCached = insts.length && insts.every(i => i.state === 'cached');
+      let fill = '#f3f4f6', stroke = '#9ca3af', label = s.id;
+      if (hasFail) { fill = '#fee2e2'; stroke = '#c4342c'; }
+      else if (allCached) { fill = '#f3f4f6'; stroke = '#9ca3af'; }
+      else if (hasOk) { fill = '#d1fae5'; stroke = '#059669'; }
+      else if (hasPending) { fill = '#fef3c7'; stroke = '#b45309'; }
+      const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('x', x); r.setAttribute('y', cy - 34);
+      r.setAttribute('width', stepW); r.setAttribute('height', 68); r.setAttribute('rx', 8);
+      r.setAttribute('fill', fill); r.setAttribute('stroke', stroke); r.setAttribute('stroke-width', 1.5);
+      svg.appendChild(r);
+      const t1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t1.setAttribute('x', x + stepW / 2); t1.setAttribute('y', cy - 12);
+      t1.setAttribute('text-anchor', 'middle'); t1.setAttribute('font-size', 13); t1.setAttribute('font-weight', 600);
+      t1.setAttribute('fill', '#1f2937'); t1.textContent = label;
+      svg.appendChild(t1);
+      const stateText = hasFail ? 'FAIL' : allCached ? 'CACHED' : hasOk ? 'OK' : 'pending';
+      const t2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t2.setAttribute('x', x + stepW / 2); t2.setAttribute('y', cy + 6);
+      t2.setAttribute('text-anchor', 'middle'); t2.setAttribute('font-size', 10); t2.setAttribute('fill', stroke);
+      t2.setAttribute('font-family', 'JetBrains Mono'); t2.textContent = stateText;
+      svg.appendChild(t2);
+      const t3 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t3.setAttribute('x', x + stepW / 2); t3.setAttribute('y', cy + 22);
+      t3.setAttribute('text-anchor', 'middle'); t3.setAttribute('font-size', 9); t3.setAttribute('fill', '#6b7280');
+      if (s.fanout && state.samples > 1) t3.textContent = `× ${state.samples} samples`;
+      else t3.textContent = `${s.time} min`;
+      svg.appendChild(t3);
+    });
+    // Adjust height if needed
+  }
+
+  function drawCache() {
+    const tb = $('cacheTbl').querySelector('tbody');
+    const rows = [];
+    for (const s of steps()) {
+      for (const inst of nodeStates[s.id]) {
+        const label = state.samples > 1 && s.fanout ? `${s.id} [sample ${inst.sample}]` : s.id;
+        const stateCls = inst.state === 'ok' ? 'state-ok' : inst.state === 'fail' ? 'state-fail' : inst.state === 'cached' ? 'state-cached' : 'state-pend';
+        const stateLbl = inst.state === 'ok' ? '✓ ran' : inst.state === 'fail' ? '✗ failed' : inst.state === 'cached' ? '⊘ cached' : '… pending';
+        rows.push(`<tr>
+          <td>${label}</td>
+          <td>${inst.hash ? inst.hash : '—'}</td>
+          <td class="${stateCls}">${stateLbl}</td>
+          <td>${inst.time || '—'}${inst.time ? ' min' : ''}</td>
+        </tr>`);
+      }
+    }
+    tb.innerHTML = rows.join('');
+  }
+
+  function drawOutcome(label) {
+    const totalTime = Object.values(nodeStates).flat().reduce((a, b) => a + (b.time || 0), 0);
+    const cached = Object.values(nodeStates).flat().filter(i => i.state === 'cached').length;
+    const ran = Object.values(nodeStates).flat().filter(i => i.state === 'ok').length;
+    const failed = Object.values(nodeStates).flat().filter(i => i.state === 'fail').length;
+    const verdict = failed
+      ? `Failed at ${$('failAt').value}. ${cached} cache hits · ${ran} steps completed · ${failed} failed.`
+      : cached
+        ? `Resume with cache: ${cached} hits (free) · ${ran} new runs. Wall time ≈ ${totalTime} min.`
+        : `First run: ${ran} steps executed · ${totalTime} min wall time.`;
+    $('outcome').innerHTML = `
+      <div>${label} · preset <strong>${state.preset}</strong> · ${state.samples} samples · fail-at <strong>${$('failAt').value || 'none'}</strong></div>
+      <div class="verdict">${verdict}</div>
+      <div class="hint">Change the "fail at" step to something earlier, click Run 1, then Run 2 → earlier steps show CACHED (instant). Bump a tool version via the preset change → cache invalidates selectively.</div>
+    `;
+  }
+
+  function go(run2) {
+    run(run2);
+    drawDAG(); drawCache(); drawOutcome(run2 ? 'Run 2 (-resume)' : 'Run 1');
+  }
+
+  $('preset').addEventListener('change', e => { state.preset = e.target.value; populateFailAt(); state.cache = {}; resetRun(); drawDAG(); drawCache(); drawOutcome('Reset'); });
+  $('samples').addEventListener('input', e => { state.samples = +e.target.value; state.cache = {}; resetRun(); drawDAG(); drawCache(); drawOutcome('Reset'); });
+  $('failAt').addEventListener('change', () => {});
+  $('fix').addEventListener('change', e => { state.fix = e.target.checked; });
+  $('run1').addEventListener('click', () => { state.cache = {}; go(false); });
+  $('run2').addEventListener('click', () => go(true));
+  $('reset').addEventListener('click', () => { state.cache = {}; resetRun(); drawDAG(); drawCache(); drawOutcome('Reset'); });
+
+  // Default: populate controls, set failAt to a middle step, demo Run1+Run2
+  populateFailAt();
+  $('failAt').value = 'markdup';
+  resetRun();
+  state.cache = {};
+  go(false);
+  setTimeout(() => go(true), 0);
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

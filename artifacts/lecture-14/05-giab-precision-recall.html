@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GIAB Precision/Recall Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1100px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .slider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem 1.25rem; }
+  .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+  .slider-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .slider-head label { font-size: var(--text-sm); font-weight: 500; }
+  .slider-val { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--accent); font-weight: 500; }
+  input[type="range"] { width: 100%; }
+  .btn { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500; padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 0.6rem; }
+  .cmtx { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: var(--text-sm); }
+  .cmtx th, .cmtx td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); text-align: right; }
+  .cmtx th:first-child, .cmtx td:first-child { text-align: left; }
+  .cmtx thead th { font-family: var(--font-sans); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-subtle); }
+  .cmtx .type-snv { color: #1d4ed8; font-weight: 600; }
+  .cmtx .type-indel { color: #b45309; font-weight: 600; }
+  svg { width: 100%; height: auto; display: block; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .outcome .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .outcome .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>GIAB Precision/Recall Simulator</h1>
+    <p>Simulate a caller's output against a GIAB-like truth set. Slide a quality threshold and watch per-variant-type precision, recall, and F1 move along the PR curves. The aha: SNV and INDEL performance diverge — a single aggregate F1 can hide an indel gap.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Caller profile</p>
+    <div class="slider-grid">
+      <div class="slider-row"><div class="slider-head"><label>SNV sensitivity</label><span class="slider-val" id="v_snvr">0.999</span></div><input id="snvr" type="range" min="0.95" max="1.0" step="0.001" value="0.999"></div>
+      <div class="slider-row"><div class="slider-head"><label>SNV FP rate</label><span class="slider-val" id="v_snvfp">0.0010</span></div><input id="snvfp" type="range" min="0" max="0.01" step="0.0005" value="0.001"></div>
+      <div class="slider-row"><div class="slider-head"><label>INDEL sensitivity</label><span class="slider-val" id="v_indr">0.970</span></div><input id="indr" type="range" min="0.85" max="1.0" step="0.005" value="0.97"></div>
+      <div class="slider-row"><div class="slider-head"><label>INDEL FP rate</label><span class="slider-val" id="v_indfp">0.020</span></div><input id="indfp" type="range" min="0" max="0.05" step="0.002" value="0.02"></div>
+      <div class="slider-row"><div class="slider-head"><label>QUAL threshold</label><span class="slider-val" id="v_thr">20</span></div><input id="thr" type="range" min="0" max="60" step="1" value="20"></div>
+    </div>
+    <button class="btn" id="resim">Re-simulate 10,000 variants</button>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Confusion matrix at current threshold</p>
+    <table class="cmtx" id="cmtx">
+      <thead><tr><th>Type</th><th>TP</th><th>FP</th><th>FN</th><th>Precision</th><th>Recall</th><th>F1</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">PR curves (threshold scan)</p>
+    <svg id="pr" viewBox="0 0 640 360"></svg>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  let _seed = 424242;
+  function seed(n) { _seed = n | 0; }
+  function rand() { _seed |= 0; _seed = _seed + 0x6D2B79F5 | 0; let t = _seed; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+  function gauss() { const u = Math.max(1e-12, rand()), v = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+  const state = { snvr: 0.999, snvfp: 0.001, indr: 0.97, indfp: 0.02, thr: 20 };
+  // Variants: array of { type: 'SNV'|'INDEL', truth: bool, qual: number }
+  let variants = [];
+
+  function simulate() {
+    variants = [];
+    const nTruth = 9000;       // truth SNVs
+    const nTruthIndel = 1000;  // truth INDELs
+    // True variants the caller may detect
+    for (let i = 0; i < nTruth; i++) {
+      const detected = rand() < state.snvr;
+      if (detected) {
+        // TP — high quality
+        const q = 30 + Math.abs(gauss()) * 10; // mean ~35, tail
+        variants.push({ type: 'SNV', truth: true, called: true, qual: q });
+      } else {
+        // FN — never called
+        variants.push({ type: 'SNV', truth: true, called: false, qual: 0 });
+      }
+    }
+    for (let i = 0; i < nTruthIndel; i++) {
+      const detected = rand() < state.indr;
+      if (detected) {
+        const q = 25 + Math.abs(gauss()) * 10;
+        variants.push({ type: 'INDEL', truth: true, called: true, qual: q });
+      } else {
+        variants.push({ type: 'INDEL', truth: true, called: false, qual: 0 });
+      }
+    }
+    // False positives: roughly FP_rate × nTruth
+    const nSnvFP = Math.round(state.snvfp * nTruth / 0.001 * 10); // FP count scales with FPR
+    const nIndFP = Math.round(state.indfp * nTruthIndel / 0.02 * 20);
+    for (let i = 0; i < nSnvFP; i++) {
+      const q = 5 + Math.abs(gauss()) * 8; // lower quality
+      variants.push({ type: 'SNV', truth: false, called: true, qual: q });
+    }
+    for (let i = 0; i < nIndFP; i++) {
+      const q = 5 + Math.abs(gauss()) * 8;
+      variants.push({ type: 'INDEL', truth: false, called: true, qual: q });
+    }
+  }
+
+  function confusion(threshold) {
+    const bins = { SNV: { TP: 0, FP: 0, FN: 0 }, INDEL: { TP: 0, FP: 0, FN: 0 } };
+    for (const v of variants) {
+      if (v.truth && v.called) {
+        if (v.qual >= threshold) bins[v.type].TP++;
+        else bins[v.type].FN++;  // below threshold = missed
+      } else if (v.truth && !v.called) {
+        bins[v.type].FN++;
+      } else if (!v.truth && v.called) {
+        if (v.qual >= threshold) bins[v.type].FP++;
+        // below threshold = filtered out, not counted
+      }
+    }
+    return bins;
+  }
+
+  function metrics(b) {
+    const P = b.TP / Math.max(1, b.TP + b.FP);
+    const R = b.TP / Math.max(1, b.TP + b.FN);
+    const F1 = 2 * P * R / Math.max(1e-12, P + R);
+    return { P, R, F1 };
+  }
+
+  function prCurve(type) {
+    const pts = [];
+    for (let t = 0; t <= 60; t += 2) {
+      const c = confusion(t)[type];
+      const m = metrics(c);
+      pts.push({ t, P: m.P, R: m.R });
+    }
+    return pts;
+  }
+
+  function drawPR() {
+    const svg = $('pr');
+    svg.innerHTML = '';
+    const W = 640, H = 360, pad = { l: 54, r: 20, t: 20, b: 45 };
+    const xScale = r => pad.l + r * (W - pad.l - pad.r);
+    const yScale = p => H - pad.b - p * (H - pad.t - pad.b);
+    // iso-F1
+    const ns = 'http://www.w3.org/2000/svg';
+    function el(tag, attrs, text) { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text !== undefined) e.textContent = text; return e; }
+    // grid
+    svg.appendChild(el('rect', { x: pad.l, y: pad.t, width: W - pad.l - pad.r, height: H - pad.t - pad.b, fill: '#fff', stroke: '#e5e7eb' }));
+    for (let f = 0.7; f <= 0.99; f += 0.1) {
+      const d = [];
+      for (let r = 0.01; r <= 1; r += 0.01) {
+        // R = 2PR/(P+R)=F1 → P = F1*R / (2R-F1)
+        const p = f * r / Math.max(1e-9, 2 * r - f);
+        if (p > 0 && p <= 1) d.push(`${xScale(r)},${yScale(p)}`);
+      }
+      if (d.length > 2) svg.appendChild(el('polyline', { points: d.join(' '), fill: 'none', stroke: '#d1d5db', 'stroke-width': 0.6, 'stroke-dasharray': '3,3' }));
+    }
+    // axes ticks
+    for (let t = 0; t <= 10; t++) {
+      const x = xScale(t / 10), y = yScale(t / 10);
+      svg.appendChild(el('text', { x: x, y: H - pad.b + 14, 'text-anchor': 'middle', 'font-size': 9, fill: '#6b7280' }, (t / 10).toFixed(1)));
+      svg.appendChild(el('text', { x: pad.l - 6, y: y + 3, 'text-anchor': 'end', 'font-size': 9, fill: '#6b7280' }, (t / 10).toFixed(1)));
+    }
+    svg.appendChild(el('text', { x: (W + pad.l) / 2, y: H - 10, 'text-anchor': 'middle', 'font-size': 11, fill: '#374151' }, 'Recall'));
+    svg.appendChild(el('text', { x: 18, y: H / 2, 'text-anchor': 'middle', 'font-size': 11, fill: '#374151', transform: `rotate(-90 18 ${H / 2})` }, 'Precision'));
+    // SNV curve
+    const snv = prCurve('SNV');
+    svg.appendChild(el('polyline', { points: snv.map(p => `${xScale(p.R)},${yScale(p.P)}`).join(' '), fill: 'none', stroke: '#2563eb', 'stroke-width': 2 }));
+    // INDEL curve
+    const ind = prCurve('INDEL');
+    svg.appendChild(el('polyline', { points: ind.map(p => `${xScale(p.R)},${yScale(p.P)}`).join(' '), fill: 'none', stroke: '#b45309', 'stroke-width': 2 }));
+    // current threshold markers
+    const c = confusion(state.thr);
+    const snvM = metrics(c.SNV), indM = metrics(c.INDEL);
+    svg.appendChild(el('circle', { cx: xScale(snvM.R), cy: yScale(snvM.P), r: 6, fill: '#1d4ed8', stroke: '#fff', 'stroke-width': 2 }));
+    svg.appendChild(el('circle', { cx: xScale(indM.R), cy: yScale(indM.P), r: 6, fill: '#b45309', stroke: '#fff', 'stroke-width': 2 }));
+    // legend
+    svg.appendChild(el('rect', { x: W - 120, y: pad.t + 6, width: 104, height: 48, fill: '#fff', stroke: '#e5e7eb' }));
+    svg.appendChild(el('line', { x1: W - 112, y1: pad.t + 20, x2: W - 90, y2: pad.t + 20, stroke: '#2563eb', 'stroke-width': 2 }));
+    svg.appendChild(el('text', { x: W - 84, y: pad.t + 23, 'font-size': 10, fill: '#1d4ed8' }, `SNV  F1 ${snvM.F1.toFixed(3)}`));
+    svg.appendChild(el('line', { x1: W - 112, y1: pad.t + 40, x2: W - 90, y2: pad.t + 40, stroke: '#b45309', 'stroke-width': 2 }));
+    svg.appendChild(el('text', { x: W - 84, y: pad.t + 43, 'font-size': 10, fill: '#b45309' }, `INDEL F1 ${indM.F1.toFixed(3)}`));
+  }
+
+  function render() {
+    const c = confusion(state.thr);
+    const snv = metrics(c.SNV), ind = metrics(c.INDEL);
+    const tb = $('cmtx').querySelector('tbody');
+    tb.innerHTML = `
+      <tr><td class="type-snv">SNV</td><td>${c.SNV.TP}</td><td>${c.SNV.FP}</td><td>${c.SNV.FN}</td><td>${snv.P.toFixed(4)}</td><td>${snv.R.toFixed(4)}</td><td>${snv.F1.toFixed(4)}</td></tr>
+      <tr><td class="type-indel">INDEL</td><td>${c.INDEL.TP}</td><td>${c.INDEL.FP}</td><td>${c.INDEL.FN}</td><td>${ind.P.toFixed(4)}</td><td>${ind.R.toFixed(4)}</td><td>${ind.F1.toFixed(4)}</td></tr>
+    `;
+    drawPR();
+    // aggregate
+    const totalTP = c.SNV.TP + c.INDEL.TP, totalFP = c.SNV.FP + c.INDEL.FP, totalFN = c.SNV.FN + c.INDEL.FN;
+    const aggP = totalTP / Math.max(1, totalTP + totalFP);
+    const aggR = totalTP / Math.max(1, totalTP + totalFN);
+    const aggF1 = 2 * aggP * aggR / Math.max(1e-12, aggP + aggR);
+    const gap = snv.F1 - ind.F1;
+    $('outcome').innerHTML = `
+      <div>QUAL threshold <strong>${state.thr}</strong> · 10,000 truth variants (90% SNV, 10% INDEL)</div>
+      <div>Aggregate F1: <strong>${aggF1.toFixed(4)}</strong> · SNV F1: <strong>${snv.F1.toFixed(4)}</strong> · INDEL F1: <strong>${ind.F1.toFixed(4)}</strong></div>
+      <div class="verdict">${gap > 0.03
+        ? `INDEL F1 lags SNV F1 by ${gap.toFixed(3)} — the aggregate hides an indel gap. Report per-type metrics, not just F1.`
+        : 'SNV and INDEL tracking together — aggregate F1 is representative of both.'}</div>
+      <div class="hint">Lower threshold → recall up, precision down. Drop INDEL sensitivity → the amber curve retreats independently of SNV. Raise SNV FP rate → the cobalt curve's precision drops.</div>
+    `;
+  }
+
+  function rerun() { simulate(); render(); }
+
+  $('snvr').addEventListener('input', e => { state.snvr = +e.target.value; $('v_snvr').textContent = state.snvr.toFixed(3); rerun(); });
+  $('snvfp').addEventListener('input', e => { state.snvfp = +e.target.value; $('v_snvfp').textContent = state.snvfp.toFixed(4); rerun(); });
+  $('indr').addEventListener('input', e => { state.indr = +e.target.value; $('v_indr').textContent = state.indr.toFixed(3); rerun(); });
+  $('indfp').addEventListener('input', e => { state.indfp = +e.target.value; $('v_indfp').textContent = state.indfp.toFixed(4); rerun(); });
+  $('thr').addEventListener('input', e => { state.thr = +e.target.value; $('v_thr').textContent = state.thr; render(); });
+  $('resim').addEventListener('click', () => { seed((Math.random() * 1e9) | 0); rerun(); });
+
+  seed(424242);
+  rerun();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

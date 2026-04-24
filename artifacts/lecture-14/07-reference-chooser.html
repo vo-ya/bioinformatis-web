@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reference Build Chooser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .ctrl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+  .ctrl-row { display: flex; flex-direction: column; gap: 0.3rem; }
+  .ctrl-row label { font-size: var(--text-sm); font-weight: 500; }
+  select { font-family: var(--font-sans); font-size: var(--text-sm); padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); }
+  .toggle-row { margin-top: 0.75rem; }
+  .toggle-row label { display: flex; align-items: center; gap: 0.45rem; font-size: var(--text-sm); }
+  .rec { background: #eff6ff; border: 1.5px solid #2563eb; border-radius: 8px; padding: 1rem 1.25rem; }
+  .rec h4 { margin: 0 0 0.5rem; font-size: var(--text-base); color: #1d4ed8; }
+  .rec .fname { font-family: var(--font-mono); font-size: var(--text-sm); color: #1e3a8a; background: #fff; padding: 0.4rem 0.6rem; border-radius: 4px; display: inline-block; margin-bottom: 0.5rem; }
+  .rec .row { display: flex; gap: 2rem; flex-wrap: wrap; margin-top: 0.5rem; font-family: var(--font-mono); font-size: var(--text-sm); }
+  .rec .k { color: #6b7280; font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; margin-right: 0.4rem; }
+  .rec .v { color: #1e3a8a; font-weight: 600; }
+  .rec .reason { color: #374151; font-family: var(--font-sans); margin-top: 0.8rem; line-height: 1.5; font-size: var(--text-sm); }
+  .lists { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 720px) { .lists { grid-template-columns: 1fr; } }
+  .list-box { padding: 0.8rem 1rem; border-radius: 6px; font-size: var(--text-sm); }
+  .list-box.ok { background: #f0fdf4; border: 1px solid #86efac; }
+  .list-box.no { background: #fef2f2; border: 1px solid #fca5a5; }
+  .list-box h4 { margin: 0 0 0.5rem; font-size: var(--text-sm); letter-spacing: 0.05em; }
+  .list-box.ok h4 { color: #059669; }
+  .list-box.no h4 { color: #991b1b; }
+  .list-box ul { margin: 0; padding-left: 1.2rem; color: var(--fg); font-family: var(--font-mono); }
+  .list-box li { margin: 0.2rem 0; font-size: 12px; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .outcome .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .outcome .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Reference Build Chooser</h1>
+    <p>Pick a pipeline goal and tools; get the right GRCh38 bundle. Reference choice is not a default — mixing variants (primary-only vs +decoys+HLA) produces silent miscalls, especially in the HLA region. The aha: pipeline goal + tools drive the reference, and MD5 pinning is mandatory.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Your pipeline</p>
+    <div class="ctrl-grid">
+      <div class="ctrl-row"><label>Pipeline goal</label>
+        <select id="goal">
+          <option value="germline" selected>Germline WGS (research / clinical)</option>
+          <option value="somatic">Somatic tumour (matched T/N)</option>
+          <option value="rnaseq">RNA-seq quantification</option>
+          <option value="chipseq">ChIP-seq / ATAC-seq peaks</option>
+          <option value="pangenome">Pangenome build / comparison</option>
+        </select>
+      </div>
+      <div class="ctrl-row"><label>Primary aligner</label>
+        <select id="aligner">
+          <option value="bwa" selected>BWA-MEM</option>
+          <option value="star">STAR (splice-aware)</option>
+          <option value="minimap2">minimap2 (long reads)</option>
+          <option value="bowtie2">Bowtie2</option>
+        </select>
+      </div>
+      <div class="ctrl-row"><label>Variant caller</label>
+        <select id="caller">
+          <option value="deepvariant" selected>DeepVariant</option>
+          <option value="gatk">GATK HaplotypeCaller</option>
+          <option value="strelka">Strelka2</option>
+          <option value="sniffles">Sniffles (SVs)</option>
+          <option value="none">— (no variant calling)</option>
+        </select>
+      </div>
+    </div>
+    <div class="toggle-row">
+      <label><input type="checkbox" id="alt" checked> ALT-aware (need HLA / alt loci resolution)</label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Recommendation</p>
+    <div class="rec" id="rec"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Compatibility</p>
+    <div class="lists">
+      <div class="list-box ok"><h4>✓ Compatible</h4><ul id="compat"></ul></div>
+      <div class="list-box no"><h4>✗ Incompatible / wrong choice</h4><ul id="incompat"></ul></div>
+    </div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const BUNDLES = {
+    decoyHLA: {
+      name: 'GRCh38 + decoys + HLA ALTs',
+      fname: 'GRCh38_full_analysis_set_plus_decoy_hla.fa',
+      size: '~3.4 GB',
+      md5: '64b32de2fc934679c16e83a2bc072064',
+      source: 'NCBI / GATK resource bundle',
+    },
+    altAware: {
+      name: 'GRCh38 + ALT loci',
+      fname: 'GRCh38_primary_assembly.fna (with .alt)',
+      size: '~3.15 GB',
+      md5: 'a08035b6a6e31780e96b34008f3c7b04',
+      source: 'NCBI primary + ALT files',
+    },
+    primary: {
+      name: 'GRCh38 primary assembly only',
+      fname: 'GRCh38.primary_assembly.genome.fa',
+      size: '~3.0 GB',
+      md5: '5af1fc5d74c7d8d4add92e7e55a8bfaa',
+      source: 'NCBI / GENCODE primary',
+    },
+    ensembl: {
+      name: 'Ensembl GRCh38 (release-aligned)',
+      fname: 'Homo_sapiens.GRCh38.dna.primary_assembly.fa',
+      size: '~3.0 GB',
+      md5: 'varies by release (pin release number)',
+      source: 'Ensembl (e.g. release 110)',
+    },
+    t2tChm13: {
+      name: 'T2T-CHM13 v2.0',
+      fname: 'chm13v2.0.fa',
+      size: '~3.1 GB',
+      md5: 'a6f1cf1c3e46bdad63cf61fb2fa7a42b',
+      source: 'T2T Consortium, UCSC',
+    },
+  };
+
+  function decide() {
+    const g = $('goal').value;
+    const a = $('aligner').value;
+    const c = $('caller').value;
+    const alt = $('alt').checked;
+
+    let bundle, reason, compat = [], incompat = [];
+    if (g === 'germline' && c === 'deepvariant') {
+      bundle = alt ? 'decoyHLA' : 'primary';
+      reason = alt
+        ? 'DeepVariant\'s recommended pipeline expects the full analysis-set reference with decoys and HLA ALTs. Without them, variants in HLA (the most variable region in the genome) are miscalled — clinically consequential.'
+        : 'ALT-aware off → falling back to primary-only, but this is <strong>not recommended for DeepVariant</strong>. Expect degraded HLA accuracy.';
+      compat = ['BWA-MEM with .alt file', 'DeepVariant', 'GATK Best Practices 2024+'];
+      incompat = ['STAR (different chromosome naming)', 'naive aligners without .alt awareness'];
+    } else if (g === 'germline' && c === 'gatk') {
+      bundle = alt ? 'decoyHLA' : 'altAware';
+      reason = 'GATK Best Practices expects the full analysis-set or the ALT-aware bundle. Decoys help with contamination cleanup.';
+      compat = ['BWA-MEM (ALT-aware)', 'GATK HaplotypeCaller', 'bcftools'];
+      incompat = ['STAR', 'long-read aligners (use T2T-CHM13 instead)'];
+    } else if (g === 'somatic') {
+      bundle = 'primary';
+      reason = 'Somatic-tumour pipelines often use primary-only reference to prevent ALT contigs from confusing the caller. Some shops prefer +decoys but rarely +ALT loci.';
+      compat = ['BWA-MEM (primary)', 'Mutect2', 'Strelka2 somatic'];
+      incompat = ['ALT-aware settings (can split reads across ALT haplotypes, confusing somatic callers)'];
+    } else if (g === 'rnaseq') {
+      bundle = 'ensembl';
+      reason = 'RNA-seq tooling (STAR, Salmon, featureCounts, HISAT2) expects Ensembl-style chromosome naming and paired GTF annotation. Pin the release number — GENCODE and Ensembl diverge on gene models.';
+      compat = ['STAR', 'HISAT2', 'Salmon / Kallisto', 'featureCounts'];
+      incompat = ['NCBI-style chromosome names (RefSeq accessions)', 'DeepVariant (different coordinate convention)'];
+    } else if (g === 'chipseq') {
+      bundle = 'primary';
+      reason = 'ChIP-seq / ATAC-seq usually works on primary-only. Adding decoys helps drain contaminants out of peak calls.';
+      compat = ['BWA-MEM', 'Bowtie2', 'MACS2', 'featureCounts over peaks'];
+      incompat = ['ALT loci (peaks would fragment across alternative haplotypes)'];
+    } else if (g === 'pangenome') {
+      bundle = 't2tChm13';
+      reason = 'Modern pangenome builds use T2T-CHM13 as the backbone plus HPRC haplotypes. Traditional GRCh38 is often <em>a</em> path in the graph but rarely the backbone.';
+      compat = ['minimap2', 'vg toolchain', 'pbmm2', 'HPRC pipelines'];
+      incompat = ['BWA-MEM (no graph support)', 'DeepVariant (no pangenome mode)'];
+    } else {
+      bundle = 'primary';
+      reason = 'Default: primary-only is safe for most non-clinical workflows.';
+      compat = ['most aligners'];
+      incompat = [];
+    }
+    return { bundle, reason, compat, incompat };
+  }
+
+  function render() {
+    const d = decide();
+    const b = BUNDLES[d.bundle];
+    $('rec').innerHTML = `
+      <h4>Use: ${b.name}</h4>
+      <div class="fname">${b.fname}</div>
+      <div class="row">
+        <div><span class="k">Size</span><span class="v">${b.size}</span></div>
+        <div><span class="k">Source</span><span class="v">${b.source}</span></div>
+        <div><span class="k">MD5</span><span class="v">${b.md5}</span></div>
+      </div>
+      <div class="reason">${d.reason}</div>
+    `;
+    $('compat').innerHTML = d.compat.map(x => `<li>${x}</li>`).join('');
+    $('incompat').innerHTML = d.incompat.length ? d.incompat.map(x => `<li>${x}</li>`).join('') : '<li style="color:#9ca3af;font-style:italic;">(none)</li>';
+    $('outcome').innerHTML = `
+      <div>Goal <strong>${$('goal').selectedOptions[0].textContent}</strong> · aligner <strong>${$('aligner').value}</strong> · caller <strong>${$('caller').value}</strong> · ALT-aware <strong>${$('alt').checked ? 'yes' : 'no'}</strong></div>
+      <div>Recommended bundle: <strong>${b.name}</strong> (${b.size})</div>
+      <div class="verdict">Pin by MD5 (not filename) and record it in the BAM/CRAM header @SQ M5: on every pipeline handoff.</div>
+      <div class="hint">Switch goal to RNA-seq → Ensembl. Switch to somatic tumour → primary-only. Turn ALT-aware off with DeepVariant → warning. The reference is a deliberate decision, not a default.</div>
+    `;
+  }
+
+  ['goal', 'aligner', 'caller'].forEach(id => $(id).addEventListener('change', render));
+  $('alt').addEventListener('change', render);
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

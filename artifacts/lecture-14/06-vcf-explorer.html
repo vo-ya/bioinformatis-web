@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VCF/BCF Record Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1100px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .input-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.6rem; }
+  select, .btn { font-family: var(--font-sans); font-size: var(--text-sm); padding: 0.4rem 0.9rem; border-radius: 6px; }
+  select { border: 1px solid var(--border); background: var(--bg); }
+  .btn { background: var(--accent); color: white; border: none; font-weight: 500; cursor: pointer; }
+  textarea { width: 100%; min-height: 160px; font-family: var(--font-mono); font-size: 11px; padding: 0.6rem; border: 1px solid var(--border); border-radius: 6px; }
+  .records { font-family: var(--font-mono); font-size: 11px; }
+  .record { background: var(--bg-muted); border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.8rem; margin-bottom: 0.5rem; }
+  .record.malformed { border-color: #c4342c; background: #fef2f2; }
+  .fields { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .field { padding: 0.2rem 0.5rem; background: #fff; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 10px; }
+  .field .k { color: #6b7280; font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; margin-right: 0.3rem; }
+  .field .v { color: #1e3a8a; font-weight: 600; }
+  .field.info { background: #fef3c7; border-color: #fcd34d; }
+  .field.format { background: #dbeafe; border-color: #93c5fd; }
+  .field.sample { background: #ecfeff; border-color: #99f6e4; }
+  .sizes { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-top: 0.5rem; }
+  .size-cell { background: var(--bg-muted); border-radius: 6px; padding: 0.6rem 0.9rem; }
+  .size-cell .k { font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-subtle); font-weight: 600; }
+  .size-cell .v { font-family: var(--font-mono); font-size: 1.1rem; color: var(--accent); font-weight: 600; margin-top: 0.25rem; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .outcome .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .outcome .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+  .err-line { color: #c4342c; font-family: var(--font-mono); font-size: 10px; margin-top: 0.3rem; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>VCF / BCF Record Explorer</h1>
+    <p>Paste a small VCF and watch it parse row by row. Each field gets typed and boxed; INFO and per-sample FORMAT values expand. Underneath: the same data's size as text, gzip, and BCF. The aha: VCF is text with a schema; BCF is that schema serialised.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">VCF input</p>
+    <div class="input-row">
+      <select id="preset">
+        <option value="tiny">Tiny (2 records)</option>
+        <option value="realistic" selected>Realistic (4 records)</option>
+        <option value="multi">Multi-sample (3 samples)</option>
+        <option value="malformed">Malformed (one bad row)</option>
+      </select>
+      <button class="btn" id="parse">Parse</button>
+    </div>
+    <textarea id="vcf"></textarea>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Parsed header</p>
+    <div id="header" class="records"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Records</p>
+    <div id="records" class="records"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Size comparison</p>
+    <div class="sizes" id="sizes"></div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const PRESETS = {
+    tiny: `##fileformat=VCFv4.3
+##INFO=<ID=AF,Number=1,Type=Float,Description="Allele frequency">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE1
+chr1\t100234\t.\tA\tG\t420\tPASS\tAF=0.51\tGT:DP\t0/1:45
+chr1\t100501\trs12345\tC\tT\t612\tPASS\tAF=1.0\tGT:DP\t1/1:52`,
+    realistic: `##fileformat=VCFv4.3
+##reference=GRCh38
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total depth">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total allele count">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Per-sample depth">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality">
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE1
+chr7\t12345\trs111\tA\tG\t45\tPASS\tDP=28;AF=0.13;AN=1000\tGT:AD:DP:GQ\t0/1:14,14:28:99
+chr7\t50021\t.\tT\tC\t12\tLowQual\tDP=8;AF=0.05;AN=1000\tGT:AD:DP:GQ\t0/0:7,1:8:21
+chr11\t11234567\trs7848392\tAT\tA\t89\tPASS\tDP=42;AF=0.50;AN=1000\tGT:AD:DP:GQ\t0/1:21,21:42:99
+chrX\t99000123\t.\tG\tA,T\t156\tPASS\tDP=36;AF=0.22,0.08;AN=1000\tGT:AD:DP:GQ\t1/2:0,28,8:36:99`,
+    multi: `##fileformat=VCFv4.3
+##INFO=<ID=AF,Number=1,Type=Float,Description="Allele frequency">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality">
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE1\tSAMPLE2\tSAMPLE3
+chr1\t200111\t.\tA\tG\t500\tPASS\tAF=0.33\tGT:GQ\t0/1:99\t0/0:99\t1/1:87
+chr1\t200400\trs42\tC\tT\t320\tPASS\tAF=0.17\tGT:GQ\t0/0:99\t0/1:55\t0/0:99`,
+    malformed: `##fileformat=VCFv4.3
+##INFO=<ID=AF,Number=1,Type=Float,Description="Allele frequency">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE1
+chr1\t100\t.\tA\tG\t45\tPASS\tAF=0.2\tGT\t0/1
+chr1\t200\t.\tC\tT\t80\tPASS\tAF=0.5
+chr1\t300\trs1\tG\tA\t120\tPASS\tAF=0.1\tGT\t1/1`,
+  };
+
+  function parseVCF(text) {
+    const lines = text.split('\n').filter(l => l.trim().length > 0);
+    const header = [];
+    let columns = [];
+    const records = [];
+    const errors = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.startsWith('##')) header.push(line);
+      else if (line.startsWith('#CHROM')) columns = line.slice(1).split('\t');
+      else {
+        const parts = line.split('\t');
+        if (columns.length && parts.length !== columns.length) {
+          errors.push({ line: i + 1, msg: `field count mismatch (got ${parts.length}, header has ${columns.length})`, raw: line });
+          records.push({ malformed: true, raw: line });
+        } else {
+          const rec = {};
+          columns.forEach((c, k) => rec[c] = parts[k]);
+          records.push({ malformed: false, ...rec, _format: rec.FORMAT ? rec.FORMAT.split(':') : [], _samples: columns.slice(9) });
+        }
+      }
+    }
+    return { header, columns, records, errors };
+  }
+
+  function renderHeader(p) {
+    const infoCount = p.header.filter(l => l.startsWith('##INFO=')).length;
+    const fmtCount = p.header.filter(l => l.startsWith('##FORMAT=')).length;
+    const sampleCount = Math.max(0, p.columns.length - 9);
+    $('header').innerHTML = `
+      <div style="color:#6b7280; margin-bottom:0.4rem;">${p.header.length} meta-lines · ${infoCount} INFO fields · ${fmtCount} FORMAT fields · ${sampleCount} samples</div>
+      <pre style="font-family:var(--font-mono);font-size:10px;line-height:1.5;margin:0;color:#374151;max-height:120px;overflow:auto;">${p.header.map(l => l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')).join('\n')}</pre>
+    `;
+  }
+
+  function renderRecords(p) {
+    const recsEl = $('records');
+    recsEl.innerHTML = p.records.map((r, i) => {
+      if (r.malformed) {
+        return `<div class="record malformed">
+          <div><strong>Line ${p.header.length + 2 + i}</strong> · malformed</div>
+          <div style="color:#991b1b; font-size:10px; margin-top:0.2rem;">${r.raw.replace(/\t/g, ' | ')}</div>
+        </div>`;
+      }
+      const fields = [];
+      fields.push(`<div class="field"><span class="k">CHROM</span><span class="v">${r.CHROM}</span></div>`);
+      fields.push(`<div class="field"><span class="k">POS</span><span class="v">${r.POS}</span></div>`);
+      fields.push(`<div class="field"><span class="k">ID</span><span class="v">${r.ID}</span></div>`);
+      fields.push(`<div class="field"><span class="k">REF</span><span class="v">${r.REF}</span></div>`);
+      fields.push(`<div class="field"><span class="k">ALT</span><span class="v">${r.ALT}</span></div>`);
+      fields.push(`<div class="field"><span class="k">QUAL</span><span class="v">${r.QUAL}</span></div>`);
+      fields.push(`<div class="field"><span class="k">FILTER</span><span class="v">${r.FILTER}</span></div>`);
+      // INFO: split on ';'
+      if (r.INFO && r.INFO !== '.') {
+        for (const kv of r.INFO.split(';')) {
+          const [k, v] = kv.split('=');
+          fields.push(`<div class="field info"><span class="k">${k}</span><span class="v">${v || '(flag)'}</span></div>`);
+        }
+      }
+      // FORMAT + samples
+      if (r._format && r._format.length) {
+        for (let s = 0; s < r._samples.length; s++) {
+          const sampName = r._samples[s];
+          const sampVals = (r[sampName] || '').split(':');
+          for (let f = 0; f < r._format.length; f++) {
+            fields.push(`<div class="field sample"><span class="k">${sampName} · ${r._format[f]}</span><span class="v">${sampVals[f] || '.'}</span></div>`);
+          }
+        }
+      }
+      return `<div class="record">
+        <div style="color:#6b7280; margin-bottom:0.35rem; font-size:10px;">Record ${i + 1}</div>
+        <div class="fields">${fields.join('')}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderSizes(text) {
+    const textBytes = new TextEncoder().encode(text).length;
+    // rough estimates for illustration
+    const gz = Math.round(textBytes / 3);
+    const bcf = Math.round(textBytes / 8);
+    $('sizes').innerHTML = `
+      <div class="size-cell"><div class="k">This VCF (text)</div><div class="v">${fmtBytes(textBytes)}</div></div>
+      <div class="size-cell"><div class="k">Gzipped (.vcf.gz)</div><div class="v">${fmtBytes(gz)}</div></div>
+      <div class="size-cell"><div class="k">BCF (estimated)</div><div class="v">${fmtBytes(bcf)}</div></div>
+    `;
+  }
+  function fmtBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  function renderOutcome(p, text) {
+    const good = p.records.filter(r => !r.malformed).length;
+    const bad = p.records.filter(r => r.malformed).length;
+    const textBytes = new TextEncoder().encode(text).length;
+    const bcf = Math.round(textBytes / 8);
+    const errs = p.errors.map(e => `line ${e.line}: ${e.msg}`).join(' · ');
+    $('outcome').innerHTML = `
+      <div>${good} records parsed${bad ? `, <strong style="color:#c4342c">${bad} malformed</strong>` : ''} · ${p.columns.length - 9} samples · ${p.header.length} meta-lines</div>
+      ${errs ? `<div class="err-line">⚠ ${errs}</div>` : ''}
+      <div>Text size <strong>${fmtBytes(textBytes)}</strong> → BCF estimate <strong>${fmtBytes(bcf)}</strong> (~${(textBytes/bcf).toFixed(0)}× smaller)</div>
+      <div class="verdict">VCF text and BCF binary encode the same schema. VCF is for inspection; BCF is for scale.</div>
+      <div class="hint">Switch the preset to "malformed" to see line-level error reporting. A BCF parser would reject the same row; VCF tools typically keep going.</div>
+    `;
+  }
+
+  function go() {
+    const text = $('vcf').value;
+    const p = parseVCF(text);
+    renderHeader(p);
+    renderRecords(p);
+    renderSizes(text);
+    renderOutcome(p, text);
+  }
+
+  $('preset').addEventListener('change', e => { $('vcf').value = PRESETS[e.target.value]; go(); });
+  $('parse').addEventListener('click', go);
+  $('vcf').addEventListener('input', () => { go(); });
+
+  $('vcf').value = PRESETS.realistic;
+  go();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

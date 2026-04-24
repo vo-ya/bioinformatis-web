@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>File-Format Size and Compression Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .slider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+  .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+  .slider-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .slider-head label { font-size: var(--text-sm); font-weight: 500; }
+  .slider-val { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--accent); font-weight: 500; }
+  input[type="range"] { width: 100%; }
+  .toggle-row { display: flex; gap: 1.5rem; margin-top: 0.5rem; align-items: center; flex-wrap: wrap; }
+  .toggle-row label { display: flex; align-items: center; gap: 0.4rem; font-size: var(--text-sm); cursor: pointer; }
+  .bar-rows { display: grid; grid-template-columns: 160px 1fr 120px; gap: 0.5rem 0.75rem; align-items: center; font-family: var(--font-mono); font-size: var(--text-sm); }
+  .bar-rows .label { color: var(--fg); font-weight: 500; }
+  .bar-rows .bar { background: var(--bg-muted); border-radius: 3px; position: relative; height: 22px; }
+  .bar-rows .bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width 300ms; }
+  .bar-rows .fastq > span { background: #9ca3af; }
+  .bar-rows .bam > span { background: #bfdbfe; }
+  .bar-rows .cram > span { background: #2563eb; }
+  .bar-rows .cramqv > span { background: #1d4ed8; }
+  .bar-rows .vcf > span { background: #0d7377; }
+  .bar-rows .bcf > span { background: #064e3b; }
+  .bar-rows .val { color: var(--accent); font-weight: 500; }
+  .cohort-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
+  .cohort-cell { background: var(--bg-muted); border-radius: 6px; padding: 0.6rem 0.8rem; }
+  .cohort-cell .k { font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-subtle); font-weight: 600; }
+  .cohort-cell .v { font-family: var(--font-mono); font-size: 1.1rem; color: var(--accent); font-weight: 600; margin-top: 0.25rem; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .outcome .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .outcome .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+  .warn-banner { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; padding: 0.75rem 1rem; margin-top: 0.75rem; color: #991b1b; font-size: var(--text-sm); display: none; }
+  .warn-banner.show { display: block; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>File-Format Size and Compression Explorer</h1>
+    <p>Slide coverage, read length, sample count, and compression knobs; watch the on-disk footprint per format and the petabyte-scale cohort total. The aha: CRAM + quality binning is ~4× smaller than BAM at biobank scale — the difference is real money, not aesthetics.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="slider-grid">
+      <div class="slider-row"><div class="slider-head"><label>Coverage</label><span class="slider-val" id="v_cov">30×</span></div><input id="cov" type="range" min="10" max="200" step="5" value="30"></div>
+      <div class="slider-row"><div class="slider-head"><label>Read length (bp)</label><span class="slider-val" id="v_rl">150</span></div><input id="rl" type="range" min="50" max="300" step="10" value="150"></div>
+      <div class="slider-row"><div class="slider-head"><label>Samples (log)</label><span class="slider-val" id="v_n">1,000</span></div><input id="n" type="range" min="0" max="6" step="0.05" value="3"></div>
+    </div>
+    <div class="toggle-row">
+      <label><input type="checkbox" id="qv" checked> 8-bin quality (CRAM)</label>
+      <label><input type="checkbox" id="ref" checked> CRAM reference matched</label>
+    </div>
+    <div class="warn-banner" id="warn">⚠ CRAM without a matching reference is <strong>unreadable</strong> — the reads cannot be recovered from the diffs. Always pin and archive the reference.</div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Per-sample sizes</p>
+    <div class="bar-rows" id="bars"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Cohort total (<span id="samp_lbl">1,000</span> samples)</p>
+    <div class="cohort-grid" id="cohort"></div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const state = { cov: 30, rl: 150, n: 1000, qv: true, ref: true };
+
+  // Per-sample formulas (in GB) as a function of coverage c and genome size 3 Gb.
+  // FASTQ raw: c * 3e9 * ~1.5 (seq+quality bytes, paired-end) → compressed ~3× → ~c * 1.5 GB
+  // Calibration: at c=30 → FASTQ.gz ≈ 45 GB
+  function sizes(c, rl) {
+    const coverageScale = c / 30;           // linear in coverage
+    const rlScale = 1 + 0.15 * (rl - 150) / 100; // mild read-length effect on metadata overhead
+    const f = 45 * coverageScale * rlScale;  // FASTQ.gz GB
+    const b = 80 * coverageScale * rlScale;  // BAM
+    const cram = 25 * coverageScale * rlScale;
+    const cramQv = 18 * coverageScale * rlScale;
+    const vcf = 1.5;                         // variant calls — roughly constant across coverage
+    const bcf = 0.5;
+    return { f, b, cram, cramQv, vcf, bcf };
+  }
+
+  function fmtSize(gb) {
+    if (gb < 1) return (gb * 1024).toFixed(0) + ' MB';
+    if (gb >= 1000) return (gb / 1000).toFixed(2) + ' TB';
+    if (gb >= 1e6)  return (gb / 1e6).toFixed(2) + ' PB';
+    return gb.toFixed(1) + ' GB';
+  }
+  function fmtCohort(gb) {
+    if (gb >= 1e6) return (gb / 1e6).toFixed(2) + ' PB';
+    if (gb >= 1000) return (gb / 1000).toFixed(1) + ' TB';
+    return gb.toFixed(0) + ' GB';
+  }
+
+  function renderBars() {
+    const s = sizes(state.cov, state.rl);
+    const max = s.b; // BAM is typically largest
+    const cramEff = state.qv ? s.cramQv : s.cram;
+    const rows = [
+      { cls: 'fastq',  name: 'FASTQ.gz',      size: s.f },
+      { cls: 'bam',    name: 'BAM',           size: s.b },
+      { cls: 'cram',   name: 'CRAM (default)', size: s.cram },
+      { cls: 'cramqv', name: state.qv ? 'CRAM + 8-bin QV' : 'CRAM + QV (off)', size: cramEff },
+      { cls: 'vcf',    name: 'VCF.gz',        size: s.vcf },
+      { cls: 'bcf',    name: 'BCF',           size: s.bcf },
+    ];
+    const el = $('bars');
+    el.innerHTML = rows.map(r => `
+      <div class="label">${r.name}</div>
+      <div class="bar ${r.cls}"><span style="width:${Math.min(100, r.size/max*100).toFixed(1)}%"></span></div>
+      <div class="val">${fmtSize(r.size)}</div>
+    `).join('');
+  }
+
+  function renderCohort() {
+    const s = sizes(state.cov, state.rl);
+    const cramEff = state.qv ? s.cramQv : s.cram;
+    const n = state.n;
+    const items = [
+      { k: 'FASTQ.gz',      v: s.f    * n },
+      { k: 'BAM',           v: s.b    * n },
+      { k: 'CRAM (default)', v: s.cram * n },
+      { k: state.qv ? 'CRAM + QV' : 'CRAM (QV off)', v: cramEff * n },
+      { k: 'VCF.gz',        v: s.vcf  * n },
+      { k: 'BCF',           v: s.bcf  * n },
+    ];
+    $('cohort').innerHTML = items.map(i => `
+      <div class="cohort-cell"><div class="k">${i.k}</div><div class="v">${fmtCohort(i.v)}</div></div>
+    `).join('');
+    $('samp_lbl').textContent = n.toLocaleString();
+  }
+
+  function renderOutcome() {
+    const s = sizes(state.cov, state.rl);
+    const cramEff = state.qv ? s.cramQv : s.cram;
+    const savings = (s.b - cramEff) * state.n;
+    const pricePerTBMonth = 23; // S3 Standard, illustrative only
+    const bamCost = s.b * state.n / 1000 * pricePerTBMonth;
+    const cramCost = cramEff * state.n / 1000 * pricePerTBMonth;
+    const verdict = !state.ref
+      ? 'Reference unmatched: CRAM is technically smallest but <em>unreadable</em>. Archive the reference alongside the data.'
+      : (state.qv
+          ? `CRAM + QV saves <strong>${fmtCohort(savings)}</strong> vs BAM at this cohort size — ~4× smaller.`
+          : 'Enable quality binning to shave ~30% more off CRAM.');
+    $('outcome').innerHTML = `
+      <div>Coverage ${state.cov}×, ${state.rl} bp reads, ${state.n.toLocaleString()} samples · QV binning ${state.qv ? 'on' : 'off'} · reference ${state.ref ? 'matched' : 'UNMATCHED'}</div>
+      <div>BAM cohort <strong>${fmtCohort(s.b * state.n)}</strong> → CRAM${state.qv ? '+QV' : ''} <strong>${fmtCohort(cramEff * state.n)}</strong>   ratio <strong>${(s.b / cramEff).toFixed(1)}×</strong></div>
+      <div>Illustrative S3 cost @ $${pricePerTBMonth}/TB·month: BAM <strong>$${bamCost.toFixed(0)}</strong> → CRAM${state.qv ? '+QV' : ''} <strong>$${cramCost.toFixed(0)}</strong> per month</div>
+      <div class="verdict">${verdict}</div>
+      <div class="hint">Double coverage → all sizes double. 100× cohort size → 100× totals. VCF/BCF are essentially constant in coverage because variant count doesn't scale with depth.</div>
+    `;
+    $('warn').classList.toggle('show', !state.ref);
+  }
+
+  function rerun() { renderBars(); renderCohort(); renderOutcome(); }
+
+  $('cov').addEventListener('input', e => { state.cov = +e.target.value; $('v_cov').textContent = state.cov + '×'; rerun(); });
+  $('rl').addEventListener('input', e => { state.rl = +e.target.value; $('v_rl').textContent = state.rl; rerun(); });
+  $('n').addEventListener('input', e => { state.n = Math.round(Math.pow(10, +e.target.value)); $('v_n').textContent = state.n.toLocaleString(); rerun(); });
+  $('qv').addEventListener('change', e => { state.qv = e.target.checked; rerun(); });
+  $('ref').addEventListener('change', e => { state.ref = e.target.checked; rerun(); });
+
+  rerun();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

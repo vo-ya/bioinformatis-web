@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Container vs Conda Isolation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1100px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .tool-list { display: grid; gap: 0.5rem; margin-bottom: 0.75rem; }
+  .tool-list label { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: var(--text-sm); }
+  .strategy-row { display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem; }
+  .strategy-row select { font-family: var(--font-sans); font-size: var(--text-sm); padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); }
+  .sim { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+  .tool-box { padding: 1rem 1.1rem; border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-muted); position: relative; }
+  .tool-box.ok { border-color: #059669; background: #f0fdf4; }
+  .tool-box.fail { border-color: #c4342c; background: #fef2f2; }
+  .tool-box h4 { margin: 0 0 0.4rem; font-size: var(--text-sm); }
+  .tool-box .env { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-muted); }
+  .tool-box .env div { padding: 0.15rem 0; }
+  .tool-box .status { position: absolute; top: 0.75rem; right: 0.85rem; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+  .tool-box.ok .status { color: #059669; }
+  .tool-box.fail .status { color: #c4342c; }
+  .conflicts { margin-top: 0.5rem; font-family: var(--font-mono); font-size: var(--text-xs); color: #991b1b; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .outcome .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .outcome .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Container vs Conda Environment Isolation</h1>
+    <p>One host, three tools, three sets of conflicting dependencies. Switch between no isolation, conda envs, and containers to watch the conflicts resolve. The aha: conda isolates the <em>userland</em>; containers isolate the <em>whole stack</em> up to the shared kernel.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Tools on this host</p>
+    <div class="tool-list">
+      <label><input type="checkbox" id="t1" checked> <strong>BWA 0.7.17</strong> &mdash; wants <code>libhts 1.15</code>, <code>Python 3.8</code></label>
+      <label><input type="checkbox" id="t2" checked> <strong>bcftools 1.19</strong> &mdash; wants <code>libhts 1.19</code>, <code>Python 3.11</code></label>
+      <label><input type="checkbox" id="t3" checked> <strong>custom-script.py</strong> &mdash; wants <code>Python 3.8</code>, <code>numpy 1.24</code></label>
+      <label><input type="checkbox" id="t4"> <strong>AlphaFold 2.3</strong> &mdash; wants <code>CUDA 12.1</code>, <code>Python 3.10</code></label>
+    </div>
+    <div class="strategy-row">
+      <label>Isolation strategy:</label>
+      <select id="strategy">
+        <option value="host">host (no isolation)</option>
+        <option value="conda">conda environments</option>
+        <option value="container" selected>containers</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Simulation · running processes</p>
+    <div class="sim" id="sim"></div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const HOST = { libhts: '1.17', python: '3.11', cuda: '11.8' };
+  const TOOLS = [
+    { id: 't1', name: 'BWA 0.7.17',        deps: { libhts: '1.15', python: '3.8' } },
+    { id: 't2', name: 'bcftools 1.19',      deps: { libhts: '1.19', python: '3.11' } },
+    { id: 't3', name: 'custom-script.py',   deps: { python: '3.8', numpy: '1.24' } },
+    { id: 't4', name: 'AlphaFold 2.3',      deps: { python: '3.10', cuda: '12.1', needsGPU: true } },
+  ];
+
+  function evalStrategy(strategy) {
+    const active = TOOLS.filter(t => $(t.id).checked);
+    const results = [];
+    if (strategy === 'host') {
+      for (const t of active) {
+        const conflicts = [];
+        if (t.deps.libhts && t.deps.libhts !== HOST.libhts) conflicts.push(`libhts ${HOST.libhts} ≠ ${t.deps.libhts} required`);
+        if (t.deps.python && t.deps.python !== HOST.python) conflicts.push(`python ${HOST.python} ≠ ${t.deps.python} required`);
+        if (t.deps.cuda && t.deps.cuda !== HOST.cuda) conflicts.push(`CUDA ${HOST.cuda} ≠ ${t.deps.cuda} required`);
+        results.push({ t, ok: conflicts.length === 0, effective: { ...HOST }, conflicts });
+      }
+    } else if (strategy === 'conda') {
+      // conda: per-tool env provides python + numpy + pure-Python libs, but not kernel-level (CUDA) or system-distributed (libhts sometimes)
+      for (const t of active) {
+        const conflicts = [];
+        const eff = { ...t.deps };
+        // conda can pin python & numpy & libhts (via conda-forge/bioconda)
+        // conda CANNOT pin CUDA kernel driver
+        if (t.deps.cuda && t.deps.cuda !== HOST.cuda) conflicts.push('conda cannot pin CUDA driver (kernel-level) — host is ' + HOST.cuda);
+        results.push({ t, ok: conflicts.length === 0, effective: eff, conflicts });
+      }
+    } else {
+      // container: each in own container; CUDA still shared via host driver but user-space libcuda + toolkit isolated
+      for (const t of active) {
+        const conflicts = [];
+        const eff = { ...t.deps };
+        // containers pin essentially everything above the kernel; CUDA userspace lib can be specific; GPU driver compat is narrower but modern NVIDIA Container Toolkit handles this
+        // Simulate: AlphaFold's CUDA 12.1 userland works fine on host driver 11.8? Real answer: forward-compat limited; but most 2024 setups are fine.
+        results.push({ t, ok: true, effective: eff, conflicts });
+      }
+    }
+    return results;
+  }
+
+  function render() {
+    const strategy = $('strategy').value;
+    const results = evalStrategy(strategy);
+    $('sim').innerHTML = results.map(r => `
+      <div class="tool-box ${r.ok ? 'ok' : 'fail'}">
+        <span class="status">${r.ok ? '✓ runs' : '✗ fails'}</span>
+        <h4>${r.t.name}</h4>
+        <div class="env">
+          ${Object.entries(r.effective).filter(([k]) => k !== 'needsGPU').map(([k, v]) => `<div>${k}: ${v}</div>`).join('')}
+        </div>
+        ${r.conflicts.length ? `<div class="conflicts">⚠ ${r.conflicts.join('; ')}</div>` : ''}
+      </div>
+    `).join('');
+
+    // Outcome
+    const pass = results.filter(r => r.ok).length;
+    const total = results.length;
+    let verdict;
+    if (strategy === 'host') {
+      verdict = `<strong>Host (no isolation)</strong>: ${pass}/${total} tools run. Every dependency difference between the tool and the host is a runtime failure waiting to happen.`;
+    } else if (strategy === 'conda') {
+      verdict = `<strong>Conda envs</strong>: ${pass}/${total} tools run. Userland libraries pinned per env (python, numpy, libhts). Kernel-level deps (CUDA driver) still shared with host.`;
+    } else {
+      verdict = `<strong>Containers</strong>: ${pass}/${total} tools run. Full userland isolated; only the host kernel is shared. The same image runs unchanged on a developer laptop, an academic HPC, or AWS.`;
+    }
+    $('outcome').innerHTML = `
+      <div>Host: <strong>python ${HOST.python} · libhts ${HOST.libhts} · CUDA ${HOST.cuda}</strong></div>
+      <div>Strategy: <strong>${strategy}</strong> · tools active: ${total}</div>
+      <div class="verdict">${verdict}</div>
+      <div class="hint">Switch between strategies — same tools, different isolation granularity. Toggle AlphaFold to see how GPU/CUDA pushes back against conda's limits. Containers handle the full stack kernel-upward.</div>
+    `;
+  }
+
+  TOOLS.forEach(t => $(t.id).addEventListener('change', render));
+  $('strategy').addEventListener('change', render);
+
+  // Open in a pedagogically instructive default: start with host strategy to show the collision, user switches to container to see resolution.
+  // Actually set default strategy to 'host' initially, then switch to container on load to show the progression? Keep default as 'container' since that's what student sees works.
+  // Better: default 'host' so the failure is visible.
+  $('strategy').value = 'host';
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

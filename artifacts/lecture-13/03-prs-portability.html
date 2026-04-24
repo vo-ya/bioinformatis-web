@@ -53,8 +53,8 @@
         <select id="testPop"><option value="EUR">EUR</option><option value="AFR" selected>AFR</option><option value="EAS">EAS</option><option value="SAS">SAS</option></select>
       </div>
       <div class="slider-row"><div class="slider-head"><label>Ancestry divergence</label><span class="slider-val" id="v_div">1.00</span></div><input id="div" type="range" min="0" max="1" step="0.05" value="1.0"></div>
-      <div class="slider-row"><div class="slider-head"><label>Training N (log)</label><span class="slider-val" id="v_tr">200,000</span></div><input id="tr" type="range" min="4" max="5.7" step="0.02" value="5.301"></div>
-      <div class="slider-row"><div class="slider-head"><label>Test N (log)</label><span class="slider-val" id="v_te">10,000</span></div><input id="te" type="range" min="3" max="4.7" step="0.02" value="4"></div>
+      <div class="slider-row"><div class="slider-head"><label>Training N (log)</label><span class="slider-val" id="v_tr">20,000</span></div><input id="tr" type="range" min="3.3" max="4.3" step="0.02" value="4.301"></div>
+      <div class="slider-row"><div class="slider-head"><label>Test N (log)</label><span class="slider-val" id="v_te">5,000</span></div><input id="te" type="range" min="3" max="4" step="0.02" value="3.699"></div>
       <div class="slider-row"><div class="slider-head"><label>PRS method</label></div>
         <select id="method"><option value="CT" selected>C+T</option><option value="PRSCS">PRS-CS</option><option value="SBayesR">SBayesR</option></select>
       </div>
@@ -93,7 +93,7 @@ function rand(){_seed|=0;_seed=_seed+0x6D2B79F5|0;let t=_seed;t=Math.imul(t^t>>>
 function gauss(){const u=Math.max(1e-12,rand()),v=rand();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
 
 const POPCOL = { EUR:'#2563eb', AFR:'#b45309', EAS:'#c4342c', SAS:'#2d7a3e' };
-const state = { trainPop:'EUR', testPop:'AFR', div:1.0, trN:200000, teN:10000, method:'CT' };
+const state = { trainPop:'EUR', testPop:'AFR', div:1.0, trN:20000, teN:5000, method:'CT' };
 
 function sample(arr){ return arr[(rand()*arr.length)|0]; }
 
@@ -189,8 +189,9 @@ function simulate(){
       }
     return G;
   };
-  const trainN_plot = Math.min(2000, trN);
-  const testN_plot = Math.min(2000, teN);
+  // Cap for browser tractability but let the slider matter across its useful range.
+  const trainN_plot = Math.min(20000, trN);
+  const testN_plot = Math.min(10000, teN);
 
   const Gtrain = sampleIndiv(trainN_plot, pTrain);
   const Gtest = sampleIndiv(testN_plot, pTest);

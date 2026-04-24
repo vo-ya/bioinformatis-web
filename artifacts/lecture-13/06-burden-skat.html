@@ -57,7 +57,7 @@
       <div class="slider-row"><div class="slider-head"><label>Fraction protective</label><span class="slider-val" id="v_pro">0.00</span></div><input id="pro" type="range" min="0" max="1" step="0.02" value="0"></div>
       <div class="slider-row"><div class="slider-head"><label>Effect size (SD)</label><span class="slider-val" id="v_b">0.50</span></div><input id="b" type="range" min="0.1" max="1.0" step="0.05" value="0.5"></div>
       <div class="slider-row"><div class="slider-head"><label>Mean MAF</label><span class="slider-val" id="v_maf">0.003</span></div><input id="maf" type="range" min="-4" max="-2" step="0.05" value="-2.52"></div>
-      <div class="slider-row"><div class="slider-head"><label>Sample size N (log)</label><span class="slider-val" id="v_n">20,000</span></div><input id="n" type="range" min="3" max="5.3" step="0.05" value="4.3"></div>
+      <div class="slider-row"><div class="slider-head"><label>Sample size N (log)</label><span class="slider-val" id="v_n">20,000</span></div><input id="n" type="range" min="3" max="4.7" step="0.05" value="4.3"></div>
     </div>
     <div class="preset-row">
       <button class="btn secondary" data-preset="all-del">All deleterious</button>
@@ -148,8 +148,8 @@ function simulate(){
   const betaVec = new Float64Array(V);
   for (let j=0;j<V;j++) betaVec[j] = sign[j] * beta;
 
-  // Simulate genotypes and phenotype for a modest subsample (full computation)
-  const nSim = Math.min(N, 4000);
+  // Simulate genotypes and phenotype at the requested N (capped for browser tractability).
+  const nSim = Math.min(N, 50000);
   const G = new Int8Array(nSim * V);
   for (let i=0;i<nSim;i++){
     for (let j=0;j<V;j++){
@@ -163,11 +163,10 @@ function simulate(){
     for (let j=0;j<V;j++) s += betaVec[j] * G[i*V+j];
     Y[i] = s + gauss();
   }
-  // Centre Y
   let muY=0; for (let i=0;i<nSim;i++) muY += Y[i]; muY/=nSim;
   for (let i=0;i<nSim;i++) Y[i] -= muY;
 
-  // Burden: S = sum_j G_ij (unweighted for simplicity); regress Y on S
+  // Burden: collapse to S_i = Σ_j G_ij; regress Y on S; report the t-statistic's p-value.
   const S = new Float64Array(nSim);
   for (let i=0;i<nSim;i++){
     let s = 0;
@@ -182,23 +181,19 @@ function simulate(){
   for (let i=0;i<nSim;i++){ const d = S[i]-muS; const r = Y[i]-bBurden*d; ssRes += r*r; }
   const sigB = Math.sqrt(ssRes/Math.max(1,(nSim-1)));
   const seB = sigB/Math.sqrt(Math.max(1e-9,sSS));
-  const zBurden = bBurden/Math.max(1e-9,seB);
-  // Scale burden by effective sample size factor (we simulated nSim < N)
-  const scale = Math.sqrt(N/nSim);
-  const tBurden = zBurden * scale;
+  const tBurden = bBurden/Math.max(1e-9,seB);
   const pBurden = pTwoSided(tBurden);
 
-  // SKAT: Q = sum_j w_j² * (Σ_i G_ij * Y_i)²
-  // w_j = 1/sqrt(maf_j*(1-maf_j)) (MAF-inverse weight, simple)
+  // SKAT: Q = Σ_j w_j² · Z_j²  with Z_j = Σ_i G_ij (Y_i − μ_Y) / σ(U_j).
+  // w_j = 1/sqrt(maf_j*(1-maf_j)) — standard MAF-inverse weight.
   const w = new Float64Array(V);
   for (let j=0;j<V;j++) w[j] = 1/Math.sqrt(maf[j]*(1-maf[j]));
-  const U = new Float64Array(V);  // score per variant
+  const U = new Float64Array(V);
   for (let j=0;j<V;j++){
     let s=0;
     for (let i=0;i<nSim;i++) s += G[i*V+j] * Y[i];
     U[j] = s;
   }
-  // Variance: approximate under null each U_j ~ N(0, Var(Y)*Σ G_ij²)
   let varY = 0;
   for (let i=0;i<nSim;i++) varY += Y[i]*Y[i];
   varY /= Math.max(1,(nSim-1));
@@ -208,11 +203,9 @@ function simulate(){
     for (let i=0;i<nSim;i++) gg += G[i*V+j]*G[i*V+j];
     sigmaJ[j] = Math.sqrt(Math.max(1e-9, varY*gg));
   }
-  // Z_j = U_j / sigmaJ_j
-  // SKAT statistic: Q = Σ w_j² * Z_j² * sigmaJ_j² / sigmaJ_j² = Σ w_j² * Z_j²  (unit variance)
-  // under null Q ≈ Σ w_j² * χ²_1 ≈ a mixture. Use Satterthwaite approximation: scale by c, df = v.
-  let Q = 0;
-  let sumW2 = 0, sumW4 = 0;
+  // Under H0, each z_j has variance 1 ⇒ Q = Σ w_j² χ²_1. Satterthwaite: Q ≈ c · χ²_v
+  // with c = Σw_j⁴ / Σw_j², v = (Σw_j²)² / Σw_j⁴.
+  let Q = 0, sumW2 = 0, sumW4 = 0;
   for (let j=0;j<V;j++){
     const zj = U[j]/sigmaJ[j];
     const wj2 = w[j]*w[j];
@@ -220,47 +213,29 @@ function simulate(){
     sumW2 += wj2;
     sumW4 += wj2*wj2;
   }
-  // Satterthwaite: c = sumW4/sumW2, v = sumW2²/sumW4
   const c = sumW4/Math.max(1e-9,sumW2);
   const v = sumW2*sumW2/Math.max(1e-9,sumW4);
-  // Scale for sample size
-  const Qscaled = Q * (N/nSim);
-  const pSKAT = chiSqSf(Qscaled/c, v);
+  const pSKAT = chiSqSf(Q/c, v);
 
-  // SKAT-O: try ρ ∈ {0, 0.1, ..., 1}; ρ=0 is SKAT; ρ=1 is burden (on same scale as Z_j).
-  // For simplicity: take minimum over the grid, then multiply by grid-size adjustment factor (0.5)
-  // (approx bonferroni over ρ grid)
+  // SKAT-O: grid over ρ. ρ=0 is SKAT; ρ=1 is the weighted-burden quadratic form (Σ w_j z_j)² ~ χ²_1 · Σw_j².
+  let sumSigned = 0;
+  for (let j=0;j<V;j++) sumSigned += w[j] * U[j]/sigmaJ[j];
+  const Qb = sumSigned*sumSigned;
   const rhoGrid = [0, 0.25, 0.5, 0.75, 1.0];
   let bestRho = 0, bestP = Infinity;
   for (const rho of rhoGrid){
-    // Q_rho = (1-rho)*Q_skat + rho * Q_burden_analog
-    // Q_burden_analog = (Σ w_j Z_j)² (single quadratic form)
-    let sumSigned = 0;
-    for (let j=0;j<V;j++) sumSigned += w[j] * U[j]/sigmaJ[j];
-    const Qb = sumSigned*sumSigned;
     const Qrho = (1-rho)*Q + rho*Qb;
-    // Effective df under weighted combo
-    // approximation: use Satterthwaite on mixed
-    // for ρ=0: (c, v)
-    // for ρ=1: Qb ~ chi²_1 * sumW2
     let cRho, vRho;
     if (rho===0){ cRho=c; vRho=v; }
     else if (rho===1){ cRho=sumW2; vRho=1; }
-    else {
-      // weighted mixture — rough approximation
-      const c1 = sumW4/Math.max(1e-9,sumW2);
-      const c2 = sumW2;
-      cRho = (1-rho)*c1 + rho*c2;
-      vRho = (1-rho)*v + rho*1;
-    }
-    const Qr = Qrho*(N/nSim);
-    const pR = chiSqSf(Qr/cRho, vRho);
+    else { cRho = (1-rho)*c + rho*sumW2; vRho = (1-rho)*v + rho*1; }
+    const pR = chiSqSf(Qrho/cRho, vRho);
     if (pR < bestP){ bestP = pR; bestRho = rho; }
   }
-  // Light Bonferroni adjustment for grid
+  // Light adjustment for the ρ grid (approximate effective-number-of-tests correction).
   const pSKATO = Math.min(1, bestP * Math.min(2, rhoGrid.length*0.35));
 
-  return { V, sign, maf, betaVec, tBurden, pBurden, Q:Qscaled, pSKAT, pSKATO, bestRho };
+  return { V, sign, maf, betaVec, tBurden, pBurden, Q, pSKAT, pSKATO, bestRho };
 }
 
 function svgEl(tag, attrs, text){

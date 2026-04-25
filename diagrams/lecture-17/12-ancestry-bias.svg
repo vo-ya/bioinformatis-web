@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" width="1200" height="640" font-family="Inter, sans-serif">
+  <defs><style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }</style></defs>
+  <rect width="1200" height="640" fill="#fafaf9" rx="6"/>
+  <text x="600" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">Ancestry bias — three layers, same direction</text>
+
+  <!-- Common bar geometry: x=200..1100 (width 900), bar height 56 -->
+  <!-- Ancestry palette: African cobalt #1e3a8a, European amber #b45309, East Asian red #c4342c, South Asian green #2d7a3e, Admixed violet #7c3aed, Oceanian/other teal #0d7377 (or grey #525252 for unknown) -->
+
+  <!-- Chart 1: ClinVar submissions -->
+  <g transform="translate(0,72)">
+    <text x="60" y="0" font-size="11" font-weight="600" fill="#525252">CLINVAR SUBMISSIONS by source-cohort ancestry (2024)</text>
+
+    <!-- Stacked bar. Total 100% across width 900 → 9 px per %. Order:
+         European 70 (amber), East Asian 10 (red), African 6 (cobalt), South Asian 3 (green), Admixed 2 (violet), Unknown 9 (grey) -->
+    <g transform="translate(200,18)">
+      <rect x="0"   y="0" width="630" height="40" fill="#b45309"/>
+      <rect x="630" y="0" width="90"  height="40" fill="#c4342c"/>
+      <rect x="720" y="0" width="54"  height="40" fill="#1e3a8a"/>
+      <rect x="774" y="0" width="27"  height="40" fill="#2d7a3e"/>
+      <rect x="801" y="0" width="18"  height="40" fill="#7c3aed"/>
+      <rect x="819" y="0" width="81"  height="40" fill="#a8a29e"/>
+
+      <!-- inline labels (only on big segments) -->
+      <text x="315" y="24" text-anchor="middle" font-size="11" font-weight="600" fill="#fff">European 70%</text>
+      <text x="675" y="24" text-anchor="middle" font-size="9" fill="#fff" class="mono">EAS 10</text>
+      <text x="747" y="24" text-anchor="middle" font-size="9" fill="#fff" class="mono">AFR 6</text>
+      <text x="860" y="24" text-anchor="middle" font-size="9" fill="#374151">unknown 9</text>
+    </g>
+    <!-- Y-axis ancestry-name marker -->
+    <text x="60" y="38" font-size="10" fill="#374151" font-weight="600">ClinVar</text>
+    <text x="60" y="54" font-size="9" fill="#6b7280">~5M submissions</text>
+  </g>
+
+  <!-- Chart 2: gnomAD v4 -->
+  <g transform="translate(0,180)">
+    <text x="60" y="0" font-size="11" font-weight="600" fill="#525252">GNOMAD v4 ancestry composition (~800k exomes)</text>
+
+    <!-- European non-Finnish 36 + Finnish 5 = 41 (amber)
+         African 20 (cobalt), Admixed American 13 (violet), East Asian 10 (red),
+         Ashkenazi 3 (light amber), South Asian 6 (green), Other 7 (teal/grey) -->
+    <g transform="translate(200,18)">
+      <rect x="0"   y="0" width="324" height="40" fill="#b45309"/>      <!-- Eur+Fin 36% -->
+      <rect x="324" y="0" width="45"  height="40" fill="#fde68a"/>      <!-- Finnish 5 lighter -->
+      <rect x="369" y="0" width="180" height="40" fill="#1e3a8a"/>      <!-- African 20 -->
+      <rect x="549" y="0" width="117" height="40" fill="#7c3aed"/>      <!-- Admixed 13 -->
+      <rect x="666" y="0" width="90"  height="40" fill="#c4342c"/>      <!-- EAS 10 -->
+      <rect x="756" y="0" width="54"  height="40" fill="#2d7a3e"/>      <!-- SAS 6 -->
+      <rect x="810" y="0" width="27"  height="40" fill="#fdba74"/>      <!-- Ashkenazi 3 -->
+      <rect x="837" y="0" width="63"  height="40" fill="#0d7377"/>      <!-- Other 7 -->
+
+      <!-- labels -->
+      <text x="162" y="24" text-anchor="middle" font-size="11" font-weight="600" fill="#fff">Eur 36%</text>
+      <text x="346" y="24" text-anchor="middle" font-size="9" fill="#92400e">FIN 5</text>
+      <text x="459" y="24" text-anchor="middle" font-size="11" font-weight="600" fill="#fff">African 20%</text>
+      <text x="608" y="24" text-anchor="middle" font-size="10" fill="#fff">Admix 13</text>
+      <text x="711" y="24" text-anchor="middle" font-size="10" fill="#fff">EAS 10</text>
+      <text x="783" y="24" text-anchor="middle" font-size="9" fill="#fff" class="mono">SAS 6</text>
+      <text x="868" y="24" text-anchor="middle" font-size="9" fill="#fff" class="mono">other 7</text>
+    </g>
+    <text x="60" y="38" font-size="10" fill="#374151" font-weight="600">gnomAD v4</text>
+    <text x="60" y="54" font-size="9" fill="#6b7280">2024 release</text>
+  </g>
+
+  <!-- Chart 3: predictor F1 by ancestry (grouped bars) -->
+  <g transform="translate(0,300)">
+    <text x="60" y="0" font-size="11" font-weight="600" fill="#525252">REVEL / ALPHAMISSENSE F1 by held-out ancestry</text>
+
+    <!-- F1 axis 0.7 .. 0.95. Map to bar width: width range 0..900 maps 0.7→0 ; 0.95→900 → per 0.01 = 36px -->
+    <g transform="translate(200,18)">
+      <!-- axis -->
+      <line x1="0" y1="240" x2="900" y2="240" stroke="#a8a29e"/>
+      <g font-size="9" fill="#6b7280" class="mono">
+        <line x1="0"   y1="240" x2="0"   y2="246" stroke="#a8a29e"/>
+        <line x1="180" y1="240" x2="180" y2="246" stroke="#a8a29e"/>
+        <line x1="360" y1="240" x2="360" y2="246" stroke="#a8a29e"/>
+        <line x1="540" y1="240" x2="540" y2="246" stroke="#a8a29e"/>
+        <line x1="720" y1="240" x2="720" y2="246" stroke="#a8a29e"/>
+        <line x1="900" y1="240" x2="900" y2="246" stroke="#a8a29e"/>
+        <text x="0"   y="258" text-anchor="middle">0.70</text>
+        <text x="180" y="258" text-anchor="middle">0.75</text>
+        <text x="360" y="258" text-anchor="middle">0.80</text>
+        <text x="540" y="258" text-anchor="middle">0.85</text>
+        <text x="720" y="258" text-anchor="middle">0.90</text>
+        <text x="900" y="258" text-anchor="middle">0.95</text>
+      </g>
+
+      <!-- bars: each ancestry; F1 bar width = (F1-0.7)*3600
+           European 0.88 → width 648
+           East Asian 0.84 → 504
+           Admixed Am 0.83 → 468
+           South Asian 0.82 → 432
+           African 0.78 → 288 -->
+
+      <!-- European -->
+      <g transform="translate(0,8)">
+        <rect width="648" height="36" fill="#b45309"/>
+        <text x="-8" y="22" text-anchor="end" font-size="10" font-weight="600" fill="#92400e">European</text>
+        <text x="660" y="22" font-size="10" font-weight="600" class="mono" fill="#92400e">0.88</text>
+      </g>
+      <!-- East Asian -->
+      <g transform="translate(0,52)">
+        <rect width="504" height="36" fill="#c4342c"/>
+        <text x="-8" y="22" text-anchor="end" font-size="10" font-weight="600" fill="#7f1d1d">East Asian</text>
+        <text x="516" y="22" font-size="10" font-weight="600" class="mono" fill="#7f1d1d">0.84</text>
+      </g>
+      <!-- Admixed Am -->
+      <g transform="translate(0,96)">
+        <rect width="468" height="36" fill="#7c3aed"/>
+        <text x="-8" y="22" text-anchor="end" font-size="10" font-weight="600" fill="#5b21b6">Admixed Am</text>
+        <text x="480" y="22" font-size="10" font-weight="600" class="mono" fill="#5b21b6">0.83</text>
+      </g>
+      <!-- South Asian -->
+      <g transform="translate(0,140)">
+        <rect width="432" height="36" fill="#2d7a3e"/>
+        <text x="-8" y="22" text-anchor="end" font-size="10" font-weight="600" fill="#14532d">South Asian</text>
+        <text x="444" y="22" font-size="10" font-weight="600" class="mono" fill="#14532d">0.82</text>
+      </g>
+      <!-- African -->
+      <g transform="translate(0,184)">
+        <rect width="288" height="36" fill="#1e3a8a"/>
+        <text x="-8" y="22" text-anchor="end" font-size="10" font-weight="600" fill="#1e3a8a">African</text>
+        <text x="300" y="22" font-size="10" font-weight="600" class="mono" fill="#1e3a8a">0.78</text>
+      </g>
+
+      <!-- arrow showing 10 pp gap -->
+      <g stroke="#c4342c" stroke-width="1.5" fill="none">
+        <line x1="288" y1="222" x2="648" y2="222"/>
+        <line x1="288" y1="218" x2="288" y2="226"/>
+        <line x1="648" y1="218" x2="648" y2="226"/>
+      </g>
+      <text x="468" y="216" text-anchor="middle" font-size="10" font-weight="600" fill="#7f1d1d">~10 percentage-point gap (African vs European)</text>
+    </g>
+  </g>
+
+  <!-- Bottom annotation -->
+  <rect x="40" y="586" width="1120" height="40" fill="#fef3c7" stroke="#b45309" rx="4"/>
+  <text x="600" y="606" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">Accuracy follows training-distribution coverage.</text>
+  <text x="600" y="620" text-anchor="middle" font-size="10" fill="#92400e">Diverse data — All of Us, H3Africa, Biobank Japan — closes the gap. Algorithm tweaks alone cannot.</text>
+</svg>

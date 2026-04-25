@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 520" width="1080" height="520" font-family="Inter, sans-serif">
+  <defs>
+    <style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; }</style>
+    <marker id="arr1" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#1d4ed8"/>
+    </marker>
+  </defs>
+  <rect width="1080" height="520" fill="#fafaf9" rx="6"/>
+  <text x="540" y="26" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">AlphaFold2 architecture — sequence + MSA in, 3D structure + confidence out</text>
+
+  <!-- Input row -->
+  <g>
+    <rect x="60" y="56" width="180" height="56" fill="#dbeafe" stroke="#1d4ed8" rx="6"/>
+    <text x="150" y="78" text-anchor="middle" font-size="11" font-weight="600" fill="#1e40af">Sequence</text>
+    <text x="150" y="96" text-anchor="middle" font-size="10" class="mono" fill="#374151">MAGLKVNFY...</text>
+
+    <rect x="260" y="56" width="180" height="56" fill="#dbeafe" stroke="#1d4ed8" rx="6"/>
+    <text x="350" y="78" text-anchor="middle" font-size="11" font-weight="600" fill="#1e40af">MSA</text>
+    <text x="350" y="96" text-anchor="middle" font-size="10" fill="#374151">UniRef + BFD + MGnify</text>
+
+    <rect x="460" y="56" width="180" height="56" fill="#fef3c7" stroke="#b45309" rx="6"/>
+    <text x="550" y="78" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">Templates (optional)</text>
+    <text x="550" y="96" text-anchor="middle" font-size="10" fill="#374151">PDB homologues</text>
+  </g>
+
+  <!-- Down arrow -->
+  <line x1="350" y1="115" x2="350" y2="138" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arr1)"/>
+
+  <!-- Evoformer block -->
+  <rect x="60" y="148" width="960" height="120" fill="#eff6ff" stroke="#1d4ed8" stroke-width="2" rx="8"/>
+  <text x="540" y="172" text-anchor="middle" font-size="13" font-weight="600" fill="#1d4ed8">Evoformer · 48 blocks</text>
+  <text x="540" y="190" text-anchor="middle" font-size="10" fill="#6b7280">axial attention (row + column on MSA) · triangle multiplicative + attention updates on pair</text>
+  <!-- two interlinked tensors -->
+  <g>
+    <rect x="160" y="208" width="220" height="40" fill="#fff" stroke="#bfdbfe"/>
+    <text x="270" y="230" text-anchor="middle" font-size="11" class="mono" fill="#1e40af">MSA repr  M ∈ ℝ^(s × r × c)</text>
+    <text x="270" y="244" text-anchor="middle" font-size="9" fill="#6b7280">512 sequences × residues × 256 channels</text>
+
+    <rect x="700" y="208" width="220" height="40" fill="#fff" stroke="#bfdbfe"/>
+    <text x="810" y="230" text-anchor="middle" font-size="11" class="mono" fill="#1e40af">Pair repr  Z ∈ ℝ^(r × r × c)</text>
+    <text x="810" y="244" text-anchor="middle" font-size="9" fill="#6b7280">residue × residue × 128 channels</text>
+
+    <!-- two-way exchange -->
+    <line x1="380" y1="222" x2="700" y2="222" stroke="#1d4ed8" stroke-width="1.5" marker-end="url(#arr1)"/>
+    <line x1="700" y1="234" x2="380" y2="234" stroke="#1d4ed8" stroke-width="1.5" marker-end="url(#arr1)"/>
+  </g>
+
+  <!-- Down arrow -->
+  <line x1="540" y1="270" x2="540" y2="294" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arr1)"/>
+
+  <!-- Structure module -->
+  <rect x="60" y="304" width="960" height="100" fill="#f0fdf4" stroke="#059669" stroke-width="2" rx="8"/>
+  <text x="540" y="328" text-anchor="middle" font-size="13" font-weight="600" fill="#059669">Structure module · 8 IPA iterations</text>
+  <text x="540" y="346" text-anchor="middle" font-size="10" fill="#6b7280">SE(3)-equivariant Invariant Point Attention · per-residue frame updates · side-chain torsion prediction</text>
+  <g>
+    <rect x="160" y="362" width="180" height="32" fill="#fff" stroke="#bbf7d0"/>
+    <text x="250" y="382" text-anchor="middle" font-size="10" class="mono" fill="#065f46">SE(3) frames T_i</text>
+    <rect x="360" y="362" width="180" height="32" fill="#fff" stroke="#bbf7d0"/>
+    <text x="450" y="382" text-anchor="middle" font-size="10" class="mono" fill="#065f46">3D coordinates</text>
+    <rect x="560" y="362" width="180" height="32" fill="#fff" stroke="#bbf7d0"/>
+    <text x="650" y="382" text-anchor="middle" font-size="10" class="mono" fill="#065f46">side-chain χ angles</text>
+    <rect x="760" y="362" width="180" height="32" fill="#fff" stroke="#bbf7d0"/>
+    <text x="850" y="382" text-anchor="middle" font-size="10" class="mono" fill="#065f46">pLDDT · PAE · pTM</text>
+  </g>
+
+  <!-- Recycling arrow -->
+  <path d="M 1020 354 Q 1060 354 1060 240 Q 1060 200 1020 200" fill="none" stroke="#7c3aed" stroke-width="2" marker-end="url(#arr1)" stroke-dasharray="6,4"/>
+  <text x="1068" y="282" font-size="10" fill="#7c3aed" font-weight="600" transform="rotate(-90 1068 282)">recycling × 3–4</text>
+
+  <!-- Output -->
+  <line x1="540" y1="406" x2="540" y2="430" stroke="#059669" stroke-width="2" marker-end="url(#arr1)"/>
+  <rect x="320" y="436" width="440" height="50" fill="#dcfce7" stroke="#059669" rx="6"/>
+  <text x="540" y="458" text-anchor="middle" font-size="11" font-weight="600" fill="#059669">Output</text>
+  <text x="540" y="476" text-anchor="middle" font-size="10" fill="#374151">3D structure (PDB) + per-residue pLDDT + N×N PAE matrix</text>
+
+  <!-- Param count badge -->
+  <rect x="940" y="56" width="140" height="36" fill="#fff" stroke="#bfdbfe"/>
+  <text x="1010" y="74" text-anchor="middle" font-size="10" fill="#6b7280">trainable params</text>
+  <text x="1010" y="86" text-anchor="middle" font-size="11" class="mono" fill="#1d4ed8" font-weight="600">~93 M</text>
+</svg>

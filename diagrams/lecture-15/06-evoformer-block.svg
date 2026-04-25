@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 480" width="1080" height="480" font-family="Inter, sans-serif">
+  <defs>
+    <style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }</style>
+    <marker id="arr2" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" fill="#1d4ed8"/>
+    </marker>
+  </defs>
+  <rect width="1080" height="480" fill="#fafaf9" rx="6"/>
+  <text x="540" y="26" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">A single Evoformer block — six operations refining MSA + pair</text>
+
+  <!-- MSA representation (top-left) -->
+  <g>
+    <rect x="60" y="60" width="280" height="100" fill="#dbeafe" stroke="#1d4ed8" rx="6"/>
+    <text x="200" y="80" text-anchor="middle" font-size="11" font-weight="600" fill="#1e40af">MSA representation M</text>
+    <text x="200" y="96" text-anchor="middle" font-size="10" class="mono" fill="#374151">s × r × c  (sequences × residues × channels)</text>
+    <!-- visualise as small grid -->
+    <g transform="translate(75,108)">
+      <rect width="250" height="40" fill="#fff" stroke="#bfdbfe"/>
+      <g fill="#93c5fd" opacity="0.6">
+        <rect x="0" y="0" width="50" height="40"/>
+        <rect x="50" y="0" width="50" height="40" fill="#bfdbfe"/>
+        <rect x="100" y="0" width="50" height="40"/>
+        <rect x="150" y="0" width="50" height="40" fill="#bfdbfe"/>
+        <rect x="200" y="0" width="50" height="40"/>
+      </g>
+      <text x="125" y="24" text-anchor="middle" font-size="9" fill="#1e40af" font-style="italic">s rows × r cols</text>
+    </g>
+  </g>
+
+  <!-- Pair representation (top-right) -->
+  <g>
+    <rect x="740" y="60" width="280" height="100" fill="#fef3c7" stroke="#b45309" rx="6"/>
+    <text x="880" y="80" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">Pair representation Z</text>
+    <text x="880" y="96" text-anchor="middle" font-size="10" class="mono" fill="#374151">r × r × c  (residue-pair × channels)</text>
+    <!-- N×N grid -->
+    <g transform="translate(820,108)">
+      <rect width="120" height="40" fill="#fff" stroke="#fcd34d"/>
+      <g fill="#fcd34d" opacity="0.5">
+        <rect x="0" y="0" width="120" height="6"/>
+        <rect x="0" y="6" width="120" height="6" fill="#fbbf24" opacity="0.4"/>
+        <rect x="0" y="12" width="120" height="6" fill="#fcd34d"/>
+        <rect x="0" y="18" width="120" height="6" fill="#fbbf24" opacity="0.4"/>
+        <rect x="0" y="24" width="120" height="6" fill="#fcd34d"/>
+        <rect x="0" y="30" width="120" height="6" fill="#fbbf24" opacity="0.4"/>
+      </g>
+      <line x1="0" y1="0" x2="120" y2="40" stroke="#92400e" stroke-width="0.8" opacity="0.5"/>
+    </g>
+  </g>
+
+  <!-- Six operations as DAG -->
+  <!-- Row attention -->
+  <g>
+    <rect x="60" y="200" width="200" height="50" fill="#fff" stroke="#bfdbfe"/>
+    <text x="160" y="220" text-anchor="middle" font-size="11" font-weight="600" fill="#1e40af">1. Row-wise MSA attention</text>
+    <text x="160" y="234" text-anchor="middle" font-size="9" class="mono" fill="#374151">attention over residues, with pair bias</text>
+    <text x="160" y="246" text-anchor="middle" font-size="9" fill="#9ca3af">O(s · r²)</text>
+  </g>
+
+  <!-- Column attention -->
+  <g>
+    <rect x="60" y="270" width="200" height="50" fill="#fff" stroke="#bfdbfe"/>
+    <text x="160" y="290" text-anchor="middle" font-size="11" font-weight="600" fill="#1e40af">2. Column-wise MSA attention</text>
+    <text x="160" y="304" text-anchor="middle" font-size="9" class="mono" fill="#374151">attention over species at each residue</text>
+    <text x="160" y="316" text-anchor="middle" font-size="9" fill="#9ca3af">O(r · s²)</text>
+  </g>
+
+  <!-- MSA transition -->
+  <g>
+    <rect x="60" y="340" width="200" height="40" fill="#fff" stroke="#bfdbfe"/>
+    <text x="160" y="358" text-anchor="middle" font-size="11" font-weight="600" fill="#1e40af">3. MSA transition</text>
+    <text x="160" y="372" text-anchor="middle" font-size="9" class="mono" fill="#374151">feedforward channel mixing</text>
+  </g>
+
+  <!-- Outer-product mean (MSA → pair) -->
+  <g>
+    <rect x="380" y="285" width="280" height="60" fill="#fef9c3" stroke="#b45309" stroke-width="1.5"/>
+    <text x="520" y="307" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">4. Outer product mean</text>
+    <text x="520" y="322" text-anchor="middle" font-size="10" fill="#374151">summarise MSA over species →</text>
+    <text x="520" y="336" text-anchor="middle" font-size="10" fill="#374151">add into the pair representation</text>
+  </g>
+
+  <!-- Triangle multiplicative -->
+  <g>
+    <rect x="780" y="200" width="240" height="50" fill="#fff" stroke="#fcd34d"/>
+    <text x="900" y="220" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">5. Triangle multiplicative</text>
+    <text x="900" y="234" text-anchor="middle" font-size="9" class="mono" fill="#374151">if i–k and j–k are contact-like,</text>
+    <text x="900" y="246" text-anchor="middle" font-size="9" class="mono" fill="#374151">then i–j should be contact-like</text>
+  </g>
+
+  <!-- Triangle attention -->
+  <g>
+    <rect x="780" y="270" width="240" height="50" fill="#fff" stroke="#fcd34d"/>
+    <text x="900" y="290" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">6. Triangle self-attention</text>
+    <text x="900" y="304" text-anchor="middle" font-size="9" class="mono" fill="#374151">pair (i,j) attends pairs sharing i or j</text>
+    <text x="900" y="316" text-anchor="middle" font-size="9" fill="#9ca3af">O(r³)</text>
+  </g>
+
+  <!-- Pair transition -->
+  <g>
+    <rect x="780" y="340" width="240" height="40" fill="#fff" stroke="#fcd34d"/>
+    <text x="900" y="358" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">Pair transition</text>
+    <text x="900" y="372" text-anchor="middle" font-size="9" class="mono" fill="#374151">feedforward, channel-wise</text>
+  </g>
+
+  <!-- Connections (key data flows) -->
+  <g stroke="#1d4ed8" stroke-width="1.5" fill="none">
+    <line x1="200" y1="160" x2="160" y2="198" marker-end="url(#arr2)"/>
+    <line x1="160" y1="252" x2="160" y2="268" marker-end="url(#arr2)"/>
+    <line x1="160" y1="322" x2="160" y2="338" marker-end="url(#arr2)"/>
+    <!-- MSA → outer product -->
+    <line x1="260" y1="320" x2="378" y2="318" marker-end="url(#arr2)" stroke="#7c3aed"/>
+  </g>
+  <g stroke="#b45309" stroke-width="1.5" fill="none">
+    <line x1="880" y1="160" x2="900" y2="198" marker-end="url(#arr2)"/>
+    <line x1="900" y1="252" x2="900" y2="268" marker-end="url(#arr2)"/>
+    <line x1="900" y1="322" x2="900" y2="338" marker-end="url(#arr2)"/>
+    <!-- outer product → pair -->
+    <line x1="660" y1="316" x2="778" y2="318" marker-end="url(#arr2)" stroke="#7c3aed"/>
+    <!-- pair bias → row attention -->
+    <path d="M 880 160 Q 700 180 260 222" stroke="#b45309" stroke-dasharray="3,3" stroke-width="1"/>
+    <text x="540" y="172" text-anchor="middle" font-size="9" fill="#b45309" font-style="italic">pair → row-attention bias</text>
+  </g>
+
+  <!-- Block-repeat annotation -->
+  <rect x="60" y="410" width="960" height="50" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="75" y="432" font-size="11" font-weight="600" fill="#1d4ed8">Block stacks 48 deep.</text>
+  <text x="75" y="450" font-size="10" fill="#374151">Output of each block becomes the input of the next; (M, Z) iteratively co-refine into a high-quality pair representation that the structure module decodes into 3D.</text>
+</svg>

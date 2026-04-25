@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Progressive MSA Stepper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .stepper { display: flex; gap: 0.6rem; margin-bottom: 1rem; }
+  .step-btn { padding: 0.55rem 1rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-family: var(--font-mono); font-size: 0.85rem; cursor: pointer; transition: all 0.15s; }
+  .step-btn.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+  .step-btn:hover:not(.active) { background: #f5f5f4; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .alignment { font-family: var(--font-mono); font-size: 0.95rem; line-height: 1.7; white-space: pre; overflow-x: auto; padding: 0.6rem 0.8rem; background: #fafaf9; border-radius: 4px; border: 1px solid #e7e5e4; }
+  .alignment .name { display: inline-block; width: 130px; color: #525252; font-weight: 600; }
+  .alignment .new { background: #fef3c7; color: #92400e; font-weight: 700; padding: 0 1px; }
+  .alignment .conserved { background: #dcfce7; color: #065f46; padding: 0 1px; }
+  .narration { background: #f5f3ff; border-left: 3px solid #7c3aed; padding: 0.7rem 1rem; font-size: 0.92rem; color: #4c1d95; line-height: 1.6; margin-top: 0.6rem; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Progressive MSA Stepper</h1>
+    <p>Step through progressive alignment on five globin sequences. Each step adds one sequence to a profile via pairwise (or profile-vs-sequence) DP. Aha: progressive alignment is a heuristic — the early gaps freeze. Iterative refinement (next step in spirit) gives them another chance.</p>
+  </div>
+
+  <div class="stepper" id="stepper"></div>
+
+  <div class="panel">
+    <h3>Alignment at this step</h3>
+    <pre class="alignment" id="aln"></pre>
+    <div class="narration" id="narr"></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. The alignments shown are precomputed for a 5-globin toy dataset; real progressive aligners (MAFFT, MUSCLE, Clustal Omega) use BLOSUM62 + affine gaps + a UPGMA/NJ guide tree. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const STEPS = [
+    {
+      title: 'Step 0: input sequences (unaligned)',
+      narration: 'Five globin protein sequences from species spanning ~600 Myr of evolution. Lengths differ. Order on the guide tree (NJ on pairwise %ID): cucumber and lamprey closest pair → chicken next → mouse → human.',
+      seqs: [
+        { name: 'cucumber', s: 'VLSADEKAFITGLWNKVDEEVGDQAFGRLHGS' },
+        { name: 'lamprey', s: 'PIVDTGSVAPLSAAEKTKIRSAWAPVYSTYE' },
+        { name: 'chicken', s: 'VLSAADKNNVKGIFTKIAGHAEEYGAETLER' },
+        { name: 'mouse', s: 'VHLTDAEKAAVSCLWGKVNPDEVGGEALGRL' },
+        { name: 'human', s: 'VHLTPEEKSAVTALWGKVNVDEVGGEALGRL' }
+      ]
+    },
+    {
+      title: 'Step 1: align cucumber × lamprey (closest pair)',
+      narration: 'Pairwise DP (Needleman-Wunsch) with BLOSUM62. Gaps inserted to maximise the score. The two sequences become rows in a profile P₁.',
+      seqs: [
+        { name: 'cucumber', s: 'VLSADE---KAFITGLWNKVDEEVGDQAFGRLHGS', highlight: '' },
+        { name: 'lamprey ', s: 'PIVDTGSVAPLSAAEKTKIRSAWAPVYSTYETSGV', highlight: '' }
+      ]
+    },
+    {
+      title: 'Step 2: align P₁ × chicken (profile-vs-sequence)',
+      narration: 'Chicken is added to the profile P₁ via profile-vs-sequence DP. The scoring uses average over each column. New gaps may be added in P₁ if chicken needs them — but existing column structure is preserved.',
+      seqs: [
+        { name: 'cucumber', s: 'VLSADE---KAFITGLWNKVDEEVGDQAFGRLHGS' },
+        { name: 'lamprey ', s: 'PIVDTGSVAPLSAAEKTKIRSAWAPVYSTYETSGV' },
+        { name: 'chicken ', s: 'VLSAA-DKNNVKGIFTKIAGHAEEYGAETLERMFT', highlight: 'new' }
+      ]
+    },
+    {
+      title: 'Step 3: align P₂ × mouse',
+      narration: 'Mouse joins. Note the conserved L at position 2 and W at position 13 — these align across all four sequences despite ~10⁹ years of divergence. Functional residues emerge from progressive alignment as columns of high conservation.',
+      seqs: [
+        { name: 'cucumber', s: 'VLSADE---KAFITGLWNKVDEEVGDQAFGRLHGS' },
+        { name: 'lamprey ', s: 'PIVDTGSVAPLSAAEKTKIRSAWAPVYSTYETSGV' },
+        { name: 'chicken ', s: 'VLSAA-DKNNVKGIFTKIAGHAEEYGAETLERMFT' },
+        { name: 'mouse   ', s: 'VHLTDAEKAAVSCLWGKVNPDEVGGEALGRLLVVY', highlight: 'new' }
+      ]
+    },
+    {
+      title: 'Step 4: align P₃ × human (final 5-row alignment)',
+      narration: 'Human added. The five-row alignment is complete. Conserved columns (L, W) are now visible across all five species. The early gap in cucumber (position 7) is locked in — progressive alignment never revisits earlier decisions.',
+      seqs: [
+        { name: 'cucumber', s: 'VLSADE---KAFITGLWNKVDEEVGDQAFGRLHGS' },
+        { name: 'lamprey ', s: 'PIVDTGSVAPLSAAEKTKIRSAWAPVYSTYETSGV' },
+        { name: 'chicken ', s: 'VLSAA-DKNNVKGIFTKIAGHAEEYGAETLERMFT' },
+        { name: 'mouse   ', s: 'VHLTDAEKAAVSCLWGKVNPDEVGGEALGRLLVVY' },
+        { name: 'human   ', s: 'VHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVY', highlight: 'new' }
+      ]
+    },
+    {
+      title: 'Wrap-up: what we got',
+      narration: 'Final alignment is heuristic: 5 sequences × ~36 columns, with locked-in early gaps. Sum-of-pairs score across all column-pairs ≈ 0.84 on this toy dataset. Iterative refinement (MUSCLE-style realignment) typically improves SP by 0.02-0.05 by re-shuffling poorly placed gaps.',
+      seqs: [
+        { name: 'cucumber', s: 'VLSADE---KAFITGLWNKVDEEVGDQAFGRLHGS' },
+        { name: 'lamprey ', s: 'PIVDTGSVAPLSAAEKTKIRSAWAPVYSTYETSGV' },
+        { name: 'chicken ', s: 'VLSAA-DKNNVKGIFTKIAGHAEEYGAETLERMFT' },
+        { name: 'mouse   ', s: 'VHLTDAEKAAVSCLWGKVNPDEVGGEALGRLLVVY' },
+        { name: 'human   ', s: 'VHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVY' }
+      ]
+    }
+  ];
+
+  // Conservation columns (positions where ≥ 4 of 5 sequences agree on a non-gap residue)
+  const CONSERVED = new Set([0, 1, 2, 13]);
+
+  let cur = 0;
+
+  function renderStepper() {
+    const labels = ['0: input', '1: pair', '2: P₁+chicken', '3: P₂+mouse', '4: P₃+human', '5: wrap-up'];
+    let html = '';
+    labels.forEach((label, i) => {
+      html += `<button class="step-btn ${i === cur ? 'active' : ''}" data-i="${i}">${label}</button>`;
+    });
+    $('stepper').innerHTML = html;
+    $('stepper').querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => { cur = parseInt(b.dataset.i, 10); render(); });
+    });
+  }
+
+  function render() {
+    renderStepper();
+    const step = STEPS[cur];
+    let html = `<strong>${step.title}</strong>\n\n`;
+    step.seqs.forEach(row => {
+      html += `<span class="name">${row.name}</span>`;
+      const highlightClass = row.highlight === 'new' ? 'new' : '';
+      const cls = highlightClass ? ` class="${highlightClass}"` : '';
+      // mark conserved columns when alignment is uniform
+      if (cur >= 4) {
+        let s = '';
+        for (let i = 0; i < row.s.length; i++) {
+          const c = row.s[i];
+          if (CONSERVED.has(i) && c !== '-') s += `<span class="conserved">${c}</span>`;
+          else s += c;
+        }
+        html += highlightClass ? `<span${cls}>${s}</span>` : s;
+      } else {
+        html += highlightClass ? `<span${cls}>${row.s}</span>` : row.s;
+      }
+      html += '\n';
+    });
+    $('aln').innerHTML = html;
+    $('narr').textContent = step.narration;
+
+    let bannerText;
+    if (cur === 0) bannerText = 'Five unaligned sequences. The exact 5-way DP would require a 5D tensor; progressive alignment decomposes it into 4 pairwise/profile DPs.';
+    else if (cur === 5) bannerText = 'Final alignment complete. Conserved columns mark functional residues. Time complexity ~O(N²L²); each pairwise step uses ~36×36 DP cells.';
+    else bannerText = `Step ${cur} of 4: profile grows to ${STEPS[cur].seqs.length} rows. Each new sequence is added via profile-vs-sequence DP using BLOSUM62 + affine gaps.`;
+    $('banner').innerHTML = bannerText + `<span class="hint">try clicking through the steps in order; the new row is highlighted at each step.</span>`;
+  }
+
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

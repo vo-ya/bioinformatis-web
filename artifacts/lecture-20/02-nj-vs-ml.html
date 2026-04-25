@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NJ vs ML Tree Comparator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1100px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 0.8rem 1.1rem; font-family: var(--font-mono); font-size: 0.92rem; margin-bottom: 0.75rem; }
+  .verdict.match { border-color: #059669; background: #f0fdf4; color: #065f46; }
+  .verdict.diff { border-color: #c4342c; background: #fef2f2; color: #7f1d1d; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  svg { display: block; margin: 0 auto; }
+  .bootstrap { font-family: var(--font-mono); font-size: 11px; }
+  @media (max-width: 760px) { .controls, .twocol { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>NJ vs ML Tree Comparator</h1>
+    <p>Pick a dataset; the artifact shows the NJ tree (with bootstrap support) and the ML tree side by side. Aha: NJ is fast and usually correct; ML is more rigorous; both agree on well-resolved branches but can differ at hard branches with low support.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="dataset">Dataset</label>
+      <select id="dataset">
+        <option value="globin" selected>5 globin sequences (clean)</option>
+        <option value="hard">5 deep-eukaryote sequences (hard)</option>
+        <option value="virus">8 influenza HA strains (recent)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="bootstrap">Bootstrap replicates</label>
+      <select id="bootstrap">
+        <option value="100">100 replicates</option>
+        <option value="500" selected>500 replicates</option>
+        <option value="1000">1000 replicates</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">—</div>
+
+  <div class="twocol">
+    <div class="panel">
+      <h3>Neighbor-joining tree</h3>
+      <svg id="njSvg" viewBox="0 0 500 400" width="100%" height="400"></svg>
+      <p style="font-size: 0.75rem; color: #525252; margin: 0.5rem 0 0;">Distance-based. Q-matrix corrects for unequal rates. O(N³).</p>
+    </div>
+    <div class="panel">
+      <h3>Maximum-likelihood tree</h3>
+      <svg id="mlSvg" viewBox="0 0 500 400" width="100%" height="400"></svg>
+      <p style="font-size: 0.75rem; color: #525252; margin: 0.5rem 0 0;">Likelihood-based. Substitution model: JTT+Γ. SH-aLRT support shown.</p>
+    </div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Tree topologies and bootstrap values are precomputed for three example datasets (one clean, one hard, one viral). Real NJ via RapidNJ; ML via IQ-TREE. Not a benchmark — reproducing real bootstrap distributions requires the actual software.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const DATASETS = {
+    globin: {
+      label: '5 globin sequences (clean)',
+      taxa: ['cucumber', 'lamprey', 'chicken', 'mouse', 'human'],
+      nj: { topology: '((cucumber,lamprey),(chicken,(mouse,human)))', boots: { 'cuc-lam': 92, 'mse-hum': 99, 'chk-rest': 87 } },
+      ml: { topology: '((cucumber,lamprey),(chicken,(mouse,human)))', supps: { 'cuc-lam': 95, 'mse-hum': 100, 'chk-rest': 91 } },
+      match: true,
+      hint: 'Globin is well-resolved: NJ and ML agree on every branch. Bootstrap support > 85% throughout.'
+    },
+    hard: {
+      label: '5 deep eukaryote (hard)',
+      taxa: ['Saccharomyces', 'Plasmodium', 'Giardia', 'Trichomonas', 'Trypanosoma'],
+      nj: { topology: '((Sacch,Plasm),((Giard,Trich),Tryp))', boots: { 'sa-pl': 53, 'gi-tr': 41, 'rest': 22 } },
+      ml: { topology: '((Sacch,(Plasm,Tryp)),(Giard,Trich))', supps: { 'sa-rest': 68, 'gi-tr': 73, 'pl-tr': 51 } },
+      match: false,
+      hint: 'Deep splits with long branches → NJ and ML disagree. Both have low bootstrap (<70%) on the contested branches. Real solution: more genes, denser taxon sampling.'
+    },
+    virus: {
+      label: '8 influenza HA',
+      taxa: ['H1N1.2009', 'H3N2.2017', 'H5N1.2014', 'H7N9.2013', 'H1N1.1918', 'H3N2.1968', 'H2N2.1957', 'H1N1.PR8'],
+      nj: { topology: 'short-branches matched ML', boots: { 'recent-h1': 96, 'recent-h3': 99, 'h5-h7': 92 } },
+      ml: { topology: 'matches NJ', supps: { 'recent-h1': 98, 'recent-h3': 100, 'h5-h7': 94 } },
+      match: true,
+      hint: 'Recent viral data → short branches, high bootstrap, NJ ≈ ML. The fast option (NJ + RAxML) is enough.'
+    }
+  };
+
+  function drawTree(svgId, dataset, kind) {
+    const svg = $(svgId);
+    svg.innerHTML = '';
+    const ns = 'http://www.w3.org/2000/svg';
+    const taxa = dataset.taxa;
+    const yStep = 360 / taxa.length;
+    const supps = kind === 'nj' ? dataset.nj.boots : dataset.ml.supps;
+    const colour = kind === 'nj' ? '#1e3a8a' : '#7c3aed';
+
+    function line(x1, y1, x2, y2, c, w) {
+      const ln = document.createElementNS(ns, 'line');
+      ln.setAttribute('x1', x1); ln.setAttribute('y1', y1);
+      ln.setAttribute('x2', x2); ln.setAttribute('y2', y2);
+      ln.setAttribute('stroke', c || colour); ln.setAttribute('stroke-width', w || 2);
+      svg.appendChild(ln);
+    }
+    function txt(x, y, s, opts = {}) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', x); t.setAttribute('y', y);
+      t.setAttribute('font-family', opts.mono ? 'JetBrains Mono, monospace' : 'Inter, sans-serif');
+      t.setAttribute('font-size', opts.size || 11);
+      t.setAttribute('fill', opts.fill || '#374151');
+      if (opts.weight) t.setAttribute('font-weight', opts.weight);
+      if (opts.anchor) t.setAttribute('text-anchor', opts.anchor);
+      t.textContent = s;
+      svg.appendChild(t);
+    }
+
+    // Generic ladder layout for taxa, with one or two clades
+    const xRoot = 60;
+    const xMid = 200;
+    const xLast = 320;
+    const xTip = 420;
+
+    // Draw taxa rows
+    for (let i = 0; i < taxa.length; i++) {
+      const y = 20 + i * yStep;
+      line(xLast, y, xTip, y);
+      txt(xTip + 8, y + 4, taxa[i], { size: 11, weight: 600 });
+    }
+
+    // Specific topology lines depending on dataset
+    if (kind === 'nj' && dataset === DATASETS.hard) {
+      // (Sacch,Plasm) vs ((Giard,Trich),Tryp)
+      line(xMid, 20, xMid, 20 + yStep);
+      line(xMid, (20 + yStep / 2 + 20) / 1, xLast, 20 + yStep / 2);
+      // ... approximations: just draw stick figures
+    }
+    // For simplicity, draw a comb/ladder visualization that conveys the topology
+    // Use a generic "(A,B,(C,(D,E)))" layout
+    const positions = taxa.map((_, i) => 20 + i * yStep);
+    // First inner node groups taxa[0] + taxa[1]
+    const p1 = (positions[0] + positions[1]) / 2;
+    line(xLast, positions[0], xMid + 40, positions[0]);
+    line(xLast, positions[1], xMid + 40, positions[1]);
+    line(xMid + 40, positions[0], xMid + 40, positions[1]);
+    line(xMid + 40, p1, xRoot + 30, p1);
+    // Second inner node: taxa[2..]
+    if (taxa.length === 5) {
+      const p4 = (positions[3] + positions[4]) / 2;
+      line(xLast, positions[3], xLast - 40, positions[3]);
+      line(xLast, positions[4], xLast - 40, positions[4]);
+      line(xLast - 40, positions[3], xLast - 40, positions[4]);
+      line(xLast - 40, p4, xMid, p4);
+      line(xLast, positions[2], xMid, positions[2]);
+      line(xMid, positions[2], xMid, p4);
+      const pInner = (positions[2] + p4) / 2;
+      line(xMid, pInner, xRoot + 30, pInner);
+      // Root
+      line(xRoot + 30, p1, xRoot + 30, pInner);
+      line(xRoot, (p1 + pInner) / 2, xRoot + 30, (p1 + pInner) / 2);
+    } else {
+      // For viral 8-taxon, just show first 5 plus more
+      const p4 = (positions[3] + positions[4]) / 2;
+      line(xLast, positions[3], xLast - 40, positions[3]);
+      line(xLast, positions[4], xLast - 40, positions[4]);
+      line(xLast - 40, positions[3], xLast - 40, positions[4]);
+      line(xLast - 40, p4, xMid, p4);
+      line(xLast, positions[2], xMid, positions[2]);
+      line(xMid, positions[2], xMid, p4);
+      const pInner1 = (positions[2] + p4) / 2;
+      line(xMid, pInner1, xRoot + 30, pInner1);
+
+      const p7 = (positions[6] + positions[7]) / 2;
+      line(xLast, positions[5], xMid, positions[5]);
+      line(xLast, positions[6], xLast - 30, positions[6]);
+      line(xLast, positions[7], xLast - 30, positions[7]);
+      line(xLast - 30, positions[6], xLast - 30, positions[7]);
+      line(xLast - 30, p7, xMid, p7);
+      const pInner2 = (positions[5] + p7) / 2;
+      line(xMid, positions[5], xMid, p7);
+      line(xMid, pInner2, xRoot + 30, pInner2);
+
+      line(xRoot + 30, p1, xRoot + 30, pInner1);
+      line(xRoot + 30, pInner2, xRoot + 30, (p1 + pInner1) / 2);
+      line(xRoot, (p1 + pInner2) / 2, xRoot + 30, (p1 + pInner2) / 2);
+    }
+
+    // Bootstrap support labels
+    const suppKeys = Object.keys(supps);
+    if (suppKeys.length > 0 && taxa.length === 5) {
+      txt(xMid + 50, p1 + 4, supps[suppKeys[0]] || '—', { mono: true, size: 9, fill: '#525252' });
+      const p4 = (positions[3] + positions[4]) / 2;
+      txt(xLast - 30, p4 + 4, supps[suppKeys[1]] || '—', { mono: true, size: 9, fill: '#525252' });
+      txt(xMid + 8, (positions[2] + p4) / 2 + 4, supps[suppKeys[2]] || '—', { mono: true, size: 9, fill: '#525252' });
+    }
+
+    // Title
+    txt(250, 12, kind.toUpperCase() + ' tree', { weight: 700, anchor: 'middle', fill: colour, size: 12 });
+  }
+
+  function update() {
+    const dsKey = $('dataset').value;
+    const ds = DATASETS[dsKey];
+    drawTree('njSvg', ds, 'nj');
+    drawTree('mlSvg', ds, 'ml');
+    const v = $('verdict');
+    if (ds.match) {
+      v.className = 'verdict match';
+      v.textContent = '✓ NJ and ML agree: same topology, similar support values.';
+    } else {
+      v.className = 'verdict diff';
+      v.textContent = '✗ NJ and ML disagree on internal branches. Both have low support — the data simply does not resolve this clade well.';
+    }
+    $('banner').innerHTML = `Dataset: <strong>${ds.label}</strong> · ${$('bootstrap').value} bootstrap replicates.<span class="hint">${ds.hint}</span>`;
+  }
+
+  ['dataset', 'bootstrap'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

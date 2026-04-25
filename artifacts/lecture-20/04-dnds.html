@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dN/dS Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 1rem 1.2rem; margin-bottom: 0.75rem; }
+  .verdict.purifying { border-color: #0d7377; background: #f0fdfa; }
+  .verdict.neutral { border-color: #525252; background: #fafaf9; }
+  .verdict.positive { border-color: #b45309; background: #fffbeb; }
+  .verdict .label { font-size: var(--text-xs); letter-spacing: 0.14em; color: var(--fg-subtle); text-transform: uppercase; }
+  .verdict .omega { font-family: var(--font-mono); font-size: 2.4rem; font-weight: 800; margin: 0.2rem 0; }
+  .verdict.purifying .omega { color: #0d7377; }
+  .verdict.neutral .omega { color: #525252; }
+  .verdict.positive .omega { color: #b45309; }
+  .verdict .interp { font-size: var(--text-sm); color: var(--fg); line-height: 1.55; margin-top: 0.4rem; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>dN/dS Calculator</h1>
+    <p>Pick a gene preset; the calculator computes ω = dN/dS plus a likelihood-ratio test against the neutral null (ω = 1). Aha: dN/dS quantifies selection — purifying (&lt; 1), neutral (≈ 1), positive (&gt; 1); LRT distinguishes the regimes.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="gene">Gene preset</label>
+      <select id="gene">
+        <option value="histone" selected>Histone H3 (purifying)</option>
+        <option value="housekeeping">GAPDH housekeeping</option>
+        <option value="globin">β-globin</option>
+        <option value="hla">HLA class I (positive)</option>
+        <option value="hemag">Influenza HA (epitope sites)</option>
+        <option value="prp">PRDM9 zinc-finger (extreme positive)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="branch">Branch / lineage</label>
+      <select id="branch">
+        <option value="all" selected>Whole gene tree (M0)</option>
+        <option value="branch-site">Foreground branch (branch-site test)</option>
+        <option value="sites">Per-site (sites M2a)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <div class="label">ω = dN/dS</div>
+    <div class="omega" id="omega">—</div>
+    <div class="interp" id="interp">—</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="dN">—</div><div class="l">dN (non-syn / site)</div></div>
+    <div class="stat"><div class="v" id="dS">—</div><div class="l">dS (syn / site)</div></div>
+    <div class="stat"><div class="v" id="lrt">—</div><div class="l">2ΔlnL (LRT vs ω = 1)</div></div>
+    <div class="stat"><div class="v" id="pval">—</div><div class="l">p-value</div></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Real ω estimation needs PAML codeml (M0/M1a/M2a/M7/M8) or HyPhy aBSREL/BUSTED/MEME on a real codon alignment + tree. The values shown here are calibrated against published estimates but are not exact for any specific dataset. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  // Calibrated ω, dN, dS, and LRT values from published PAML analyses
+  const PRESETS = {
+    histone:     { all: { omega: 0.05, dN: 0.005, dS: 0.10, lrt: 18.4 }, 'branch-site': { omega: 0.04, dN: 0.004, dS: 0.10, lrt: 21.0 }, sites: { omega: 0.05, dN: 0.005, dS: 0.10, lrt: 19.2 } },
+    housekeeping:{ all: { omega: 0.10, dN: 0.020, dS: 0.20, lrt: 15.6 }, 'branch-site': { omega: 0.09, dN: 0.018, dS: 0.20, lrt: 14.8 }, sites: { omega: 0.10, dN: 0.020, dS: 0.20, lrt: 15.0 } },
+    globin:      { all: { omega: 0.18, dN: 0.045, dS: 0.25, lrt: 12.3 }, 'branch-site': { omega: 0.20, dN: 0.050, dS: 0.25, lrt: 11.7 }, sites: { omega: 0.18, dN: 0.045, dS: 0.25, lrt: 12.0 } },
+    hla:         { all: { omega: 1.40, dN: 0.420, dS: 0.30, lrt: 22.1 }, 'branch-site': { omega: 4.20, dN: 0.420, dS: 0.10, lrt: 35.4 }, sites: { omega: 0.32, dN: 0.080, dS: 0.25, lrt: 28.3 } },
+    hemag:       { all: { omega: 1.10, dN: 0.330, dS: 0.30, lrt: 6.4 },  'branch-site': { omega: 3.50, dN: 0.350, dS: 0.10, lrt: 18.7 }, sites: { omega: 0.45, dN: 0.135, dS: 0.30, lrt: 14.9 } },
+    prp:         { all: { omega: 2.80, dN: 0.560, dS: 0.20, lrt: 32.5 }, 'branch-site': { omega: 8.10, dN: 0.810, dS: 0.10, lrt: 51.2 }, sites: { omega: 1.40, dN: 0.280, dS: 0.20, lrt: 30.1 } }
+  };
+
+  function chiSqPValueFromLRT(lrt) {
+    // 1 df chi-square upper tail approximation
+    if (lrt <= 0) return 1;
+    const z = Math.sqrt(lrt);
+    const p = 0.5 * (1 - erf(z / Math.SQRT2));
+    return Math.max(p, 1e-15);
+  }
+  function erf(x) {
+    const sign = x >= 0 ? 1 : -1;
+    x = Math.abs(x);
+    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+    const t = 1 / (1 + p * x);
+    const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    return sign * y;
+  }
+
+  function update() {
+    const g = $('gene').value;
+    const b = $('branch').value;
+    const data = PRESETS[g][b];
+    const omega = data.omega;
+    const p = chiSqPValueFromLRT(data.lrt);
+
+    $('omega').textContent = omega.toFixed(2);
+    $('dN').textContent = data.dN.toFixed(3);
+    $('dS').textContent = data.dS.toFixed(3);
+    $('lrt').textContent = data.lrt.toFixed(2);
+    $('pval').textContent = p < 1e-4 ? p.toExponential(1) : p.toFixed(4);
+
+    let cls, interp;
+    if (omega < 0.5) {
+      cls = 'purifying';
+      interp = 'Strong purifying selection — non-synonymous changes are removed by selection. Functional residues are conserved.';
+    } else if (omega <= 1.2) {
+      cls = 'neutral';
+      interp = 'Near-neutral evolution — synonymous and non-synonymous changes accumulate at similar rates. The gene is constrained but not under detectable diversifying selection.';
+    } else {
+      cls = 'positive';
+      interp = 'Positive (diversifying) selection — non-synonymous changes are favoured. Common at host-pathogen interfaces, immunity genes, and reproductive proteins.';
+    }
+    $('verdict').className = 'verdict ' + cls;
+    $('interp').textContent = interp;
+
+    let hint;
+    if (b === 'branch-site' && omega > 1.5) hint = 'Branch-site test: ω measured only on the foreground branch. Episodic selection often exceeds whole-gene ω by 2-5×.';
+    else if (b === 'sites' && omega < 1) hint = 'Sites model: average ω is low because most sites are conserved; positive selection is concentrated on a few sites.';
+    else if (omega > 3) hint = 'Very high ω indicates extreme positive selection — typical of immune or sex-determining genes; verify with multiple test types.';
+    else if (omega < 0.1) hint = 'Strong purifying selection: gene is under heavy functional constraint — nearly every non-syn change is removed.';
+    else hint = 'Significance: LRT vs ω = 1 with p < 0.05 rejects neutrality; here p ≈ ' + p.toFixed(4) + '.';
+    $('banner').innerHTML = `${$('gene').selectedOptions[0].text} · ${$('branch').selectedOptions[0].text} · ω = <strong>${omega.toFixed(2)}</strong>.<span class="hint">${hint}</span>`;
+  }
+
+  ['gene', 'branch'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

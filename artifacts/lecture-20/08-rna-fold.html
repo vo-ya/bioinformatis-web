@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RNA Secondary Structure Folder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  select, textarea { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; background: #fff; }
+  textarea { width: 100%; min-height: 60px; resize: vertical; }
+  input[type=range] { width: 100%; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .seqdisplay { font-family: var(--font-mono); font-size: 0.95rem; line-height: 1.5; padding: 0.6rem 0.8rem; background: #fafaf9; border-radius: 4px; border: 1px solid #e7e5e4; overflow-x: auto; white-space: nowrap; }
+  .seqdisplay .label { color: #525252; font-weight: 600; display: inline-block; width: 100px; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>RNA Secondary Structure Folder</h1>
+    <p>Pick an RNA preset (or paste your own); the artifact computes a minimum-free-energy structure with a simplified Nussinov-like algorithm. Aha: RNA secondary structure is determined by base-pairing thermodynamics; structure stability depends on temperature; profile-CMs detect homologs by structure-aware alignment.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="preset">Preset</label>
+      <select id="preset">
+        <option value="trna" selected>tRNA-Phe (76 nt)</option>
+        <option value="srp">7SL signal-recognition (75 nt)</option>
+        <option value="riboswitch">Adenine riboswitch (71 nt)</option>
+        <option value="mirna">miR-21 stem-loop (72 nt)</option>
+        <option value="custom">Custom (paste below)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="temp">Temperature: <span class="v" id="tempV">37 °C</span></label>
+      <input type="range" id="temp" min="0" max="80" value="37">
+    </div>
+  </div>
+
+  <div class="panel" id="customPanel" style="display:none;">
+    <h3>Custom RNA sequence</h3>
+    <textarea id="customSeq" placeholder="paste an RNA sequence (A/C/G/U), 30-100 nt"></textarea>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="length">—</div><div class="l">Length (nt)</div></div>
+    <div class="stat"><div class="v" id="pairs">—</div><div class="l">Base pairs</div></div>
+    <div class="stat"><div class="v" id="mfe">—</div><div class="l">Min free energy</div></div>
+    <div class="stat"><div class="v" id="gc">—</div><div class="l">GC content</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Sequence and dot-bracket structure</h3>
+    <div class="seqdisplay"><span class="label">sequence</span><span id="seqLine"></span></div>
+    <div class="seqdisplay" style="margin-top:0.4rem;"><span class="label">structure</span><span id="dotLine"></span></div>
+  </div>
+
+  <div class="panel">
+    <h3>Structure visualisation (force-directed)</h3>
+    <svg id="structSvg" viewBox="0 0 800 360" width="100%" height="360"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Real RNA folding uses RNAfold (Vienna RNA package), MFE (Zuker), or partition-function approaches with full Turner energy parameters. The structures shown here are precomputed for the four presets and use a simplified Nussinov-style scoring; custom sequences may produce non-physical results. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const PRESETS = {
+    trna: {
+      label: 'tRNA-Phe',
+      seq: 'GCGGAUUUAGCUCAGUUGGGAGAGCGCCAGACUGAAGAUCUGGAGGUCCUGUGUUCGAUCCACAGAAUUCGCACCA',
+      dot: '(((((((..((((........)))).(((((.......))))).....(((((.......))))))))))))....',
+      mfe: -32.1,
+      pairs: 21,
+      hint: 'Classic 4-arm cloverleaf: acceptor stem, D-arm, anticodon arm, TΨC arm. The CCA tail is unpaired.'
+    },
+    srp: {
+      label: '7SL signal recognition',
+      seq: 'GCCGGGCGCGGUGGCGCGUGCCUGUAGUCCCAGCUACUCGGGAGGCUGAGGCUGGAGGAUCGCUUGAGCCC',
+      dot: '(((((((((((((((....)))))))).(((((((....)))))))(((....))).....)))))))..',
+      mfe: -28.4,
+      pairs: 19,
+      hint: 'Long stem-loop characteristic of signal recognition particles.'
+    },
+    riboswitch: {
+      label: 'Adenine riboswitch',
+      seq: 'CGCUUCAUAUAAUCCUAAUGAUAUGGUUUGGGAGUUUCUACCAAGAGCCUUAAACUCUUGAUUAUG',
+      dot: '....(((((....((((((((....))))))))((((((....))))))(((....))).)))))',
+      mfe: -18.7,
+      pairs: 17,
+      hint: 'Three-way junction binds adenine ligand → terminator vs. anti-terminator switch.'
+    },
+    mirna: {
+      label: 'miR-21 precursor',
+      seq: 'UAGCUUAUCAGACUGAUGUUGACUGUUGAAUCUCAUGGCAACACCAGUCGAUGGGCUGUCUGACA',
+      dot: '(((((((((((((((((((((((((....))))))))))))))))))))))))............',
+      mfe: -34.2,
+      pairs: 25,
+      hint: 'Hairpin precursor, processed by Drosha/Dicer; mature miR is one strand of the stem.'
+    }
+  };
+
+  // Simple Nussinov for custom sequences — maximises base pairs only
+  function nussinov(seq) {
+    const n = seq.length;
+    const dp = Array.from({ length: n }, () => new Array(n).fill(0));
+    const tb = Array.from({ length: n }, () => new Array(n).fill(null));
+    function pair(a, b) {
+      const set = a + b;
+      return (set === 'AU' || set === 'UA' || set === 'GC' || set === 'CG' || set === 'GU' || set === 'UG');
+    }
+    for (let len = 4; len < n; len++) {
+      for (let i = 0; i + len < n; i++) {
+        const j = i + len;
+        let best = dp[i + 1][j];
+        let bestK = -1;
+        if (dp[i][j - 1] > best) { best = dp[i][j - 1]; bestK = -2; }
+        for (let k = i + 1; k < j; k++) {
+          if (pair(seq[i], seq[k]) && k - i > 3) {
+            const v = (k - i > 3 ? 1 : 0) + dp[i + 1][k - 1] + dp[k + 1][j];
+            if (v > best) { best = v; bestK = k; }
+          }
+        }
+        if (pair(seq[i], seq[j]) && j - i > 3) {
+          const v = 1 + dp[i + 1][j - 1];
+          if (v > best) { best = v; bestK = j; }
+        }
+        dp[i][j] = best; tb[i][j] = bestK;
+      }
+    }
+    // Traceback
+    const dot = new Array(n).fill('.');
+    function tr(i, j) {
+      if (i >= j) return;
+      const k = tb[i][j];
+      if (k === -1) tr(i + 1, j);
+      else if (k === -2) tr(i, j - 1);
+      else if (k === j) { dot[i] = '('; dot[j] = ')'; tr(i + 1, j - 1); }
+      else { dot[i] = '('; dot[k] = ')'; tr(i + 1, k - 1); tr(k + 1, j); }
+    }
+    tr(0, n - 1);
+    return { dot: dot.join(''), pairs: dp[0][n - 1] };
+  }
+
+  function update() {
+    const p = $('preset').value;
+    const customPanel = $('customPanel');
+    let seq, dot, pairs, mfe, hint, label;
+    if (p === 'custom') {
+      customPanel.style.display = '';
+      seq = ($('customSeq').value || '').toUpperCase().replace(/[^ACGU]/g, '');
+      if (seq.length < 20) {
+        $('seqLine').textContent = '(paste a sequence with at least 20 nt of A/C/G/U)';
+        $('dotLine').textContent = '';
+        $('length').textContent = '—'; $('pairs').textContent = '—'; $('mfe').textContent = '—'; $('gc').textContent = '—';
+        $('banner').innerHTML = `Paste a custom sequence to fold.<span class="hint">Use only A, C, G, U; lengths 20-150 work best.</span>`;
+        $('structSvg').innerHTML = '';
+        return;
+      }
+      const r = nussinov(seq);
+      dot = r.dot;
+      pairs = r.pairs;
+      mfe = -1.5 * pairs;
+      label = 'custom';
+      hint = 'Custom Nussinov fold: maximises pair count only — no thermodynamic accuracy. Use ViennaRNA RNAfold for production quality.';
+    } else {
+      customPanel.style.display = 'none';
+      const data = PRESETS[p];
+      seq = data.seq;
+      dot = data.dot;
+      pairs = data.pairs;
+      mfe = data.mfe;
+      label = data.label;
+      hint = data.hint;
+    }
+
+    const T = parseFloat($('temp').value);
+    $('tempV').textContent = `${T} °C`;
+    // Adjust MFE for temperature: stem stability decreases ~0.5 kcal/mol per 10°C
+    const adjMfe = mfe + (T - 37) * 0.05;
+    const gc = (seq.split('').filter(c => c === 'G' || c === 'C').length / seq.length * 100).toFixed(0);
+
+    $('seqLine').textContent = seq;
+    $('dotLine').textContent = dot;
+    $('length').textContent = seq.length;
+    $('pairs').textContent = pairs;
+    $('mfe').textContent = `${adjMfe.toFixed(1)} kcal/mol`;
+    $('gc').textContent = `${gc}%`;
+
+    drawStructure(seq, dot);
+
+    let bannerHint;
+    if (T >= 70) bannerHint = 'High temperature → structure denatured; many pairs broken. Real RNAs fold properly only in their native range.';
+    else if (T <= 4) bannerHint = 'Cold-stable: extra non-native pairs may form. tRNAs in psychrophiles have GC-rich stems for cold adaptation.';
+    else bannerHint = hint;
+    $('banner').innerHTML = `<strong>${label}</strong> · ${seq.length} nt · <strong>${pairs}</strong> pairs · ΔG = <strong>${adjMfe.toFixed(1)} kcal/mol</strong>.<span class="hint">${bannerHint}</span>`;
+  }
+
+  function drawStructure(seq, dot) {
+    const svg = $('structSvg');
+    svg.innerHTML = '';
+    const n = seq.length;
+    // Place residues on a circle, then pull paired residues closer
+    const cx = 400, cy = 180, r = 130;
+    const positions = [];
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + (i / n) * 2 * Math.PI;
+      positions.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+    }
+    // Find pairs from dot-bracket
+    const pairs = [];
+    const stack = [];
+    for (let i = 0; i < dot.length; i++) {
+      if (dot[i] === '(') stack.push(i);
+      else if (dot[i] === ')') {
+        const j = stack.pop();
+        if (j !== undefined) pairs.push([j, i]);
+      }
+    }
+    // Light force-directed adjustment
+    for (let iter = 0; iter < 30; iter++) {
+      pairs.forEach(([i, j]) => {
+        const dx = positions[j].x - positions[i].x;
+        const dy = positions[j].y - positions[i].y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        const target = 14;
+        const f = 0.05 * (d - target) / d;
+        positions[i].x += dx * f;
+        positions[i].y += dy * f;
+        positions[j].x -= dx * f;
+        positions[j].y -= dy * f;
+      });
+    }
+    // Draw backbone
+    for (let i = 0; i < n - 1; i++) {
+      const ln = document.createElementNS(ns, 'line');
+      ln.setAttribute('x1', positions[i].x); ln.setAttribute('y1', positions[i].y);
+      ln.setAttribute('x2', positions[i + 1].x); ln.setAttribute('y2', positions[i + 1].y);
+      ln.setAttribute('stroke', '#9ca3af'); ln.setAttribute('stroke-width', 0.8);
+      svg.appendChild(ln);
+    }
+    // Draw pairs
+    pairs.forEach(([i, j]) => {
+      const ln = document.createElementNS(ns, 'line');
+      ln.setAttribute('x1', positions[i].x); ln.setAttribute('y1', positions[i].y);
+      ln.setAttribute('x2', positions[j].x); ln.setAttribute('y2', positions[j].y);
+      ln.setAttribute('stroke', '#1e3a8a'); ln.setAttribute('stroke-width', 1.2);
+      ln.setAttribute('stroke-opacity', 0.6);
+      svg.appendChild(ln);
+    });
+    // Draw residues
+    for (let i = 0; i < n; i++) {
+      const c = seq[i];
+      const colour = c === 'A' ? '#1e3a8a' : c === 'U' ? '#b45309' : c === 'G' ? '#0d7377' : '#7c3aed';
+      const cir = document.createElementNS(ns, 'circle');
+      cir.setAttribute('cx', positions[i].x); cir.setAttribute('cy', positions[i].y);
+      cir.setAttribute('r', 5); cir.setAttribute('fill', colour);
+      svg.appendChild(cir);
+    }
+    // Legend
+    const lg = document.createElementNS(ns, 'g');
+    lg.setAttribute('transform', 'translate(20,20)');
+    ['A', 'U', 'G', 'C'].forEach((nt, i) => {
+      const colour = nt === 'A' ? '#1e3a8a' : nt === 'U' ? '#b45309' : nt === 'G' ? '#0d7377' : '#7c3aed';
+      const cir = document.createElementNS(ns, 'circle');
+      cir.setAttribute('cx', 0); cir.setAttribute('cy', i * 18); cir.setAttribute('r', 5); cir.setAttribute('fill', colour);
+      lg.appendChild(cir);
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', 12); t.setAttribute('y', i * 18 + 4);
+      t.setAttribute('font-size', 11); t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.setAttribute('fill', '#374151');
+      t.textContent = nt;
+      lg.appendChild(t);
+    });
+    svg.appendChild(lg);
+  }
+
+  ['preset', 'temp'].forEach(id => $(id).addEventListener('input', update));
+  $('preset').addEventListener('change', update);
+  $('customSeq').addEventListener('input', update);
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

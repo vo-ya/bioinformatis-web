@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Molecular Clock Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 100%; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Molecular Clock Simulator</h1>
+    <p>Substitution accumulation as a Poisson process. Strict clock = all lineages share the same rate; relaxed clock = lineage-specific rate variation. Aha: the clock is a Poisson process; relaxation handles real-world rate variation; calibrated against fossils, this gives absolute dates.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="rate">Mean rate μ: <span class="v" id="rateV">1.0 × 10⁻⁹ / site / yr</span></label>
+      <input type="range" id="rate" min="0" max="100" step="1" value="50">
+    </div>
+    <div class="field">
+      <label for="time">Divergence time: <span class="v" id="timeV">10 Myr</span></label>
+      <input type="range" id="time" min="1" max="200" step="1" value="10">
+    </div>
+    <div class="field">
+      <label for="model">Clock model</label>
+      <select id="model">
+        <option value="strict" selected>Strict (constant rate)</option>
+        <option value="ucln">Relaxed (uncorrelated lognormal)</option>
+        <option value="autocorr">Relaxed (autocorrelated)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="expSubs">—</div><div class="l">Expected substitutions / site</div></div>
+    <div class="stat"><div class="v" id="varSubs">—</div><div class="l">Variance (Poisson)</div></div>
+    <div class="stat"><div class="v" id="ci95">—</div><div class="l">95% CI on observed</div></div>
+    <div class="stat"><div class="v" id="rateVar">—</div><div class="l">Rate variation (CV)</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Simulated lineage rates (relaxed clock)</h3>
+    <svg id="rateSvg" viewBox="0 0 1000 220" width="100%" height="220"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Real clock-rate inference uses MCMC over branch-rate priors (BEAST 2, MrBayes). The CV values for relaxed clocks are illustrative; species-specific rate distributions need real data. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  function update() {
+    const rateRaw = parseFloat($('rate').value);
+    const time = parseFloat($('time').value);
+    const model = $('model').value;
+    const mu = (rateRaw / 50) * 1.0e-9;
+
+    $('rateV').textContent = `${(mu * 1e9).toFixed(2)} × 10⁻⁹ / site / yr`;
+    $('timeV').textContent = `${time} Myr`;
+
+    const expSubs = mu * time * 1e6;
+    const varSubs = expSubs;
+    const ci95Half = 1.96 * Math.sqrt(varSubs);
+
+    let cv;
+    if (model === 'strict') cv = 0;
+    else if (model === 'ucln') cv = 0.5;
+    else cv = 0.3;
+
+    $('expSubs').textContent = expSubs.toFixed(4);
+    $('varSubs').textContent = varSubs.toFixed(4);
+    $('ci95').textContent = `±${ci95Half.toFixed(4)}`;
+    $('rateVar').textContent = cv === 0 ? '0 (clock)' : cv.toFixed(2);
+
+    drawRates(model, mu, cv);
+
+    let hint;
+    if (model === 'strict' && time > 100) {
+      hint = 'Long times → many substitutions accumulate. Strict clock works only if rate truly is constant; mammals violate this assumption.';
+    } else if (model === 'ucln') {
+      hint = 'Uncorrelated lognormal: each branch draws an independent rate from a lognormal. Standard for most BEAST analyses.';
+    } else if (model === 'autocorr') {
+      hint = 'Autocorrelated: child branches inherit rate close to parent. Better for slowly-changing rates (mammalian deep splits).';
+    } else if (expSubs > 0.5) {
+      hint = 'High substitution density → saturation risk. Multiple-hit corrections (JC, GTR+Γ) become essential.';
+    } else {
+      hint = 'In the linear regime: substitutions accumulate linearly with time. Calibrate against fossil to get absolute dates.';
+    }
+    $('banner').innerHTML = `μ = <strong>${(mu * 1e9).toFixed(2)} × 10⁻⁹ /site/yr</strong>, t = <strong>${time} Myr</strong> → expected <strong>${expSubs.toFixed(4)}</strong> substitutions / site.<span class="hint">${hint}</span>`;
+  }
+
+  function drawRates(model, mu, cv) {
+    const svg = $('rateSvg');
+    svg.innerHTML = '';
+    const N = 8;
+    const lineageLabels = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8'];
+    const yStep = 22;
+
+    // Generate per-lineage rates with given CV
+    function genRates() {
+      const rates = [];
+      for (let i = 0; i < N; i++) {
+        if (cv === 0) rates.push(mu);
+        else {
+          const sigma = Math.sqrt(Math.log(1 + cv * cv));
+          const muLog = Math.log(mu) - 0.5 * sigma * sigma;
+          // Box-Muller
+          const u1 = Math.random(), u2 = Math.random();
+          const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+          rates.push(Math.exp(muLog + sigma * z));
+        }
+      }
+      return rates;
+    }
+    const rates = genRates();
+    const maxRate = Math.max(...rates) * 1.2;
+    const xMax = 800;
+
+    // Axis
+    const ax = document.createElementNS(ns, 'line');
+    ax.setAttribute('x1', 60); ax.setAttribute('y1', 200); ax.setAttribute('x2', 60 + xMax); ax.setAttribute('y2', 200);
+    ax.setAttribute('stroke', '#374151');
+    svg.appendChild(ax);
+
+    for (let i = 0; i < N; i++) {
+      const y = 16 + i * yStep;
+      // Lineage label
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', 50); t.setAttribute('y', y + 4);
+      t.setAttribute('text-anchor', 'end'); t.setAttribute('font-size', 10);
+      t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.setAttribute('fill', '#525252');
+      t.textContent = lineageLabels[i];
+      svg.appendChild(t);
+
+      // Rate bar
+      const w = (rates[i] / maxRate) * xMax;
+      const r = document.createElementNS(ns, 'rect');
+      r.setAttribute('x', 60); r.setAttribute('y', y - 8);
+      r.setAttribute('width', w); r.setAttribute('height', 14);
+      r.setAttribute('fill', cv === 0 ? '#1e3a8a' : (rates[i] > mu * 1.3 ? '#dc2626' : (rates[i] < mu * 0.7 ? '#0d7377' : '#7c3aed')));
+      r.setAttribute('opacity', '0.8');
+      svg.appendChild(r);
+
+      // Numeric label
+      const v = document.createElementNS(ns, 'text');
+      v.setAttribute('x', 60 + w + 6); v.setAttribute('y', y + 4);
+      v.setAttribute('font-size', 9); v.setAttribute('font-family', 'JetBrains Mono, monospace');
+      v.setAttribute('fill', '#525252');
+      v.textContent = (rates[i] * 1e9).toFixed(2);
+      svg.appendChild(v);
+    }
+
+    // Mean line
+    const meanX = 60 + (mu / maxRate) * xMax;
+    const ml = document.createElementNS(ns, 'line');
+    ml.setAttribute('x1', meanX); ml.setAttribute('y1', 4);
+    ml.setAttribute('x2', meanX); ml.setAttribute('y2', 200);
+    ml.setAttribute('stroke', '#374151'); ml.setAttribute('stroke-dasharray', '3 3');
+    svg.appendChild(ml);
+    const mt = document.createElementNS(ns, 'text');
+    mt.setAttribute('x', meanX + 4); mt.setAttribute('y', 14);
+    mt.setAttribute('font-size', 9); mt.setAttribute('font-family', 'JetBrains Mono, monospace');
+    mt.setAttribute('fill', '#374151');
+    mt.textContent = 'mean μ';
+    svg.appendChild(mt);
+
+    // Title
+    const tt = document.createElementNS(ns, 'text');
+    tt.setAttribute('x', 460); tt.setAttribute('y', 218);
+    tt.setAttribute('text-anchor', 'middle'); tt.setAttribute('font-size', 10);
+    tt.setAttribute('fill', '#525252');
+    tt.textContent = 'rate (×10⁻⁹ / site / yr) per lineage — bars show one MCMC sample';
+    svg.appendChild(tt);
+  }
+
+  ['rate', 'time'].forEach(id => $(id).addEventListener('input', update));
+  $('model').addEventListener('change', update);
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Synteny Browser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Synteny Browser</h1>
+    <p>Pick a comparison; the dot-plot shows orthologous gene pairs across two genomes. Aha: diagonal stripes = collinear blocks; off-diagonal points = rearrangements; conservation reveals selection on gene order.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="comp">Comparison</label>
+      <select id="comp">
+        <option value="hum-mou" selected>Human chr17 × Mouse chr11</option>
+        <option value="hum-chimp">Human chr17 × Chimp chr17</option>
+        <option value="hum-zfish">Human chr17 × Zebrafish (best chr)</option>
+        <option value="hum-fly">Human chr17 × Drosophila (any chr)</option>
+        <option value="ecoli-bac">E. coli × Bacillus subtilis</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="thresh">Synteny threshold (%ID)</label>
+      <select id="thresh">
+        <option value="50">≥ 50% identity (loose)</option>
+        <option value="70" selected>≥ 70% identity (default)</option>
+        <option value="90">≥ 90% identity (strict)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="orient">Show orientation</label>
+      <select id="orient">
+        <option value="both" selected>Forward + reverse (separate colours)</option>
+        <option value="fwd">Forward only</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="hits">—</div><div class="l">Ortholog hits</div></div>
+    <div class="stat"><div class="v" id="blocks">—</div><div class="l">Synteny blocks</div></div>
+    <div class="stat"><div class="v" id="invs">—</div><div class="l">Inversions</div></div>
+    <div class="stat"><div class="v" id="frac">—</div><div class="l">Genome covered</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Dot plot</h3>
+    <svg id="dotSvg" viewBox="0 0 700 500" width="100%" height="500"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Synteny dot plots in production come from MUMmer (DNA), MCScanX (gene-level), or LASTZ (chained alignments). The point distributions here are calibrated against published genome comparisons but simplified; real plots have far more noise and gene-density variation. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const COMPS = {
+    'hum-mou':   { hits: 480, blocks: 18, invs: 6,  frac: 0.85, label: 'Human chr17 × Mouse chr11', divergence: '~85 Myr', density: 0.85, noise: 0.03, invFrac: 0.18 },
+    'hum-chimp': { hits: 720, blocks: 4,  invs: 1,  frac: 0.99, label: 'Human chr17 × Chimp chr17', divergence: '~6 Myr',   density: 1.0,  noise: 0.005, invFrac: 0.05 },
+    'hum-zfish': { hits: 95,  blocks: 7,  invs: 12, frac: 0.45, label: 'Human chr17 × Zebrafish best',  divergence: '~430 Myr', density: 0.4,  noise: 0.12, invFrac: 0.35 },
+    'hum-fly':   { hits: 28,  blocks: 0,  invs: 0,  frac: 0.05, label: 'Human chr17 × Drosophila', divergence: '~700 Myr', density: 0.08, noise: 0.6,  invFrac: 0.5  },
+    'ecoli-bac': { hits: 320, blocks: 11, invs: 3,  frac: 0.55, label: 'E. coli × B. subtilis',     divergence: '~3 Gyr',   density: 0.6,  noise: 0.08, invFrac: 0.20 }
+  };
+
+  function update() {
+    const c = COMPS[$('comp').value];
+    const thresh = parseInt($('thresh').value, 10);
+    const showOrient = $('orient').value;
+
+    const adjustment = (100 - thresh) / 30;
+    const visibleHits = Math.max(5, Math.round(c.hits * (0.5 + 0.5 * adjustment)));
+    const visibleBlocks = Math.max(0, Math.round(c.blocks * (0.7 + 0.3 * adjustment)));
+    const visibleInvs = c.invs;
+    const frac = c.frac * (0.6 + 0.4 * adjustment);
+
+    $('hits').textContent = visibleHits;
+    $('blocks').textContent = visibleBlocks;
+    $('invs').textContent = visibleInvs;
+    $('frac').textContent = `${(frac * 100).toFixed(0)}%`;
+
+    drawPlot(c, visibleBlocks, visibleHits, visibleInvs, showOrient);
+
+    let hint;
+    if (c.label.includes('Chimp')) hint = 'Chimp-human is essentially perfect synteny — divergence too recent for major rearrangements.';
+    else if (c.label.includes('Drosophila')) hint = 'Synteny breaks down at >500 Myr divergence. The few hits are likely paralogs or convergent.';
+    else if (c.label.includes('Zebrafish')) hint = 'Lots of inversions and translocations after 430 Myr; some core gene clusters (HOX) preserved.';
+    else if (c.label.includes('coli')) hint = 'Bacterial synteny: extensive lineage-specific rearrangement; conserved gene cores (rRNA cluster, replication origin).';
+    else hint = 'Mammal synteny is highly conserved over ~85 Myr — mouse genome is largely a rearranged version of human.';
+    $('banner').innerHTML = `${c.label} (divergence ${c.divergence}) → <strong>${visibleHits}</strong> ortholog hits, <strong>${visibleBlocks}</strong> synteny blocks.<span class="hint">${hint}</span>`;
+  }
+
+  function drawPlot(c, nBlocks, nHits, nInvs, showOrient) {
+    const svg = $('dotSvg');
+    svg.innerHTML = '';
+    // Frame
+    const fr = document.createElementNS(ns, 'rect');
+    fr.setAttribute('x', 60); fr.setAttribute('y', 30); fr.setAttribute('width', 600); fr.setAttribute('height', 420);
+    fr.setAttribute('fill', '#fff'); fr.setAttribute('stroke', '#d6d3d1');
+    svg.appendChild(fr);
+    // Axes labels
+    function ax(x, y, txt, anchor) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', x); t.setAttribute('y', y);
+      t.setAttribute('text-anchor', anchor || 'start');
+      t.setAttribute('font-size', 10); t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.setAttribute('fill', '#525252');
+      t.textContent = txt;
+      svg.appendChild(t);
+    }
+    ax(360, 470, 'genome 1 (Mb)', 'middle');
+    ax(60, 18, c.label, 'start');
+    // Y-axis label
+    const yl = document.createElementNS(ns, 'text');
+    yl.setAttribute('x', 24); yl.setAttribute('y', 240);
+    yl.setAttribute('font-size', 10); yl.setAttribute('text-anchor', 'middle');
+    yl.setAttribute('font-family', 'JetBrains Mono, monospace'); yl.setAttribute('fill', '#525252');
+    yl.setAttribute('transform', 'rotate(-90 24 240)');
+    yl.textContent = 'genome 2 (Mb)';
+    svg.appendChild(yl);
+
+    // Blocks: forward diagonals
+    const fwdHitsPerBlock = Math.floor((nHits * (1 - c.invFrac)) / Math.max(1, nBlocks - nInvs));
+    const invHitsPerBlock = Math.floor((nHits * c.invFrac) / Math.max(1, nInvs));
+
+    let placed = 0;
+    const fwdBlocks = nBlocks - nInvs;
+    for (let b = 0; b < fwdBlocks; b++) {
+      const cx = 80 + (b + 0.5) * (560 / fwdBlocks);
+      const cy = 50 + (b + 0.5) * (380 / fwdBlocks) + (Math.random() - 0.5) * 80;
+      for (let i = 0; i < fwdHitsPerBlock; i++) {
+        const t = (i / fwdHitsPerBlock) - 0.5;
+        const x = cx + t * 80 + (Math.random() - 0.5) * 6;
+        const y = cy + t * 80 + (Math.random() - 0.5) * 6;
+        if (x < 60 || x > 660 || y < 30 || y > 450) continue;
+        addDot(svg, x, y, '#1e3a8a', 1.6);
+        placed++;
+      }
+    }
+    // Inversions: reverse-direction stripes
+    if (showOrient !== 'fwd') {
+      for (let b = 0; b < nInvs; b++) {
+        const cx = 100 + Math.random() * 480;
+        const cy = 80 + Math.random() * 300;
+        for (let i = 0; i < invHitsPerBlock; i++) {
+          const t = (i / invHitsPerBlock) - 0.5;
+          const x = cx + t * 50 + (Math.random() - 0.5) * 4;
+          const y = cy - t * 50 + (Math.random() - 0.5) * 4;
+          if (x < 60 || x > 660 || y < 30 || y > 450) continue;
+          addDot(svg, x, y, '#7c3aed', 1.6);
+          placed++;
+        }
+      }
+    }
+
+    // Noise
+    const noiseN = Math.round(nHits * c.noise);
+    for (let i = 0; i < noiseN; i++) {
+      const x = 70 + Math.random() * 580;
+      const y = 40 + Math.random() * 400;
+      addDot(svg, x, y, '#9ca3af', 1, 0.4);
+    }
+
+    // Legend
+    const lg = document.createElementNS(ns, 'g');
+    lg.setAttribute('transform', 'translate(480,40)');
+    const lgRect = document.createElementNS(ns, 'rect');
+    lgRect.setAttribute('width', 170); lgRect.setAttribute('height', 60); lgRect.setAttribute('fill', '#fafaf9'); lgRect.setAttribute('stroke', '#d6d3d1'); lgRect.setAttribute('rx', 4);
+    lg.appendChild(lgRect);
+    const c1 = document.createElementNS(ns, 'circle'); c1.setAttribute('cx', 12); c1.setAttribute('cy', 16); c1.setAttribute('r', 3); c1.setAttribute('fill', '#1e3a8a'); lg.appendChild(c1);
+    const t1 = document.createElementNS(ns, 'text'); t1.setAttribute('x', 22); t1.setAttribute('y', 19); t1.setAttribute('font-size', 9); t1.setAttribute('fill', '#374151'); t1.textContent = 'forward (collinear)'; lg.appendChild(t1);
+    const c2 = document.createElementNS(ns, 'circle'); c2.setAttribute('cx', 12); c2.setAttribute('cy', 32); c2.setAttribute('r', 3); c2.setAttribute('fill', '#7c3aed'); lg.appendChild(c2);
+    const t2 = document.createElementNS(ns, 'text'); t2.setAttribute('x', 22); t2.setAttribute('y', 35); t2.setAttribute('font-size', 9); t2.setAttribute('fill', '#374151'); t2.textContent = 'reverse (inversion)'; lg.appendChild(t2);
+    const c3 = document.createElementNS(ns, 'circle'); c3.setAttribute('cx', 12); c3.setAttribute('cy', 48); c3.setAttribute('r', 2); c3.setAttribute('fill', '#9ca3af'); lg.appendChild(c3);
+    const t3 = document.createElementNS(ns, 'text'); t3.setAttribute('x', 22); t3.setAttribute('y', 51); t3.setAttribute('font-size', 9); t3.setAttribute('fill', '#374151'); t3.textContent = 'spurious / paralog'; lg.appendChild(t3);
+    svg.appendChild(lg);
+  }
+
+  function addDot(svg, x, y, fill, r, opacity) {
+    const c = document.createElementNS(ns, 'circle');
+    c.setAttribute('cx', x); c.setAttribute('cy', y);
+    c.setAttribute('r', r || 1.5);
+    c.setAttribute('fill', fill);
+    if (opacity !== undefined) c.setAttribute('fill-opacity', opacity);
+    svg.appendChild(c);
+  }
+
+  ['comp', 'thresh', 'orient'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

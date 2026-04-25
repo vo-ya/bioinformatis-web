@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 18 — Cancer Genomics: Integrated Capstone · Bioinformatics for EE</title>
+  <meta name="description" content="Cancer as the integrated capstone — hallmarks, driver vs passenger, clonal evolution, tumour-normal sequencing, FFPE artefacts, ctDNA, Mutect2, mutational signatures (NMF), structural variants, gene fusions, subclonal reconstruction, AMP/ASCO/CAP tiering, TMB, MSI, HRD, and from sequencing to therapy.">
+
+  <meta property="og:title" content="Lecture 18 — Cancer Genomics: Integrated Capstone">
+  <meta property="og:description" content="Cancer is applied evolution · somatic calling under purity/ploidy uncertainty · mutational signatures = NMF · subclonal reconstruction = blind source separation · AMP/ASCO/CAP four-tier system · TMB / MSI / HRD biomarkers · the tumour board as the integrating venue.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — What Cancer Is, Genomically</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 The capstone framing</a></li>
+          <li><a href="#sec-1-2">1.2 Hallmarks of cancer</a></li>
+          <li><a href="#sec-1-3">1.3 Driver vs passenger mutations</a></li>
+          <li><a href="#sec-1-4">1.4 Clonal evolution</a></li>
+          <li><a href="#sec-1-5">1.5 Genome instability</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — The Cancer Sequencing Landscape</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 Tumour-only vs tumour-normal</a></li>
+          <li><a href="#sec-2-2">2.2 FFPE and its artefacts</a></li>
+          <li><a href="#sec-2-3">2.3 Liquid biopsy and ctDNA</a></li>
+          <li><a href="#sec-2-4">2.4 Panels vs WES vs WGS</a></li>
+          <li><a href="#sec-2-5">2.5 The 2025 practical workflow</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Somatic Variant Calling at Depth</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Why somatic calling is harder</a></li>
+          <li><a href="#sec-3-2">3.2 Mutect2 architecture</a></li>
+          <li><a href="#sec-3-3">3.3 Low-VAF subclonal detection</a></li>
+          <li><a href="#sec-3-4">3.4 Mutational signatures (COSMIC)</a></li>
+          <li><a href="#sec-3-5">3.5 Signature-based actionability</a></li>
+          <li><a href="#sec-3-6">3.6 Worked example flow</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Structural Variants and Fusions</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Cancer-specific SVs</a></li>
+          <li><a href="#sec-4-2">4.2 SV detection: short vs long reads</a></li>
+          <li><a href="#sec-4-3">4.3 Gene fusions from RNA-seq</a></li>
+          <li><a href="#sec-4-4">4.4 Copy-number variants</a></li>
+          <li><a href="#sec-4-5">4.5 Integrated SV analysis</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Tumour Heterogeneity, Clonal Evolution</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 Subclonal architecture</a></li>
+          <li><a href="#sec-5-2">5.2 Phylogenetic reconstruction</a></li>
+          <li><a href="#sec-5-3">5.3 Single-cell tumour genomics</a></li>
+          <li><a href="#sec-5-4">5.4 Tumour microenvironment</a></li>
+          <li><a href="#sec-5-5">5.5 Implications for therapy</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Clinical Interpretation in Oncology</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 AMP/ASCO/CAP tier system</a></li>
+          <li><a href="#sec-6-2">6.2 OncoKB, CIViC, ClinGen somatic</a></li>
+          <li><a href="#sec-6-3">6.3 Tumour mutational burden (TMB)</a></li>
+          <li><a href="#sec-6-4">6.4 Microsatellite instability (MSI)</a></li>
+          <li><a href="#sec-6-5">6.5 Homologous recombination deficiency (HRD)</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — From Sequencing to Therapy</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 Targeted therapy decisions</a></li>
+          <li><a href="#sec-7-2">7.2 Immunotherapy biomarkers</a></li>
+          <li><a href="#sec-7-3">7.3 Emerging therapies</a></li>
+          <li><a href="#sec-7-4">7.4 Drug discovery + AlphaFold</a></li>
+          <li><a href="#sec-7-5">7.5 Resistance and combinations</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 18</div>
+      <h1 class="lecture-title">Cancer Genomics: Integrated Capstone</h1>
+      <p class="lecture-subtitle">Cancer is applied evolution inside a single body — and the integrating problem that touches every prior lecture in the course. Tumour-normal sequencing, somatic calling under purity / ploidy uncertainty, mutational signatures as NMF, subclonal reconstruction as blind source separation, the AMP/ASCO/CAP four-tier system, and the path from VCF to a tumour-board therapy decision.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — What cancer is, genomically</a></li>
+        <li><a href="#part-2">Part 2 — Cancer sequencing landscape</a></li>
+        <li><a href="#part-3">Part 3 — Somatic variant calling at depth</a></li>
+        <li><a href="#part-4">Part 4 — Structural variants and fusions</a></li>
+        <li><a href="#part-5">Part 5 — Tumour heterogeneity, clonal evolution</a></li>
+        <li><a href="#part-6">Part 6 — Clinical interpretation in oncology</a></li>
+        <li><a href="#part-7">Part 7 — From sequencing to therapy</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Eight moves:</em>
+        <span class="lecture-tagline-beat">read the hallmarks</span>,
+        <span class="lecture-tagline-beat">pick the design</span>,
+        <span class="lecture-tagline-beat">call somatic carefully</span>,
+        <span class="lecture-tagline-beat">decompose signatures</span>,
+        <span class="lecture-tagline-beat">resolve SVs and fusions</span>,
+        <span class="lecture-tagline-beat">reconstruct subclones</span>,
+        <span class="lecture-tagline-beat">tier with AMP/ASCO/CAP</span>,
+        <span class="lecture-tagline-beat">match drug to driver</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Describe cancer genomically: hallmarks, driver vs passenger mutations, clonal evolution, and tumour heterogeneity.</li>
+          <li>Distinguish the major cancer sequencing designs — tumour-only vs tumour-normal; FFPE vs fresh-frozen; ctDNA (liquid biopsy); clinical panels (FoundationOne, MSK-IMPACT) vs WES vs WGS — and pick the right one per clinical use case.</li>
+          <li>Run a somatic variant-calling analysis with Mutect2 / Strelka2, recognising and mitigating low-VAF subclonal calls, FFPE deamination artefacts, and contamination.</li>
+          <li>Interpret mutational signatures (COSMIC SBS catalogue) to infer mutagenic etiology (UV, tobacco, APOBEC, MMR-deficiency, HRD, etc.).</li>
+          <li>Detect and interpret cancer-specific structural variants and gene fusions with short-read, long-read, and RNA-based tools.</li>
+          <li>Reconstruct subclonal structure (PyClone-style) and interpret phylogenetic trees of tumour evolution.</li>
+          <li>Apply the AMP/ASCO/CAP tier system to somatic variants (Tier I–IV); use OncoKB / CIViC / TMB / MSI / HRD scoring.</li>
+          <li>Trace the decision flow in a tumour board: sequencing → biomarkers → targeted therapy / immunotherapy / PARP inhibitors. Understand industry roles a graduating EE student may occupy.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 25 min</span>
+          What Cancer Is, Genomically
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 The capstone framing</h3>
+
+          <p>Cancer is the integrative case study for this course because it touches every prior lecture:</p>
+
+          <ul>
+            <li><strong>L1</strong>: FFPE tissue preservation produces sequence artefacts that every cancer pipeline must handle.</li>
+            <li><strong>L2–L4</strong>: somatic variant calling extends L4's germline framework with paired-sample designs and low-VAF subclonal considerations.</li>
+            <li><strong>L5–L6</strong>: tumour RNA-seq reveals fusion transcripts and expression subtypes.</li>
+            <li><strong>L7–L8</strong>: single-cell tumour genomics resolves clonal heterogeneity and tumour-microenvironment cell states.</li>
+            <li><strong>L9–L10</strong>: cancer hijacks epigenetic regulation; methylation and chromatin accessibility change systematically.</li>
+            <li><strong>L11</strong>: long-read sequencing resolves complex structural variants that short reads miss.</li>
+            <li><strong>L12–L13</strong>: germline cancer-risk alleles (BRCA1/2, Lynch syndrome) use the L12 pop-gen + L13 GWAS / fine-mapping framework.</li>
+            <li><strong>L14</strong>: clinical pipeline reproducibility is non-optional in oncology.</li>
+            <li><strong>L15</strong>: drug-target structure informs inhibitor design (most kinase drugs are AlphaFold-era structure-based).</li>
+            <li><strong>L16</strong>: ML models increasingly drive cancer genomic analyses (tumour-normal calling, signature decomposition, response prediction).</li>
+            <li><strong>L17</strong>: clinical variant interpretation, with AMP/ASCO/CAP rules extending the ACMG/AMP framework to somatic variants.</li>
+          </ul>
+
+          <p>This lecture pulls the threads together with cancer as the applied problem.</p>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 Hallmarks of cancer</h3>
+
+          <p>Cancer is not a single disease. It's the shared endpoint of many failures in how cells regulate themselves. <strong>Hanahan &amp; Weinberg's Hallmarks</strong> (2000, updated 2011 and 2022) organise these failures into ~10–14 capabilities that cancer cells acquire:</p>
+
+          <ol>
+            <li><strong>Sustaining proliferative signalling</strong> (constitutively active growth signals).</li>
+            <li><strong>Evading growth suppressors</strong> (loss of p53, Rb).</li>
+            <li><strong>Resisting cell death</strong> (apoptosis evasion).</li>
+            <li><strong>Enabling replicative immortality</strong> (telomerase activation).</li>
+            <li><strong>Inducing angiogenesis</strong> (new blood-vessel growth).</li>
+            <li><strong>Activating invasion and metastasis</strong>.</li>
+            <li><strong>Reprogramming energy metabolism</strong> (Warburg effect).</li>
+            <li><strong>Evading immune destruction</strong>.</li>
+            <li><strong>Genome instability</strong> — the meta-hallmark; enables all the others.</li>
+            <li><strong>Tumour-promoting inflammation</strong>.</li>
+            <li><strong>Phenotypic plasticity</strong> (added 2022).</li>
+            <li><strong>Senescent cells</strong> (added 2022).</li>
+            <li><strong>Non-mutational epigenetic reprogramming</strong> (added 2022).</li>
+            <li><strong>Polymorphic microbiomes</strong> (added 2022).</li>
+          </ol>
+
+          <p>Each hallmark is a biological capability; each is enabled by specific <strong>molecular alterations</strong> (mutations, structural variants, epigenetic changes, expression changes). The genomic analyses covered in this lecture aim to identify which hallmarks are active in a given tumour and which molecular alterations drive them.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-18/01-hallmarks.svg"
+                 alt="Central cancer cell with disorganised chromatin surrounded by 14 labelled spokes for the hallmarks of cancer: sustained proliferation, evading growth suppressors, resisting cell death, replicative immortality, angiogenesis, invasion/metastasis, energy reprogramming, immune evasion, genome instability, tumour-promoting inflammation, phenotypic plasticity, senescent cells, non-mutational epigenetic reprogramming, polymorphic microbiomes. Each spoke annotated with an example molecular alteration (e.g. RAS/RAF/MEK for proliferative signalling, p53/Rb loss for growth-suppressor evasion). Original 2000 hallmarks vs 2011 vs 2022 additions colour-coded.">
+            <figcaption>Figure 1. The hallmarks of cancer. Each spoke is a biological capability; each is enabled by specific molecular alterations the genomic pipeline can detect.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 Driver vs passenger mutations</h3>
+
+          <p>A typical tumour genome carries ~1,000–100,000 somatic mutations (wide range by cancer type — pancreatic tumours have few, melanoma has many). Of these, only a handful (typically 5–15) are <strong>drivers</strong> — mutations that conferred a selective advantage to the cell lineage during tumour evolution.</p>
+
+          <ul>
+            <li><strong>Drivers</strong>: positively-selected during tumourigenesis. Typically in known cancer genes (KRAS, TP53, EGFR, PIK3CA). Targeting drivers is the basis of most modern cancer therapy.</li>
+            <li><strong>Passengers</strong>: neutral with respect to fitness. They occurred in the cell but didn't contribute to the selection. Most mutations are passengers.</li>
+          </ul>
+
+          <p>Distinguishing drivers from passengers is one of cancer genomics' core tasks. Methods:</p>
+          <ul>
+            <li><strong>Recurrence-based</strong>: a mutation seen in many patients' tumours is likely a driver. COSMIC Census + TCGA + cBioPortal.</li>
+            <li><strong>Function-based</strong>: mutation in a known cancer-gene hotspot (e.g. BRAF V600E, KRAS G12X) — strong driver signal.</li>
+            <li><strong>Statistical</strong>: MutSig, OncodriveFML, dN/dS — identify genes mutated more than expected by chance.</li>
+            <li><strong>Experimental</strong>: functional assays (CRISPR screens, MAVE) validate candidate drivers.</li>
+          </ul>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 Clonal evolution</h3>
+
+          <p>Cancers evolve via repeated rounds of selection. A small population of cells accumulates mutations; those with advantageous mutations outgrow their neighbours; a new mutation appears in a descendant; repeat. The tumour becomes a <strong>mixture of subclones</strong> — groups of cells sharing common ancestry and mutation set.</p>
+
+          <p>Practical consequence: a single tumour biopsy at diagnosis contains cells from multiple subclones. Therapy typically selects against the dominant clone but leaves resistant subclones; these regrow as <strong>treatment-resistant recurrence</strong>. Every late-stage cancer therapy decision is shaped by this evolutionary dynamic.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-18/02-drivers-clonal.svg"
+                 alt="Left panel: phylogenetic tree of a tumour's subclones. Trunk annotated with TP53 mutation at 100% VAF; branches annotated with later subclonal events including a resistance mutation in one branch only. Right panel: a genome with ~10,000 mutations marked, only ~10 highlighted as drivers in red, the rest as passengers in grey. Annotation: drivers drove selection; passengers are evolutionary byproducts.">
+            <figcaption>Figure 2. Drivers vs passengers, and a tumour-evolution tree. ~10 drivers (red) out of ~10,000 mutations (grey); subclones diverge from a clonal trunk.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box — cancer is fast-forward population genetics</span>
+            <p>A tumour is a population of cells evolving under selection — exactly the Wright-Fisher dynamics from L12 in a small, fast-evolving, high-mutation-rate setting. Every concept from population genetics applies: allele frequency (variant allele fraction = VAF), fixation (clonal → all cells carry it, VAF = 1), selection coefficients (drivers have higher fitness), drift (stochastic subclone dynamics). The metaphor is exact. Cancer is "evolution in fast-forward inside a single person"; all the machinery we built for population genetics is directly reusable for clonal reconstruction.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-5">
+          <h3>1.5 Genome instability</h3>
+
+          <p>The ability to accumulate mutations rapidly is itself a hallmark: <strong>genome instability</strong>. Mechanisms:</p>
+
+          <ul>
+            <li><strong>Point mutations</strong> — from replication errors, DNA damage (UV, tobacco smoke, oxidative stress, spontaneous deamination).</li>
+            <li><strong>Microsatellite instability (MSI)</strong> — loss of mismatch repair (MLH1, MSH2, MSH6, PMS2 gene loss). Short repeats gain/lose units fast. Diagnostic biomarker for immunotherapy response.</li>
+            <li><strong>Chromosomal instability (CIN)</strong> — whole-chromosome gains/losses. Common in solid tumours.</li>
+            <li><strong>Homologous recombination deficiency (HRD)</strong> — loss of BRCA1/2, PALB2, or related. Leads to specific mutational signatures and PARP inhibitor sensitivity.</li>
+          </ul>
+
+          <p>Genome instability is simultaneously cause and opportunity: more mutations → more drivers acquired, but also → more neoantigens (immunotherapy targets) and more dependencies on alternative repair pathways (synthetic lethality).</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 25 min</span>
+          The Cancer Sequencing Landscape
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 Tumour-only vs tumour-normal</h3>
+
+          <p><strong>Tumour-normal paired sequencing</strong> (the gold standard):</p>
+          <ul>
+            <li>Sequence both the tumour sample and a matched normal tissue (blood, saliva, adjacent normal tissue).</li>
+            <li>Somatic variants = present in tumour, absent in normal.</li>
+            <li>Clean separation of germline (inherited) vs somatic (tumour-acquired) variation.</li>
+            <li><strong>Downside</strong>: requires two samples, doubles cost.</li>
+          </ul>
+
+          <p><strong>Tumour-only sequencing</strong> (common in clinical practice):</p>
+          <ul>
+            <li>Only the tumour is sequenced.</li>
+            <li>Germline and somatic variation are mixed; need to filter germline statistically (population frequency in gnomAD, known germline variant databases).</li>
+            <li><strong>Downside</strong>: loses ~5–10% specificity vs paired tumour-normal; occasional false-positive drivers that are actually germline.</li>
+            <li><strong>Upside</strong>: half the cost, fewer samples to collect (no need for blood draw when archival FFPE is all that's available).</li>
+          </ul>
+
+          <p>Clinical practice:</p>
+          <ul>
+            <li>Commercial panels (FoundationOne, MSK-IMPACT) often run tumour-only with sophisticated germline filtering.</li>
+            <li>Research and academic cohort studies (TCGA, PCAWG) almost always run tumour-normal for rigour.</li>
+            <li>New designs use <strong>very shallow normal sequencing</strong> (5× coverage) as a germline filter — cheap and sufficient.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — matched vs unmatched detection</span>
+            <p>Tumour-only calling is detection against a <strong>population-level reference</strong> (gnomAD-based germline prior); tumour-normal is detection against a <strong>matched reference</strong> (the patient's own germline). In signal processing, this is the difference between a general adaptive filter against ambient noise statistics and a matched filter against the specific sample's noise spectrum. The matched filter has better SNR when the noise is idiosyncratic; the adaptive filter works when the matched reference isn't available. Both are valid; cost and availability drive the choice. Every commercial assay that claims to be "tumour-only-accurate" is claiming their germline filter is good enough that the population-reference loss is negligible — a claim that needs per-ancestry validation, as in L17.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 FFPE and its artefacts</h3>
+
+          <p>Most clinical tumour samples are <strong>FFPE</strong> — formalin-fixed, paraffin-embedded. Stored for years in pathology archives. Cheap; stable; preserves morphology for histology.</p>
+
+          <p>The genomics problem: formalin fixation damages DNA. Specific artefacts:</p>
+          <ul>
+            <li><strong>Cytosine deamination</strong> (C→T transitions). Unfixed DNA shows C→T at a low rate; FFPE shows it at a much higher rate, often skewing mutation spectra.</li>
+            <li><strong>DNA fragmentation</strong>. FFPE DNA is shorter (~150 bp fragments typical); limits long-read utility on archival samples.</li>
+            <li><strong>Cross-linking and chemical adducts</strong>. Creates sequence errors during library prep.</li>
+            <li><strong>Age dependence</strong>: a 10-year-old FFPE block has dramatically more damage than a fresh-frozen sample.</li>
+          </ul>
+
+          <p>Pipelines:</p>
+          <ul>
+            <li>FFPE-aware callers (Mutect2 with FFPE filtering; specialised steps).</li>
+            <li>Orientation-bias filtering (FFPE artefacts are strand-biased).</li>
+            <li>Higher per-tumour coverage ($\geq 150\times$ for FFPE; $100\times$ for fresh-frozen) to distinguish real variants from artefacts.</li>
+          </ul>
+
+          <aside class="callout callout--warn">
+            <span class="callout-label">Warning — FFPE C→T artefacts at low VAF</span>
+            <p>FFPE C→T artefacts are ubiquitous and dangerous. A low-VAF (5–10%) C→T call from FFPE tumour sequencing is more likely to be an artefact than a real subclonal mutation. Clinical pipelines filter these aggressively — often with orientation-bias metrics computed per read, or by requiring variants to appear on both strands at a minimum allele-fraction threshold. Reporting a C→T variant at VAF 0.08 from FFPE without these filters is a known way to generate spurious "drivers." Don't do it.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Liquid biopsy and ctDNA</h3>
+
+          <p><strong>ctDNA</strong> (circulating tumour DNA) is DNA released into the bloodstream by dying tumour cells. Extracted from a <strong>blood draw</strong> (plasma); sequenced; variants compared to germline. A <strong>liquid biopsy</strong>.</p>
+
+          <p>Advantages:</p>
+          <ul>
+            <li><strong>Non-invasive</strong>: a blood draw vs a tumour biopsy.</li>
+            <li><strong>Temporally dynamic</strong>: ctDNA can be drawn repeatedly; tumour biopsies cannot.</li>
+            <li><strong>Captures tumour heterogeneity</strong>: ctDNA is a mixture of DNA from all tumour sites (primary + metastases).</li>
+            <li><strong>Sensitive to minimal residual disease (MRD)</strong>: after surgery, persistent ctDNA indicates microscopic residual tumour cells → high relapse risk.</li>
+          </ul>
+
+          <p>Challenges:</p>
+          <ul>
+            <li><strong>Low tumour fraction</strong>: in early disease, ctDNA is often $&lt; 0.1\%$ of cell-free DNA. Requires very deep sequencing ($30{,}000\times$+) and UMI-based error correction.</li>
+            <li><strong>Interpretation</strong>: distinguishing true tumour variants from CHIP (clonal hematopoiesis of indeterminate potential — blood-cell-origin clonal mutations present in healthy people) is difficult.</li>
+            <li><strong>Regulatory approval</strong>: several ctDNA assays are FDA-approved (Guardant360, FoundationOne Liquid).</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-18/03-sequencing-designs.svg"
+                 alt="Three side-by-side sequencing-design schemas. Left: tumour-normal paired — two FASTQ tracks → alignment → matched somatic caller → somatic VCF. Middle: FFPE tumour-only — FFPE block icon → damaged-DNA library → variant calling with orientation-bias filter → somatic VCF with germline filtered against gnomAD. Right: ctDNA / liquid biopsy — blood-draw icon → cell-free DNA → UMI library → 30,000× sequencing → low-VAF variant calling → MRD flag.">
+            <figcaption>Figure 3. Three sequencing designs for cancer. Tumour-normal is the gold standard; FFPE tumour-only handles archival samples; ctDNA / liquid biopsy enables non-invasive, longitudinal monitoring.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Panels vs WES vs WGS</h3>
+
+          <p>Three scales of cancer sequencing:</p>
+          <ul>
+            <li><strong>Targeted panels</strong> (100–500 cancer genes). $\sim 500\times$ coverage. Fast turnaround. Dominant in clinical care. Examples: FoundationOne CDx (324 genes), MSK-IMPACT (468 genes), TSO500 (523 genes).</li>
+            <li><strong>Whole-exome sequencing (WES)</strong>. $\sim 100\times$ coverage on protein-coding regions (~1% of genome). Broader than panels; research-use common.</li>
+            <li><strong>Whole-genome sequencing (WGS)</strong>. $\sim 60\text{–}100\times$ coverage on the whole genome. Captures non-coding drivers, SVs, copy-number, viral integration. Research-heavy; gaining clinical adoption.</li>
+          </ul>
+
+          <p>Choice criteria:</p>
+          <ul>
+            <li><strong>Clinical actionability</strong> → targeted panels (covers known actionable genes; high depth for subclonal calling).</li>
+            <li><strong>Research / discovery</strong> → WES or WGS (captures novel drivers).</li>
+            <li><strong>SV detection</strong> → WGS (panels miss most SVs).</li>
+            <li><strong>Mutational signature inference</strong> → WES or WGS (~10k+ mutations needed for stable inference).</li>
+            <li><strong>Tumour purity low</strong> ($&lt; 20\%$) → high-depth targeted or WES (subclone calling hard at WGS depth).</li>
+          </ul>
+        </section>
+
+        <section id="sec-2-5">
+          <h3>2.5 The 2025 practical workflow</h3>
+
+          <p>Most modern clinical tumour sequencing follows a <strong>hybrid workflow</strong>:</p>
+          <ul>
+            <li>Panel at diagnosis for actionable targets (fast, cheap, drives treatment).</li>
+            <li>WES / WGS in research settings or clinical trials for deeper characterisation.</li>
+            <li>ctDNA for monitoring during / after treatment.</li>
+          </ul>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 1 — Sequencing Design Chooser.</strong> Pick a clinical use case (newly-diagnosed advanced solid tumour / early-stage MRD monitoring / rare-tumour research). The artifact recommends a sequencing design (tumour-normal panel / tumour-only panel / WES / WGS / ctDNA / WGS+ctDNA combo) and explains the trade-offs. Aha: design is driven by clinical question + budget + sample availability.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-18/01-sequencing-design.html" loading="lazy" title="Artifact 1 — Sequencing Design Chooser"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 40 min</span>
+          Somatic Variant Calling at Depth
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 Why somatic calling is harder than germline</h3>
+
+          <p>From L4: germline calling uses the assumption that a variant in a diploid individual is present at $\text{VAF} = 50\%$ (heterozygous) or $100\%$ (homozygous). Distributions are narrow; callers can exploit that.</p>
+
+          <p>Somatic calling breaks these assumptions:</p>
+          <ul>
+            <li><strong>Subclonal variants</strong> may be present at $\text{VAF} &lt; 10\%$. A variant at $\text{VAF}\,5\%$ is real if it's truly present in a subclone that's $10\%$ of the cells; it's noise if it's sequencing error.</li>
+            <li><strong>Tumour purity</strong>: a clinical tumour sample is typically 10–60% tumour cells, mixed with normal stroma + immune infiltrate. "100% of tumour cells have a mutation" → VAF at the mutation = $0.5 \times \text{purity}$, not $0.5$. The mean-VAF you expect depends on knowing purity.</li>
+            <li><strong>Ploidy changes</strong>: tumours gain and lose chromosomes. A variant on a chromosome now present in 3 copies has different expected VAF than diploid.</li>
+          </ul>
+
+          <p>Tools: <strong>Mutect2</strong> (GATK 4, paired-sample); <strong>Strelka2</strong> (paired or tumour-only); <strong>VarScan2</strong> (legacy); <strong>LoFreq</strong> (tumour-only with strong noise modelling).</p>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Mutect2 architecture revisited</h3>
+
+          <p><strong>Mutect2</strong> (Benjamin et al. 2019, GATK) is the most-used somatic caller. Architecture:</p>
+
+          <ol>
+            <li><strong>Local reassembly</strong> (inherited from HaplotypeCaller, L4): reconstruct haplotypes from the reads in each region; any variant not on a haplotype is ignored.</li>
+            <li><strong>Somatic likelihood</strong>: per-read log-likelihood that the read supports the variant allele vs reference, conditioned on possible allele fractions (not just $0.5\,/\,1$).</li>
+            <li><strong>Tumour-normal filtering</strong>: reject variants with $&gt; 5\%$ allele fraction in the normal.</li>
+            <li><strong>Panel of Normals (PoN)</strong>: an auxiliary "normal" cohort used to filter recurrent artefacts (alignment difficulties, reference bugs). Ideally 40+ samples processed identically.</li>
+            <li><strong>Contamination estimation</strong>: <code>CalculateContamination</code> module estimates the cross-sample contamination level in the tumour sample; used to filter marginal calls.</li>
+            <li><strong>Orientation bias</strong>: <code>FilterByOrientationBias</code> module removes FFPE-like strand-biased artefacts.</li>
+            <li><strong>Filtering</strong>: combine all filters into a <code>FilterMutectCalls</code> step producing PASS / FAIL per variant.</li>
+          </ol>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-18/04-mutect2.svg"
+                 alt="Top-down Mutect2 workflow. Inputs: tumour BAM + normal BAM + Panel-of-Normals + reference. Step 1 local reassembly producing candidate haplotypes. Step 2 per-read likelihood producing raw VCF. Step 3 a series of cancer-specific filters as gates: PoN filter, orientation-bias filter (FFPE), contamination filter, tumour-in-normal filter, low-VAF artefact filter. Output: filtered somatic VCF with PASS/FAIL annotations. Sidebar: cancer-specific filters are where most real-vs-artefact decisions are made.">
+            <figcaption>Figure 4. Mutect2 workflow with cancer-specific filters. The germline shape is preserved; the cancer additions are the PoN, orientation bias, and contamination gates that catch the most common false positives.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Low-VAF subclonal detection</h3>
+
+          <p>The hardest somatic-calling problem: is a $\text{VAF} = 5\%$ call a real subclonal variant or sequencing noise?</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box — what VAF means in a tumour</span>
+            <p>VAF is literally "what fraction of the sequenced reads at this position carry the variant allele?". Its biological meaning depends on context. For a germline heterozygous variant in a pure sample, $\text{VAF} \approx 0.5$ — you have one mutant allele out of two. For a clonal somatic variant in a 60%-pure tumour with diploid background, $\text{VAF} \approx 0.6 \times 0.5 = 0.3$ — 60% of cells are tumour, each tumour cell has one mutant allele out of two. For a subclonal variant present in only half the tumour cells, $\text{VAF} \approx 0.6 \times 0.5 \times 0.5 = 0.15$. A VAF of $0.05$ in a 20%-pure tumour sample could be a clonal variant (present in all tumour cells!) or a subclonal fraction — you cannot tell without knowing purity. This is why purity estimation is the first step of every somatic pipeline: without it, VAF is an ambiguous number.</p>
+          </aside>
+
+          <p>Baseline sequencer error rates:</p>
+          <ul>
+            <li>Illumina: $\sim 0.1\%$ per base. At $\text{VAF}\,1\%$, a read may be error or subclonal.</li>
+            <li>Duplex UMI-based sequencing: $\sim 1$ in $10^5$ per base. Enables subclonal calling below $0.1\%$ VAF.</li>
+          </ul>
+
+          <p>Approaches:</p>
+          <ul>
+            <li><strong>Depth scaling</strong>: $500\times$ tumour coverage can reliably distinguish $\text{VAF}\,5\%$; $10{,}000\times$ is needed for $\text{VAF}\,0.1\%$.</li>
+            <li><strong>UMIs (unique molecular identifiers)</strong>: each original DNA molecule tagged before amplification; duplicates are then collapsed and consensus-called, reducing PCR and sequencer errors. Essential for ctDNA subclonal calling.</li>
+            <li><strong>Panel of normals</strong>: any recurrent low-VAF variant across the PoN is likely an artefact, not biology.</li>
+            <li><strong>Duplex sequencing</strong>: read both strands of a molecule; require both to call a variant. Achieves $\sim 10^{-7}$ per-base error floor at the cost of deeper coverage.</li>
+          </ul>
+
+          <p>Clinical actionability of low-VAF variants:</p>
+          <ul>
+            <li><strong>$\text{VAF} \geq 5\%$</strong>: typically actionable (subclone large enough to be meaningful).</li>
+            <li><strong>$\text{VAF}\,1\text{–}5\%$</strong>: suspicious; needs confirmation (orthogonal assay) before acting.</li>
+            <li><strong>$\text{VAF} &lt; 1\%$</strong>: usually not reported; often noise or very minor subclones.</li>
+          </ul>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Mutational signatures (COSMIC SBS catalogue)</h3>
+
+          <p>Somatic mutations aren't random — they reflect the mutagenic processes that caused them. A tumour's mutation spectrum (the distribution of mutation types across the genome) carries a <strong>signature</strong> of its causes.</p>
+
+          <p><strong>Alexandrov et al. (2013, Nature)</strong> established the framework: decompose a tumour's mutation catalogue into a linear combination of <strong>mutational signatures</strong>, each corresponding to a distinct mutagenic mechanism.</p>
+
+          <p>Every mutation has three key properties:</p>
+          <ol>
+            <li><strong>Substitution type</strong> (6 types: C&gt;A, C&gt;G, C&gt;T, T&gt;A, T&gt;C, T&gt;G).</li>
+            <li><strong>Flanking bases</strong> (the base immediately 5' and 3' of the mutation).</li>
+          </ol>
+          <p>Combined: $6 \times 4 \times 4 = 96$ <strong>trinucleotide contexts</strong>. Every SNV in a tumour is classified into one of these 96 bins.</p>
+
+          <p>A tumour's <strong>mutation spectrum</strong> is a 96-long vector: counts in each bin. <strong>Mutational signatures</strong> are 96-long vectors too: the average pattern a given mutagenic process produces.</p>
+
+          <p><strong>COSMIC mutational signatures</strong>: the community catalogue, ~80 signatures as of 2024 (COSMIC v3.4). Examples:</p>
+          <ul>
+            <li><strong>SBS1</strong>: spontaneous deamination of 5-methylcytosine. Clock-like; present in every tumour.</li>
+            <li><strong>SBS2 / SBS13</strong>: APOBEC deamination. Common in breast, bladder, cervical, head and neck cancer.</li>
+            <li><strong>SBS4</strong>: tobacco smoking. C&gt;A in specific contexts.</li>
+            <li><strong>SBS5</strong>: clock-like; age-related; mixed etiology.</li>
+            <li><strong>SBS6 / SBS15 / SBS20 / SBS26</strong>: MMR deficiency (microsatellite-unstable tumours).</li>
+            <li><strong>SBS7a / SBS7b / SBS7c / SBS7d</strong>: UV (sun exposure). Signature of skin cancer.</li>
+            <li><strong>SBS10a / SBS10b</strong>: POLE mutation (polymerase epsilon mutator phenotype).</li>
+            <li><strong>SBS3</strong>: HRD / BRCA-deficient. Enables PARP inhibitor therapy.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-18/05-cosmic-signatures.svg"
+                 alt="Grid of 6 canonical COSMIC mutational signatures shown as 96-bar histograms. Each x-axis: trinucleotide context grouped by substitution type C>A C>G C>T T>A T>C T>G. Signatures: SBS1 clock-like right-skewed C>T at NCG, SBS4 smoking-derived C>A peaks, SBS7a UV C>T at CC and TC dimers, SBS3 HRD diffuse flat, SBS13 APOBEC C>G C>T at TCW, SBS6 MMR-deficiency. Each labelled with etiology. Bottom: linear decomposition of tumour spectrum into a sum of these signatures reveals the active mutagenic processes.">
+            <figcaption>Figure 5. Six canonical COSMIC SBS signatures. Each is a 96-bin pattern; a tumour's spectrum is a non-negative linear combination of them.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — mutational signatures as NMF</span>
+            <p>A tumour's mutation spectrum $\mathbf{V} \in \mathbb{R}^{96}$ is the <strong>observation</strong>. Mutational signatures $\mathbf{W} \in \mathbb{R}^{96 \times K}$ are the <strong>basis</strong>. Per-tumour exposures $\mathbf{h} \in \mathbb{R}^K_{\geq 0}$ are the <strong>coefficients</strong>. Under a non-negativity constraint (signatures and exposures are counts, can't be negative), this is <strong>Non-negative Matrix Factorisation</strong> — $\mathbf{V} \approx \mathbf{W}\mathbf{h}$. SigProfilerExtractor (Alexandrov lab), SignatureAnalyzer (Broad), sigminer (R) all solve this. Mathematically identical to NMF problems in speech separation, hyperspectral unmixing, and document-topic modelling. The genomics community rediscovered NMF for mutation analysis and uses it heavily; the maths is completely standard.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 Signature-based actionability</h3>
+
+          <p>Some signatures carry direct therapeutic implications:</p>
+          <ul>
+            <li><strong>HRD / SBS3</strong> → PARP inhibitor (olaparib, niraparib) sensitivity. The genomic "HRD score" is increasingly used as a clinical biomarker, especially in ovarian and breast cancers.</li>
+            <li><strong>MMRD / SBS6+15+20+26</strong> → immune checkpoint inhibitor (pembrolizumab) response. High MSI or dMMR tumours have FDA-approved tumour-agnostic pembrolizumab indication.</li>
+            <li><strong>APOBEC / SBS2+13</strong> → potential vulnerability; active research area.</li>
+            <li><strong>UV / SBS7</strong> → melanoma; informs biology but doesn't directly change therapy.</li>
+          </ul>
+
+          <p>Signature analysis is moving from research to clinic — signature-based biomarkers are becoming actionable.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Historical pointer — the Alexandrov 2013 paper</span>
+            <p>The mutational-signature framework as we know it today was established by Ludmil Alexandrov's 2013 <em>Nature</em> paper while he was a PhD student with Mike Stratton at the Wellcome Sanger Institute. He applied NMF to ~7,000 tumour genomes across 30 cancer types, identifying ~20 distinct signatures — and the paper's supplementary data mapped most to known etiologies (smoking, UV, APOBEC, MMR deficiency). The COSMIC catalogue has since grown to ~80 signatures (v3.4) with the Alexandrov lab still leading curation; the approach has been adopted verbatim by almost every modern cancer-genomics project. The core methodological insight — that cancer mutation spectra are NMF-decomposable into interpretable mutagenic processes — took the field roughly a decade to fully adopt into clinical practice (HRD, MSI signatures now driving FDA-approved therapies).</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-6">
+          <h3>3.6 Worked example flow</h3>
+
+          <p>A somatic-variant-calling pipeline:</p>
+          <ol>
+            <li>Align tumour + normal reads (BWA-MEM, L4).</li>
+            <li>Mark duplicates (Picard / samtools markdup).</li>
+            <li>Run Mutect2 tumour-vs-normal → raw somatic VCF.</li>
+            <li>Apply orientation-bias and PoN filters.</li>
+            <li>Filter by gnomAD frequency (anything at $&gt; 1\%$ germline is likely germline).</li>
+            <li>Annotate with VEP / SnpEff.</li>
+            <li>Lookup in COSMIC, OncoKB, CIViC for known clinical relevance.</li>
+            <li>Compute mutational signatures via SigProfiler or similar.</li>
+            <li>Report Tier I–IV variants (Part 6).</li>
+          </ol>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 2 — Somatic Variant Caller Simulator.</strong> Simulate a tumour-normal pair at user-controlled tumour purity, sequencing depth, and subclone structure. Call somatic variants with simplified Mutect2-like logic. Aha: tumour purity and coverage depth together determine which subclones are detectable; one without the other is not enough.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-18/02-somatic-caller.html" loading="lazy" title="Artifact 2 — Somatic Variant Caller Simulator"></iframe>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 3 — Mutational Signature Decomposer.</strong> Generate a synthetic 96-bin spectrum as a mixture of 2–4 COSMIC signatures, then run a simplified NMF decomposition. Aha: NMF is mathematically straightforward; the hard part is choosing the right $K$ — the classic model-order-selection problem in disguise.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-18/03-signature-decomposer.html" loading="lazy" title="Artifact 3 — Mutational Signature Decomposer"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 30 min</span>
+          Structural Variants and Fusions
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 Cancer-specific SVs</h3>
+
+          <p>Cancer is rife with <strong>structural variation</strong>: deletions, duplications, inversions, translocations, complex rearrangements. Large-scale SVs disrupt tumour-suppressor genes, activate oncogenes, and create fusion proteins (Part 4.3). Specific cancer-driver SV mechanisms:</p>
+
+          <ul>
+            <li><strong>Chromothripsis</strong>: catastrophic shattering of a chromosome; the pieces reassemble in random order. Common in osteosarcoma, Li-Fraumeni-associated cancers. Dozens of SVs in a single event.</li>
+            <li><strong>Chromoplexy</strong>: multi-chromosome rearrangement. Common in prostate cancer.</li>
+            <li><strong>Chromoanasynthesis</strong>: chromosome amplification with variable copy-number.</li>
+            <li><strong>Extra-chromosomal DNA (ecDNA)</strong>: circular DNA containing oncogenes (e.g. MYC) amplified to 50–100 copies. Drives drug resistance. First characterised in detail ~2017+.</li>
+          </ul>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 SV detection from short vs long reads</h3>
+
+          <p>SV detection tools differ drastically by read technology:</p>
+
+          <p><strong>Short-read tools</strong>:</p>
+          <ul>
+            <li><strong>Manta</strong> (Chen et al. 2016). Illumina standard. Good for deletions, small insertions, tandem duplications. Misses complex SVs.</li>
+            <li><strong>GRIDSS</strong> (Cameron et al. 2017). More sensitive on balanced SVs (inversions, translocations). Used in clinical pipelines (LINX for structural annotation).</li>
+            <li><strong>DELLY</strong> (Rausch et al. 2012). Earlier tool; still used.</li>
+          </ul>
+
+          <p><strong>Long-read tools</strong> (callback to L11):</p>
+          <ul>
+            <li><strong>Sniffles2</strong> (Smolka et al. 2024). De facto standard for PacBio / ONT.</li>
+            <li><strong>CuteSV</strong>.</li>
+            <li><strong>Severus</strong> (Broad, 2024). Cancer-optimised; handles subclonal SVs better.</li>
+          </ul>
+
+          <p>Long reads dominate for cancer SV detection: ecDNA, large inversions, complex repeat-region rearrangements all favour long-read resolution.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-18/06-sv-detection.svg"
+                 alt="Three side-by-side panels showing complex chromothripsis SV detection. Panel 1 short-read evidence: discordant pairs and split reads with gaps indicating missed rearrangements. Panel 2 long-read evidence: individual reads spanning SV breakpoints revealing the sequence clearly. Panel 3 reconstructed SV topology colour-coded by confidence — long reads provide much richer reconstruction. Caption: short reads call ~60-80% of cancer SVs; long reads call ~95%+.">
+            <figcaption>Figure 6. Same complex SV, two technologies. Short reads catch the breakpoint signal; long reads resolve the topology unambiguously — and catch ecDNA / large inversions / repeat-region rearrangements that short reads miss.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Gene fusions from RNA-seq</h3>
+
+          <p>A <strong>gene fusion</strong> is two genes joined into a single transcript by a structural rearrangement. Fusion proteins can have oncogenic function not possessed by either parent gene.</p>
+
+          <p>Canonical examples:</p>
+          <ul>
+            <li><strong>BCR-ABL1</strong> (chronic myeloid leukaemia). Philadelphia chromosome translocation $t(9;22)$. Activates ABL1 kinase. Treatable with imatinib / nilotinib / dasatinib — the paradigm of targeted cancer therapy.</li>
+            <li><strong>EML4-ALK</strong> (lung adenocarcinoma). ~5% of lung adenocarcinomas. Activates ALK kinase. Treatable with crizotinib / alectinib.</li>
+            <li><strong>TMPRSS2-ERG</strong> (prostate cancer). Not directly actionable (yet).</li>
+            <li><strong>NTRK fusions</strong> (multiple cancers). Rare but cross-tumour. Treatable with larotrectinib (FDA-approved for any NTRK-fusion-positive solid tumour).</li>
+            <li><strong>FGFR fusions</strong> (cholangiocarcinoma, bladder). Treatable with FGFR inhibitors.</li>
+          </ul>
+
+          <p>Detection methods:</p>
+          <ul>
+            <li><strong>RNA-seq-based</strong>: STAR-Fusion, Arriba, FusionCatcher, JAFFA. Identify chimeric reads spanning two genes' transcripts.</li>
+            <li><strong>DNA-based SV callers</strong>: detect the underlying chromosomal rearrangement. More sensitive for breakpoints but miss fusions that are promoter-activating without breakpoints in coding regions.</li>
+            <li><strong>Hybrid approach</strong>: integrate RNA + DNA for the highest confidence.</li>
+          </ul>
+
+          <p><strong>Arriba</strong> (Uhrig et al. 2021) is currently the standard for clinical RNA-seq fusion calling. It's fast, has a curated list of known cancer fusions, and separates high-confidence from low-confidence calls.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-18/07-gene-fusion.svg"
+                 alt="Top: two parent genes, gene A on chromosome 9 and gene B on chromosome 22, with their exons colour-coded. Middle: rearrangement event (translocation) joining them at a breakpoint. Bottom: resulting fusion transcript and fusion protein with domains from gene A joined to domains from gene B. Annotation: fusion activates kinase domain under different promoter → oncogenic driver. Example shown is EML4-ALK in lung adenocarcinoma.">
+            <figcaption>Figure 7. A gene fusion in three steps. Two parent genes; a structural rearrangement breakpoint; the resulting fusion transcript / protein. EML4-ALK is the canonical lung-adenocarcinoma example: an ALK kinase domain placed under EML4 promoter control becomes a driver.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Copy-number variants</h3>
+
+          <p>Cancer genomes often have large copy-number changes — chromosome arms lost, oncogenes amplified to 10–100 copies, whole-genome doubling events.</p>
+
+          <ul>
+            <li><strong>CNVkit</strong>, <strong>Sequenza</strong>, <strong>PureCN</strong>, <strong>ASCAT</strong>, <strong>TitanCNA</strong>: CNV callers for cancer. Estimate tumour purity + ploidy + per-segment copy-number.</li>
+            <li><strong>Facets</strong>: another popular tool, especially in oncology-heavy labs.</li>
+          </ul>
+
+          <p>Key clinical CNVs:</p>
+          <ul>
+            <li><strong>HER2 amplification</strong> in breast cancer → trastuzumab (Herceptin) therapy. Canonical precision-oncology biomarker.</li>
+            <li><strong>MYC amplification</strong> in various cancers → ecDNA-resident amplifications; potential drug targets.</li>
+            <li><strong>CDKN2A loss</strong> in many cancers → disables a tumour-suppressor pathway.</li>
+            <li><strong>EGFR amplification</strong> in glioblastoma and lung cancer.</li>
+          </ul>
+
+          <p>CNV calling in FFPE is famously noisy; fresh-frozen samples give cleaner calls.</p>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 Integrated SV analysis</h3>
+
+          <p>Modern cancer-SV pipelines integrate multiple signals:</p>
+          <ol>
+            <li>Short-read SV caller (Manta / GRIDSS) → breakpoint candidates.</li>
+            <li>Read-depth caller (CNVkit / Sequenza) → CNV landscape.</li>
+            <li>RNA-seq fusion caller (Arriba) → functional fusion validation.</li>
+            <li>Long-read caller (Sniffles2) where available → complex SV resolution.</li>
+            <li>Integrated annotation (LINX, jaBBA) → structural event reconstruction + driver annotation.</li>
+          </ol>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 4 — Gene Fusion Visualiser.</strong> Pick a preset fusion (BCR-ABL1, EML4-ALK, NTRK3-ETV6, TMPRSS2-ERG). Visualise parent genes, breakpoint, fusion transcript, and fusion-protein domain structure. Aha: fusions are modular — a kinase domain under a different promoter or oligomerisation partner is the canonical oncogenic recipe.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-18/04-fusion-visualiser.html" loading="lazy" title="Artifact 4 — Gene Fusion Visualiser"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 25 min</span>
+          Tumour Heterogeneity, Clonal Evolution
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 Subclonal architecture</h3>
+
+          <p>Every late-stage tumour is a mixture of subclones. Reconstructing that mixture from bulk sequencing is the <strong>subclonal deconvolution</strong> problem.</p>
+
+          <p>Key observations:</p>
+          <ul>
+            <li><strong>Clonal variants</strong> (present in 100% of tumour cells): $\text{VAF} = \text{purity}/2$ in diploid regions. Typically the earliest drivers.</li>
+            <li><strong>Subclonal variants</strong> (present in a fraction of tumour cells): VAF less than clonal VAF. Later events.</li>
+            <li><strong>Cancer cell fraction (CCF)</strong>: adjusted VAF that accounts for tumour purity, ploidy, and copy-number — the fraction of tumour cells carrying the variant.</li>
+          </ul>
+
+          <p>Reconstruction:</p>
+          <ul>
+            <li><strong>PyClone</strong> (Roth et al. 2014): Bayesian clustering of variants by CCF across multiple samples of the same patient.</li>
+            <li><strong>SciClone</strong> (Miller et al. 2014): similar; variational inference.</li>
+            <li><strong>PhyloWGS</strong> (Deshwar et al. 2015): also reconstructs the phylogenetic tree.</li>
+            <li><strong>CliP</strong> (2021+): improved clustering performance.</li>
+          </ul>
+
+          <p>The output: clusters of variants, each at a shared CCF, representing distinct subclones. Combined with phylogenetics, produces an <strong>evolutionary tree</strong> of the tumour.</p>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Phylogenetic reconstruction</h3>
+
+          <p>Given subclone clusters from multiple time points or multi-site biopsies:</p>
+          <ul>
+            <li>Build a tree relating subclones.</li>
+            <li>Root = MRCA (clonal ancestor).</li>
+            <li>Internal nodes = subclonal branching events.</li>
+            <li>Leaves = current subclones present in the tumour.</li>
+          </ul>
+
+          <p>Tools: <strong>LICHeE</strong>, <strong>MEDICC2</strong>, <strong>SPRUCE</strong>, <strong>CONIPHER</strong>. Outputs an evolutionary tree annotating which mutations / CNVs / SVs defined each branch.</p>
+
+          <p>Clinical value:</p>
+          <ul>
+            <li>Understand treatment-resistance evolution: which subclone survived; what mutations defined it; how to target it.</li>
+            <li>Identify early (trunk) vs late (branch) drivers: trunk drivers are present in all cells, best targeted-therapy candidates.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-18/08-subclonal-tree.svg"
+                 alt="Left: VAF distribution across ~500 variants in a tumour with multiple modes — one at 0.30 (clonal in 60% pure tumour), one at 0.15, one at 0.05. Middle: PyClone-style clustering into 3 subclones with annotated CCF 100%/50%/20%. Right: phylogenetic tree with MRCA at top labelled trunk: TP53, two branches showing subclone divergence labelled branch A: KRAS G12V and branch B: EGFR T790M.">
+            <figcaption>Figure 8. From bulk VAF distribution → subclonal clusters → phylogenetic tree. Trunk mutations are shared by all cells; branch mutations define resistant or recurrent subclones.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Single-cell tumour genomics</h3>
+
+          <p>Bulk sequencing averages across cells. Single-cell sequencing (L8) resolves individual cells directly, avoiding the deconvolution problem.</p>
+
+          <p>Cancer-specific single-cell approaches:</p>
+          <ul>
+            <li><strong>scRNA-seq</strong> (10× Chromium, Smart-seq): expression profiles per tumour cell. Reveals cell-type heterogeneity, tumour-microenvironment cells, treatment-response states.</li>
+            <li><strong>scDNA-seq</strong> (10× Chromium CNV): single-cell copy-number profiles.</li>
+            <li><strong>scATAC-seq</strong>: chromatin accessibility per cell; reveals epigenetic heterogeneity.</li>
+            <li><strong>Multi-modal single-cell</strong>: CITE-seq, spatial transcriptomics (Visium, Xenium).</li>
+          </ul>
+
+          <p>Single-cell tumour analyses:</p>
+          <ul>
+            <li><strong>Identify distinct tumour-cell states</strong> (cycling vs quiescent; stem-like vs differentiated).</li>
+            <li><strong>Characterise tumour-microenvironment</strong> (T cells, macrophages, fibroblasts, endothelial).</li>
+            <li><strong>Trajectory analysis</strong> from L8: infer differentiation or treatment-response dynamics.</li>
+            <li><strong>Cell-type proportions</strong> inform immune-status and therapy decisions.</li>
+          </ul>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Tumour microenvironment (TME)</h3>
+
+          <p>A tumour isn't just tumour cells. It's tumour + stroma + immune cells + vasculature. The <strong>tumour microenvironment</strong> determines:</p>
+          <ul>
+            <li>Whether immunotherapy works (T cell infiltration density).</li>
+            <li>How aggressive the tumour is (tumour-associated macrophage phenotype).</li>
+            <li>Metastatic potential (fibroblast-driven ECM remodelling).</li>
+          </ul>
+
+          <p>Single-cell and spatial genomics are the dominant tools for TME characterisation. Cell2Location, CIBERSORTx, xCell deconvolve bulk RNA-seq into cell-type proportions.</p>
+        </section>
+
+        <section id="sec-5-5">
+          <h3>5.5 Implications for therapy</h3>
+
+          <p>Heterogeneity matters clinically:</p>
+          <ul>
+            <li><strong>Targeting a trunk driver</strong> (present in all cells): effective but rarely sufficient for cure because subclones still diversify.</li>
+            <li><strong>Combination therapy</strong>: target multiple pathways to prevent resistance emergence.</li>
+            <li><strong>Liquid biopsy monitoring</strong>: track subclonal dynamics during treatment via ctDNA.</li>
+            <li><strong>Adaptive trials</strong>: adjust therapy based on evolving resistance.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — subclonal deconvolution as blind source separation</span>
+            <p>Bulk tumour sequencing observes a <strong>mixture</strong> of signals from multiple subclones. Each subclone contributes mutations at a rate proportional to its fraction in the sample. Recovering the fraction of each subclone + its mutation catalogue from the mixture is <strong>blind source separation</strong>. Mathematically: $\text{observed VAF} = \sum_k f_k \cdot \mathbb{1}(\text{var} \in \text{subclone } k)$, where $f_k$ is the unknown fraction of subclone $k$. Finding $f_k$ and the subclone-variant assignments is an ICA / NMF / clustering problem with ploidy + purity + copy-number constraints. PyClone's Bayesian hierarchical model is one flavour; SciClone's EM is another. The signal-processing intuition (mixing matrix + source signals = observations, recover unknown mixing and sources) is directly applicable.</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 5 — Subclonal Reconstruction Explorer.</strong> Simulate a tumour with user-set purity, subclone count, and branching pattern; run a simplified PyClone-style clustering. Aha: clonal evolution can be reconstructed from bulk sequencing alone, but single-sample recovery has limits — multi-region or longitudinal samples sharpen the picture.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-18/05-subclonal-reconstruction.html" loading="lazy" title="Artifact 5 — Subclonal Reconstruction Explorer"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 30 min</span>
+          Clinical Interpretation in Oncology
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 AMP/ASCO/CAP tier system</h3>
+
+          <p>Lecture 17's ACMG/AMP framework classifies <strong>germline</strong> variants (inherited). <strong>Somatic</strong> variants in cancer use a different framework: the <strong>AMP/ASCO/CAP</strong> joint guidelines (Li et al. 2017, <em>J Mol Diagn</em>).</p>
+
+          <p>Four tiers:</p>
+          <ul>
+            <li><strong>Tier I — Variants of strong clinical significance</strong>. FDA-approved drug for this variant in this cancer type; included in professional guidelines (NCCN).</li>
+            <li><strong>Tier II — Variants of potential clinical significance</strong>. FDA-approved drug for this variant in a different cancer type, or drugs in clinical trials, or preclinical strong evidence.</li>
+            <li><strong>Tier III — Variants of unknown clinical significance</strong>. In a cancer gene, but no therapeutic implication.</li>
+            <li><strong>Tier IV — Benign or likely benign variants</strong>. Known germline or passenger; no clinical relevance.</li>
+          </ul>
+
+          <p>Level of evidence per tier subdivides further:</p>
+          <ul>
+            <li><strong>Tier I-A</strong>: FDA-approved therapy, this cancer type, this variant.</li>
+            <li><strong>Tier I-B</strong>: Professional-guidelines-recommended therapy.</li>
+            <li><strong>Tier II-C</strong>: FDA-approved therapy for different cancer type.</li>
+            <li><strong>Tier II-D</strong>: Clinical trials, case reports.</li>
+          </ul>
+
+          <p>The framework is deliberately <strong>therapy-centric</strong>: the tier tells you what to do with the variant (treat with drug X, consider clinical trial Y, no action).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-18/09-amp-asco-cap.svg"
+                 alt="Four horizontal tiers stacked by clinical actionability. Tier I in green: FDA-approved therapy, example EGFR L858R in NSCLC → erlotinib. Tier II in amber-light: potential clinical significance, example BRAF V600E in non-melanoma tumour. Tier III in grey: unknown significance, example PIK3CA rare missense outside hotspots. Tier IV in muted grey: benign / passenger, example common polymorphism. Annotation: contrast with ACMG/AMP germline that classifies by pathogenicity; this classifies by clinical action.">
+            <figcaption>Figure 9. The AMP/ASCO/CAP four-tier system. Each tier maps a somatic variant to a recommended action. Contrast with ACMG/AMP (L17): germline classifies by pathogenicity probability; somatic classifies by clinical action.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — action-centric vs hypothesis-centric classification</span>
+            <p>Germline ACMG/AMP (L17) classifies variants by "probability of causing disease" — a hypothesis-testing framework. AMP/ASCO/CAP oncology classifies by "recommended action" — a decision-theoretic framework. Tier I-A says "this variant + this cancer → this FDA-approved drug"; the output is the treatment plan, not a probability. Analogous to control-theoretic vs inference-theoretic design: inference asks "what's true?"; control asks "what do I do?". Both frameworks coexist because they answer different questions; each is the right tool for its question. A single genomic lab running both germline + somatic analyses maintains both classification systems in parallel.</p>
+          </aside>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 OncoKB, CIViC, ClinGen somatic</h3>
+
+          <p>Three dominant knowledge bases inform oncology variant tiering:</p>
+          <ul>
+            <li><strong>OncoKB</strong> (Memorial Sloan Kettering). Curated precision-oncology database. FDA-recognised for variant annotation. Levels 1 (FDA-approved) → 4 (compelling biological evidence) matching AMP/ASCO/CAP tiers.</li>
+            <li><strong>CIViC</strong> (<a href="https://civicdb.org/" target="_blank" rel="noopener">civicdb.org</a>). Open-source, crowd-curated. Similar level scheme (A–D).</li>
+            <li><strong>ClinGen Somatic Cancer Variant Curation</strong> (relatively newer). Formal expert-panel classifications.</li>
+          </ul>
+
+          <p>A clinical variant scientist typically:</p>
+          <ol>
+            <li>Queries OncoKB + CIViC for known annotations.</li>
+            <li>Checks FDA labels for the relevant drug-gene-cancer combinations.</li>
+            <li>Reviews NCCN guidelines (National Comprehensive Cancer Network).</li>
+            <li>Applies the AMP/ASCO/CAP tier + level of evidence.</li>
+            <li>Writes the clinical report.</li>
+          </ol>
+
+          <p>Several commercial tools (VarSome, QIAGEN QCI, Genomic Interpretation Engines) aggregate this machinery; most commercial clinical panels use their own proprietary aggregators that reproduce most of OncoKB/CIViC internally.</p>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 Tumour Mutational Burden (TMB)</h3>
+
+          <p><strong>TMB</strong>: the number of somatic mutations per megabase of coding sequence. A <strong>signature-of-signatures</strong> biomarker — captures overall mutational load without decomposing.</p>
+
+          <p>High TMB ≈ many mutations = many neoantigens (mutated protein fragments visible to T cells) = more likely to respond to <strong>immune checkpoint inhibitor (ICI) therapy</strong> (pembrolizumab, nivolumab).</p>
+
+          <p>FDA-approved TMB thresholds:</p>
+          <ul>
+            <li>$\text{TMB} \geq 10$ mutations / Mb → pembrolizumab indication (tumour-agnostic, 2020).</li>
+          </ul>
+
+          <p>Caveats:</p>
+          <ul>
+            <li>TMB varies dramatically by assay (panel vs WES vs WGS); FoundationOne TMB ≠ MSK-IMPACT TMB ≠ WES TMB. Each clinical assay has its own FDA-validated threshold.</li>
+            <li>TMB doesn't perfectly predict response; it's a probabilistic biomarker.</li>
+            <li>TMB low doesn't mean no response; TMB high doesn't mean certain response.</li>
+          </ul>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 Microsatellite instability (MSI)</h3>
+
+          <p><strong>MSI</strong>: instability at microsatellite repeats, caused by mismatch-repair deficiency (dMMR). Caused by germline Lynch syndrome (MLH1 / MSH2 / MSH6 / PMS2 loss) or somatic MMR gene inactivation.</p>
+
+          <p>MSI-high tumours:</p>
+          <ul>
+            <li><strong>Specific mutational signature</strong> (SBS6 + 15 + 20 + 26).</li>
+            <li><strong>High TMB</strong> (typically $&gt; 20$ mut/Mb).</li>
+            <li><strong>Strong response to ICI</strong> (pembrolizumab FDA-approved tumour-agnostic for MSI-H, 2017).</li>
+          </ul>
+
+          <p>Testing:</p>
+          <ul>
+            <li><strong>IHC</strong> (immunohistochemistry): looks for MMR protein expression loss. Fast; available in most clinical labs.</li>
+            <li><strong>MSI-PCR / MSI-NGS</strong>: fragment-length analysis at defined microsatellite markers.</li>
+            <li><strong>Computational MSI from panel/WES</strong>: MSIsensor, MSINGS estimate MSI status from sequencing data.</li>
+          </ul>
+        </section>
+
+        <section id="sec-6-5">
+          <h3>6.5 Homologous recombination deficiency (HRD)</h3>
+
+          <p><strong>HRD</strong>: inability to repair DNA double-strand breaks via homologous recombination. Caused by germline or somatic BRCA1/2 loss; also by loss of other HR-pathway genes (PALB2, RAD51 variants, etc.).</p>
+
+          <p>HRD scoring:</p>
+          <ul>
+            <li><strong>Genomic HRD score</strong>: integrates loss-of-heterozygosity (LOH), telomeric-allelic-imbalance (TAI), large-state transitions (LST). Thresholds tune by assay.</li>
+            <li><strong>Signature-based HRD</strong> (SBS3 + ID6 + SBS8): NMF-inferred from WGS-scale data.</li>
+          </ul>
+
+          <p>HRD-positive tumours:</p>
+          <ul>
+            <li><strong>PARP inhibitor sensitivity</strong> (olaparib, niraparib, rucaparib). FDA-approved in ovarian, breast, pancreatic, prostate cancers.</li>
+            <li><strong>HRD score</strong> is a gateway biomarker for trial eligibility and for PARP inhibitor choice.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — TMB / MSI / HRD as detection statistics</span>
+            <p>These three biomarkers share a signal-processing structure: each is a <strong>statistic</strong> over somatic mutations that signals a broader phenotype. TMB is the mutation <strong>rate</strong> (mutations per Mb) — analogous to event-rate estimation. MSI is an <strong>instability metric</strong> at microsatellite loci — analogous to noise-level estimation over a specific frequency band. HRD is a <strong>signature-weighted combination</strong> (SBS3 + LOH + TAI + LST) — analogous to a multi-feature detection statistic with a trained decision threshold. Each has a threshold tuned for clinical decisions ($\text{TMB} \geq 10$ mut/Mb; MSI-H empirical cutoff; HRD score $\geq 42$ on some assays). Each threshold is <strong>assay-specific</strong> — an operational detail that matters for clinical deployment in exactly the same way that detector thresholds are calibrated per hardware in EE systems.</p>
+          </aside>
+
+          <aside class="callout callout--warn">
+            <span class="callout-label">Warning — TMB/MSI/HRD numbers are assay-calibrated</span>
+            <p>TMB, MSI, and HRD are <strong>assay-calibrated</strong>, not universal numbers. A TMB of 10 mut/Mb from FoundationOne CDx is the FDA-approved threshold for tumour-agnostic pembrolizumab; a TMB of 10 from WES or another panel is <strong>not</strong> automatically the same thing. Clinical labs deriving these biomarkers must validate against their specific assay, not borrow other assays' thresholds. This is a recurring source of confusion when a clinical trial requires "TMB ≥ 10" — the assay used determines what that number means.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-18/10-biomarker-trio.svg"
+                 alt="Three side-by-side biomarker panels. Panel 1 TMB: histogram of mutation count per Mb across samples with threshold line at TMB ≥ 10 mut/Mb. Panel 2 MSI: bar chart of microsatellite instability vs stability across samples with MSI-H cluster highlighted. Panel 3 HRD: violin plot of HRD scores with HRD-positive cutoff. Each panel annotated with corresponding therapy class: TMB → checkpoint inhibitor; MSI → pembrolizumab tumour-agnostic; HRD → PARP inhibitor.">
+            <figcaption>Figure 10. The three precision-oncology biomarkers beyond single variants. Each is a statistic; each has an assay-specific threshold; each connects to a drug class.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Discussion prompt — germline-somatic crossover</span>
+            <p>A patient's lung adenocarcinoma panel shows an EGFR L858R mutation (Tier I-A, treatable with osimertinib) <strong>and</strong> a TP53 missense of unknown significance in a rarely-studied domain. How should the report communicate these findings? What's the downstream workflow for each? Who acts first? (Starting points: Tier I-A is actionable immediately; TP53 requires further characterisation; the oncologist acts on EGFR while the variant scientist re-investigates TP53.)</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 6 — AMP/ASCO/CAP Oncology Tier Classifier.</strong> Input: variant + cancer type + level of evidence. The classifier applies the AMP/ASCO/CAP tiering rules and returns the tier + therapy recommendation + source citations. Aha: oncology tiering is a deterministic lookup keyed by (variant × cancer type × drug evidence) — different in shape from ACMG/AMP germline aggregation.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-18/06-oncology-tier.html" loading="lazy" title="Artifact 6 — AMP/ASCO/CAP Oncology Tier Classifier"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 25 min</span>
+          From Sequencing to Therapy
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 Targeted therapy decisions</h3>
+
+          <p>The payoff of all the prior machinery: a decision in a tumour board.</p>
+
+          <p>Canonical workflow:</p>
+          <ol>
+            <li>Patient diagnosed with stage-IV cancer; biopsy taken.</li>
+            <li>Sample processed (FFPE; tumour-normal panel at a clinical lab).</li>
+            <li>Sequencing → somatic VCF + fusion calls + CNV + TMB / MSI / HRD.</li>
+            <li>Variant scientist applies AMP/ASCO/CAP → reports Tier I–IV.</li>
+            <li>Report delivered to the treating oncologist.</li>
+            <li><strong>Molecular tumour board</strong> reviews the report; oncologist, pathologist, variant scientist, researcher, clinical-trial-unit representative all present.</li>
+            <li>Therapy decision: FDA-approved targeted drug (matching a Tier I variant), clinical trial enrolment (matching a Tier II variant), or standard-of-care chemotherapy if nothing actionable.</li>
+          </ol>
+
+          <p>Canonical matched <strong>drug–gene–cancer triples</strong>:</p>
+          <ul>
+            <li>EGFR L858R / exon-19 deletion in NSCLC → erlotinib / gefitinib / osimertinib.</li>
+            <li>EML4-ALK fusion in NSCLC → crizotinib / alectinib / lorlatinib.</li>
+            <li>BRAF V600E in melanoma → vemurafenib / dabrafenib + trametinib.</li>
+            <li>HER2 amplification in breast cancer → trastuzumab.</li>
+            <li>BRCA1/2 loss in ovarian / breast / pancreatic / prostate → olaparib / niraparib.</li>
+            <li>KRAS G12C in NSCLC → sotorasib (2021 FDA approval; first KRAS G12C-targeted drug).</li>
+            <li>BCR-ABL1 in CML → imatinib / dasatinib / nilotinib.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box — keys fit locks</span>
+            <p>Targeted cancer therapy is "keys fit locks". Each canonical targeted drug is a small molecule (or antibody) designed to bind a very specific protein shape produced by a specific driver mutation. Imatinib was the first — it binds the ATP pocket of BCR-ABL1's constitutively-active kinase. When the driver mutation is absent (wild-type BCR-ABL), the drug has nothing to bind productively. When the mutation is present, the drug wedges into the active site and shuts off the signal. This is why matched drug-gene-cancer triples are the currency of precision oncology: the drug only works if the key fits the lock, and the lock is in the genome. Variant-driven targeted therapy is genuinely different from chemotherapy, which damages all rapidly dividing cells indiscriminately — targeted drugs have narrow efficacy and narrow toxicity.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-18/11-therapy-tree.svg"
+                 alt="Decision tree starting from somatic variant report received at tumour board. First branch: Tier I variant? if yes → FDA-approved targeted drug. Else: Tier II variant in actionable gene? → clinical trial. Else: high TMB or MSI-H? → immunotherapy pembrolizumab tumour-agnostic. Else: HRD-positive? → PARP inhibitor. Else: standard-of-care chemotherapy. Each leaf annotated with example drug and cancer context.">
+            <figcaption>Figure 11. The precision-oncology decision tree. Tier I drives matched targeted therapy; if no Tier I, fall through to TMB / MSI / HRD biomarker indications; if all negative, standard-of-care.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Immunotherapy biomarkers</h3>
+
+          <p>Immune checkpoint inhibitor (ICI) therapy doesn't target a specific variant. It unblocks T-cell-mediated tumour killing. Response depends on:</p>
+          <ul>
+            <li><strong>$\text{TMB} \geq 10$ mut/Mb</strong> → pembrolizumab indication.</li>
+            <li><strong>MSI-H / dMMR</strong> → pembrolizumab (tumour-agnostic, 2017).</li>
+            <li><strong>PD-L1 expression</strong> (by immunohistochemistry, not genomics) → specific checkpoint-inhibitor indications.</li>
+            <li><strong>Tumour-infiltrating lymphocytes (TILs)</strong> → qualitative indicator of active immune response.</li>
+          </ul>
+
+          <p>PD-L1 is measured on tumour cells by IHC; TIL by histology. Genomics adds TMB + MSI + neoantigen prediction but doesn't replace immunohistochemistry — they're complementary.</p>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 Emerging therapies</h3>
+
+          <p>Beyond targeted and immune:</p>
+          <ul>
+            <li><strong>Antibody-drug conjugates (ADCs)</strong>: antibody (targeting tumour antigen) + toxic payload. Trastuzumab-deruxtecan (HER2 ADC) has been transformative for HER2-low breast cancer.</li>
+            <li><strong>Bispecific antibodies</strong>: engage T cells + tumour cells simultaneously. Blinatumomab (CD19 × CD3) for leukaemia; teclistamab for multiple myeloma.</li>
+            <li><strong>CAR-T cell therapy</strong>: patient's T cells engineered to express a tumour-targeting receptor. FDA-approved for several leukaemias / lymphomas; working on solid tumours.</li>
+            <li><strong>Therapeutic vaccines</strong>: patient-specific neoantigen vaccines in trials. mRNA platforms (Moderna / BioNTech) now being used.</li>
+          </ul>
+
+          <p>Genomics is critical for neoantigen identification (for vaccines and CAR-T target selection) and for patient stratification (for ADC + bispecific targeting).</p>
+        </section>
+
+        <section id="sec-7-4">
+          <h3>7.4 Drug discovery + AlphaFold</h3>
+
+          <p>Cancer drug discovery is increasingly structure-based (callback to L15):</p>
+          <ul>
+            <li>Predict protein structure with AlphaFold2/3.</li>
+            <li>Identify druggable pockets.</li>
+            <li>Virtual screen small-molecule libraries.</li>
+            <li>Optimise binding with structure-based medicinal chemistry.</li>
+          </ul>
+
+          <p>For example: the 2021 FDA approval of sotorasib (KRAS G12C inhibitor) came after decades of KRAS being called "undruggable." Structure-based design identified a cryptic binding pocket unique to the G12C mutant form, enabling selective targeting. AlphaFold-era tools accelerate this pattern.</p>
+        </section>
+
+        <section id="sec-7-5">
+          <h3>7.5 Resistance and combinations</h3>
+
+          <p>Single-drug targeted therapy fails over time due to resistant subclones (Part 1.4). Modern clinical practice uses:</p>
+          <ul>
+            <li><strong>Upfront combinations</strong>: dabrafenib + trametinib for BRAF+ melanoma; encorafenib + binimetinib.</li>
+            <li><strong>Sequential therapy</strong>: first-line targeted drug → on resistance, second-line (often different mechanism).</li>
+            <li><strong>ctDNA monitoring</strong>: serial liquid biopsies detect resistance mutations early.</li>
+            <li><strong>Adaptive designs</strong>: clinical trials that switch therapy based on resistance emergence.</li>
+          </ul>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 7 — Targeted Therapy Matcher.</strong> Input a panel-style variant list + cancer type. The matcher maps each variant to candidate therapies (FDA-approved / trial-available / no match) and produces a ranked treatment plan. Aha: variant → therapy is a deterministic lookup given the knowledge bases; the human judgment is in ordering by evidence strength + patient factors.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-18/07-therapy-matcher.html" loading="lazy" title="Artifact 7 — Targeted Therapy Matcher"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup">
+        <h2>Wrap-up</h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Cancer is applied evolution.</strong> Every concept from population genetics (drift, selection, clonal dynamics, mutation accumulation) applies directly inside a tumour's lifetime.</li>
+          <li><strong>Tumour-normal paired sequencing is the gold standard</strong>; tumour-only works with careful germline filtering.</li>
+          <li><strong>FFPE artefacts are ubiquitous</strong>; orientation-bias filtering and high coverage are essential.</li>
+          <li><strong>Mutational signatures decompose tumour mutation spectra into mutagenic processes.</strong> NMF under the hood. Signatures like HRD / MMRD / UV / APOBEC / tobacco carry therapeutic implications.</li>
+          <li><strong>Subclonal reconstruction is blind source separation.</strong> PyClone / SciClone cluster variants by cancer-cell-fraction; phylogenetic tools build evolution trees.</li>
+          <li><strong>Structural variants and gene fusions</strong> are cancer-critical and short-read-challenging. Long reads and RNA-seq complement. Canonical fusions (BCR-ABL, EML4-ALK) are textbook targeted-therapy cases.</li>
+          <li><strong>AMP/ASCO/CAP tiering</strong> is the oncology-specific classification framework. Tier I: FDA-approved therapy. Tier II: potential (off-label or trial). Tier III: unknown. Tier IV: benign / passenger.</li>
+          <li><strong>TMB, MSI, HRD</strong> are the three dominant biomarker signatures for beyond-single-variant precision oncology, each linked to specific drug classes.</li>
+          <li><strong>The tumour board is the integrating venue</strong>: genomics + pathology + clinical oncology + trials unit decide. Your sequencing pipeline feeds one input into that meeting.</li>
+        </ul>
+
+        <h3>The industry view (EE student's path)</h3>
+        <p>Roles a graduating EE student may occupy:</p>
+        <ul>
+          <li><strong>Clinical bioinformatics engineer</strong> at a commercial clinical lab (Foundation Medicine, Guardant, Tempus, Natera). Build and maintain clinical pipelines under regulatory constraint.</li>
+          <li><strong>Computational biologist</strong> at pharma / biotech (Genentech, Roche, Novartis, Pfizer, Moderna). Identify biomarkers, support clinical trials, inform drug development.</li>
+          <li><strong>ML engineer</strong> at a genomics-focused startup. Build models that predict therapy response, decompose mutational signatures, or integrate multi-modal data.</li>
+          <li><strong>Academic core facility bioinformatician</strong>. Develop pipelines for specific research groups.</li>
+          <li><strong>Translational research scientist</strong> at a cancer centre (MSK, Dana-Farber, MD Anderson). Bridge bench science and clinical care.</li>
+        </ul>
+
+        <p>Skills that matter regardless of role:</p>
+        <ul>
+          <li>Fluency with the pipeline stack (L14): FASTQ → BAM → VCF; Nextflow / Snakemake; GATK / BWA / DeepVariant.</li>
+          <li>Understanding of statistical genetics + ML (L13, L16).</li>
+          <li>Regulatory literacy (L17 + L18 Part 2) — increasingly required.</li>
+          <li>Domain literacy: know what a "Tier I EGFR L858R" means to a clinician.</li>
+          <li>Communication: writing reports that both a clinician and a reviewer can understand.</li>
+        </ul>
+
+        <figure class="figure figure--wide">
+          <img src="../diagrams/lecture-18/12-industry-ecosystem.svg"
+               alt="Landscape diagram with four quadrants. Clinical labs (Foundation Medicine, Guardant, Tempus, Natera, Invitae-oncology). Pharma/biotech (Roche, Novartis, AstraZeneca, Moderna, mid-size biotechs). Sequencing/platform companies (Illumina, PacBio, ONT, 10× Genomics). Academic cancer centres (MSK, Dana-Farber, MD Anderson, Broad, Sanger). Each quadrant lists typical bioinformatics roles: pipeline engineer, ML engineer, computational biologist, translational scientist. Centre: the cancer-genomics graduate's career paths often cycle between these. Bottom: hybrid roles (clinical + research + ML) are increasingly the norm.">
+          <figcaption>Figure 12. The cancer-genomics industry ecosystem. Four overlapping quadrants — clinical labs, pharma/biotech, sequencing platforms, academic centres — and the EE-graduate roles inside each. Hybrid careers are the norm.</figcaption>
+        </figure>
+
+        <h3>Final pointers to keep learning</h3>
+        <ul>
+          <li><strong>TCGA Pan-Cancer Atlas</strong>: <a href="https://www.cancer.gov/ccg/research/genome-sequencing/tcga" target="_blank" rel="noopener">cancer.gov/ccg/research/genome-sequencing/tcga</a>. ~11,000 tumours across 33 cancer types with genomic + clinical data. Foundational dataset.</li>
+          <li><strong>PCAWG</strong>: <a href="https://docs.icgc-argo.org/docs/pcawg" target="_blank" rel="noopener">docs.icgc-argo.org/docs/pcawg</a>. Pan-Cancer Analysis of Whole Genomes. 2,800 WGS tumours.</li>
+          <li><strong>COSMIC</strong>: <a href="https://cancer.sanger.ac.uk/cosmic" target="_blank" rel="noopener">cancer.sanger.ac.uk/cosmic</a>. Mutation catalogue; mutational signatures.</li>
+          <li><strong>cBioPortal</strong>: <a href="https://www.cbioportal.org/" target="_blank" rel="noopener">cbioportal.org</a>. Interactive cancer genomics visualisation.</li>
+          <li><strong>OncoKB, CIViC</strong>: precision-oncology knowledge bases.</li>
+          <li><strong>ASCO, AACR, ESMO</strong> annual meetings: follow the clinical trial readouts.</li>
+          <li><strong>NCCN guidelines</strong>: the clinical-practice standard, updated continuously.</li>
+          <li><strong>Biorxiv / Medrxiv</strong>: preprints in cancer genomics land first here.</li>
+        </ul>
+
+        <h3>Capstone exercise</h3>
+        <p>Build a tumour-normal somatic pipeline in Nextflow (L14) that:</p>
+        <ol>
+          <li>Takes FASTQ pairs for tumour and normal.</li>
+          <li>Aligns with BWA-MEM.</li>
+          <li>Calls somatic variants with Mutect2.</li>
+          <li>Annotates with VEP.</li>
+          <li>Computes TMB + mutational signatures.</li>
+          <li>Generates a clinical-style report in Tier I–IV format (AMP/ASCO/CAP).</li>
+          <li>Runs on a small public cancer dataset (TCGA or a reduced subset).</li>
+          <li>Reproducibly: containerised (Docker / Apptainer), version-pinned references, Nextflow-resumable.</li>
+        </ol>
+        <p>Submission: repository with Nextflow pipeline + containers + reproducibility documentation + an analysis of one sample end-to-end.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Download a public tumour-normal pair from TCGA. Run Mutect2 end-to-end with matched PoN filtering. Report number of PASS variants; distribute by VAF.</li>
+          <li>From the same VCF, run SigProfilerExtractor (or alternative). Identify the dominant mutational signatures. Hypothesise the tumour's etiology.</li>
+          <li>Pick one published cancer genomics paper (e.g. a TCGA sub-project) and reproduce its Figure 1 from scratch. Document any deviations.</li>
+          <li>For a Tier I-A variant of your choice (e.g. EGFR L858R in NSCLC), write a one-page clinical-report summary including: the variant; the evidence (citations); the tier; the recommended therapy; the level of evidence.</li>
+          <li>Review the 2022 Hanahan hallmarks update. For two of the newer hallmarks (e.g. polymorphic microbiomes, non-mutational epigenetic reprogramming), identify the genomic / sequencing-based assays relevant to each.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Hanahan, D., &amp; Weinberg, R. A. (2011). Hallmarks of cancer: the next generation. <em>Cell</em> 144, 646–674. (Updated 2022: Hanahan, D. (2022). Hallmarks of cancer: new dimensions. <em>Cancer Discovery</em> 12, 31–46.)</li>
+          <li>Alexandrov, L. B., Nik-Zainal, S., Wedge, D. C., et al. (2013). Signatures of mutational processes in human cancer. <em>Nature</em> 500, 415–421.</li>
+          <li>Alexandrov, L. B., Kim, J., Haradhvala, N. J., et al. (2020). The repertoire of mutational signatures in human cancer. <em>Nature</em> 578, 94–101.</li>
+          <li>Li, M. M., Datto, M., Duncavage, E. J., et al. (2017). Standards and guidelines for the interpretation and reporting of sequence variants in cancer: a joint consensus recommendation of the AMP, ASCO, and CAP. <em>Journal of Molecular Diagnostics</em> 19, 4–23. (AMP/ASCO/CAP.)</li>
+          <li>Campbell, P. J., Getz, G., Korbel, J. O., et al. (2020). Pan-cancer analysis of whole genomes. <em>Nature</em> 578, 82–93. (PCAWG.)</li>
+          <li>Benjamin, D., Sato, T., Cibulskis, K., et al. (2019). Calling somatic SNVs and indels with Mutect2. <em>bioRxiv</em>.</li>
+          <li>Roth, A., Khattra, J., Yap, D., et al. (2014). PyClone: statistical inference of clonal population structure in cancer. <em>Nature Methods</em> 11, 396–398.</li>
+          <li>Turajlic, S., Sottoriva, A., Graham, T., &amp; Swanton, C. (2019). Resolving genetic heterogeneity in cancer. <em>Nature Reviews Genetics</em> 20, 404–416.</li>
+          <li>Chakravarty, D., Gao, J., Phillips, S. M., et al. (2017). OncoKB: a precision oncology knowledge base. <em>JCO Precision Oncology</em> 2017.</li>
+          <li>Griffith, M., Spies, N. C., Krysiak, K., et al. (2017). CIViC is a community knowledgebase for expert crowdsourcing the clinical interpretation of variants in cancer. <em>Nature Genetics</em> 49, 170–174.</li>
+          <li>Uhrig, S., Ellermann, J., Walther, T., et al. (2021). Accurate and efficient detection of gene fusions from RNA sequencing data. <em>Genome Research</em> 31, 448–460. (Arriba.)</li>
+          <li>Rustad, E. H., Yellapantula, V. D., Glodzik, D., et al. (2020). mmsig: a fitting approach to accurately identify somatic mutational signatures. <em>Communications Biology</em> 3, 658.</li>
+          <li>TCGA portal: <a href="https://portal.gdc.cancer.gov/" target="_blank" rel="noopener">portal.gdc.cancer.gov</a></li>
+          <li>cBioPortal: <a href="https://www.cbioportal.org/" target="_blank" rel="noopener">cbioportal.org</a></li>
+          <li>COSMIC mutational signatures: <a href="https://cancer.sanger.ac.uk/signatures/" target="_blank" rel="noopener">cancer.sanger.ac.uk/signatures</a></li>
+          <li>OncoKB: <a href="https://www.oncokb.org/" target="_blank" rel="noopener">oncokb.org</a></li>
+          <li>CIViC: <a href="https://civicdb.org/" target="_blank" rel="noopener">civicdb.org</a></li>
+          <li>SigProfilerExtractor: <a href="https://github.com/AlexandrovLab/SigProfilerExtractor" target="_blank" rel="noopener">github.com/AlexandrovLab/SigProfilerExtractor</a></li>
+        </ul>
+
+        <h3>Thank you</h3>
+        <p>You've made it to the end of an 18-lecture course covering sequencing, alignment, variant calling, expression, single-cell, epigenomics, long reads, population genetics, GWAS, data engineering, protein structure, ML in genomics, clinical genomics, and cancer. The field will keep evolving; the frameworks you've learned — matched filtering, detection theory, inductive bias matching, autocorrelation, inverse problems, Bayesian aggregation, diffusion, equivariance — are durable. Go make biology work for people.</p>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — What Cancer Is, Genomically</td>             <td>25&nbsp;min</td><td>0:25</td></tr>
+            <tr><td>Part 2 — The Cancer Sequencing Landscape</td>          <td>25&nbsp;min</td><td>0:50</td></tr>
+            <tr><td>Part 3 — Somatic Variant Calling at Depth</td>         <td>40&nbsp;min</td><td>1:30</td></tr>
+            <tr><td>Part 4 — Structural Variants and Fusions</td>          <td>30&nbsp;min</td><td>2:00</td></tr>
+            <tr><td>Part 5 — Tumour Heterogeneity, Clonal Evolution</td>   <td>25&nbsp;min</td><td>2:25</td></tr>
+            <tr><td>Part 6 — Clinical Interpretation in Oncology</td>      <td>30&nbsp;min</td><td>2:55</td></tr>
+            <tr><td>Part 7 — From Sequencing to Therapy</td>               <td>25&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                           <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) f.style.height = d.height + 'px';
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Lecture 20 (proposed L4) — Multiple Sequence Alignment, Phylogenetics, and Comparative Genomics
 
-> **Duration**: ≈3h 30min content
+> **Duration**: ≈3h 55min content
 > **Audience**: EE undergraduates / graduates, minimal biology assumed
 > **File**: to be rendered as `lectures/lecture-20.html` (provisional name; renumber to `lecture-04.html` when curriculum is reordered)
 
@@ -362,6 +362,74 @@ The intersection is the highest-confidence regulatory inventory.
 
 ---
 
+## Part 6.5 — RNA Secondary Structure and Non-Coding RNAs (≈25 min)
+
+### 6.5.1 Why RNA structure matters (≈4 min)
+
+Most of this lecture has assumed sequences are interpreted at the residue level — letters compared, columns aligned, trees built. But RNA molecules **fold** into 3D structures stabilised by base-pairing, and their function depends on that structure as much as on their sequence. Examples:
+
+- **tRNA** — folds into the cloverleaf required for ribosome recognition.
+- **rRNA** — the ribosome itself is a structured RNA-protein machine.
+- **Riboswitches** — bacterial mRNA elements that change conformation in response to ligand binding, regulating downstream translation.
+- **miRNAs** — ~22-nt regulatory RNAs whose precursor stem-loop structure drives Dicer processing.
+- **lncRNAs** — long non-coding RNAs (XIST, HOTAIR, NEAT1) function via specific structural domains.
+
+For non-coding RNA family detection, alignment alone is not enough — you need **structure-aware alignment**.
+
+### 6.5.2 RNA folding basics (≈6 min)
+
+Watson-Crick base pairs (A·U, G·C) and the wobble pair (G·U) drive RNA secondary-structure formation. The space of foldings is constrained by:
+
+- **No pseudoknots** in classical RNA folding (most algorithms ignore them; pseudoknots make folding NP-hard).
+- **Minimum free energy (MFE)**: the most stable fold under thermodynamic energy parameters (Turner free energies).
+- **Pair probabilities**: under the Boltzmann ensemble, each pair has a probability — useful for reliability assessment.
+
+The MFE structure is computed by **Zuker's algorithm** (1989): O(n³) dynamic programming on the sequence with the energy parameters. Implementation: **mfold**, **RNAfold** (ViennaRNA package).
+
+### 6.5.3 ViennaRNA and RNAfold (≈4 min)
+
+**ViennaRNA** (Lorenz et al. 2011) is the standard RNA-folding suite:
+
+- `RNAfold`: minimum-free-energy structure + base-pair probabilities.
+- `RNAcofold`: heterodimer folding (e.g., miRNA + target).
+- `RNAplfold`: local folding for long sequences.
+- `RNAalifold`: consensus structure across an alignment.
+
+Output uses **dot-bracket notation**: `((((....))))` represents a 4-bp stem-loop with 4-nt loop.
+
+### 6.5.4 Profile RNA models — Infernal and Rfam (≈6 min)
+
+For non-coding RNA families, the analog of profile HMMs (Lecture 7 / new L7) is **profile stochastic context-free grammars (SCFGs)**. SCFGs handle base-pairing in the same way HMMs handle linear states — just with the added expressive power of context-free grammars to describe nested structure.
+
+**Infernal** (Eddy 2002, 2013) is the SCFG equivalent of HMMER:
+
+- `cmbuild`: from structure-annotated MSA → covariance model (CM).
+- `cmsearch`: scan a sequence database for matches to the CM.
+- Sensitive at much greater sequence divergence than profile HMMs because the CM uses structural constraints.
+
+**Rfam** (Kalvari et al. 2021) is the Pfam analog: ~4000 curated families of non-coding RNAs (tRNAs, rRNAs, snoRNAs, miRNAs, lncRNAs, riboswitches), each with seed alignment, consensus structure, and Infernal CM.
+
+For ncRNA discovery in a new genome: run `cmsearch` against Rfam — it's the standard first pass.
+
+### 6.5.5 RNA tertiary structure prediction (≈3 min)
+
+Beyond secondary structure, predicting full 3D coordinates of an RNA is much harder. Tools:
+
+- **RNAComposer**, **3dRNA** — fragment-assembly-based.
+- **AlphaFold2-RNA / RoseTTAFold-NA** (2022-2023) — deep-learning extensions.
+- **AlphaFold 3** (2024) — handles RNA + DNA + protein + ligand jointly.
+
+Accuracy is good for small structured RNAs (tRNA, riboswitches) but limited for large flexible lncRNAs.
+
+### 6.5.6 The deep dive (≈2 min)
+
+> **EE framing — RNA folding as constrained context-free parsing**: The key complexity in RNA secondary-structure prediction comes from the **nested base-pairing** structure: each pair forms a properly-balanced bracket. Stochastic context-free grammars (SCFGs) handle this exactly via the inside-outside algorithm (CYK-style parsing) — the analog of the forward-backward algorithm for HMMs but extended to handle constituency / nesting. Pseudoknots (overlapping pairs) require context-sensitive grammars and become NP-hard, paralleling the jump from regular to context-sensitive languages in formal grammar hierarchy. The whole field is a clean instance of probabilistic-grammar inference applied biologically.
+
+**FIGURE — Figure #13: RNA secondary structure and SCFG model** → `diagrams/lecture-20/13-rna-structure.svg`
+*Top: tRNA cloverleaf with anticodon and acceptor stem highlighted; dot-bracket annotation underneath. Middle: corresponding SCFG production rules in profile-CM format (match-pair, match-singlet, insert, delete states). Bottom: Infernal cmsearch output showing a Rfam family hit with E-value and structure conservation.*
+
+---
+
 ## Part 7 — Tools and Practice (≈20 min)
 
 ### 7.1 The standard workflow (≈5 min)
@@ -464,7 +532,8 @@ Genome assembly (existing L3, becomes new L5): from reads to contigs to scaffold
 | Part 4 — Molecular Clock and Dating                  | 25 min | 2:10 |
 | Part 5 — dN/dS and Selection at Sequence Level       | 25 min | 2:35 |
 | Part 6 — Comparative Genomics and Synteny            | 25 min | 3:00 |
-| Part 7 — Tools and Practice                           | 20 min | 3:20 |
-| Wrap-up                                                | 10 min | 3:30 |
+| Part 6.5 — RNA Secondary Structure and ncRNAs         | 25 min | 3:25 |
+| Part 7 — Tools and Practice                           | 20 min | 3:45 |
+| Wrap-up                                                | 10 min | 3:55 |
 
-**Total:** ~3h 30min of content.
+**Total:** ~3h 55min of content.

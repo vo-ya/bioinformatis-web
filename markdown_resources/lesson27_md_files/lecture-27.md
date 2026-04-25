@@ -1,6 +1,6 @@
 # Lecture 27 (proposed L11) — Mass-Spectrometry Proteomics Primer
 
-> **Duration**: ≈3h 0min content
+> **Duration**: ≈3h 25min content
 > **Audience**: EE undergraduates / graduates, minimal biology / chemistry assumed
 > **File**: provisional `lectures/lecture-27.html` — renumber to `lecture-11.html` when curriculum is reordered.
 
@@ -360,6 +360,91 @@ Currently mostly research; clinical adoption is years away.
 
 ---
 
+## Part 6.5 — Metabolomics Primer (≈30 min)
+
+### 6.5.1 What metabolomics measures (≈4 min)
+
+Where proteomics measures the proteome (~20,000 proteins), **metabolomics** measures the **metabolome** — the small-molecule output of cellular metabolism. Includes amino acids, nucleotides, lipids, sugars, organic acids, drug metabolites, hormones — typically 1,000-5,000 detectable molecules in human plasma.
+
+The metabolome integrates upstream genetic + transcriptional + translational + enzymatic activity into a single readout. Often the closest measurement to phenotype:
+
+- **Diabetes**: glucose, HbA1c, lactate, ketone bodies.
+- **Cardiovascular**: LDL/HDL, triglycerides, ApoB, oxidised lipids.
+- **Cancer metabolism**: 2-hydroxyglutarate (IDH-mutant gliomas), succinate (SDH-mutant paragangliomas).
+- **Drug response**: pharmacokinetics measured at metabolite level.
+- **Microbiome**: short-chain fatty acids, bile acids, indoles — host-microbiome cross-talk.
+
+### 6.5.2 LC-MS/MS for metabolites (≈6 min)
+
+The instrument is the same LC-MS/MS used for proteomics, but with different chromatography and ionisation:
+
+- **Reverse-phase LC**: separates lipophilic compounds.
+- **HILIC (hydrophilic interaction)**: separates polar metabolites.
+- **Positive-mode ESI**: ionises basic / amine-containing compounds.
+- **Negative-mode ESI**: ionises acidic compounds (organic acids, sugar phosphates).
+
+Result: a 2D map (retention time × m/z) with intensity peaks per metabolite.
+
+### 6.5.3 Identification challenges (≈8 min)
+
+Where peptides are identified by matching to a sequence database, metabolites are identified by matching to **metabolite databases** — and the matching is much harder:
+
+- **HMDB** (Human Metabolome Database, ~250,000 entries): the largest curated metabolite reference.
+- **METLIN**: tandem-MS spectra for ~1M molecules (commercial).
+- **MoNA** (MassBank of North America): community spectra.
+- **GNPS** (Global Natural Products Social): networking-based.
+
+The fundamental challenge: **metabolites have no sequence to match**. Identification relies on:
+
+1. **Accurate mass** (m/z within 5 ppm) → narrow candidate set.
+2. **Retention time** (matched to known standards).
+3. **MS/MS fragmentation pattern** → matches database spectra.
+4. **Isotope pattern** (natural abundance of ¹³C, ³⁴S, etc.).
+
+Even with all four, ~30-50% of detected peaks remain **unidentified** in typical untargeted runs. The metabolomics community calls these "features" rather than "metabolites" until confidence is established.
+
+The **Metabolomics Standards Initiative (MSI)** confidence levels:
+
+- **Level 1**: identified by matching standard (mass + RT + MS/MS).
+- **Level 2**: putative annotation (mass + MS/MS match to DB).
+- **Level 3**: putative class (mass + isotope match).
+- **Level 4**: unknown feature.
+
+### 6.5.4 Targeted vs untargeted (≈4 min)
+
+**Targeted metabolomics**: measure ~50-200 specific metabolites with calibration standards. Quantitative, validated, clinical-grade. Used for clinical labs (Biocrates AbsoluteIDQ, Metabolon panels).
+
+**Untargeted metabolomics**: measure all detectable features (~5,000-10,000 peaks). Discovery-mode; semi-quantitative. Used for biomarker discovery and mechanism studies.
+
+The distinction is direct from proteomics (DIA targeted vs full DIA): the underlying instrument is the same; the analytical question differs.
+
+### 6.5.5 Lipidomics (≈4 min)
+
+A specialised metabolomics sub-field: **lipidomics** measures the lipid fraction (~10,000+ lipid species). Lipids are organised by class (phospholipids, sphingolipids, sterols, fatty acids, glycerolipids) with characteristic head groups + variable acyl chains.
+
+Tools: **LipidSearch** (Thermo, commercial), **LipidBlast** (community), **LipidMatch** (open-source).
+
+Clinically relevant lipid biomarkers:
+
+- **LDL particle subclasses** for cardiovascular risk.
+- **Ceramides** for diabetes / heart-failure risk.
+- **Plasma free-fatty-acid profile** for metabolic disease.
+- **Drug-induced lipid changes** in toxicology screens.
+
+### 6.5.6 Multi-omics integration (≈3 min)
+
+Modern translational pipelines combine proteomics + metabolomics with genomic / transcriptomic data:
+
+- **mGWAS** (metabolite GWAS): SNPs → metabolite levels → trait association. Used for drug-target validation (Lecture 25 / new L20 — Mendelian randomisation often uses metabolite IVs).
+- **Multi-omics machine learning**: integrate proteomics + metabolomics + transcriptomics for diagnostic classifiers.
+- **Pathway-level integration**: map measurements onto KEGG / Reactome pathways (Lecture 22 / new L10 — pathway-based interpretation).
+
+### 6.5.7 The deep dive (≈1 min)
+
+> **EE framing — metabolomics as combinatorial-mass database search**: A metabolite has a molecular formula → exact mass; the database has ~10⁶ candidate molecular formulas in plausible composition space. A 5 ppm mass measurement narrows to ~5-50 candidates; MS/MS fragmentation narrows to 1-3. The remaining ambiguity is the **identification gap** — typically ~30-50% of peaks remain unidentified. Modern tools (SIRIUS, CSI:FingerID) use deep learning on fragmentation patterns to improve identification. The pattern is identical to proteomics but with a much sparser reference: peptides have a sequence prior; metabolites have only a chemistry prior.
+
+---
+
 ## Part 7 — Tools, Pitfalls, and Workflows (≈15 min)
 
 ### 7.1 Standard 2024 stack (≈4 min)
@@ -469,7 +554,8 @@ Single-cell RNA-seq fundamentals (existing L7, becomes new L11 in proposed). The
 | Part 4 — Quantification                                   | 25 min | 1:45 |
 | Part 5 — Statistical Analysis and Differential Abundance | 25 min | 2:10 |
 | Part 6 — Applications                                       | 20 min | 2:30 |
-| Part 7 — Tools, Pitfalls, and Workflows                     | 15 min | 2:45 |
-| Wrap-up                                                       | 10 min | 2:55 |
+| Part 6.5 — Metabolomics Primer                                | 30 min | 3:00 |
+| Part 7 — Tools, Pitfalls, and Workflows                     | 15 min | 3:15 |
+| Wrap-up                                                       | 10 min | 3:25 |
 
-**Total:** ~3h 0min of content.
+**Total:** ~3h 25min of content.

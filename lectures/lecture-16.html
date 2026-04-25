@@ -52,6 +52,7 @@
           <li><a href="#sec-2-4">2.4 When transformers eat CNNs</a></li>
           <li><a href="#sec-2-5">2.5 Equivariant networks</a></li>
           <li><a href="#sec-2-6">2.6 Summary</a></li>
+          <li><a href="#sec-2-7">2.7 Information theory and coding-theory analogies</a></li>
         </ol>
       </li>
 
@@ -130,7 +131,7 @@
       <h1 class="lecture-title">ML in Genomics: Architectures, Pitfalls, Frontiers</h1>
       <p class="lecture-subtitle">A synthesis across the previous lectures: each problem's structural property dictates an architecture's inductive bias, the right likelihood beats a deep stack, self-supervised pretraining is the workhorse for label-scarce domains, and leakage-aware splits separate honest results from press releases.</p>
       <div class="lecture-meta">
-        <span class="lecture-duration">210 min</span>
+        <span class="lecture-duration">235 min</span>
         <span>EE undergraduates &middot; minimal biology assumed</span>
       </div>
     </header>
@@ -316,7 +317,7 @@
       <!-- ─── Part 2 ──────────────────────────────────────── -->
       <section id="part-2">
         <h2>
-          <span class="part-kicker">Part 2 · 35 min</span>
+          <span class="part-kicker">Part 2 · 60 min</span>
           Inductive Biases — Why Each One Works
         </h2>
 
@@ -436,6 +437,53 @@
                  alt="Three-column table. Architecture column lists CNN, dilated conv + transformer, VAE+NB, GNN, equivariant transformer, fully-connected, transformer base. Inductive bias column lists translation invariance + locality, multi-scale + sparse long-range, NB likelihood + latent prior, permutation invariance + local aggregation, SO(3) equivariance, none, and no locality. Data regime column lists where each wins.">
             <figcaption>Figure 4. Architecture / inductive-bias / data-regime cheat sheet. Pick by data property, not by familiarity.</figcaption>
           </figure>
+        </section>
+
+        <section id="sec-2-7">
+          <h3>2.7 Information theory and coding-theory analogies</h3>
+
+          <p>Inductive biases boil down to a single question: <strong>what's the minimum description length of the signal you're trying to recover?</strong> The right architecture is the one whose hypothesis class is small enough that it generalises from limited data, but rich enough to express the true signal. This is exactly the trade-off Shannon's information theory and the coding-theory community formalised half a century ago.</p>
+
+          <p><strong>Sequence entropy</strong>. The Shannon entropy of a DNA sequence is $H = -\sum_i p_i \log_2 p_i$ over the four nucleotides; for a uniform-random sequence $H = 2$ bits/base. Real genomes are well below 2 bits/base because of regional biases — GC-rich vs AT-rich, CpG islands, repeats. <strong>Compressibility</strong> tracks this: gzip-compressing a human chromosome gets ~1.4 bits/base; specialised genomic compressors (Genozip, Spring) get ~0.4 bits/base by exploiting repeats and reference-based delta encoding.</p>
+
+          <p>Per-position information content drives the position-specific scoring matrices (PSSMs) of profile HMMs (Lecture 7 / new L7) and the sequence logos used to visualise transcription-factor motifs:</p>
+
+          <p style="text-align: center;">$\text{IC}_i = \log_2 |\Sigma| - H_i = 2 - \left( -\sum_b p_{i,b} \log_2 p_{i,b} \right)$</p>
+
+          <p>A fully-conserved column has $\text{IC} = 2$ bits; a uniform column has $\text{IC} = 0$. Total motif information $\sum_i \text{IC}_i$ predicts how easily the motif can be detected against a random-DNA background — directly the matched-filter SNR.</p>
+
+          <p><strong>Mutual information</strong>. For two genomic positions, $I(X; Y) = \sum p(x, y) \log \frac{p(x, y)}{p(x) p(y)}$ measures statistical dependence. Applications:</p>
+          <ul>
+            <li><strong>Coevolution detection</strong>: position-pairs in an MSA with high MI are likely interacting in 3D — the same signal AlphaFold (L15 / new L23) consumes from MSA columns.</li>
+            <li><strong>Regulatory inference</strong>: high MI between a TF's binding pattern and a gene's expression suggests regulation. Used in ARACNe / CLR algorithms for gene regulatory network reconstruction (Lecture 22 / new L10).</li>
+            <li><strong>Feature selection</strong>: MI between a SNP and phenotype is a model-free alternative to the GWAS p-value (Lecture 13 / new L19), invariant to non-linear association forms.</li>
+          </ul>
+
+          <p><strong>The genetic code as an error-correcting code</strong>. The 64-codon → 20-amino-acid mapping is degenerate: most amino acids have 2-6 synonymous codons. From an information-theory perspective, this is a <strong>(64, 20) code</strong> with a structured redundancy:</p>
+
+          <ul>
+            <li>Synonymous mutations at the third base ("wobble") rarely change protein sequence — most C↔T and A↔G transitions at codon position 3 are silent.</li>
+            <li>Mutations at position 1 typically change to a chemically similar amino acid (preserve hydrophobicity / charge).</li>
+            <li>Mutations at position 2 are the most disruptive — usually change chemical class.</li>
+          </ul>
+
+          <p>This is exactly the property of a code that minimises the expected damage from a random bit-flip: the most-probable error mode (transition mutations at position 3) maps to a no-change, and the next-most-probable maps to small-amino-acid-distance changes. Freeland &amp; Hurst (1998) showed that the standard genetic code is in the top 0.02% of randomly-permuted code tables for minimising mutation damage. The code is <strong>error-resistant by selection</strong> — natural error correction without explicit parity bits.</p>
+
+          <p><strong>Compressed sensing in genomics</strong>. Several measurements throughout this course are compressed sensing in disguise:</p>
+
+          <ul>
+            <li>scRNA-seq: 10⁵ cells × 2 × 10⁴ genes is observed at ~5% of full-coverage information; matrix completion / low-rank recovery is everywhere.</li>
+            <li>DIA proteomics (L11 / new L11): co-fragmented peptides recovered from sparse representations in MS2 spectra.</li>
+            <li>Pooled CRISPR screens (L24 / new L21): each cell carries one sgRNA but the population-level phenotype is a linear measurement of the perturbation matrix.</li>
+            <li>Hi-C contact recovery (L10 / new L15): the 3D contact tensor is sparse; downsampling a Hi-C library and L1-regularised reconstruction recovers TADs from a fraction of full coverage.</li>
+          </ul>
+
+          <p>The pattern is the same: an underdetermined linear system $\mathbf{y} = A \mathbf{x}$ where $\mathbf{x}$ is sparse; recovery via convex optimisation or NMF. Modern genomics has rediscovered this independently in each domain.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — inductive bias as a generalised channel-coding problem</span>
+            <p>In channel coding, the trade-off is <strong>code rate vs error correction</strong>: more parity bits give better recovery but lower information density. In inductive bias, the trade-off is identical: a stronger architectural prior gives better generalisation from less data but cannot represent signals outside its inductive class. The matched filter (CNN's translation invariance), the constant-time decoder (transformer's parallel attention), the LDPC-style sparse mixing matrix (GNN's local aggregation) — each is a different region in the rate-distortion plane for genomic-data recovery. The right architecture is determined by the <strong>signal's source distribution</strong>, just as the right code is determined by the channel's noise distribution.</p>
+          </aside>
         </section>
       </section>
 
@@ -939,16 +987,16 @@
           <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
           <tbody>
             <tr><td>Part 1 — Architectural Pattern Survey</td>           <td>45&nbsp;min</td><td>0:45</td></tr>
-            <tr><td>Part 2 — Inductive Biases — Why Each Works</td>      <td>35&nbsp;min</td><td>1:20</td></tr>
-            <tr><td>Part 3 — Training Data Is the Bottleneck</td>        <td>25&nbsp;min</td><td>1:45</td></tr>
-            <tr><td>Part 4 — The Data Leakage Problem</td>               <td>30&nbsp;min</td><td>2:15</td></tr>
-            <tr><td>Part 5 — DNA Language Models</td>                    <td>25&nbsp;min</td><td>2:40</td></tr>
-            <tr><td>Part 6 — Foundation Models for Cells</td>            <td>25&nbsp;min</td><td>3:05</td></tr>
-            <tr><td>Part 7 — What's Coming</td>                          <td>15&nbsp;min</td><td>3:20</td></tr>
-            <tr><td>Wrap-up</td>                                         <td>10&nbsp;min</td><td>3:30</td></tr>
+            <tr><td>Part 2 — Inductive Biases — Why Each Works</td>      <td>60&nbsp;min</td><td>1:45</td></tr>
+            <tr><td>Part 3 — Training Data Is the Bottleneck</td>        <td>25&nbsp;min</td><td>2:10</td></tr>
+            <tr><td>Part 4 — The Data Leakage Problem</td>               <td>30&nbsp;min</td><td>2:40</td></tr>
+            <tr><td>Part 5 — DNA Language Models</td>                    <td>25&nbsp;min</td><td>3:05</td></tr>
+            <tr><td>Part 6 — Foundation Models for Cells</td>            <td>25&nbsp;min</td><td>3:30</td></tr>
+            <tr><td>Part 7 — What's Coming</td>                          <td>15&nbsp;min</td><td>3:45</td></tr>
+            <tr><td>Wrap-up</td>                                         <td>10&nbsp;min</td><td>3:55</td></tr>
           </tbody>
         </table>
-        <p><strong>Total:</strong> ~3h 30min of content.</p>
+        <p><strong>Total:</strong> ~3h 55min of content.</p>
       </section>
 
     </article>

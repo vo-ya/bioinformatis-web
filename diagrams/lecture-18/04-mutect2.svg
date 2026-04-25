@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" width="1200" height="640" font-family="Inter, sans-serif">
+  <defs>
+    <style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }</style>
+    <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#525252"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="640" fill="#fafaf9" rx="6"/>
+  <text x="600" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">Mutect2 — somatic variant-calling workflow with cancer-specific filters</text>
+
+  <!-- Inputs row -->
+  <g transform="translate(60,64)">
+    <rect width="200" height="50" fill="#fee2e2" stroke="#7f1d1d" rx="4"/>
+    <rect width="6" height="50" fill="#7f1d1d"/>
+    <text x="106" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#7f1d1d">Tumour BAM</text>
+    <text x="106" y="38" text-anchor="middle" class="mono" fill="#525252">~100–500× depth</text>
+
+    <g transform="translate(220,0)">
+      <rect width="200" height="50" fill="#dbeafe" stroke="#1e3a8a" rx="4"/>
+      <rect width="6" height="50" fill="#1e3a8a"/>
+      <text x="106" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#1e3a8a">Normal BAM</text>
+      <text x="106" y="38" text-anchor="middle" class="mono" fill="#525252">~30× matched</text>
+    </g>
+
+    <g transform="translate(440,0)">
+      <rect width="200" height="50" fill="#ede9fe" stroke="#7c3aed" rx="4"/>
+      <rect width="6" height="50" fill="#7c3aed"/>
+      <text x="106" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#5b21b6">Panel of Normals</text>
+      <text x="106" y="38" text-anchor="middle" class="mono" fill="#525252">≥40 normals · processed identically</text>
+    </g>
+
+    <g transform="translate(660,0)">
+      <rect width="200" height="50" fill="#ccfbf1" stroke="#0d7377" rx="4"/>
+      <rect width="6" height="50" fill="#0d7377"/>
+      <text x="106" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#0d7377">Reference + gnomAD</text>
+      <text x="106" y="38" text-anchor="middle" class="mono" fill="#525252">germline-AF lookup</text>
+    </g>
+
+    <g transform="translate(880,0)">
+      <rect width="200" height="50" fill="#fef3c7" stroke="#b45309" rx="4"/>
+      <rect width="6" height="50" fill="#b45309"/>
+      <text x="106" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">Contamination model</text>
+      <text x="106" y="38" text-anchor="middle" class="mono" fill="#525252">cross-sample fraction est.</text>
+    </g>
+  </g>
+
+  <!-- Step 1: Local reassembly -->
+  <g transform="translate(60,150)" stroke="#525252" stroke-width="1" fill="none" marker-end="url(#arr4)">
+    <line x1="160" y1="-22" x2="160" y2="0"/>
+    <line x1="380" y1="-22" x2="380" y2="0"/>
+  </g>
+
+  <g transform="translate(60,150)">
+    <rect width="640" height="56" fill="#f5f5f4" stroke="#374151" rx="4"/>
+    <text x="20" y="22" font-size="11" font-weight="700" fill="#374151">STEP 1 · Local reassembly</text>
+    <text x="20" y="40" font-size="10" fill="#525252">Reconstruct candidate haplotypes per region (HaplotypeCaller-style); ignore variants not on a haplotype.</text>
+  </g>
+
+  <!-- Step 2: somatic likelihood -->
+  <g stroke="#525252" stroke-width="1" fill="none" marker-end="url(#arr4)">
+    <line x1="380" y1="218" x2="380" y2="240"/>
+  </g>
+
+  <g transform="translate(60,240)">
+    <rect width="640" height="56" fill="#f5f5f4" stroke="#374151" rx="4"/>
+    <text x="20" y="22" font-size="11" font-weight="700" fill="#374151">STEP 2 · Somatic likelihood</text>
+    <text x="20" y="40" font-size="10" fill="#525252">Per-read log-likelihood of variant vs reference, conditioned on possible allele fractions (not just 0.5 / 1).</text>
+  </g>
+
+  <g stroke="#525252" stroke-width="1" fill="none" marker-end="url(#arr4)">
+    <line x1="380" y1="310" x2="380" y2="332"/>
+  </g>
+
+  <g transform="translate(60,332)">
+    <rect width="640" height="44" fill="#fde68a" stroke="#b45309" rx="4"/>
+    <rect width="6" height="44" fill="#b45309"/>
+    <text x="20" y="20" font-size="11" font-weight="700" fill="#92400e">Raw somatic VCF</text>
+    <text x="20" y="36" font-size="10" fill="#525252">Includes germline contamination, FFPE artefacts, recurrent alignment errors — all need filtering.</text>
+  </g>
+
+  <!-- Sidebar of cancer-specific filters -->
+  <g transform="translate(740,150)">
+    <rect width="400" height="226" fill="#fff" stroke="#c4342c" stroke-width="1.5" rx="6"/>
+    <rect width="400" height="30" fill="#c4342c" rx="6"/>
+    <rect y="24" width="400" height="6" fill="#c4342c"/>
+    <text x="200" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" letter-spacing="0.04em">CANCER-SPECIFIC FILTERS</text>
+
+    <g transform="translate(14,40)" font-size="10">
+      <text x="0" y="0" font-weight="600" fill="#7f1d1d">PoN filter</text>
+      <text x="100" y="0" fill="#525252">recurrent across normals → artefact</text>
+
+      <text x="0" y="22" font-weight="600" fill="#7f1d1d">Orientation bias</text>
+      <text x="100" y="22" fill="#525252">FFPE C→T strand-biased; reject</text>
+
+      <text x="0" y="44" font-weight="600" fill="#7f1d1d">Tumour-in-normal</text>
+      <text x="100" y="44" fill="#525252">VAF &gt; 5% in normal → germline</text>
+
+      <text x="0" y="66" font-weight="600" fill="#7f1d1d">Contamination</text>
+      <text x="100" y="66" fill="#525252">cross-sample DNA → margin filter</text>
+
+      <text x="0" y="88" font-weight="600" fill="#7f1d1d">gnomAD AF</text>
+      <text x="100" y="88" fill="#525252">germline AF &gt; 1% → likely germline</text>
+
+      <text x="0" y="110" font-weight="600" fill="#7f1d1d">Strand bias</text>
+      <text x="100" y="110" fill="#525252">forward / reverse imbalance</text>
+
+      <text x="0" y="132" font-weight="600" fill="#7f1d1d">Read position</text>
+      <text x="100" y="132" fill="#525252">end-of-read clusters → artefact</text>
+
+      <text x="0" y="160" font-style="italic" fill="#92400e">FilterMutectCalls aggregates → PASS / FAIL</text>
+    </g>
+  </g>
+
+  <!-- Step 3: filter cascade as a downstream gate -->
+  <g stroke="#525252" stroke-width="1" fill="none" marker-end="url(#arr4)">
+    <line x1="380" y1="380" x2="380" y2="402"/>
+  </g>
+
+  <g transform="translate(60,402)">
+    <rect width="1080" height="80" fill="#fee2e2" stroke="#c4342c" rx="4"/>
+    <text x="20" y="22" font-size="11" font-weight="700" fill="#7f1d1d">STEP 3 · FilterMutectCalls — apply all cancer-specific gates</text>
+
+    <g transform="translate(20,32)" font-size="10" class="mono">
+      <text x="0"   y="14" fill="#7f1d1d">PoN-fail</text>
+      <text x="120" y="14" fill="#7f1d1d">orientation_bias</text>
+      <text x="270" y="14" fill="#7f1d1d">germline_risk</text>
+      <text x="410" y="14" fill="#7f1d1d">contamination</text>
+      <text x="550" y="14" fill="#7f1d1d">strand_bias</text>
+      <text x="680" y="14" fill="#7f1d1d">low_allele_frac</text>
+      <text x="820" y="14" fill="#7f1d1d">multiallelic</text>
+      <text x="940" y="14" fill="#7f1d1d">clustered</text>
+
+      <text x="0" y="34" fill="#525252">→ each sets a FILTER value; only variants with FILTER=PASS are reported.</text>
+    </g>
+  </g>
+
+  <g stroke="#525252" stroke-width="1" fill="none" marker-end="url(#arr4)">
+    <line x1="600" y1="486" x2="600" y2="508"/>
+  </g>
+
+  <g transform="translate(60,508)">
+    <rect width="1080" height="64" fill="#dcfce7" stroke="#059669" rx="4"/>
+    <rect width="6" height="64" fill="#059669"/>
+    <text x="20" y="22" font-size="11" font-weight="700" fill="#065f46">Filtered somatic VCF (PASS variants)</text>
+    <text x="20" y="40" font-size="10" fill="#374151">Annotated with VEP/SnpEff → COSMIC, OncoKB, CIViC lookups → AMP/ASCO/CAP tier (Part 6).</text>
+    <text x="20" y="54" font-size="9" fill="#525252">Cancer-specific filters are where most "real vs artefact" decisions are made; tuning them is half the engineering work in a clinical pipeline.</text>
+  </g>
+</svg>

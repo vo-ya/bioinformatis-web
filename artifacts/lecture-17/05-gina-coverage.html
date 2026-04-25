@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GINA Coverage Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1000px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; background: #fff; }
+  .layers { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .layer { padding: 0.75rem 0; border-top: 1px solid var(--border); display: flex; gap: 1rem; align-items: flex-start; }
+  .layer:first-child { border-top: none; }
+  .layer .label { min-width: 180px; font-weight: 600; font-size: var(--text-sm); color: var(--fg); }
+  .layer .verdict { font-family: var(--font-mono); font-weight: 700; font-size: 0.78rem; padding: 0.18rem 0.55rem; border-radius: 4px; }
+  .layer.cov   .verdict { background: #dcfce7; color: #065f46; }
+  .layer.nocov .verdict { background: #fee2e2; color: #7f1d1d; }
+  .layer.partial .verdict { background: #fef3c7; color: #92400e; }
+  .layer .body { flex: 1; font-size: var(--text-sm); color: var(--fg-muted); line-height: 1.5; }
+  .verdict-box { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 1.25rem 1.4rem; margin-bottom: 0.75rem; }
+  .verdict-box.cov  { border-color: #059669; background: #f0fdf4; }
+  .verdict-box.nocov{ border-color: #c4342c; background: #fef2f2; }
+  .verdict-box.partial { border-color: #b45309; background: #fef3c7; }
+  .verdict-box .label { font-size: var(--text-xs); letter-spacing: 0.14em; color: var(--fg-subtle); text-transform: uppercase; }
+  .verdict-box .head { font-family: var(--font-serif); font-size: 1.4rem; font-weight: 700; margin: 0.2rem 0 0.4rem; }
+  .verdict-box.cov   .head { color: #065f46; }
+  .verdict-box.nocov .head { color: #7f1d1d; }
+  .verdict-box.partial .head { color: #92400e; }
+  .verdict-box .body { font-size: var(--text-sm); color: var(--fg); line-height: 1.6; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>GINA Coverage Explorer</h1>
+    <p>Pick a scenario (genetic finding × domain × employer size × state). The artifact returns federal-GINA coverage, applicable state-law top-ups, and the residual risk to the patient. Aha: GINA is narrower than commonly assumed — life, disability, and long-term care insurance are wide-open under federal law.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="finding">Genetic finding</label>
+      <select id="finding">
+        <option value="brca">BRCA1/2 pathogenic (cancer risk)</option>
+        <option value="htt">HTT expansion (Huntington disease)</option>
+        <option value="apoe">APOE ε4/ε4 (Alzheimer risk)</option>
+        <option value="hla">HLA-B*57:01 (abacavir hypersens.)</option>
+        <option value="ldl">LDLR pathogenic (familial hypercholesterolemia)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="domain">Domain</label>
+      <select id="domain">
+        <option value="health">Health insurance (group / individual)</option>
+        <option value="life">Life insurance</option>
+        <option value="disability">Disability insurance</option>
+        <option value="ltc">Long-term care insurance</option>
+        <option value="employ">Employment</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="size">Employer size (if employment)</label>
+      <select id="size">
+        <option value="na">N/A</option>
+        <option value="large">≥ 15 employees</option>
+        <option value="small">&lt; 15 employees</option>
+        <option value="military">US military</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="state">US state</label>
+      <select id="state">
+        <option value="other">Most other states</option>
+        <option value="ca">California (CalGINA)</option>
+        <option value="fl">Florida (HB 1189)</option>
+        <option value="vt">Vermont</option>
+        <option value="or">Oregon</option>
+        <option value="ma">Massachusetts</option>
+        <option value="ct">Connecticut</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="layers" id="layers"></div>
+
+  <div class="verdict-box" id="verdict">
+    <div class="label">Bottom line</div>
+    <div class="head" id="vHead">—</div>
+    <div class="body" id="vBody">—</div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool: simplified summary of federal GINA + a handful of state laws. State-level genetic-nondiscrimination laws are evolving; bills have been introduced periodically to close federal carve-outs but have not passed as of 2025. Not legal advice.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  // State-law fills
+  const STATE_FILL = {
+    ca:    { life: 'partial', disability: 'partial', ltc: 'partial' },  // CalGINA
+    fl:    { life: 'partial' },
+    vt:    { life: 'partial', disability: 'partial' },
+    or:    { life: 'partial' },
+    ma:    { life: 'partial', disability: 'partial', ltc: 'partial' },
+    ct:    { life: 'partial', disability: 'partial' },
+    other: {}
+  };
+
+  const STATE_LABEL = {
+    ca: 'California', fl: 'Florida', vt: 'Vermont', or: 'Oregon',
+    ma: 'Massachusetts', ct: 'Connecticut', other: 'most US states'
+  };
+
+  function evaluate() {
+    const finding = $('finding').value;
+    const domain  = $('domain').value;
+    const size    = $('size').value;
+    const state   = $('state').value;
+
+    // Federal layer
+    let federal = 'cov';
+    let federalText;
+    if (domain === 'health') {
+      federal = 'cov';
+      federalText = 'Health insurance is core GINA coverage — insurer cannot use genetic information for coverage / pricing decisions.';
+    } else if (domain === 'employ') {
+      if (size === 'large') {
+        federal = 'cov';
+        federalText = 'Large employers (≥ 15 staff) covered by GINA Title II — cannot use genetic info in hiring, firing, terms, or promotion.';
+      } else if (size === 'small') {
+        federal = 'nocov';
+        federalText = 'Employers with < 15 employees are excluded from GINA Title II.';
+      } else if (size === 'military') {
+        federal = 'nocov';
+        federalText = 'US military operates under separate DoD genetic policy, not GINA.';
+      } else {
+        federal = 'nocov';
+        federalText = 'Specify employer size to evaluate GINA Title II coverage.';
+      }
+    } else if (domain === 'life' || domain === 'disability' || domain === 'ltc') {
+      federal = 'nocov';
+      federalText = `${ ({life:'Life',disability:'Disability',ltc:'Long-term care'})[domain] } insurance is a GINA carve-out. Insurer may consider genetic test results in underwriting decisions.`;
+    }
+
+    // State layer
+    let stateLayer = 'na';
+    let stateText = 'No state-law top-up needed (federal GINA already covers this domain).';
+    if (federal === 'nocov' && (domain === 'life' || domain === 'disability' || domain === 'ltc')) {
+      const fill = STATE_FILL[state] || {};
+      if (fill[domain]) {
+        stateLayer = 'partial';
+        stateText = `${STATE_LABEL[state]} provides partial state-law protection in this domain (genetic-nondiscrimination statute restricts insurer use).`;
+      } else {
+        stateLayer = 'nocov';
+        stateText = `${STATE_LABEL[state]} has no state-level fill for this domain.`;
+      }
+    }
+
+    // Render layers
+    const layers = [
+      {
+        cls: federal,
+        label: 'Federal GINA',
+        body: federalText,
+        verdict: federal === 'cov' ? 'covered' : (federal === 'nocov' ? 'not covered' : '—')
+      },
+      {
+        cls: stateLayer === 'na' ? 'cov' : stateLayer,
+        label: 'State law',
+        body: stateText,
+        verdict: stateLayer === 'partial' ? 'partial' : (stateLayer === 'nocov' ? 'no fill' : 'not needed')
+      }
+    ];
+
+    $('layers').innerHTML = layers.map(L =>
+      `<div class="layer ${L.cls}">
+        <div class="label">${L.label}</div>
+        <div class="body">${L.body}</div>
+        <div class="verdict">${L.verdict}</div>
+      </div>`
+    ).join('');
+
+    // Final verdict
+    const v = $('verdict');
+    let head, body, banner, hint;
+    if (federal === 'cov') {
+      v.className = 'verdict-box cov';
+      head = 'Patient is protected';
+      body = 'Federal GINA covers this combination. Genetic test results cannot be used by the entity in this scenario.';
+      banner = `Health-insurance + employment + large employers all sit inside GINA's federal protection.`;
+      hint = 'Try domain = life insurance to see the biggest carve-out.';
+    } else if (federal === 'nocov' && stateLayer === 'partial') {
+      v.className = 'verdict-box partial';
+      head = `Partial protection in ${STATE_LABEL[state]}`;
+      body = `Federal GINA does not cover this combination, but ${STATE_LABEL[state]} state law restricts the insurer's use of genetic information in this domain. Coverage details depend on the specific state statute.`;
+      banner = `${STATE_LABEL[state]} closes part of the federal gap. Most other US states do not.`;
+      hint = 'Switch state → "most other states" to see what no protection looks like.';
+    } else {
+      v.className = 'verdict-box nocov';
+      head = 'No federal or state protection';
+      body = `In this scenario the entity may legally consider the patient's genetic results. ${STATE_LABEL[state]} has no state-level statute that fills this gap. The patient's residual risk is real (premium increase, denial of coverage, or — for small employers — adverse employment action).`;
+      banner = `Federal GINA carve-outs (life / disability / LTC / small employers / military) leave significant unprotected territory.`;
+      hint = 'Try California or Massachusetts → state-law partial fill.';
+    }
+    $('vHead').textContent = head;
+    $('vBody').textContent = body;
+    $('banner').innerHTML = `${banner}<span class="hint">${hint}</span>`;
+  }
+
+  // Default scenario: BRCA + life insurance + most-states (the canonical worst case)
+  $('finding').value = 'brca';
+  $('domain').value  = 'life';
+  $('size').value    = 'na';
+  $('state').value   = 'other';
+
+  ['finding','domain','size','state'].forEach(id => $(id).addEventListener('change', evaluate));
+  evaluate();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

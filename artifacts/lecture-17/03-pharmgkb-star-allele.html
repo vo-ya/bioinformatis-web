@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PharmGKB Star-Allele Translator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 980px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; background: #fff; }
+  .chain { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .chain-step { display: flex; gap: 0.6rem; align-items: center; padding: 0.4rem 0; }
+  .chain-step .label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); text-transform: uppercase; min-width: 110px; }
+  .chain-step .value { font-family: var(--font-mono); font-size: 0.95rem; color: var(--fg); }
+  .chain-step .value.bold { font-weight: 700; font-size: 1.05rem; }
+  .verdict { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.2rem; margin-bottom: 0.75rem; }
+  .verdict .label { font-size: var(--text-xs); letter-spacing: 0.14em; color: var(--fg-subtle); text-transform: uppercase; }
+  .verdict .pheno { font-family: var(--font-serif); font-size: 1.4rem; font-weight: 700; margin: 0.2rem 0; }
+  .verdict.poor .pheno   { color: #1e3a8a; }
+  .verdict.intermediate .pheno { color: #3b82f6; }
+  .verdict.normal .pheno { color: #525252; }
+  .verdict.rapid .pheno  { color: #b45309; }
+  .verdict.ultra .pheno  { color: #7f1d1d; }
+  .verdict.pos .pheno    { color: #7f1d1d; }
+  .verdict.neg .pheno    { color: #065f46; }
+  .verdict .action { font-size: var(--text-sm); color: var(--fg-muted); margin-top: 0.4rem; line-height: 1.5; }
+  .verdict .action strong { color: var(--fg); font-weight: 700; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>PharmGKB Star-Allele Translator</h1>
+    <p>Pick a gene, two star alleles, and a relevant drug. The translator computes the activity score, derives the metaboliser phenotype, and surfaces the CPIC-recommended dosing action. Aha: PGx is mechanical lookup once the tables exist — production code is the compiled answer; the science was building the table.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="gene">Gene</label>
+      <select id="gene"></select>
+    </div>
+    <div class="field">
+      <label for="a1">Allele 1</label>
+      <select id="a1"></select>
+    </div>
+    <div class="field">
+      <label for="a2">Allele 2</label>
+      <select id="a2"></select>
+    </div>
+    <div class="field">
+      <label for="drug">Drug</label>
+      <select id="drug"></select>
+    </div>
+  </div>
+
+  <div class="chain">
+    <div class="chain-step"><span class="label">Genotype</span><span class="value bold" id="gt">CYP2D6 *1/*1</span></div>
+    <div class="chain-step"><span class="label">Activity scores</span><span class="value" id="scores">1.0 + 1.0 = 2.0</span></div>
+    <div class="chain-step"><span class="label">Phenotype</span><span class="value bold" id="phen">NORMAL METABOLISER</span></div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <div class="label">CPIC dosing recommendation</div>
+    <div class="pheno" id="recHeader">Standard dose</div>
+    <div class="action" id="recBody">Use codeine at standard label dose; monitor for analgesic efficacy.</div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool: simplified star-allele activity scores and CPIC recommendations. Real PharmGKB / CPIC tables include more alleles (e.g. CYP2D6 has 100+ defined haplotypes) and gene-by-drug interaction nuances. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  // Star-allele activity score tables (simplified)
+  const GENES = {
+    CYP2D6: {
+      alleles: [
+        { id: '*1',  score: 1.0,  note: 'reference' },
+        { id: '*2',  score: 1.0,  note: 'increased / normal in some' },
+        { id: '*4',  score: 0.0,  note: 'splice LoF (common in Eur)' },
+        { id: '*5',  score: 0.0,  note: 'gene deletion' },
+        { id: '*10', score: 0.5,  note: 'reduced (E. Asian)' },
+        { id: '*17', score: 0.5,  note: 'reduced (African)' },
+        { id: '*1×2', score: 2.0, note: 'gene duplication' },
+      ],
+      drugs: [
+        { id: 'codeine',    label: 'codeine' },
+        { id: 'tramadol',   label: 'tramadol' },
+        { id: 'fluoxetine', label: 'fluoxetine' },
+      ]
+    },
+    CYP2C9: {
+      alleles: [
+        { id: '*1', score: 1.0, note: 'reference' },
+        { id: '*2', score: 0.5, note: 'reduced function' },
+        { id: '*3', score: 0.0, note: 'minimal function' },
+      ],
+      drugs: [
+        { id: 'warfarin', label: 'warfarin' },
+        { id: 'phenytoin', label: 'phenytoin' },
+      ]
+    },
+    TPMT: {
+      alleles: [
+        { id: '*1',  score: 1.0, note: 'reference' },
+        { id: '*2',  score: 0.0, note: 'LoF' },
+        { id: '*3A', score: 0.0, note: 'LoF — most common deficient' },
+        { id: '*3B', score: 0.0, note: 'LoF' },
+        { id: '*3C', score: 0.0, note: 'LoF' },
+      ],
+      drugs: [
+        { id: 'azathioprine', label: 'azathioprine' },
+        { id: '6mp',          label: '6-mercaptopurine' },
+      ]
+    },
+    'HLA-B': {
+      alleles: [
+        { id: 'NEG',     score: 0, note: '*57:01 negative (94% of population)' },
+        { id: '*57:01',  score: 1, note: '*57:01 positive (~6%)' },
+      ],
+      drugs: [
+        { id: 'abacavir', label: 'abacavir' },
+        { id: 'allopurinol', label: 'allopurinol (alt: HLA-B*58:01)' },
+      ]
+    }
+  };
+
+  // Phenotype mapping from total activity score
+  function phenotype(gene, a1, a2) {
+    if (gene === 'HLA-B') {
+      if (a1 === '*57:01' || a2 === '*57:01') return { id: 'pos', label: 'HLA-B*57:01 POSITIVE' };
+      return { id: 'neg', label: 'HLA-B*57:01 NEGATIVE' };
+    }
+    const score1 = GENES[gene].alleles.find(a => a.id === a1).score;
+    const score2 = GENES[gene].alleles.find(a => a.id === a2).score;
+    const total = score1 + score2;
+    if (total === 0)             return { id: 'poor',         label: 'POOR METABOLISER',         total };
+    if (total > 0 && total < 1)  return { id: 'intermediate', label: 'INTERMEDIATE METABOLISER', total };
+    if (total >= 1 && total <= 2) return { id: 'normal',      label: 'NORMAL METABOLISER',       total };
+    if (total > 2 && total <= 3) return { id: 'rapid',        label: 'RAPID METABOLISER',        total };
+    return                              { id: 'ultra',        label: 'ULTRA-RAPID METABOLISER',  total };
+  }
+
+  // CPIC recommendations per (gene, phenotype, drug)
+  const RECS = {
+    'CYP2D6.poor.codeine':         { head: 'AVOID codeine',                     body: 'Poor metabolisers convert little/no codeine to morphine → no analgesia. Use a non-CYP2D6-dependent opioid (morphine, hydromorphone).' },
+    'CYP2D6.intermediate.codeine': { head: 'Standard dose with monitoring',     body: 'Use codeine at standard dose; monitor for adequate analgesia. Consider alternative if relief inadequate.' },
+    'CYP2D6.normal.codeine':       { head: 'Standard dose',                     body: 'Use codeine at standard label dose; monitor for analgesic efficacy and side effects.' },
+    'CYP2D6.rapid.codeine':        { head: 'Use with caution',                  body: 'Rapid metabolisers may experience faster-onset analgesia. Monitor for early sedation / respiratory depression.' },
+    'CYP2D6.ultra.codeine':        { head: 'AVOID codeine',                     body: 'Ultra-rapid morphine production → respiratory depression risk. Use a non-CYP2D6-dependent opioid.' },
+    'CYP2D6.poor.tramadol':        { head: 'AVOID tramadol',                    body: 'Same logic as codeine: little CYP2D6 → little M1 active metabolite → no analgesia.' },
+    'CYP2D6.intermediate.tramadol':{ head: 'Standard dose with monitoring',     body: 'Standard dose; monitor for analgesic efficacy.' },
+    'CYP2D6.normal.tramadol':      { head: 'Standard dose',                     body: 'Use tramadol at standard label dose.' },
+    'CYP2D6.rapid.tramadol':       { head: 'Use with caution',                  body: 'Watch for early sedation.' },
+    'CYP2D6.ultra.tramadol':       { head: 'AVOID tramadol',                    body: 'Ultra-rapid M1 production → respiratory depression risk.' },
+    'CYP2D6.poor.fluoxetine':      { head: 'Reduce dose 50% (start)',           body: 'Slow clearance → drug accumulates. Monitor for SSRI side effects.' },
+    'CYP2D6.intermediate.fluoxetine':{ head: 'Reduce dose 25%',                 body: 'Modestly slower clearance.' },
+    'CYP2D6.normal.fluoxetine':    { head: 'Standard dose',                     body: 'Standard SSRI dosing.' },
+    'CYP2D6.rapid.fluoxetine':     { head: 'Standard dose',                     body: 'Standard dose; clinical effect monitored.' },
+    'CYP2D6.ultra.fluoxetine':     { head: 'Consider alternative SSRI',         body: 'Faster clearance may reduce efficacy at standard dose.' },
+
+    'CYP2C9.poor.warfarin':         { head: 'Reduce dose 50–75%',                body: 'Slow clearance → bleeding risk. Use genotype-guided nomogram (CPIC) + close INR monitoring.' },
+    'CYP2C9.intermediate.warfarin': { head: 'Reduce dose 25–50%',                body: 'Use genotype-guided nomogram for initial dose; monitor INR closely.' },
+    'CYP2C9.normal.warfarin':       { head: 'Standard nomogram',                 body: 'Standard CPIC nomogram applies; titrate to INR target.' },
+    'CYP2C9.rapid.warfarin':        { head: 'Standard nomogram',                 body: 'Same as normal — VKORC1 and CYP2C9 are the dominant covariates.' },
+    'CYP2C9.ultra.warfarin':        { head: 'Standard nomogram',                 body: 'Same as normal in CPIC tables.' },
+    'CYP2C9.poor.phenytoin':        { head: 'Reduce loading + maintenance dose', body: 'Slow clearance → toxicity at standard dose. Reduce loading dose ~25–50% and maintenance ~25%.' },
+    'CYP2C9.intermediate.phenytoin':{ head: 'Reduce maintenance dose ~25%',      body: 'Monitor levels; may need lower maintenance dose.' },
+    'CYP2C9.normal.phenytoin':      { head: 'Standard dose',                     body: 'Standard label dose with TDM.' },
+    'CYP2C9.rapid.phenytoin':       { head: 'Standard dose',                     body: 'Standard label dose.' },
+    'CYP2C9.ultra.phenytoin':       { head: 'Standard dose',                     body: 'Standard label dose.' },
+
+    'TPMT.poor.azathioprine':         { head: 'AVOID or reduce 10× ',             body: 'Severe myelosuppression risk. Either choose alternative immunosuppressant or reduce dose to 10% of standard with close CBC monitoring.' },
+    'TPMT.intermediate.azathioprine': { head: 'Reduce dose 30–50%',               body: 'Increased toxicity risk; reduce dose with CBC monitoring.' },
+    'TPMT.normal.azathioprine':       { head: 'Standard dose',                    body: 'Standard label dose with routine CBC monitoring.' },
+    'TPMT.rapid.azathioprine':        { head: 'Standard dose',                    body: 'Standard label dose; some labs recommend monitoring TGN levels.' },
+    'TPMT.ultra.azathioprine':        { head: 'Standard dose',                    body: 'Standard label dose with monitoring.' },
+    'TPMT.poor.6mp':                  { head: 'AVOID or reduce 10×',              body: 'Severe myelosuppression risk; pediatric ALL protocols use TPMT-guided 6-MP dosing.' },
+    'TPMT.intermediate.6mp':          { head: 'Reduce dose 30–50%',               body: 'Reduce dose with CBC monitoring.' },
+    'TPMT.normal.6mp':                { head: 'Standard dose',                    body: 'Standard label dose.' },
+    'TPMT.rapid.6mp':                 { head: 'Standard dose',                    body: 'Standard label dose.' },
+    'TPMT.ultra.6mp':                 { head: 'Standard dose',                    body: 'Standard label dose.' },
+
+    'HLA-B.pos.abacavir':    { head: 'AVOID abacavir',                  body: 'HLA-B*57:01 positive → ~50% rate of severe hypersensitivity reaction. Use a different NRTI (tenofovir, lamivudine) in the HIV regimen.' },
+    'HLA-B.neg.abacavir':    { head: 'Standard dose',                   body: 'HLA-B*57:01 negative → standard abacavir dosing acceptable. Routine clinical monitoring.' },
+    'HLA-B.pos.allopurinol': { head: 'AVOID allopurinol',                body: 'For HLA-B*58:01 carriers — risk of severe cutaneous adverse reactions. (This artifact uses *57:01 as a proxy.)' },
+    'HLA-B.neg.allopurinol': { head: 'Standard dose',                    body: 'Standard allopurinol dosing.' },
+  };
+
+  function populateAlleles(gene) {
+    const opts = GENES[gene].alleles.map(a => `<option value="${a.id}">${a.id}  (act ${a.score}; ${a.note})</option>`).join('');
+    $('a1').innerHTML = opts;
+    $('a2').innerHTML = opts;
+  }
+
+  function populateDrugs(gene) {
+    $('drug').innerHTML = GENES[gene].drugs.map(d => `<option value="${d.id}">${d.label}</option>`).join('');
+  }
+
+  function populateGene() {
+    $('gene').innerHTML = Object.keys(GENES).map(g => `<option value="${g}">${g}</option>`).join('');
+  }
+
+  function update() {
+    const gene = $('gene').value;
+    const a1 = $('a1').value;
+    const a2 = $('a2').value;
+    const drug = $('drug').value;
+
+    const phen = phenotype(gene, a1, a2);
+    $('gt').textContent = `${gene} ${a1}/${a2}`;
+
+    if (gene === 'HLA-B') {
+      $('scores').textContent = phen.id === 'pos' ? '*57:01 carrier (any allele match)' : 'no *57:01 detected';
+    } else {
+      const s1 = GENES[gene].alleles.find(a => a.id === a1).score;
+      const s2 = GENES[gene].alleles.find(a => a.id === a2).score;
+      $('scores').textContent = `${s1.toFixed(2)} + ${s2.toFixed(2)} = ${phen.total.toFixed(2)}`;
+    }
+    $('phen').textContent = phen.label;
+
+    const verdict = $('verdict');
+    verdict.className = 'verdict ' + phen.id;
+
+    const key = `${gene}.${phen.id}.${drug}`;
+    const rec = RECS[key] || { head: 'Insufficient data', body: 'Combination not in this artifact\'s simplified table.' };
+    $('recHeader').textContent = rec.head;
+    $('recBody').textContent = rec.body;
+
+    // Banner with exploration hint
+    let hint;
+    if (gene === 'CYP2D6') {
+      if (phen.id === 'normal' || phen.id === 'intermediate') {
+        hint = 'Try *4/*4 → poor metaboliser → AVOID codeine. Try *1×2/*1 → ultra-rapid → also AVOID codeine (respiratory risk).';
+      } else if (phen.id === 'poor') {
+        hint = 'Switch to a non-CYP2D6-dependent opioid in clinical practice (morphine, hydromorphone).';
+      } else if (phen.id === 'ultra') {
+        hint = 'Two pediatric deaths from codeine + ultra-rapid metabolism in 2012 led the FDA to restrict codeine in children.';
+      } else {
+        hint = 'Try *4/*4 → poor metaboliser to see the no-analgesia case.';
+      }
+    } else if (gene === 'CYP2C9') {
+      hint = 'CYP2C9 + VKORC1 jointly drive warfarin dosing. Real CPIC nomograms include both genes plus age + weight + INR target.';
+    } else if (gene === 'TPMT') {
+      hint = 'NUDT15 variants (East Asian) have a similar effect on thiopurines; modern CPIC includes both genes.';
+    } else {
+      hint = 'Set Allele 1 to *57:01 → AVOID abacavir; this single test prevents ~95% of severe hypersensitivity reactions.';
+    }
+    $('banner').innerHTML = `<strong>${phen.label}</strong> on <span style="font-family: var(--font-mono);">${drug}</span> → <strong>${rec.head}</strong>.<span class="hint">${hint}</span>`;
+  }
+
+  populateGene();
+  populateAlleles('CYP2D6');
+  populateDrugs('CYP2D6');
+  $('a1').value = '*1';
+  $('a2').value = '*1';
+
+  $('gene').addEventListener('change', () => {
+    populateAlleles($('gene').value);
+    populateDrugs($('gene').value);
+    update();
+  });
+  ['a1','a2','drug'].forEach(id => $(id).addEventListener('change', update));
+
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 540" width="1200" height="540" font-family="Inter, sans-serif">
+  <defs><style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }</style></defs>
+  <rect width="1200" height="540" fill="#fafaf9" rx="6"/>
+  <text x="600" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">E-value scales linearly with database size — same bit score, different statistical interpretation</text>
+
+  <!-- Plot area -->
+  <g transform="translate(120,80)">
+    <line x1="0" y1="380" x2="960" y2="380" stroke="#374151"/>
+    <line x1="0" y1="0" x2="0" y2="380" stroke="#374151"/>
+
+    <!-- X-axis: log10 of database size, 6 to 12 -->
+    <g font-size="10" fill="#6b7280" class="mono">
+      <text x="0"   y="400" text-anchor="middle">10⁶</text>
+      <text x="160" y="400" text-anchor="middle">10⁷</text>
+      <text x="320" y="400" text-anchor="middle">10⁸</text>
+      <text x="480" y="400" text-anchor="middle">10⁹</text>
+      <text x="640" y="400" text-anchor="middle">10¹⁰</text>
+      <text x="800" y="400" text-anchor="middle">10¹¹</text>
+      <text x="960" y="400" text-anchor="middle">10¹²</text>
+    </g>
+    <text x="480" y="424" text-anchor="middle" font-size="11" fill="#525252">database total residues (log scale)</text>
+
+    <!-- Y-axis: log10 of E-value at S'=50, m=300 -->
+    <!-- log10(E) = log10(m) + log10(n) - 0.301 × S' = log10(300) + log10(n) - 15.05
+         For S'=50, m=300: log10(E) = 2.48 + log10(n) - 15.05 = log10(n) - 12.57 -->
+    <!-- Range: n=10⁶ → log10(E) = -6.57; n=10¹² → log10(E) = -0.57 -->
+    <!-- So E goes from ~10⁻⁶·⁶ at n=10⁶ to ~10⁻⁰·⁶ at n=10¹². Range of log10(E) = -6.57 to -0.57. -->
+    <!-- Y-mapping: y=380 corresponds to log10(E)=-1; y=0 corresponds to log10(E)=-7 -->
+    <!-- y = 380 - (log10(E) + 7) × (380/6) = 380 - (log10(E)+7)*63.3 -->
+
+    <g font-size="10" fill="#6b7280" class="mono">
+      <text x="-8" y="384" text-anchor="end">10⁻¹</text>
+      <text x="-8" y="320" text-anchor="end">10⁻²</text>
+      <text x="-8" y="256" text-anchor="end">10⁻³</text>
+      <text x="-8" y="194" text-anchor="end">10⁻⁴</text>
+      <text x="-8" y="130" text-anchor="end">10⁻⁵</text>
+      <text x="-8" y="68"  text-anchor="end">10⁻⁶</text>
+      <text x="-8" y="4"   text-anchor="end">10⁻⁷</text>
+    </g>
+    <text x="-60" y="190" text-anchor="middle" font-size="11" fill="#525252" transform="rotate(-90 -60 190)">expected E-value (at S' = 50, m = 300)</text>
+
+    <!-- Curve: linear in log-log because E ∝ n -->
+    <!-- Compute points at each tick: -->
+    <!-- n=10⁶: log10(E)=-6.57; y = 380 - (-6.57+7)*63.3 = 380 - 27.2 = 352.8 -->
+    <!-- n=10⁷: log10(E)=-5.57; y = 380 - (1.43)*63.3 = 380 - 90.5 = 289.5 -->
+    <!-- n=10⁸: log10(E)=-4.57; y = 226 -->
+    <!-- n=10⁹: log10(E)=-3.57; y = 163 -->
+    <!-- n=10¹⁰: log10(E)=-2.57; y = 100 -->
+    <!-- n=10¹¹: log10(E)=-1.57; y = 36 -->
+    <!-- n=10¹²: log10(E)=-0.57; y = -27 (out of frame; clip at 0)
+         Actually log10(E)=-0.57 corresponds to: y = 380 - 6.43*63.3 = 380-407 = -27. Clip at top (4). -->
+    <path d="M 0 353 L 160 290 L 320 226 L 480 163 L 640 100 L 800 37 L 960 4" stroke="#1e3a8a" stroke-width="2.5" fill="none"/>
+
+    <!-- Reference databases -->
+    <!-- SwissProt: ~2×10⁸ residues → x = (log10(2×10⁸) - 6) × 160 = (8.30-6)*160 = 368 -->
+    <g>
+      <line x1="368" y1="0" x2="368" y2="380" stroke="#0d7377" stroke-dasharray="3 3" stroke-opacity="0.7"/>
+      <text x="368" y="-4" text-anchor="middle" font-size="9" fill="#0d7377" font-weight="600">SwissProt (~2×10⁸)</text>
+      <circle cx="368" cy="206" r="5" fill="#0d7377"/>
+    </g>
+
+    <!-- UniRef90 / nr: ~10¹¹ residues → x = (11-6)*160 = 800 -->
+    <g>
+      <line x1="800" y1="0" x2="800" y2="380" stroke="#b45309" stroke-dasharray="3 3" stroke-opacity="0.7"/>
+      <text x="800" y="-4" text-anchor="middle" font-size="9" fill="#b45309" font-weight="600">UniRef90 / nr (~10¹¹)</text>
+      <circle cx="800" cy="37" r="5" fill="#b45309"/>
+    </g>
+
+    <!-- UniProt full: ~10¹² → x = 960 -->
+    <g>
+      <line x1="960" y1="0" x2="960" y2="380" stroke="#7f1d1d" stroke-dasharray="3 3" stroke-opacity="0.7"/>
+      <text x="930" y="14" text-anchor="end" font-size="9" fill="#7f1d1d" font-weight="600">UniProt full (~10¹²)</text>
+      <circle cx="960" cy="4" r="5" fill="#7f1d1d"/>
+    </g>
+
+    <!-- Significance threshold lines -->
+    <line x1="0" y1="256" x2="960" y2="256" stroke="#525252" stroke-dasharray="3 3" stroke-opacity="0.4"/>
+    <text x="0" y="252" font-size="9" fill="#525252">E = 10⁻³ (threshold)</text>
+
+    <!-- Annotation pointing to data points -->
+    <g font-size="9" fill="#374151">
+      <line x1="368" y1="206" x2="350" y2="240" stroke="#0d7377" stroke-width="0.5"/>
+      <text x="346" y="252" text-anchor="end">E ≈ 10⁻³·⁹</text>
+
+      <line x1="800" y1="37" x2="780" y2="60" stroke="#b45309" stroke-width="0.5"/>
+      <text x="776" y="68" text-anchor="end">E ≈ 10⁻⁶·⁷</text>
+    </g>
+  </g>
+
+  <!-- Bottom annotation -->
+  <g transform="translate(120,490)">
+    <rect width="960" height="34" fill="#fef3c7" stroke="#b45309" rx="4"/>
+    <text x="480" y="14" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">Doubling the database doubles the E-value at any fixed bit score</text>
+    <text x="480" y="28" text-anchor="middle" font-size="10" fill="#374151">$E = K \cdot m \cdot n \cdot e^{-\lambda S}$ — the $n$ scaling is linear in log space, so 10× DB → 10× E.</text>
+  </g>
+</svg>

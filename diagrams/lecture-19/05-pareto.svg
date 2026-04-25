@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" font-family="Inter, sans-serif">
+  <defs><style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }</style></defs>
+  <rect width="1200" height="600" fill="#fafaf9" rx="6"/>
+  <text x="600" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">Search-speed-vs-sensitivity Pareto frontier</text>
+
+  <!-- Plot area -->
+  <g transform="translate(120,80)">
+    <line x1="0" y1="440" x2="900" y2="440" stroke="#374151"/>
+    <line x1="0" y1="0" x2="0" y2="440" stroke="#374151"/>
+
+    <!-- X-axis: log scale 10⁰ to 10⁴ qps -->
+    <g font-size="10" fill="#6b7280" class="mono">
+      <text x="0"   y="460" text-anchor="middle">10⁰</text>
+      <text x="225" y="460" text-anchor="middle">10¹</text>
+      <text x="450" y="460" text-anchor="middle">10²</text>
+      <text x="675" y="460" text-anchor="middle">10³</text>
+      <text x="900" y="460" text-anchor="middle">10⁴</text>
+    </g>
+    <text x="450" y="486" text-anchor="middle" font-size="11" fill="#525252">queries per second (CPU, log scale)</text>
+
+    <!-- Y-axis: sensitivity 0 to 1 -->
+    <g font-size="10" fill="#6b7280" class="mono">
+      <text x="-10" y="444" text-anchor="end">0.5</text>
+      <text x="-10" y="354" text-anchor="end">0.65</text>
+      <text x="-10" y="266" text-anchor="end">0.8</text>
+      <text x="-10" y="178" text-anchor="end">0.9</text>
+      <text x="-10" y="86"  text-anchor="end">0.96</text>
+      <text x="-10" y="4"   text-anchor="end">1.0</text>
+    </g>
+    <text x="-70" y="220" text-anchor="middle" font-size="11" fill="#525252" transform="rotate(-90 -70 220)">sensitivity (recall @ 25% identity)</text>
+
+    <!-- Pareto-frontier dashed line -->
+    <path d="M 0 56 L 100 50 L 250 86 L 400 100 L 550 156 L 700 240 L 850 320 L 900 360" stroke="#525252" stroke-width="1" fill="none" stroke-dasharray="6 4" stroke-opacity="0.5"/>
+    <text x="850" y="362" font-size="9" fill="#525252" font-style="italic">Pareto frontier</text>
+
+    <!-- Points (sensitivity = 0.5..1; qps = 10^0..10^4) -->
+    <!-- Y mapping: y = 440 - (sens - 0.5)*880 -->
+    <!-- BLASTP classical: 1 qps, sens 0.95: y = 440 - 0.45*880 = 440-396 = 44; x = 0 -->
+    <g>
+      <circle cx="0" cy="44" r="11" fill="#1e3a8a"/>
+      <text x="14" y="40" font-size="11" font-weight="700" fill="#1e3a8a">BLASTP classical</text>
+      <text x="14" y="54" font-size="9" fill="#525252">~1 qps · sens 0.95</text>
+    </g>
+
+    <!-- DIAMOND sensitive: 100 qps, sens 0.92: x = 450, y = 440 minus 0.42 times 880 = 70 -->
+    <g>
+      <circle cx="450" cy="70" r="11" fill="#b45309"/>
+      <text x="464" y="66" font-size="11" font-weight="700" fill="#b45309">DIAMOND --sensitive</text>
+      <text x="464" y="80" font-size="9" fill="#525252">~100 qps · sens 0.92</text>
+    </g>
+
+    <!-- DIAMOND fast: 1000 qps, sens 0.85: x = 675, y = 132 -->
+    <g>
+      <circle cx="675" cy="132" r="11" fill="#fdba74"/>
+      <text x="689" y="128" font-size="11" font-weight="700" fill="#b45309">DIAMOND --fast</text>
+      <text x="689" y="142" font-size="9" fill="#525252">~1000 qps · sens 0.85</text>
+    </g>
+
+    <!-- MMseqs2: 100 qps, sens 0.96: x = 450, y = 440 - 0.46*880 = 440 - 405 = 35 -->
+    <g>
+      <circle cx="450" cy="35" r="11" fill="#0d7377"/>
+      <text x="464" y="31" font-size="11" font-weight="700" fill="#0d7377">MMseqs2</text>
+      <text x="464" y="45" font-size="9" fill="#525252">~100 qps · sens 0.96 (best)</text>
+    </g>
+
+    <!-- USEARCH: 10000 qps, sens 0.65: x = 900, y = 440 - 0.15*880 = 440 - 132 = 308 -->
+    <g>
+      <circle cx="900" cy="308" r="11" fill="#7c3aed"/>
+      <text x="886" y="304" text-anchor="end" font-size="11" font-weight="700" fill="#7c3aed">USEARCH</text>
+      <text x="886" y="318" text-anchor="end" font-size="9" fill="#525252">~10⁴ qps · sens 0.65 (close-IDs only)</text>
+    </g>
+
+    <!-- BLAT (DNA-only) for context: 100 qps, sens 0.7: x=450, y = 440 - 0.2*880 = 264 -->
+    <g>
+      <circle cx="450" cy="264" r="9" fill="#a8a29e"/>
+      <text x="464" y="260" font-size="11" font-weight="600" fill="#525252">BLAT (DNA only)</text>
+      <text x="464" y="274" font-size="9" fill="#525252">~100 qps · sens 0.7 (≥90% ID only)</text>
+    </g>
+
+    <!-- HMMER (jackhmmer / phmmer) for context: 5 qps, sens 0.97: x = 157, y = 440 - 0.47*880 = 440-414 = 26 -->
+    <g>
+      <circle cx="157" cy="26" r="9" fill="#525252"/>
+      <text x="171" y="22" font-size="11" font-weight="600" fill="#374151">HMMER (phmmer)</text>
+      <text x="171" y="36" font-size="9" fill="#525252">~5 qps · sens 0.97 (deepest homology)</text>
+    </g>
+  </g>
+
+  <!-- Side annotation -->
+  <g transform="translate(120,540)">
+    <rect width="900" height="50" fill="#fef3c7" stroke="#b45309" rx="4"/>
+    <text x="450" y="20" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">MMseqs2 sits on the Pareto frontier across most query types</text>
+    <text x="450" y="38" text-anchor="middle" font-size="10" fill="#525252">For close-identity searches (USEARCH territory), pure speed wins; for distant homology (HMMER territory), pure sensitivity wins.</text>
+  </g>
+</svg>

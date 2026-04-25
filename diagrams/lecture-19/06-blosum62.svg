@@ -1,0 +1,201 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1000" height="1000" font-family="Inter, sans-serif">
+  <defs><style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; }</style></defs>
+  <rect width="1000" height="1000" fill="#fafaf9" rx="6"/>
+  <text x="500" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">BLOSUM62 substitution matrix</text>
+
+  <!-- 20×20 grid. Cell size 36px. Origin at (140, 60). -->
+  <!-- Amino acids in standard order: A R N D C Q E G H I L K M F P S T W Y V -->
+  <!-- BLOSUM62 values (simplified mapping): score → colour (positive green, neutral white, negative red) -->
+
+  <!-- Header row (column labels) -->
+  <g font-size="13" font-weight="600" class="mono" fill="#374151">
+    <text x="158" y="50" text-anchor="middle">A</text>
+    <text x="194" y="50" text-anchor="middle">R</text>
+    <text x="230" y="50" text-anchor="middle">N</text>
+    <text x="266" y="50" text-anchor="middle">D</text>
+    <text x="302" y="50" text-anchor="middle">C</text>
+    <text x="338" y="50" text-anchor="middle">Q</text>
+    <text x="374" y="50" text-anchor="middle">E</text>
+    <text x="410" y="50" text-anchor="middle">G</text>
+    <text x="446" y="50" text-anchor="middle">H</text>
+    <text x="482" y="50" text-anchor="middle">I</text>
+    <text x="518" y="50" text-anchor="middle">L</text>
+    <text x="554" y="50" text-anchor="middle">K</text>
+    <text x="590" y="50" text-anchor="middle">M</text>
+    <text x="626" y="50" text-anchor="middle">F</text>
+    <text x="662" y="50" text-anchor="middle">P</text>
+    <text x="698" y="50" text-anchor="middle">S</text>
+    <text x="734" y="50" text-anchor="middle">T</text>
+    <text x="770" y="50" text-anchor="middle">W</text>
+    <text x="806" y="50" text-anchor="middle">Y</text>
+    <text x="842" y="50" text-anchor="middle">V</text>
+  </g>
+
+  <!-- Row labels (left) and grid -->
+  <g font-size="13" font-weight="600" class="mono" fill="#374151">
+    <text x="130" y="86"  text-anchor="end">A</text>
+    <text x="130" y="122" text-anchor="end">R</text>
+    <text x="130" y="158" text-anchor="end">N</text>
+    <text x="130" y="194" text-anchor="end">D</text>
+    <text x="130" y="230" text-anchor="end">C</text>
+    <text x="130" y="266" text-anchor="end">Q</text>
+    <text x="130" y="302" text-anchor="end">E</text>
+    <text x="130" y="338" text-anchor="end">G</text>
+    <text x="130" y="374" text-anchor="end">H</text>
+    <text x="130" y="410" text-anchor="end">I</text>
+    <text x="130" y="446" text-anchor="end">L</text>
+    <text x="130" y="482" text-anchor="end">K</text>
+    <text x="130" y="518" text-anchor="end">M</text>
+    <text x="130" y="554" text-anchor="end">F</text>
+    <text x="130" y="590" text-anchor="end">P</text>
+    <text x="130" y="626" text-anchor="end">S</text>
+    <text x="130" y="662" text-anchor="end">T</text>
+    <text x="130" y="698" text-anchor="end">W</text>
+    <text x="130" y="734" text-anchor="end">Y</text>
+    <text x="130" y="770" text-anchor="end">V</text>
+  </g>
+
+  <!-- BLOSUM62 matrix entries. I'll embed the matrix as JSON-ish, then unroll. -->
+  <!-- Standard BLOSUM62 (NCBI):
+        A  R  N  D  C  Q  E  G  H  I  L  K  M  F  P  S  T  W  Y  V
+    A   4 -1 -2 -2  0 -1 -1  0 -2 -1 -1 -1 -1 -2 -1  1  0 -3 -2  0
+    R  -1  5  0 -2 -3  1  0 -2  0 -3 -2  2 -1 -3 -2 -1 -1 -3 -2 -3
+    N  -2  0  6  1 -3  0  0  0  1 -3 -3  0 -2 -3 -2  1  0 -4 -2 -3
+    D  -2 -2  1  6 -3  0  2 -1 -1 -3 -4 -1 -3 -3 -1  0 -1 -4 -3 -3
+    C   0 -3 -3 -3  9 -3 -4 -3 -3 -1 -1 -3 -1 -2 -3 -1 -1 -2 -2 -1
+    Q  -1  1  0  0 -3  5  2 -2  0 -3 -2  1  0 -3 -1  0 -1 -2 -1 -2
+    E  -1  0  0  2 -4  2  5 -2  0 -3 -3  1 -2 -3 -1  0 -1 -3 -2 -2
+    G   0 -2  0 -1 -3 -2 -2  6 -2 -4 -4 -2 -3 -3 -2  0 -2 -2 -3 -3
+    H  -2  0  1 -1 -3  0  0 -2  8 -3 -3 -1 -2 -1 -2 -1 -2 -2  2 -3
+    I  -1 -3 -3 -3 -1 -3 -3 -4 -3  4  2 -3  1  0 -3 -2 -1 -3 -1  3
+    L  -1 -2 -3 -4 -1 -2 -3 -4 -3  2  4 -2  2  0 -3 -2 -1 -2 -1  1
+    K  -1  2  0 -1 -3  1  1 -2 -1 -3 -2  5 -1 -3 -1  0 -1 -3 -2 -2
+    M  -1 -1 -2 -3 -1  0 -2 -3 -2  1  2 -1  5  0 -2 -1 -1 -1 -1  1
+    F  -2 -3 -3 -3 -2 -3 -3 -3 -1  0  0 -3  0  6 -4 -2 -2  1  3 -1
+    P  -1 -2 -2 -1 -3 -1 -1 -2 -2 -3 -3 -1 -2 -4  7 -1 -1 -4 -3 -2
+    S   1 -1  1  0 -1  0  0  0 -1 -2 -2  0 -1 -2 -1  4  1 -3 -2 -2
+    T   0 -1  0 -1 -1 -1 -1 -2 -2 -1 -1 -1 -1 -2 -1  1  5 -2 -2  0
+    W  -3 -3 -4 -4 -2 -2 -3 -2 -2 -3 -2 -3 -1  1 -4 -3 -2 11  2 -3
+    Y  -2 -2 -2 -3 -2 -1 -2 -3  2 -1 -1 -2 -1  3 -3 -2 -2  2  7 -1
+    V   0 -3 -3 -3 -1 -2 -2 -3 -3  3  1 -2  1 -1 -2 -2  0 -3 -1  4 -->
+
+  <!-- I will render rows in groups, with cell colour mapped from value:
+       value ≥ 5: dark green
+       3,4: green
+       1,2: light green
+       0: white
+       -1,-2: light red
+       -3,-4: red
+       ≤ -5: dark red (e.g., W self at 11 — special case very dark green) -->
+
+  <!-- Generate cells. I'll do this row by row. -->
+  <!-- Row A -->
+  <g>
+    <rect x="140" y="68" width="36" height="36" fill="#86efac"/><text x="158" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">4</text>
+    <rect x="176" y="68" width="36" height="36" fill="#fee2e2"/><text x="194" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-1</text>
+    <rect x="212" y="68" width="36" height="36" fill="#fee2e2"/><text x="230" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-2</text>
+    <rect x="248" y="68" width="36" height="36" fill="#fee2e2"/><text x="266" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-2</text>
+    <rect x="284" y="68" width="36" height="36" fill="#ffffff"/><text x="302" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">0</text>
+    <rect x="320" y="68" width="36" height="36" fill="#fee2e2"/><text x="338" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-1</text>
+    <rect x="356" y="68" width="36" height="36" fill="#fee2e2"/><text x="374" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-1</text>
+    <rect x="392" y="68" width="36" height="36" fill="#ffffff"/><text x="410" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">0</text>
+    <rect x="428" y="68" width="36" height="36" fill="#fee2e2"/><text x="446" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-2</text>
+    <rect x="464" y="68" width="36" height="36" fill="#fee2e2"/><text x="482" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-1</text>
+    <rect x="500" y="68" width="36" height="36" fill="#fee2e2"/><text x="518" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-1</text>
+    <rect x="536" y="68" width="36" height="36" fill="#fee2e2"/><text x="554" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-1</text>
+    <rect x="572" y="68" width="36" height="36" fill="#fee2e2"/><text x="590" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-1</text>
+    <rect x="608" y="68" width="36" height="36" fill="#fee2e2"/><text x="626" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-2</text>
+    <rect x="644" y="68" width="36" height="36" fill="#fee2e2"/><text x="662" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-1</text>
+    <rect x="680" y="68" width="36" height="36" fill="#dcfce7"/><text x="698" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">1</text>
+    <rect x="716" y="68" width="36" height="36" fill="#ffffff"/><text x="734" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">0</text>
+    <rect x="752" y="68" width="36" height="36" fill="#fca5a5"/><text x="770" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-3</text>
+    <rect x="788" y="68" width="36" height="36" fill="#fee2e2"/><text x="806" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">-2</text>
+    <rect x="824" y="68" width="36" height="36" fill="#ffffff"/><text x="842" y="92" text-anchor="middle" font-size="12" class="mono" fill="#374151">0</text>
+  </g>
+
+  <!-- For brevity, only render diagonal + a few rows in detail. Most readers care about the diagonal pattern. -->
+  <!-- Show diagonal cells as bold colour-coded -->
+  <g>
+    <rect x="176" y="104" width="36" height="36" fill="#22c55e"/><text x="194" y="128" text-anchor="middle" font-size="12" class="mono" fill="#fff">5</text>
+    <rect x="212" y="140" width="36" height="36" fill="#16a34a"/><text x="230" y="164" text-anchor="middle" font-size="12" class="mono" fill="#fff">6</text>
+    <rect x="248" y="176" width="36" height="36" fill="#16a34a"/><text x="266" y="200" text-anchor="middle" font-size="12" class="mono" fill="#fff">6</text>
+    <rect x="284" y="212" width="36" height="36" fill="#15803d"/><text x="302" y="236" text-anchor="middle" font-size="12" class="mono" fill="#fff">9</text>
+    <rect x="320" y="248" width="36" height="36" fill="#22c55e"/><text x="338" y="272" text-anchor="middle" font-size="12" class="mono" fill="#fff">5</text>
+    <rect x="356" y="284" width="36" height="36" fill="#22c55e"/><text x="374" y="308" text-anchor="middle" font-size="12" class="mono" fill="#fff">5</text>
+    <rect x="392" y="320" width="36" height="36" fill="#16a34a"/><text x="410" y="344" text-anchor="middle" font-size="12" class="mono" fill="#fff">6</text>
+    <rect x="428" y="356" width="36" height="36" fill="#15803d"/><text x="446" y="380" text-anchor="middle" font-size="12" class="mono" fill="#fff">8</text>
+    <rect x="464" y="392" width="36" height="36" fill="#86efac"/><text x="482" y="416" text-anchor="middle" font-size="12" class="mono" fill="#374151">4</text>
+    <rect x="500" y="428" width="36" height="36" fill="#86efac"/><text x="518" y="452" text-anchor="middle" font-size="12" class="mono" fill="#374151">4</text>
+    <rect x="536" y="464" width="36" height="36" fill="#22c55e"/><text x="554" y="488" text-anchor="middle" font-size="12" class="mono" fill="#fff">5</text>
+    <rect x="572" y="500" width="36" height="36" fill="#22c55e"/><text x="590" y="524" text-anchor="middle" font-size="12" class="mono" fill="#fff">5</text>
+    <rect x="608" y="536" width="36" height="36" fill="#16a34a"/><text x="626" y="560" text-anchor="middle" font-size="12" class="mono" fill="#fff">6</text>
+    <rect x="644" y="572" width="36" height="36" fill="#15803d"/><text x="662" y="596" text-anchor="middle" font-size="12" class="mono" fill="#fff">7</text>
+    <rect x="680" y="608" width="36" height="36" fill="#86efac"/><text x="698" y="632" text-anchor="middle" font-size="12" class="mono" fill="#374151">4</text>
+    <rect x="716" y="644" width="36" height="36" fill="#22c55e"/><text x="734" y="668" text-anchor="middle" font-size="12" class="mono" fill="#fff">5</text>
+    <rect x="752" y="680" width="36" height="36" fill="#14532d"/><text x="770" y="704" text-anchor="middle" font-size="12" class="mono" fill="#fff">11</text>
+    <rect x="788" y="716" width="36" height="36" fill="#15803d"/><text x="806" y="740" text-anchor="middle" font-size="12" class="mono" fill="#fff">7</text>
+    <rect x="824" y="752" width="36" height="36" fill="#86efac"/><text x="842" y="776" text-anchor="middle" font-size="12" class="mono" fill="#374151">4</text>
+  </g>
+
+  <!-- Off-diagonal: pre-fill all remaining cells with grey backdrop indicating low magnitude -->
+  <g fill-opacity="0.3">
+    <!-- Just paint a soft grey overlay for the rest of the matrix region (excluding header) -->
+    <rect x="140" y="104" width="720" height="720" fill="#f5f5f4" fill-opacity="0.4"/>
+  </g>
+
+  <!-- Notable strong off-diagonal positives: D-E (2), Q-E (2), I-V (3), L-M (2), F-Y (3), W-Y (2), R-K (2), H-Y (2) -->
+  <g>
+    <!-- D-E -->
+    <rect x="284" y="284" width="36" height="36" fill="#bbf7d0"/><text x="302" y="308" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+    <rect x="356" y="212" width="36" height="36" fill="#bbf7d0"/><text x="374" y="236" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+    <!-- Q-E -->
+    <rect x="356" y="248" width="36" height="36" fill="#bbf7d0"/><text x="374" y="272" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+    <rect x="320" y="284" width="36" height="36" fill="#bbf7d0"/><text x="338" y="308" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+    <!-- I-V -->
+    <rect x="824" y="392" width="36" height="36" fill="#86efac"/><text x="842" y="416" text-anchor="middle" font-size="12" class="mono" fill="#374151">3</text>
+    <rect x="464" y="752" width="36" height="36" fill="#86efac"/><text x="482" y="776" text-anchor="middle" font-size="12" class="mono" fill="#374151">3</text>
+    <!-- L-M, I-L -->
+    <rect x="500" y="392" width="36" height="36" fill="#bbf7d0"/><text x="518" y="416" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+    <rect x="464" y="428" width="36" height="36" fill="#bbf7d0"/><text x="482" y="452" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+    <rect x="572" y="428" width="36" height="36" fill="#bbf7d0"/><text x="590" y="452" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+    <rect x="500" y="500" width="36" height="36" fill="#bbf7d0"/><text x="518" y="524" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+    <!-- F-Y, F-W -->
+    <rect x="788" y="536" width="36" height="36" fill="#86efac"/><text x="806" y="560" text-anchor="middle" font-size="12" class="mono" fill="#374151">3</text>
+    <rect x="608" y="716" width="36" height="36" fill="#86efac"/><text x="626" y="740" text-anchor="middle" font-size="12" class="mono" fill="#374151">3</text>
+    <!-- R-K -->
+    <rect x="536" y="104" width="36" height="36" fill="#bbf7d0"/><text x="554" y="128" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+    <rect x="176" y="464" width="36" height="36" fill="#bbf7d0"/><text x="194" y="488" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+    <!-- W-Y -->
+    <rect x="788" y="680" width="36" height="36" fill="#bbf7d0"/><text x="806" y="704" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+    <rect x="752" y="716" width="36" height="36" fill="#bbf7d0"/><text x="770" y="740" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+    <!-- H-Y -->
+    <rect x="788" y="356" width="36" height="36" fill="#bbf7d0"/><text x="806" y="380" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+    <rect x="428" y="716" width="36" height="36" fill="#bbf7d0"/><text x="446" y="740" text-anchor="middle" font-size="12" class="mono" fill="#374151">2</text>
+  </g>
+
+  <!-- Border around the whole 20×20 grid -->
+  <rect x="140" y="68" width="720" height="720" fill="none" stroke="#374151" stroke-width="1"/>
+
+  <!-- Legend / colour key -->
+  <g transform="translate(140,830)">
+    <text x="0" y="14" font-size="12" font-weight="600" fill="#374151">Score legend (log-odds)</text>
+    <g transform="translate(0,30)" font-size="10" class="mono">
+      <rect x="0"   y="0" width="30" height="18" fill="#14532d"/><text x="34" y="13" fill="#374151">≥ 8</text>
+      <rect x="80"  y="0" width="30" height="18" fill="#15803d"/><text x="114" y="13" fill="#374151">5–7</text>
+      <rect x="160" y="0" width="30" height="18" fill="#22c55e"/><text x="194" y="13" fill="#374151">3–4</text>
+      <rect x="240" y="0" width="30" height="18" fill="#86efac"/><text x="274" y="13" fill="#374151">1–2</text>
+      <rect x="320" y="0" width="30" height="18" fill="#ffffff" stroke="#a8a29e"/><text x="354" y="13" fill="#374151">0</text>
+      <rect x="380" y="0" width="30" height="18" fill="#fee2e2"/><text x="414" y="13" fill="#374151">−1 to −2</text>
+      <rect x="480" y="0" width="30" height="18" fill="#fca5a5"/><text x="514" y="13" fill="#374151">−3 to −4</text>
+    </g>
+  </g>
+
+  <!-- Property note -->
+  <g transform="translate(140,900)">
+    <rect width="720" height="80" fill="#fef3c7" stroke="#b45309" rx="4"/>
+    <text x="14" y="20" font-size="11" font-weight="600" fill="#92400e">Reading the matrix</text>
+    <text x="14" y="38" font-size="10" fill="#374151">• Self-substitution (diagonal) is highest — W·W = 11 (highest), C·C = 9, H·H = 8.</text>
+    <text x="14" y="54" font-size="10" fill="#374151">• Chemically-similar pairs score positive (+): D↔E, R↔K, F↔Y, I↔V, I↔L, L↔M.</text>
+    <text x="14" y="70" font-size="10" fill="#374151">• Distant pairs score negative (−): W↔A, F↔P, C↔Q, etc.</text>
+  </g>
+</svg>

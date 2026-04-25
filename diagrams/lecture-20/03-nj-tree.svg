@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700" font-family="Inter, sans-serif">
+  <defs><style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }</style></defs>
+  <rect width="1200" height="700" fill="#fafaf9" rx="6"/>
+  <text x="600" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">Neighbor-joining: distance matrix → Q-matrix correction → tree</text>
+
+  <!-- Top: input distance matrix as heat map -->
+  <g transform="translate(80,70)">
+    <text x="0" y="0" font-size="12" font-weight="700" fill="#1e3a8a">Input distance matrix D (6 taxa)</text>
+    <g class="mono" transform="translate(0,16)">
+      <!-- Column headers -->
+      <text x="50" y="20" text-anchor="middle" fill="#525252">A</text>
+      <text x="80" y="20" text-anchor="middle" fill="#525252">B</text>
+      <text x="110" y="20" text-anchor="middle" fill="#525252">C</text>
+      <text x="140" y="20" text-anchor="middle" fill="#525252">D</text>
+      <text x="170" y="20" text-anchor="middle" fill="#525252">E</text>
+      <text x="200" y="20" text-anchor="middle" fill="#525252">F</text>
+      <!-- Row headers -->
+      <text x="20" y="46" text-anchor="end" fill="#525252">A</text>
+      <text x="20" y="76" text-anchor="end" fill="#525252">B</text>
+      <text x="20" y="106" text-anchor="end" fill="#525252">C</text>
+      <text x="20" y="136" text-anchor="end" fill="#525252">D</text>
+      <text x="20" y="166" text-anchor="end" fill="#525252">E</text>
+      <text x="20" y="196" text-anchor="end" fill="#525252">F</text>
+    </g>
+    <!-- 6x6 cells colored by distance -->
+    <g transform="translate(35,30)">
+      <!-- Row A: 0, 5, 9, 9, 8, 12 -->
+      <rect x="0"   y="0" width="30" height="20" fill="#f0fdf4"/>
+      <rect x="30"  y="0" width="30" height="20" fill="#bbf7d0"/>
+      <rect x="60"  y="0" width="30" height="20" fill="#fde68a"/>
+      <rect x="90"  y="0" width="30" height="20" fill="#fde68a"/>
+      <rect x="120" y="0" width="30" height="20" fill="#fde68a"/>
+      <rect x="150" y="0" width="30" height="20" fill="#fda4af"/>
+      <!-- Row B: 5, 0, 10, 10, 9, 13 -->
+      <rect x="0"   y="20" width="30" height="20" fill="#bbf7d0"/>
+      <rect x="30"  y="20" width="30" height="20" fill="#f0fdf4"/>
+      <rect x="60"  y="20" width="30" height="20" fill="#fbbf24"/>
+      <rect x="90"  y="20" width="30" height="20" fill="#fbbf24"/>
+      <rect x="120" y="20" width="30" height="20" fill="#fde68a"/>
+      <rect x="150" y="20" width="30" height="20" fill="#fda4af"/>
+      <!-- Row C -->
+      <rect x="0"   y="40" width="30" height="20" fill="#fde68a"/>
+      <rect x="30"  y="40" width="30" height="20" fill="#fbbf24"/>
+      <rect x="60"  y="40" width="30" height="20" fill="#f0fdf4"/>
+      <rect x="90"  y="40" width="30" height="20" fill="#bbf7d0"/>
+      <rect x="120" y="40" width="30" height="20" fill="#fbbf24"/>
+      <rect x="150" y="40" width="30" height="20" fill="#fda4af"/>
+      <!-- Row D -->
+      <rect x="0"   y="60" width="30" height="20" fill="#fde68a"/>
+      <rect x="30"  y="60" width="30" height="20" fill="#fbbf24"/>
+      <rect x="60"  y="60" width="30" height="20" fill="#bbf7d0"/>
+      <rect x="90"  y="60" width="30" height="20" fill="#f0fdf4"/>
+      <rect x="120" y="60" width="30" height="20" fill="#fbbf24"/>
+      <rect x="150" y="60" width="30" height="20" fill="#fda4af"/>
+      <!-- Row E -->
+      <rect x="0"   y="80" width="30" height="20" fill="#fde68a"/>
+      <rect x="30"  y="80" width="30" height="20" fill="#fde68a"/>
+      <rect x="60"  y="80" width="30" height="20" fill="#fbbf24"/>
+      <rect x="90"  y="80" width="30" height="20" fill="#fbbf24"/>
+      <rect x="120" y="80" width="30" height="20" fill="#f0fdf4"/>
+      <rect x="150" y="80" width="30" height="20" fill="#fda4af"/>
+      <!-- Row F -->
+      <rect x="0"   y="100" width="30" height="20" fill="#fda4af"/>
+      <rect x="30"  y="100" width="30" height="20" fill="#fda4af"/>
+      <rect x="60"  y="100" width="30" height="20" fill="#fda4af"/>
+      <rect x="90"  y="100" width="30" height="20" fill="#fda4af"/>
+      <rect x="120" y="100" width="30" height="20" fill="#fda4af"/>
+      <rect x="150" y="100" width="30" height="20" fill="#f0fdf4"/>
+    </g>
+    <!-- Distance values -->
+    <g class="mono" font-size="9" fill="#374151">
+      <text x="50"  y="46" text-anchor="middle">0</text>
+      <text x="80"  y="46" text-anchor="middle">5</text>
+      <text x="110" y="46" text-anchor="middle">9</text>
+      <text x="140" y="46" text-anchor="middle">9</text>
+      <text x="170" y="46" text-anchor="middle">8</text>
+      <text x="200" y="46" text-anchor="middle">12</text>
+      <text x="50"  y="76" text-anchor="middle">5</text>
+      <text x="80"  y="76" text-anchor="middle">0</text>
+      <text x="110" y="76" text-anchor="middle">10</text>
+      <text x="140" y="76" text-anchor="middle">10</text>
+      <text x="170" y="76" text-anchor="middle">9</text>
+      <text x="200" y="76" text-anchor="middle">13</text>
+      <text x="50"  y="106" text-anchor="middle">9</text>
+      <text x="80"  y="106" text-anchor="middle">10</text>
+      <text x="110" y="106" text-anchor="middle">0</text>
+      <text x="140" y="106" text-anchor="middle">8</text>
+      <text x="170" y="106" text-anchor="middle">7</text>
+      <text x="200" y="106" text-anchor="middle">11</text>
+      <text x="50"  y="136" text-anchor="middle">9</text>
+      <text x="80"  y="136" text-anchor="middle">10</text>
+      <text x="110" y="136" text-anchor="middle">8</text>
+      <text x="140" y="136" text-anchor="middle">0</text>
+      <text x="170" y="136" text-anchor="middle">3</text>
+      <text x="200" y="136" text-anchor="middle">11</text>
+      <text x="50"  y="166" text-anchor="middle">8</text>
+      <text x="80"  y="166" text-anchor="middle">9</text>
+      <text x="110" y="166" text-anchor="middle">7</text>
+      <text x="140" y="166" text-anchor="middle">3</text>
+      <text x="170" y="166" text-anchor="middle">0</text>
+      <text x="200" y="166" text-anchor="middle">11</text>
+      <text x="50"  y="196" text-anchor="middle">12</text>
+      <text x="80"  y="196" text-anchor="middle">13</text>
+      <text x="110" y="196" text-anchor="middle">11</text>
+      <text x="140" y="196" text-anchor="middle">11</text>
+      <text x="170" y="196" text-anchor="middle">11</text>
+      <text x="200" y="196" text-anchor="middle">0</text>
+    </g>
+  </g>
+
+  <!-- Q-matrix in middle -->
+  <g transform="translate(380,70)">
+    <text x="0" y="0" font-size="12" font-weight="700" fill="#b45309">Q-matrix at iteration 1: Q(i,j) = (n−2)·d(i,j) − sum of row distances</text>
+    <text x="0" y="16" font-size="10" fill="#525252" class="mono">Q-matrix corrects for total distances from each taxon → reveals true closest pair</text>
+    <g transform="translate(60,40)">
+      <text x="240" y="0" text-anchor="middle" font-size="11" font-weight="600" fill="#b45309">smallest Q value circled below → join D, E first</text>
+      <g transform="translate(0,20)" class="mono" font-size="10">
+        <text x="20" y="14" text-anchor="middle" fill="#525252">B</text>
+        <text x="60" y="14" text-anchor="middle" fill="#525252">C</text>
+        <text x="100" y="14" text-anchor="middle" fill="#525252">D</text>
+        <text x="140" y="14" text-anchor="middle" fill="#525252">E</text>
+        <text x="180" y="14" text-anchor="middle" fill="#525252">F</text>
+        <text x="-12" y="38" text-anchor="end" fill="#525252">A</text>
+        <text x="20" y="38" text-anchor="middle" fill="#374151">−47</text>
+        <text x="60" y="38" text-anchor="middle" fill="#374151">−43</text>
+        <text x="100" y="38" text-anchor="middle" fill="#374151">−43</text>
+        <text x="140" y="38" text-anchor="middle" fill="#374151">−45</text>
+        <text x="180" y="38" text-anchor="middle" fill="#374151">−43</text>
+        <text x="-12" y="58" text-anchor="end" fill="#525252">B</text>
+        <text x="60" y="58" text-anchor="middle" fill="#374151">−45</text>
+        <text x="100" y="58" text-anchor="middle" fill="#374151">−45</text>
+        <text x="140" y="58" text-anchor="middle" fill="#374151">−45</text>
+        <text x="180" y="58" text-anchor="middle" fill="#374151">−43</text>
+        <text x="-12" y="78" text-anchor="end" fill="#525252">C</text>
+        <text x="100" y="78" text-anchor="middle" fill="#374151">−45</text>
+        <text x="140" y="78" text-anchor="middle" fill="#374151">−47</text>
+        <text x="180" y="78" text-anchor="middle" fill="#374151">−45</text>
+        <text x="-12" y="98" text-anchor="end" fill="#525252">D</text>
+        <circle cx="140" cy="93" r="14" fill="none" stroke="#dc2626" stroke-width="2"/>
+        <text x="140" y="98" text-anchor="middle" font-weight="700" fill="#7f1d1d">−57</text>
+        <text x="180" y="98" text-anchor="middle" fill="#374151">−45</text>
+        <text x="-12" y="118" text-anchor="end" fill="#525252">E</text>
+        <text x="180" y="118" text-anchor="middle" fill="#374151">−45</text>
+      </g>
+    </g>
+    <text x="0" y="220" font-size="10" fill="#525252" class="mono">Iteration 2: join (DE)−C → next pair has Q = −38</text>
+    <text x="0" y="240" font-size="10" fill="#525252" class="mono">Iteration 3: join (CDE)−F</text>
+    <text x="0" y="260" font-size="10" fill="#525252" class="mono">Iteration 4: join (CDEF)−AB</text>
+  </g>
+
+  <!-- Final NJ tree on right -->
+  <g transform="translate(740,70)">
+    <text x="200" y="0" text-anchor="middle" font-size="12" font-weight="700" fill="#0d7377">Final NJ tree (with branch lengths)</text>
+    <g stroke="#0d7377" stroke-width="2" fill="none">
+      <line x1="80" y1="20" x2="160" y2="20"/>
+      <line x1="80" y1="60" x2="160" y2="60"/>
+      <line x1="160" y1="20" x2="160" y2="60"/>
+      <line x1="160" y1="40" x2="220" y2="40"/>
+
+      <line x1="80" y1="120" x2="160" y2="120"/>
+      <line x1="80" y1="160" x2="160" y2="160"/>
+      <line x1="160" y1="120" x2="160" y2="160"/>
+      <line x1="160" y1="140" x2="220" y2="140"/>
+
+      <line x1="220" y1="40" x2="220" y2="140"/>
+      <line x1="220" y1="90" x2="280" y2="90"/>
+
+      <line x1="80" y1="200" x2="280" y2="200"/>
+      <line x1="280" y1="90" x2="280" y2="200"/>
+      <line x1="280" y1="145" x2="340" y2="145"/>
+
+      <line x1="80" y1="240" x2="340" y2="240"/>
+      <line x1="340" y1="145" x2="340" y2="240"/>
+      <line x1="340" y1="192" x2="380" y2="192"/>
+    </g>
+    <g class="mono" font-size="10" fill="#0d7377">
+      <text x="76" y="24" text-anchor="end">D</text>
+      <text x="76" y="64" text-anchor="end">E</text>
+      <text x="76" y="124" text-anchor="end">A</text>
+      <text x="76" y="164" text-anchor="end">B</text>
+      <text x="76" y="204" text-anchor="end">C</text>
+      <text x="76" y="244" text-anchor="end">F</text>
+    </g>
+    <g class="mono" font-size="9" fill="#525252">
+      <text x="116" y="14">1.5</text>
+      <text x="116" y="76">1.5</text>
+      <text x="116" y="114">2.5</text>
+      <text x="116" y="174">2.5</text>
+      <text x="160" y="100">2.0</text>
+      <text x="240" y="76">2.5</text>
+      <text x="180" y="216">3.0</text>
+      <text x="240" y="158">3.0</text>
+      <text x="240" y="240">5.5</text>
+    </g>
+  </g>
+
+  <!-- Bottom banner -->
+  <g transform="translate(80,470)">
+    <rect width="1040" height="80" fill="#fef3c7" stroke="#b45309" rx="4"/>
+    <text x="520" y="24" text-anchor="middle" font-size="12" font-weight="600" fill="#92400e">Q-matrix correction = the trick that makes NJ work without a molecular clock</text>
+    <text x="520" y="44" text-anchor="middle" font-size="10" fill="#374151">Different lineages can have different evolutionary rates. The Q transformation accounts for this by penalising taxa that are far from everyone — they're not a fast-evolving outlier we should mistake for a deep split.</text>
+    <text x="520" y="62" text-anchor="middle" font-size="10" fill="#374151" class="mono">Time complexity: O(N³) — fast for N up to ~10⁵ taxa.</text>
+  </g>
+</svg>

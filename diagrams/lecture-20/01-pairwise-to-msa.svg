@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" font-family="Inter, sans-serif">
+  <defs><style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; }</style></defs>
+  <rect width="1200" height="600" fill="#fafaf9" rx="6"/>
+  <text x="600" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">Pairwise DP → exact MSA tensor → progressive alignment decomposition</text>
+
+  <!-- Panel 1: pairwise DP matrix -->
+  <g transform="translate(40,80)">
+    <text x="180" y="0" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3a8a">Pairwise: 2D DP</text>
+    <text x="180" y="18" text-anchor="middle" font-size="10" fill="#525252">cost O(N·L²)</text>
+    <g transform="translate(40,40)">
+      <g class="mono" font-size="10" fill="#374151">
+        <text x="-12" y="14">A</text><text x="-12" y="38">C</text><text x="-12" y="62">G</text>
+        <text x="-12" y="86">T</text><text x="-12" y="110">C</text><text x="-12" y="134">A</text>
+        <text x="-12" y="158">G</text><text x="-12" y="182">T</text><text x="-12" y="206">A</text>
+        <text x="-12" y="230">C</text>
+        <text x="14" y="-6" text-anchor="middle">A</text>
+        <text x="38" y="-6" text-anchor="middle">C</text>
+        <text x="62" y="-6" text-anchor="middle">G</text>
+        <text x="86" y="-6" text-anchor="middle">A</text>
+        <text x="110" y="-6" text-anchor="middle">C</text>
+        <text x="134" y="-6" text-anchor="middle">A</text>
+        <text x="158" y="-6" text-anchor="middle">G</text>
+        <text x="182" y="-6" text-anchor="middle">T</text>
+        <text x="206" y="-6" text-anchor="middle">A</text>
+        <text x="230" y="-6" text-anchor="middle">C</text>
+      </g>
+      <!-- 10x10 grid -->
+      <g stroke="#d6d3d1" stroke-width="0.5" fill="none">
+        <rect x="0" y="0" width="240" height="240"/>
+        <line x1="24" y1="0" x2="24" y2="240"/><line x1="48" y1="0" x2="48" y2="240"/>
+        <line x1="72" y1="0" x2="72" y2="240"/><line x1="96" y1="0" x2="96" y2="240"/>
+        <line x1="120" y1="0" x2="120" y2="240"/><line x1="144" y1="0" x2="144" y2="240"/>
+        <line x1="168" y1="0" x2="168" y2="240"/><line x1="192" y1="0" x2="192" y2="240"/>
+        <line x1="216" y1="0" x2="216" y2="240"/>
+        <line x1="0" y1="24" x2="240" y2="24"/><line x1="0" y1="48" x2="240" y2="48"/>
+        <line x1="0" y1="72" x2="240" y2="72"/><line x1="0" y1="96" x2="240" y2="96"/>
+        <line x1="0" y1="120" x2="240" y2="120"/><line x1="0" y1="144" x2="240" y2="144"/>
+        <line x1="0" y1="168" x2="240" y2="168"/><line x1="0" y1="192" x2="240" y2="192"/>
+        <line x1="0" y1="216" x2="240" y2="216"/>
+      </g>
+      <!-- Diagonal traceback -->
+      <path d="M 12 12 L 36 36 L 60 36 L 84 60 L 108 84 L 132 108 L 156 132 L 180 156 L 204 180 L 228 204 L 228 228" stroke="#1e3a8a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <circle cx="12" cy="12" r="3" fill="#1e3a8a"/>
+      <circle cx="228" cy="228" r="3" fill="#1e3a8a"/>
+    </g>
+    <text x="180" y="320" text-anchor="middle" font-size="10" fill="#525252">Smith-Waterman / Needleman-Wunsch</text>
+  </g>
+
+  <!-- Panel 2: 5D tensor -->
+  <g transform="translate(440,80)">
+    <text x="180" y="0" text-anchor="middle" font-size="12" font-weight="700" fill="#b45309">Exact 5-way: 5D tensor</text>
+    <text x="180" y="18" text-anchor="middle" font-size="10" fill="#525252">cost O(2⁵·L⁵) ≈ exponential</text>
+    <!-- Stack of nested cubes representing 5D -->
+    <g transform="translate(40,40)" stroke="#b45309" fill="#fef3c7" stroke-width="1.2">
+      <rect x="0" y="0" width="80" height="80" fill-opacity="0.6"/>
+      <rect x="20" y="20" width="80" height="80" fill-opacity="0.6"/>
+      <rect x="40" y="40" width="80" height="80" fill-opacity="0.6"/>
+      <rect x="60" y="60" width="80" height="80" fill-opacity="0.6"/>
+      <rect x="80" y="80" width="80" height="80" fill-opacity="0.6"/>
+      <line x1="0" y1="0" x2="20" y2="20"/>
+      <line x1="80" y1="0" x2="100" y2="20"/>
+      <line x1="0" y1="80" x2="20" y2="100"/>
+      <line x1="80" y1="80" x2="100" y2="100"/>
+      <line x1="20" y1="20" x2="40" y2="40"/>
+      <line x1="100" y1="20" x2="120" y2="40"/>
+      <line x1="100" y1="100" x2="120" y2="120"/>
+    </g>
+    <g class="mono" font-size="10" fill="#7c2d12">
+      <text x="180" y="240" text-anchor="middle">L = 100, N = 5</text>
+      <text x="180" y="256" text-anchor="middle">cells = 32 · 100⁵ = 3.2 · 10¹¹</text>
+    </g>
+    <g transform="translate(20,280)">
+      <rect width="320" height="40" fill="#fee2e2" stroke="#7f1d1d" rx="4"/>
+      <text x="160" y="26" text-anchor="middle" font-size="11" font-weight="600" fill="#7f1d1d">exact algorithm impossible</text>
+    </g>
+  </g>
+
+  <!-- Panel 3: progressive decomposition -->
+  <g transform="translate(840,80)">
+    <text x="160" y="0" text-anchor="middle" font-size="12" font-weight="700" fill="#0d7377">Progressive: N−1 pairwise DPs</text>
+    <text x="160" y="18" text-anchor="middle" font-size="10" fill="#525252">cost O(N²·L²)</text>
+    <!-- Guide tree on the left -->
+    <g transform="translate(20,40)" stroke="#0d7377" stroke-width="1.5" fill="none">
+      <line x1="20" y1="20" x2="60" y2="20"/>
+      <line x1="20" y1="60" x2="60" y2="60"/>
+      <line x1="60" y1="20" x2="60" y2="60"/>
+      <line x1="60" y1="40" x2="100" y2="40"/>
+      <line x1="20" y1="100" x2="100" y2="100"/>
+      <line x1="100" y1="40" x2="100" y2="100"/>
+      <line x1="100" y1="70" x2="140" y2="70"/>
+      <line x1="20" y1="140" x2="140" y2="140"/>
+      <line x1="140" y1="70" x2="140" y2="140"/>
+      <line x1="140" y1="105" x2="180" y2="105"/>
+      <line x1="20" y1="180" x2="180" y2="180"/>
+      <line x1="180" y1="105" x2="180" y2="180"/>
+    </g>
+    <g class="mono" font-size="9" fill="#0d7377">
+      <text x="14" y="62">S1</text><text x="14" y="102">S2</text>
+      <text x="14" y="142">S3</text><text x="14" y="182">S4</text>
+      <text x="14" y="222">S5</text>
+    </g>
+    <!-- Steps annotation -->
+    <g transform="translate(20,260)" font-size="10" fill="#374151">
+      <text x="0" y="0">Step 1: align S1 + S2 → P₁</text>
+      <text x="0" y="16">Step 2: align P₁ + S3 → P₂</text>
+      <text x="0" y="32">Step 3: align P₂ + S4 → P₃</text>
+      <text x="0" y="48">Step 4: align P₃ + S5 → final</text>
+    </g>
+    <g transform="translate(20,320)">
+      <rect width="280" height="36" fill="#dcfce7" stroke="#065f46" rx="4"/>
+      <text x="140" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#065f46">heuristic but tractable</text>
+    </g>
+  </g>
+
+  <!-- Footer banner -->
+  <g transform="translate(40,500)">
+    <rect width="1120" height="60" fill="#fef3c7" stroke="#b45309" rx="4"/>
+    <text x="560" y="24" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">Exact MSA is exponential in N → progressive heuristic decomposes into N−1 pairwise DPs</text>
+    <text x="560" y="44" text-anchor="middle" font-size="10" fill="#525252">Trade exactness for tractability. Iterative refinement (MUSCLE, MAFFT G-INS-i) recovers most of the lost optimality.</text>
+  </g>
+</svg>

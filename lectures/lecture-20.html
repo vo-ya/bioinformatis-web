@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 20 — MSA, Phylogenetics, and Comparative Genomics · Bioinformatics for EE</title>
+  <meta name="description" content="From pairwise alignment to families: progressive MSA (Clustal/MUSCLE/MAFFT), phylogenetic-tree inference (NJ, parsimony, ML), molecular clock, dN/dS, comparative genomics, synteny, RNA secondary structure (Infernal/Rfam).">
+
+  <meta property="og:title" content="Lecture 20 — MSA, Phylogenetics, and Comparative Genomics">
+  <meta property="og:description" content="MSA as constrained tensor DP · trees as graphical models · molecular clock as Poisson process · dN/dS as likelihood-ratio test · RNA folding as context-free parsing.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — From Pairwise to Multiple</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Why MSA matters</a></li>
+          <li><a href="#sec-1-2">1.2 The MSA problem</a></li>
+          <li><a href="#sec-1-3">1.3 Why exact DP is impossible</a></li>
+          <li><a href="#sec-1-4">1.4 The Carrillo-Lipman bound</a></li>
+          <li><a href="#sec-1-5">1.5 The progressive-alignment idea</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Progressive Alignment in Practice</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 The Clustal family</a></li>
+          <li><a href="#sec-2-2">2.2 MUSCLE: iterative refinement</a></li>
+          <li><a href="#sec-2-3">2.3 MAFFT: FFT-based scoring</a></li>
+          <li><a href="#sec-2-4">2.4 The MSA quality landscape</a></li>
+          <li><a href="#sec-2-5">2.5 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Phylogenetic Tree Construction</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 What's a phylogenetic tree</a></li>
+          <li><a href="#sec-3-2">3.2 Distance, character, and likelihood</a></li>
+          <li><a href="#sec-3-3">3.3 UPGMA</a></li>
+          <li><a href="#sec-3-4">3.4 Neighbor-Joining</a></li>
+          <li><a href="#sec-3-5">3.5 Maximum parsimony</a></li>
+          <li><a href="#sec-3-6">3.6 Maximum likelihood</a></li>
+          <li><a href="#sec-3-7">3.7 Branch support: bootstrapping</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Molecular Clock and Dating</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 The clock concept</a></li>
+          <li><a href="#sec-4-2">4.2 The clock as a Poisson process</a></li>
+          <li><a href="#sec-4-3">4.3 Clock violations and the relaxed clock</a></li>
+          <li><a href="#sec-4-4">4.4 Calibration and dating</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — dN/dS and Selection</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 The codon-level view</a></li>
+          <li><a href="#sec-5-2">5.2 Computing dN and dS</a></li>
+          <li><a href="#sec-5-3">5.3 The likelihood-ratio test</a></li>
+          <li><a href="#sec-5-4">5.4 Examples</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Comparative Genomics and Synteny</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 Genome-scale comparison</a></li>
+          <li><a href="#sec-6-2">6.2 Synteny</a></li>
+          <li><a href="#sec-6-3">6.3 Orthologs vs paralogs</a></li>
+          <li><a href="#sec-6-4">6.4 Conservation tracks</a></li>
+          <li><a href="#sec-6-5">6.5 Phylogenetic footprinting</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-65">Part 6.5 — RNA Secondary Structure</a>
+        <ol>
+          <li><a href="#sec-65-1">6.5.1 Why RNA structure matters</a></li>
+          <li><a href="#sec-65-2">6.5.2 RNA folding basics</a></li>
+          <li><a href="#sec-65-3">6.5.3 ViennaRNA and RNAfold</a></li>
+          <li><a href="#sec-65-4">6.5.4 Profile RNA models — Infernal and Rfam</a></li>
+          <li><a href="#sec-65-5">6.5.5 RNA tertiary structure</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — Tools and Practice</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 The standard workflow</a></li>
+          <li><a href="#sec-7-2">7.2 Common pitfalls</a></li>
+          <li><a href="#sec-7-3">7.3 The tree of life</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 20</div>
+      <h1 class="lecture-title">Multiple Sequence Alignment, Phylogenetics, and Comparative Genomics</h1>
+      <p class="lecture-subtitle">From pairwise alignment to families. Progressive MSA gives up exact tensor DP for tractability; phylogenetic trees are graphical models inferred by ML; the molecular clock is a Poisson process; dN/dS is a likelihood-ratio test for selection; comparative genomics aligns whole genomes via synteny. Closes with non-coding RNA structure inference (Infernal / Rfam).</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">235 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — Pairwise to multiple</a></li>
+        <li><a href="#part-2">Part 2 — Progressive alignment</a></li>
+        <li><a href="#part-3">Part 3 — Phylogenetic trees</a></li>
+        <li><a href="#part-4">Part 4 — Molecular clock</a></li>
+        <li><a href="#part-5">Part 5 — dN/dS and selection</a></li>
+        <li><a href="#part-6">Part 6 — Comparative genomics</a></li>
+        <li><a href="#part-65">Part 6.5 — RNA secondary structure</a></li>
+        <li><a href="#part-7">Part 7 — Tools and practice</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Six moves:</em>
+        <span class="lecture-tagline-beat">progressive-align by guide tree</span>,
+        <span class="lecture-tagline-beat">refine iteratively</span>,
+        <span class="lecture-tagline-beat">build the tree (NJ → ML)</span>,
+        <span class="lecture-tagline-beat">date with the relaxed clock</span>,
+        <span class="lecture-tagline-beat">test selection via dN/dS</span>,
+        <span class="lecture-tagline-beat">read synteny + RNA structure</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Formulate the MSA problem; explain why exact tensor DP is intractable beyond ~5 sequences and why progressive alignment is the practical compromise.</li>
+          <li>Walk through progressive alignment with a guide tree; explain Feng-Doolittle "once a gap, always a gap" and its iterative-refinement remedy.</li>
+          <li>Construct phylogenetic trees by parsimony, distance methods (UPGMA, NJ), and maximum likelihood; describe the molecular-clock assumption and its violation.</li>
+          <li>Compute and interpret dN / dS ratios; identify positive vs purifying selection at the gene level.</li>
+          <li>Describe synteny, ortholog identification (RBH, OrthoFinder), and paralog distinction; navigate UCSC Genome Browser and Ensembl Compara.</li>
+          <li>Apply Infernal and Rfam to non-coding RNA family detection via stochastic context-free grammars.</li>
+          <li>Frame phylogenetics and MSA in EE terms: trees as graphical models; MSA as constrained DP; molecular clock as a Poisson process; dN/dS as a likelihood-ratio test; RNA folding as context-free parsing.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 25 min</span>
+          From Pairwise to Multiple
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Why MSA matters</h3>
+
+          <p>Pairwise alignment (Lecture 2) handles two sequences. But biology routinely deals with <strong>families</strong>: a gene family across 50 species, all isoforms of a protein, or all members of a Pfam domain. To compare these, we need multiple sequences aligned in <strong>a single coherent column structure</strong> where homologous residues line up.</p>
+
+          <p>Concrete uses:</p>
+          <ul>
+            <li><strong>Phylogenetics</strong>: trees are inferred from MSAs.</li>
+            <li><strong>Profile HMMs / Pfam</strong>: column-by-column residue conservation gives a profile.</li>
+            <li><strong>AlphaFold</strong>: MSA columns provide coevolution signals.</li>
+            <li><strong>Conserved-region detection</strong>: identifies functionally-important residues.</li>
+            <li><strong>Primer design</strong>: degenerate primers cover all family members.</li>
+          </ul>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 The MSA problem</h3>
+
+          <p>Given $N$ sequences of average length $L$, find the alignment with maximum <strong>sum-of-pairs</strong> (SP) score:</p>
+
+          <p style="text-align: center;">$\text{SP} = \sum_{i &lt; j} \text{score}(\text{aln}_i, \text{aln}_j)$</p>
+
+          <p>Each pair's contribution is the standard pairwise score; the goal is jointly optimal placement of gaps so all pairs simultaneously score well.</p>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 Why exact DP is impossible</h3>
+
+          <p>Pairwise DP runs in $O(L^2)$ time. The natural generalization to $N$ sequences runs in $O(L^N)$ time and space — the <strong>Carrillo-Lipman tensor</strong>. For $N = 5$ and $L = 300$, that's $\sim 10^{12}$ states. For $N = 50$ (a small family), it's $10^{125}$. <strong>NP-hard in general</strong> (Wang &amp; Jiang 1994).</p>
+
+          <p>So all practical MSA tools are <strong>heuristic</strong>.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-20/01-pairwise-to-msa.svg"
+                 alt="Three panels showing the MSA generalization. Left: pairwise DP matrix 10x10 cells with diagonal traceback. Middle: 5-sequence DP tensor in 5D visualised as nested cubes; total state count 10^10 labelled with annotation 'exact algorithm impossible'. Right: progressive alignment showing decomposition into 4 pairwise/profile-vs-sequence steps with total cost ~N²L².">
+            <figcaption>Figure 1. The exact-MSA tensor explodes; progressive alignment decomposes it into a sequence of pairwise DPs along a guide tree.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 The Carrillo-Lipman bound</h3>
+
+          <p>Carrillo &amp; Lipman (1988): a partial bound that lets exact DP run for small $N$ and short $L$. The idea: prune branches of the DP tensor that can't beat the current best. Useful for $N \leq 5$ or so. Not used at scale; mentioned because it tells you exact MSA isn't entirely impossible — just unscalable.</p>
+        </section>
+
+        <section id="sec-1-5">
+          <h3>1.5 The progressive-alignment idea</h3>
+
+          <p>Feng &amp; Doolittle (1987): instead of optimizing all sequences jointly, align them <strong>in tree order</strong>:</p>
+
+          <ol>
+            <li>Build a guide tree from rough pairwise distances.</li>
+            <li>Align the two closest sequences first.</li>
+            <li>At each internal node, align the <strong>profile</strong> built from previously-aligned sequences with the next sequence.</li>
+            <li>End with one alignment of all $N$ sequences.</li>
+          </ol>
+
+          <p>This is suboptimal: errors made early are frozen ("once a gap, always a gap"). But it's tractable (close to $O(N^2 L^2)$) and works well in practice.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 40 min</span>
+          Progressive Alignment in Practice
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 The Clustal family</h3>
+
+          <p><strong>ClustalW</strong> (1994), <strong>ClustalX</strong> (1997), <strong>Clustal Omega</strong> (2011). The progenitors of progressive alignment, still widely used.</p>
+
+          <ul>
+            <li>Compute all pairwise distances (typically by k-tuple-counting, fast but rough).</li>
+            <li>Build a guide tree (UPGMA or NJ).</li>
+            <li>Progressive alignment along the tree.</li>
+          </ul>
+
+          <p>Limitation: the guide tree has to be built before any alignment is done, but the distance estimates from raw sequences can be inaccurate at distant homology.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-20/02-progressive-msa.svg"
+                 alt="5-sequence progressive MSA build. Step 1: align two closest sequences (sea cucumber vs lamprey) into a 2-row alignment. Step 2: profile from step 1 plus chicken into a 3-row alignment. Step 3: profile from step 2 plus mouse into 4-row. Step 4: profile from step 3 plus human into final 5-row alignment. Conserved positions (functional residues like the heme-binding histidine) highlighted in colour.">
+            <figcaption>Figure 2. Progressive alignment step by step. Five globin sequences aligned via four pairwise/profile-vs-sequence steps along a guide tree.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 MUSCLE: iterative refinement</h3>
+
+          <p><strong>MUSCLE</strong> (Edgar 2004) added two key innovations:</p>
+
+          <ol>
+            <li><strong>Better guide tree</strong>: MUSCLE iterates — build a quick alignment, derive distances from the alignment, build a new tree, re-align.</li>
+            <li><strong>Iterative refinement</strong>: after the initial alignment, <strong>bipartition</strong> the tree at a random internal edge; re-align the two halves separately, then combine. If the SP score improves, accept; else reject. Repeat ~20 iterations.</li>
+          </ol>
+
+          <p>Iterative refinement breaks the "once a gap, always a gap" lock-in by giving early errors a chance to be corrected later.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 1 — Progressive MSA Stepper.</strong> Walk through progressive alignment on a small toy dataset. Each step adds one sequence to a profile. Aha: progressive alignment is heuristic; the early-step gaps freeze. Iterative refinement (next artifact, in spirit) gives them another chance.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-20/01-progressive-msa.html" loading="lazy" title="Artifact 1 — Progressive MSA Stepper"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 MAFFT: FFT-based scoring</h3>
+
+          <p><strong>MAFFT</strong> (Katoh et al. 2002, 2013) is the modern default for large MSAs:</p>
+
+          <ul>
+            <li>For pairwise comparisons, uses <strong>fast Fourier transform (FFT)</strong> on physicochemical-property representations of residues. Approximates the distance computation in $O(L \log L)$ rather than $O(L^2)$.</li>
+            <li>Multiple algorithm choices: FFT-NS-1 (fast), FFT-NS-2 (balanced), L-INS-i (most accurate, uses local pairwise alignments as anchors), G-INS-i (global).</li>
+            <li>Scales to thousands of sequences.</li>
+          </ul>
+
+          <p>For typical workflows: MAFFT L-INS-i is the gold standard; FFT-NS-2 the practical default.</p>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 The MSA quality landscape</h3>
+
+          <p>Benchmarks (BAliBASE, PREFAB, OXBench, HOMSTRAD) compare MSA tools:</p>
+
+          <ul>
+            <li><strong>MAFFT L-INS-i</strong> and <strong>PROBCONS</strong>: highest accuracy, slower.</li>
+            <li><strong>MUSCLE</strong>, <strong>Clustal Omega</strong>: balanced.</li>
+            <li><strong>Kalign</strong>: fast for large datasets.</li>
+          </ul>
+
+          <p>Differences are most visible at distant homology (~25% identity). Closely-related sequences are well-aligned by any tool.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-20/08-msa-benchmark.svg"
+                 alt="Bar chart of MSA quality (sum-of-pairs accuracy on BAliBASE) for six tools: ClustalW (1994), Clustal Omega (2011), MUSCLE (2004), MAFFT FFT-NS-2 (2002), MAFFT L-INS-i (2007), PROBCONS (2005). Y-axis: average accuracy across BAliBASE reference sets. Bottom annotation: MAFFT L-INS-i and PROBCONS are top; speed-accuracy trade-off is real.">
+            <figcaption>Figure 8. MSA tool accuracy on BAliBASE. Modern tools all score &gt; 0.85; the speed-accuracy trade-off is real but the gap is small in practice.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 5 — MSA Quality Scorer.</strong> Score an MSA's quality (sum-of-pairs, column-wise conservation). Compare strict vs lenient gap costs. Aha: MSA quality is column-by-column; bad columns inflate downstream tree errors. Trim before tree-building.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-20/05-msa-quality.html" loading="lazy" title="Artifact 5 — MSA Quality Scorer"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-2-5">
+          <h3>2.5 The deep dive</h3>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — MSA as constrained tensor DP</span>
+            <p>The exact MSA problem is <strong>dynamic programming on a $D$-dimensional tensor</strong> where $D = N$. Each cell stores the best alignment up to that prefix combination. The transition is a max over $2^N - 1$ neighbours (each subset of sequences advancing or staying). Exponential in $N$ both in time and memory. Heuristic algorithms work by <strong>decomposing the tensor</strong>: progressive alignment computes 2D slices, then 2D-vs-1D slices, sequentially. Iterative refinement is essentially <strong>coordinate-descent optimisation</strong> on the SP-score landscape, restarting from a partition of the current solution. The shape of the solution space — heavily local-minima-ridden, gap-extension non-convex — explains why no closed-form algorithm exists and why empirical benchmarking is the gold standard.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 40 min</span>
+          Phylogenetic Tree Construction
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 What's a phylogenetic tree</h3>
+
+          <p>A <strong>phylogenetic tree</strong> is a rooted (or unrooted) bifurcating tree where:</p>
+
+          <ul>
+            <li><strong>Leaves</strong> = observed sequences (taxa).</li>
+            <li><strong>Internal nodes</strong> = inferred ancestors.</li>
+            <li><strong>Edges</strong> = lineages with associated lengths (proportional to evolutionary distance).</li>
+            <li><strong>Root</strong> = most-recent common ancestor (MRCA).</li>
+          </ul>
+
+          <p>Building such trees from sequence data is the core of evolutionary inference.</p>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 The data: distance, character, and likelihood</h3>
+
+          <p>Three flavours of phylogenetics:</p>
+
+          <ul>
+            <li><strong>Distance methods</strong>: compute a pairwise distance matrix from the MSA, then tree-build from distances. UPGMA, Neighbor-Joining.</li>
+            <li><strong>Character / parsimony methods</strong>: count substitutions; minimise total changes on the tree. Maximum parsimony.</li>
+            <li><strong>Likelihood methods</strong>: probabilistic substitution model, find tree maximising P(data | tree).</li>
+          </ul>
+
+          <p>Modern phylogenetics is dominated by likelihood and Bayesian methods (the latter outside scope here).</p>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 UPGMA</h3>
+
+          <p><strong>UPGMA (Unweighted Pair Group Method with Arithmetic Mean)</strong>: hierarchical clustering on a distance matrix.</p>
+
+          <ol>
+            <li>Find the closest pair of taxa.</li>
+            <li>Merge them into a new internal node; new branch length = distance / 2.</li>
+            <li>Update the distance matrix.</li>
+            <li>Repeat until one node remains.</li>
+          </ol>
+
+          <p><strong>Assumption</strong>: molecular clock — substitution rates are equal across all lineages. When this fails (it usually does), UPGMA produces incorrect topologies. Use it only as a quick first pass.</p>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Neighbor-Joining</h3>
+
+          <p><strong>Neighbor-Joining</strong> (Saitou &amp; Nei 1987): a distance method that doesn't assume the molecular clock.</p>
+
+          <p>For each pair $(i, j)$, compute:</p>
+
+          <p style="text-align: center;">$Q(i, j) = (n - 2) d(i, j) - \sum_k d(i, k) - \sum_k d(j, k)$</p>
+
+          <p>The pair minimising $Q$ is the next pair to join. NJ produces an additive tree if input distances are additive; otherwise it's a robust heuristic.</p>
+
+          <p>NJ is fast ($O(n^3)$) and accurate for moderate datasets. Standard for "quick tree from MSA" tasks.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-20/03-nj-tree.svg"
+                 alt="Six-taxon neighbor-joining example. Top: input pairwise distance matrix as a 6x6 colour-coded heat map. Middle: Q-matrix at iteration 1 with the smallest entry circled. Iterations 2-3: progressively-collapsed matrices. Bottom: final NJ tree with branch lengths. Annotation: Q-matrix correction removes molecular-clock assumption.">
+            <figcaption>Figure 3. Neighbor-Joining step by step. The Q-matrix correction removes the molecular-clock assumption — branches can have different lengths.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 2 — NJ vs ML Tree Comparator.</strong> Build NJ and (simplified) ML trees on the same toy data; compare topologies; show bootstrap support. Aha: NJ is fast and usually correct; ML is more rigorous; both agree on well-resolved branches but can differ at hard branches.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-20/02-nj-vs-ml.html" loading="lazy" title="Artifact 2 — NJ vs ML Comparator"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 Maximum parsimony</h3>
+
+          <p>Count the minimum number of substitutions required to explain the data on the tree.</p>
+
+          <ul>
+            <li>Brute force: enumerate all $(2n-3)!! / 2^{n-1}$ unrooted topologies; for each, compute parsimony score using Fitch's or Sankoff's algorithm.</li>
+            <li>Heuristics: nearest-neighbour interchange, subtree-pruning-and-regrafting.</li>
+          </ul>
+
+          <p><strong>Limitation</strong>: long-branch attraction. Two distantly-related sequences with high substitution rates appear closer to each other than to their true relatives. Parsimony is biased; ML and Bayesian methods are unbiased.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-20/11-lba.svg"
+                 alt="Two trees side by side illustrating long-branch attraction. True tree: A-B close pair; C-D close pair; long branches from A and from C to a deep root. Parsimony-inferred tree (incorrect): A-C close; B-D close; topology error. Annotation: long-branch attraction occurs when fast-evolving lineages share many substitutions by chance — parsimony incorrectly groups them.">
+            <figcaption>Figure 11. Long-branch attraction failure mode. Parsimony incorrectly groups fast-evolving lineages; ML correctly identifies the true topology.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 7 — Long-Branch Attraction Demo.</strong> Show how parsimony fails on long-branch-attraction scenarios; ML succeeds. Slide the long-branch substitution rate to find the failure threshold. Aha: parsimony has known failure modes; ML is more robust. Use ML.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-20/07-lba-demo.html" loading="lazy" title="Artifact 7 — LBA Demo"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-3-6">
+          <h3>3.6 Maximum likelihood</h3>
+
+          <p>Fix a substitution model (Jukes-Cantor, K2P, F81, HKY, GTR; protein analogs JTT, WAG, LG); then for each candidate tree compute:</p>
+
+          <p style="text-align: center;">$L(\text{tree}) = P(\text{data} \mid \text{tree}, \text{model})$</p>
+
+          <p>Use Felsenstein's pruning algorithm: dynamic-programming over the tree to compute leaf likelihoods bottom-up.</p>
+
+          <p>Search the tree space with hill-climbing (RAxML, IQ-TREE, FastTree). Modern likelihood-tree software produces gold-standard trees in minutes for thousands of sequences.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-20/09-felsenstein.svg"
+                 alt="Felsenstein's pruning algorithm on a 5-leaf binary tree. Leaves show observed residues. At each internal node, the dynamic-programming computation L(node) = product over children of sum over states of P(child given parent state, edge time) times L(child). Bottom-up flow shown as arrows. Final root likelihood as the marginal sum over root-state probabilities. Annotation: belief propagation on the tree.">
+            <figcaption>Figure 9. Felsenstein's pruning algorithm. Belief propagation on a phylogenetic tree — the tree analog of forward-backward in HMMs.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-7">
+          <h3>3.7 Branch support: bootstrapping</h3>
+
+          <p>How confident are we in each branch? <strong>Bootstrap</strong>: resample MSA columns with replacement → rebuild tree → repeat 100-1000 times → record what fraction of bootstrap trees contain each branch of the original tree. Branches with bootstrap support $\geq 70$ are typically considered reliable.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — phylogenetic inference as graphical-model inference</span>
+            <p>A phylogenetic tree with substitution model is exactly a <strong>probabilistic graphical model</strong>. Internal nodes are latent random variables (ancestral sequences); leaves are observed. The substitution model defines transition probabilities $P(\text{child} \mid \text{parent}, t)$ on each edge with edge length $t$. Computing $P(\text{data} \mid \text{tree})$ is <strong>belief propagation</strong> on the tree (Felsenstein's pruning is the bottom-up forward pass). MCMC over trees is <strong>Metropolis-Hastings on the joint tree-and-parameter space</strong>. The whole field is a beautiful instance of probabilistic ML applied long before "graphical models" were named — Felsenstein's 1981 paper predates Pearl's 1988 <em>Probabilistic Reasoning</em> by seven years.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 25 min</span>
+          Molecular Clock and Dating
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 The clock concept</h3>
+
+          <p>The <strong>molecular clock hypothesis</strong> (Zuckerkandl &amp; Pauling 1962): substitutions accumulate at a roughly constant rate per unit time. If true, <strong>distance ∝ time</strong>: branch lengths are time elapsed since divergence.</p>
+
+          <p>Calibrated against fossil records or known divergence times, branch lengths translate to <strong>absolute dates</strong>.</p>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 The clock as a Poisson process</h3>
+
+          <p>Substitutions on a lineage are well-modelled as a <strong>Poisson process</strong>: substitution count $X(t) \sim \text{Pois}(\mu t)$ where $\mu$ is the per-site rate. Variance equals mean — overdispersion suggests rate variation across sites.</p>
+
+          <p>Per-site rate variation: model as Gamma distribution → site-specific rates → Felsenstein's "+G" correction (gamma-distributed rates, often discretised to 4-8 categories).</p>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Clock violations and the relaxed clock</h3>
+
+          <p>The strict clock fails: substitution rates vary across lineages (e.g., rodents &gt; primates), across genes, and across sites. <strong>Relaxed clock</strong> models (BEAST, MrBayes) allow rates to vary along the tree, with rate priors (uncorrelated lognormal, autocorrelated, etc.).</p>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Calibration and dating</h3>
+
+          <p>To convert relative branch lengths to absolute times, anchor with <strong>calibration points</strong>: dated fossils or known divergence events. Combined with the relaxed clock, this gives <strong>divergence-time estimation</strong> with credible intervals.</p>
+
+          <p>Example: estimating when SARS-CoV-2 emerged from a bat coronavirus ancestor (~ Oct/Nov 2019, with confidence intervals from 2015 to 2020).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-20/04-clock-dating.svg"
+                 alt="Phylogenetic tree of 5 mammalian species (human, chimpanzee, mouse, rat, dog). Branch lengths in substitutions-per-site. Calibration point: chimpanzee-human split fixed at 6 Mya. Time axis on bottom showing absolute dates. Posterior 95% credible intervals on internal nodes (relaxed clock).">
+            <figcaption>Figure 4. Molecular clock dating. Branch lengths translate to absolute dates when anchored against fossil-derived calibration points.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 3 — Molecular Clock Simulator.</strong> Simulate substitution accumulation as a Poisson process. Strict vs relaxed clock; lineage-rate variation. Aha: the molecular clock is a Poisson process; relaxation handles real-world rate variation; calibrated against fossils gives absolute dates.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-20/03-clock-simulator.html" loading="lazy" title="Artifact 3 — Clock Simulator"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 25 min</span>
+          dN/dS and Selection
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 The codon-level view</h3>
+
+          <p>The genetic code is degenerate: most amino acids have multiple codons. <strong>Synonymous substitutions</strong> (codon change without amino-acid change) are evolutionarily near-neutral. <strong>Non-synonymous substitutions</strong> (codon change <em>with</em> amino-acid change) are subject to selection.</p>
+
+          <ul>
+            <li>$dS$ = synonymous substitutions per synonymous site.</li>
+            <li>$dN$ = non-synonymous substitutions per non-synonymous site.</li>
+          </ul>
+
+          <p>The <strong>dN / dS ratio</strong> $\omega = dN / dS$ measures selection:</p>
+
+          <ul>
+            <li>$\omega = 1$: neutral evolution.</li>
+            <li>$\omega &lt; 1$: purifying (negative) selection — most genes most of the time.</li>
+            <li>$\omega &gt; 1$: positive (Darwinian) selection — adaptive evolution.</li>
+          </ul>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Computing dN and dS</h3>
+
+          <p>Algorithms:</p>
+
+          <ul>
+            <li><strong>Nei-Gojobori (1986)</strong>: simple counting; assumes equal mutation rates across codons.</li>
+            <li><strong>Yang &amp; Nielsen (2000)</strong>: maximum-likelihood-based; codon-substitution model with unequal rates.</li>
+            <li><strong>Codeml</strong> (PAML package): standard ML implementation.</li>
+          </ul>
+
+          <p>Practical: align coding sequences (always nucleotide alignment, codon-aware), run codeml, get per-gene $\omega$.</p>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 The likelihood-ratio test</h3>
+
+          <p>Two models:</p>
+
+          <ul>
+            <li><strong>Null</strong>: $\omega$ is the same across all sites and lineages (clock-like).</li>
+            <li><strong>Alternative</strong>: $\omega$ varies — some sites have $\omega &gt; 1$ (positive selection); others $\omega \ll 1$ (purifying).</li>
+          </ul>
+
+          <p>Likelihood-ratio test: $2(\log L_{\text{alt}} - \log L_{\text{null}}) \sim \chi^2_{df}$. If significant → some sites under positive selection.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — dN/dS as a likelihood-ratio test</span>
+            <p>dN/dS is the <strong>likelihood-ratio statistic</strong> for the test "does selection deviate from neutral?". The null model has a fixed neutral substitution rate; the alternative allows site-specific deviations. The test statistic $\Lambda = 2 \log (L_{\text{alt}} / L_{\text{null}})$ is asymptotically $\chi^2$-distributed under the null. This is the same Neyman-Pearson hypothesis-testing framework you've seen for variant calling, peak detection, and regulatory-element identification — applied to molecular evolution.</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Examples</h3>
+
+          <p><strong>Genes under positive selection</strong> (omega > 1 at specific sites):</p>
+
+          <ul>
+            <li><strong>Influenza HA</strong>: surface protein evolves to evade antibodies. Annual updates to vaccine targets reflect this.</li>
+            <li><strong>MHC</strong>: peptide-binding groove residues are highly variable.</li>
+            <li><strong>Sperm-egg interaction proteins</strong>: Bindin, ZP3 — diverging fast across species.</li>
+          </ul>
+
+          <p><strong>Genes under strong purifying selection</strong> ($\omega \ll 1$):</p>
+
+          <ul>
+            <li><strong>Histones</strong>: virtually identical across all eukaryotes.</li>
+            <li><strong>Ribosomal RNA</strong>: similar story.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-20/05-dnds.svg"
+                 alt="Three panels of omega distributions. Panel 1: omega distribution under purifying selection — sharp mode at 0.1; long tail truncated at 1. Panel 2: omega distribution under positive selection — bimodal; main mass less than 1, secondary mass greater than 1. Panel 3: real-world examples — HA (broad with positive tail), histones (narrow at 0), housekeeping (centered around 0.1).">
+            <figcaption>Figure 5. dN/dS distribution under selection regimes. Purifying = sharp at 0; positive = bimodal with positive tail; real genes follow various profiles.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 4 — dN/dS Calculator.</strong> Compute dN/dS for a simulated codon alignment. Detect positive selection. Aha: dN/dS quantifies selection; LRT distinguishes neutral (ω = 1) from selected (ω ≠ 1).
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-20/04-dnds.html" loading="lazy" title="Artifact 4 — dN/dS"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 25 min</span>
+          Comparative Genomics and Synteny
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 Genome-scale comparison</h3>
+
+          <p>Beyond single-gene comparisons, <strong>comparative genomics</strong> asks: how are <em>whole genomes</em> related?</p>
+
+          <p>Resources:</p>
+
+          <ul>
+            <li><strong>UCSC Genome Browser</strong>: aligned genomes side-by-side.</li>
+            <li><strong>Ensembl Compara</strong>: pairwise genome alignments + synteny + ortholog assignments.</li>
+            <li><strong>OrthoDB / OMA</strong>: pre-computed ortholog clusters across all sequenced species.</li>
+          </ul>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 Synteny</h3>
+
+          <p><strong>Synteny</strong> = preserved gene order / co-linearity between genomes. Conserved synteny blocks are a hallmark of common ancestry.</p>
+
+          <p>Detection: align two genomes; identify regions where homologous genes appear in the same order. Disrupted synteny = chromosomal rearrangement, inversion, translocation since divergence.</p>
+
+          <p><strong>Synteny visualisation</strong>: dot plots (genome 1 on x-axis, genome 2 on y-axis, dots at homolog pairs). Diagonal stripes = collinear blocks. Off-diagonals = rearrangements.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-20/06-synteny.svg"
+                 alt="Two-genome synteny dot plot. X-axis: human chromosome 17 (0-80 Mb). Y-axis: mouse chromosome 11 (0-120 Mb). Dots: homolog gene pairs. Visible diagonal stripes are conserved synteny blocks; off-diagonal points are rearrangements (small). Side annotations call out specific gene clusters: HOXB cluster, p53 region, CDKN1B. Top inset shows dot-plot overview at full chromosome × chromosome scale.">
+            <figcaption>Figure 6. Synteny dot plot — human chr17 vs mouse chr11. Diagonal stripes are conserved synteny blocks; off-diagonal points are rearrangements.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 6 — Synteny Browser.</strong> Visualise synteny between two genomes; identify rearrangements vs conserved blocks. Aha: diagonal stripes = collinear blocks; off-diagonals = rearrangements; conservation reveals selection on gene order.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-20/06-synteny-browser.html" loading="lazy" title="Artifact 6 — Synteny Browser"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 Orthologs vs paralogs</h3>
+
+          <ul>
+            <li><strong>Orthologs</strong>: genes in different species sharing a common ancestor through speciation. "Same gene in different species."</li>
+            <li><strong>Paralogs</strong>: genes in the same species (or different species) arising from gene duplication. "Different gene from the same family."</li>
+          </ul>
+
+          <p>Distinguishing them is hard for gene families with both speciation and duplication events.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-20/10-ortho-paralog.svg"
+                 alt="Toy gene-family tree spanning 3 species (human, mouse, dog) and 2 sub-families (alpha, beta) created by an ancient duplication. Internal duplication node clearly marked. All speciation nodes after duplication. Pairs labelled: Human-α / Mouse-α = orthologs (speciation only). Human-α / Human-β = paralogs (duplication). Human-α / Mouse-β = ohnologs or distant homologs.">
+            <figcaption>Figure 10. Ortholog vs paralog distinction. Speciation nodes give orthologs; duplication nodes give paralogs.</figcaption>
+          </figure>
+
+          <p>Tools:</p>
+
+          <ul>
+            <li><strong>RBH (Reciprocal Best Hits)</strong>: simple, ~80% accurate. (Touched in L19 / new L3.)</li>
+            <li><strong>OrthoFinder</strong>: clustering-based; handles complex cases better.</li>
+            <li><strong>OMA / OrthoDB</strong>: pre-computed databases.</li>
+          </ul>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 Conservation tracks</h3>
+
+          <p>UCSC's <strong>PhyloP</strong> and <strong>PhastCons</strong> tracks: per-base scores measuring <strong>evolutionary conservation</strong> across vertebrates (or other clades). High conservation = likely functional sites under purifying selection.</p>
+
+          <p>Used for:</p>
+
+          <ul>
+            <li>Variant prioritisation in clinical genomics.</li>
+            <li>Functional element discovery in non-coding DNA (regulatory regions, miRNA target sites).</li>
+            <li>Comparative regulatory genomics.</li>
+          </ul>
+        </section>
+
+        <section id="sec-6-5">
+          <h3>6.5 Phylogenetic footprinting</h3>
+
+          <p>If a non-coding region is highly conserved across mammals, it's likely a regulatory element. The technique <strong>phylogenetic footprinting</strong> uses cross-species conservation to identify transcription factor binding sites without ChIP-seq.</p>
+
+          <p>Modern workflows combine:</p>
+
+          <ul>
+            <li>ChIP-seq (L9) for empirical binding.</li>
+            <li>Conservation tracks for evolutionary support.</li>
+            <li>Motif-scanning (HOMER, FIMO) for sequence specificity.</li>
+          </ul>
+
+          <p>The intersection is the highest-confidence regulatory inventory.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 6.5 ──────────────────────────────────────── -->
+      <section id="part-65">
+        <h2>
+          <span class="part-kicker">Part 6.5 · 25 min</span>
+          RNA Secondary Structure and Non-Coding RNAs
+        </h2>
+
+        <section id="sec-65-1">
+          <h3>6.5.1 Why RNA structure matters</h3>
+
+          <p>Most of this lecture has assumed sequences are interpreted at the residue level — letters compared, columns aligned, trees built. But RNA molecules <strong>fold</strong> into 3D structures stabilised by base-pairing, and their function depends on that structure as much as on their sequence. Examples:</p>
+
+          <ul>
+            <li><strong>tRNA</strong> — folds into the cloverleaf required for ribosome recognition.</li>
+            <li><strong>rRNA</strong> — the ribosome itself is a structured RNA-protein machine.</li>
+            <li><strong>Riboswitches</strong> — bacterial mRNA elements that change conformation in response to ligand binding.</li>
+            <li><strong>miRNAs</strong> — ~22-nt regulatory RNAs whose precursor stem-loop structure drives Dicer processing.</li>
+            <li><strong>lncRNAs</strong> — long non-coding RNAs (XIST, HOTAIR, NEAT1) function via specific structural domains.</li>
+          </ul>
+
+          <p>For non-coding RNA family detection, alignment alone is not enough — you need <strong>structure-aware alignment</strong>.</p>
+        </section>
+
+        <section id="sec-65-2">
+          <h3>6.5.2 RNA folding basics</h3>
+
+          <p>Watson-Crick base pairs (A·U, G·C) and the wobble pair (G·U) drive RNA secondary-structure formation. The space of foldings is constrained by:</p>
+
+          <ul>
+            <li><strong>No pseudoknots</strong> in classical RNA folding (most algorithms ignore them; pseudoknots make folding NP-hard).</li>
+            <li><strong>Minimum free energy (MFE)</strong>: the most stable fold under thermodynamic energy parameters (Turner free energies).</li>
+            <li><strong>Pair probabilities</strong>: under the Boltzmann ensemble, each pair has a probability — useful for reliability assessment.</li>
+          </ul>
+
+          <p>The MFE structure is computed by <strong>Zuker's algorithm</strong> (1989): O(n³) dynamic programming on the sequence with the energy parameters.</p>
+        </section>
+
+        <section id="sec-65-3">
+          <h3>6.5.3 ViennaRNA and RNAfold</h3>
+
+          <p><strong>ViennaRNA</strong> (Lorenz et al. 2011) is the standard RNA-folding suite:</p>
+
+          <ul>
+            <li><code>RNAfold</code>: minimum-free-energy structure + base-pair probabilities.</li>
+            <li><code>RNAcofold</code>: heterodimer folding (e.g., miRNA + target).</li>
+            <li><code>RNAplfold</code>: local folding for long sequences.</li>
+            <li><code>RNAalifold</code>: consensus structure across an alignment.</li>
+          </ul>
+
+          <p>Output uses <strong>dot-bracket notation</strong>: <code>((((....))))</code> represents a 4-bp stem-loop with 4-nt loop.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 8 — RNA Secondary Structure Folder.</strong> Paste an RNA sequence (or pick a preset: tRNA, riboswitch, miRNA precursor); the artifact computes minimum-free-energy structure and renders the dot-bracket notation. Aha: RNA secondary structure is determined by base-pairing thermodynamics; structure stability depends on temperature; profile-CMs (Infernal) detect homologs by structure-aware alignment.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-20/08-rna-fold.html" loading="lazy" title="Artifact 8 — RNA Folder"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-65-4">
+          <h3>6.5.4 Profile RNA models — Infernal and Rfam</h3>
+
+          <p>For non-coding RNA families, the analog of profile HMMs (Lecture 7 / new L7) is <strong>profile stochastic context-free grammars (SCFGs)</strong>. SCFGs handle base-pairing in the same way HMMs handle linear states — just with the added expressive power of context-free grammars to describe nested structure.</p>
+
+          <p><strong>Infernal</strong> (Eddy 2002, 2013) is the SCFG equivalent of HMMER:</p>
+
+          <ul>
+            <li><code>cmbuild</code>: from structure-annotated MSA → covariance model (CM).</li>
+            <li><code>cmsearch</code>: scan a sequence database for matches to the CM.</li>
+            <li>Sensitive at much greater sequence divergence than profile HMMs because the CM uses structural constraints.</li>
+          </ul>
+
+          <p><strong>Rfam</strong> (Kalvari et al. 2021) is the Pfam analog: ~4000 curated families of non-coding RNAs (tRNAs, rRNAs, snoRNAs, miRNAs, lncRNAs, riboswitches), each with seed alignment, consensus structure, and Infernal CM.</p>
+
+          <p>For ncRNA discovery in a new genome: run <code>cmsearch</code> against Rfam — it's the standard first pass.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-20/13-rna-structure.svg"
+                 alt="Three panels showing RNA secondary structure and SCFG models. Top-left: tRNA cloverleaf with anticodon arm (red), acceptor stem (cobalt), D-arm (green), TΨC arm (amber). Top-right: dot-bracket notation showing nested base-pair structure aligned with sequence. Bottom: profile-CM (covariance model) with match-pair states (paired columns), match-singlet states (loop columns), insert and delete states.">
+            <figcaption>Figure 13. RNA secondary structure and SCFG model. SCFGs handle nested base-pairing exactly via the inside-outside algorithm; Infernal and Rfam are the field's workhorses.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-65-5">
+          <h3>6.5.5 RNA tertiary structure</h3>
+
+          <p>Beyond secondary structure, predicting full 3D coordinates of an RNA is much harder. Tools:</p>
+
+          <ul>
+            <li><strong>RNAComposer</strong>, <strong>3dRNA</strong> — fragment-assembly-based.</li>
+            <li><strong>AlphaFold2-RNA / RoseTTAFold-NA</strong> (2022-2023) — deep-learning extensions.</li>
+            <li><strong>AlphaFold 3</strong> (2024) — handles RNA + DNA + protein + ligand jointly.</li>
+          </ul>
+
+          <p>Accuracy is good for small structured RNAs (tRNA, riboswitches) but limited for large flexible lncRNAs.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — RNA folding as constrained context-free parsing</span>
+            <p>The key complexity in RNA secondary-structure prediction comes from the <strong>nested base-pairing</strong> structure: each pair forms a properly-balanced bracket. Stochastic context-free grammars (SCFGs) handle this exactly via the inside-outside algorithm (CYK-style parsing) — the analog of the forward-backward algorithm for HMMs but extended to handle constituency / nesting. Pseudoknots (overlapping pairs) require context-sensitive grammars and become NP-hard, paralleling the jump from regular to context-sensitive languages in formal grammar hierarchy.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 20 min</span>
+          Tools and Practice
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 The standard workflow</h3>
+
+          <p>For a typical phylogenetics paper:</p>
+
+          <ol>
+            <li><strong>Collect</strong>: gather homologous sequences (BLAST, OrthoFinder, manual curation).</li>
+            <li><strong>Align</strong>: MAFFT L-INS-i (or MUSCLE).</li>
+            <li><strong>Trim</strong>: Gblocks or trimAl removes poorly-aligned columns.</li>
+            <li><strong>Tree</strong>: IQ-TREE with model selection + 1000 bootstraps.</li>
+            <li><strong>Visualise</strong>: iTOL or FigTree.</li>
+            <li><strong>Selection</strong>: PAML / HyPhy if dN/dS is the question.</li>
+            <li><strong>Comparative</strong>: UCSC Browser if genome context matters.</li>
+          </ol>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-20/07-workflow.svg"
+                 alt="Top-to-bottom flowchart of the standard phylogenetics workflow. 1. Collect homologs (BLAST / OrthoFinder). 2. MAFFT L-INS-i alignment. 3. Trim with trimAl / Gblocks. 4. IQ-TREE model selection + ML tree + 1000 bootstraps. 5. Visualise on iTOL / FigTree. 6. PAML for selection / BEAST for dating. Side panel: alternative tools at each step.">
+            <figcaption>Figure 7. Standard phylogenetics workflow. MAFFT → trimAl → IQ-TREE is the modern default; PAML for selection; BEAST for dating.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Common pitfalls</h3>
+
+          <ul>
+            <li><strong>Misaligned columns</strong>: a few badly-aligned positions will throw off the tree. Trim aggressively.</li>
+            <li><strong>Long-branch attraction</strong>: distantly-related fast-evolving sequences appear close. Add intermediates if possible; use ML.</li>
+            <li><strong>Saturated distances</strong>: at very high divergence, multiple substitutions per site cause distance underestimation. Use codon-aware methods for protein-coding alignments.</li>
+            <li><strong>Missing data</strong>: indels and gaps must be handled correctly (either removed or modelled).</li>
+            <li><strong>Wrong root</strong>: for unrooted trees, picking a root requires an outgroup; placing the root wrongly inverts ancestor relationships.</li>
+          </ul>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 The tree of life</h3>
+
+          <p>The <strong>Tree of Life</strong> (Hug et al. 2016, <em>Nature Microbiology</em>) is a ~3000-tip ML tree built from 16S rRNA + concatenated marker genes. It re-classified the bacteria-archaea-eukarya split, with archaea now placed as sister to eukaryotes (the "two domains" hypothesis). Comparative genomics underlies this entire reclassification.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-20/12-tree-of-life.svg"
+                 alt="Simplified vertebrate phylogeny. Lampreys to fish (cartilaginous and bony) to tetrapods (amphibia, reptilia, birds, mammals). Mammals expanded: monotremes to marsupials to placentals (rodents, primates, carnivores, etc.). Branch lengths approximate to time since divergence. Calibration points (fossils) marked.">
+            <figcaption>Figure 12. Vertebrate excerpt of the tree of life. Modern tree-of-life work uses 100s of marker genes + relaxed clock; Hug et al. 2016 placed archaea as sister to eukaryotes.</figcaption>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup">
+        <h2>Wrap-up</h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>MSA is intractable in exact form</strong>; progressive alignment + iterative refinement (Clustal, MUSCLE, MAFFT) is the practical compromise.</li>
+          <li><strong>Phylogenetic trees</strong> can be inferred from distances (NJ), characters (parsimony), or likelihood (ML). ML is the gold standard.</li>
+          <li><strong>The molecular clock</strong> is a Poisson-process model; relaxed-clock variants handle real-world rate variation.</li>
+          <li><strong>dN/dS</strong> is a likelihood-ratio test for selection; $\omega &gt; 1$ = positive selection, $\omega &lt; 1$ = purifying.</li>
+          <li><strong>Comparative genomics</strong> uses synteny, orthologs, and conservation tracks to align genome organisation across species.</li>
+          <li><strong>RNA secondary structure</strong> is detected by SCFG-based profile models (Infernal / Rfam) — the RNA analog of profile HMMs.</li>
+          <li><strong>EE framings</strong>: trees as graphical models; MSA as constrained tensor DP; molecular clock as a Poisson process; dN/dS as a likelihood-ratio test; RNA folding as constrained context-free parsing.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Genome assembly (existing L3, becomes new L5): from reads to contigs to scaffolds. The MSA you just learned is what's used to validate assembly correctness via cross-sample comparison.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Take 5 protein sequences from the same family (e.g., haemoglobin orthologs). Run MAFFT L-INS-i. Identify conserved positions. Trim to a 50-residue core domain.</li>
+          <li>Build NJ and ML trees on the same dataset; compare topologies. Bootstrap 100×; report which branches are well-supported.</li>
+          <li>Compute dN/dS for the alignment from #1 using codeml. Test the M0 vs M2a (positive selection) models. Report ω and p-value.</li>
+          <li>From UCSC Browser, visualise the human-mouse synteny for a 1 Mb region of human chromosome 17. Identify a clear rearrangement; describe its inferred type (inversion, translocation).</li>
+          <li>Run <code>cmsearch</code> against Rfam on a 10 kb genomic region of your choice. Report all ncRNA family hits with E &lt; 10⁻³.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Edgar, R. C. (2004). MUSCLE: multiple sequence alignment with high accuracy and high throughput. <em>Nucleic Acids Research</em> 32, 1792–1797.</li>
+          <li>Katoh, K., &amp; Standley, D. M. (2013). MAFFT multiple sequence alignment software version 7. <em>Molecular Biology and Evolution</em> 30, 772–780.</li>
+          <li>Saitou, N., &amp; Nei, M. (1987). The neighbor-joining method: a new method for reconstructing phylogenetic trees. <em>Molecular Biology and Evolution</em> 4, 406–425.</li>
+          <li>Felsenstein, J. (1981). Evolutionary trees from DNA sequences: a maximum likelihood approach. <em>Journal of Molecular Evolution</em> 17, 368–376.</li>
+          <li>Yang, Z. (2007). PAML 4: phylogenetic analysis by maximum likelihood. <em>Molecular Biology and Evolution</em> 24, 1586–1591.</li>
+          <li>Hug, L. A., et al. (2016). A new view of the tree of life. <em>Nature Microbiology</em> 1, 16048.</li>
+          <li>Nguyen, L. T., et al. (2015). IQ-TREE: a fast and effective stochastic algorithm for estimating ML phylogenies. <em>Molecular Biology and Evolution</em> 32, 268–274.</li>
+          <li>Eddy, S. R. (2013). Computational analysis of conserved RNA secondary structure in transcriptomes and genomes. <em>Annual Review of Biophysics</em> 43, 433–456.</li>
+          <li>Lorenz, R., et al. (2011). ViennaRNA Package 2.0. <em>Algorithms for Molecular Biology</em> 6, 26.</li>
+          <li>UCSC Genome Browser: <a href="https://genome.ucsc.edu/" target="_blank" rel="noopener">genome.ucsc.edu</a></li>
+          <li>Ensembl Compara: <a href="https://www.ensembl.org/info/genome/compara/index.html" target="_blank" rel="noopener">ensembl.org/info/genome/compara</a></li>
+          <li>iTOL: <a href="https://itol.embl.de/" target="_blank" rel="noopener">itol.embl.de</a></li>
+          <li>IQ-TREE: <a href="http://www.iqtree.org/" target="_blank" rel="noopener">iqtree.org</a></li>
+          <li>Rfam: <a href="https://rfam.org/" target="_blank" rel="noopener">rfam.org</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — From Pairwise to Multiple</td>           <td>25&nbsp;min</td><td>0:25</td></tr>
+            <tr><td>Part 2 — Progressive Alignment in Practice</td>   <td>40&nbsp;min</td><td>1:05</td></tr>
+            <tr><td>Part 3 — Phylogenetic Tree Construction</td>      <td>40&nbsp;min</td><td>1:45</td></tr>
+            <tr><td>Part 4 — Molecular Clock and Dating</td>          <td>25&nbsp;min</td><td>2:10</td></tr>
+            <tr><td>Part 5 — dN/dS and Selection</td>                  <td>25&nbsp;min</td><td>2:35</td></tr>
+            <tr><td>Part 6 — Comparative Genomics and Synteny</td>    <td>25&nbsp;min</td><td>3:00</td></tr>
+            <tr><td>Part 6.5 — RNA Secondary Structure and ncRNAs</td><td>25&nbsp;min</td><td>3:25</td></tr>
+            <tr><td>Part 7 — Tools and Practice</td>                    <td>20&nbsp;min</td><td>3:45</td></tr>
+            <tr><td>Wrap-up</td>                                        <td>10&nbsp;min</td><td>3:55</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 55min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) f.style.height = d.height + 'px';
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

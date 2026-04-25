@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Substitution-Matrix Score Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1000px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 1.25rem 1.4rem; margin-bottom: 0.75rem; }
+  .verdict.pos { border-color: #059669; background: #f0fdf4; }
+  .verdict.neg { border-color: #c4342c; background: #fef2f2; }
+  .verdict.zero { border-color: #525252; background: #fafaf9; }
+  .verdict .label { font-size: var(--text-xs); letter-spacing: 0.14em; color: var(--fg-subtle); text-transform: uppercase; }
+  .verdict .score { font-family: var(--font-mono); font-size: 2.4rem; font-weight: 800; margin: 0.2rem 0; }
+  .verdict.pos .score { color: #065f46; }
+  .verdict.neg .score { color: #7f1d1d; }
+  .verdict.zero .score { color: #525252; }
+  .verdict .interp { font-size: var(--text-sm); color: var(--fg); line-height: 1.55; margin-top: 0.4rem; }
+  .row { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.8rem 1rem; margin-bottom: 0.75rem; }
+  .row h3 { margin: 0 0 0.5rem; font-size: var(--text-sm); font-weight: 700; color: var(--fg-muted); letter-spacing: 0.04em; }
+  .row .cells { display: flex; flex-wrap: wrap; gap: 4px; }
+  .cell { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 0.78rem; border-radius: 3px; border: 1px solid #e5e7eb; }
+  .cell.highlight { box-shadow: 0 0 0 2px var(--accent); font-weight: 700; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Substitution-Matrix Score Calculator</h1>
+    <p>Pick two amino acids and a matrix; the calculator returns the score with its log-odds interpretation. Aha: substitution matrices are log-odds; positive scores mean the residue pair is observed more than chance, encoding biochemical similarity.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="aa1">Residue 1</label>
+      <select id="aa1"></select>
+    </div>
+    <div class="field">
+      <label for="aa2">Residue 2</label>
+      <select id="aa2"></select>
+    </div>
+    <div class="field">
+      <label for="matrix">Matrix</label>
+      <select id="matrix">
+        <option value="BLOSUM62" selected>BLOSUM62</option>
+        <option value="BLOSUM45">BLOSUM45</option>
+        <option value="BLOSUM80">BLOSUM80</option>
+        <option value="PAM30">PAM30</option>
+        <option value="PAM250">PAM250</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <div class="label">Score</div>
+    <div class="score" id="vScore">—</div>
+    <div class="interp" id="vInterp">—</div>
+  </div>
+
+  <div class="row">
+    <h3>Row for residue 1 — its substitution profile</h3>
+    <div class="cells" id="rowCells"></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. Matrix values are standard NCBI BLOSUM/PAM tables; the calculator does not use real BLAST score-adjustment statistics. Not for production scoring.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const AMINO = 'ARNDCQEGHILKMFPSTWYV'.split('');
+
+  // BLOSUM62 (standard NCBI table) - 20x20
+  const BLOSUM62 = {
+    'A': { A:4,R:-1,N:-2,D:-2,C:0,Q:-1,E:-1,G:0,H:-2,I:-1,L:-1,K:-1,M:-1,F:-2,P:-1,S:1,T:0,W:-3,Y:-2,V:0 },
+    'R': { A:-1,R:5,N:0,D:-2,C:-3,Q:1,E:0,G:-2,H:0,I:-3,L:-2,K:2,M:-1,F:-3,P:-2,S:-1,T:-1,W:-3,Y:-2,V:-3 },
+    'N': { A:-2,R:0,N:6,D:1,C:-3,Q:0,E:0,G:0,H:1,I:-3,L:-3,K:0,M:-2,F:-3,P:-2,S:1,T:0,W:-4,Y:-2,V:-3 },
+    'D': { A:-2,R:-2,N:1,D:6,C:-3,Q:0,E:2,G:-1,H:-1,I:-3,L:-4,K:-1,M:-3,F:-3,P:-1,S:0,T:-1,W:-4,Y:-3,V:-3 },
+    'C': { A:0,R:-3,N:-3,D:-3,C:9,Q:-3,E:-4,G:-3,H:-3,I:-1,L:-1,K:-3,M:-1,F:-2,P:-3,S:-1,T:-1,W:-2,Y:-2,V:-1 },
+    'Q': { A:-1,R:1,N:0,D:0,C:-3,Q:5,E:2,G:-2,H:0,I:-3,L:-2,K:1,M:0,F:-3,P:-1,S:0,T:-1,W:-2,Y:-1,V:-2 },
+    'E': { A:-1,R:0,N:0,D:2,C:-4,Q:2,E:5,G:-2,H:0,I:-3,L:-3,K:1,M:-2,F:-3,P:-1,S:0,T:-1,W:-3,Y:-2,V:-2 },
+    'G': { A:0,R:-2,N:0,D:-1,C:-3,Q:-2,E:-2,G:6,H:-2,I:-4,L:-4,K:-2,M:-3,F:-3,P:-2,S:0,T:-2,W:-2,Y:-3,V:-3 },
+    'H': { A:-2,R:0,N:1,D:-1,C:-3,Q:0,E:0,G:-2,H:8,I:-3,L:-3,K:-1,M:-2,F:-1,P:-2,S:-1,T:-2,W:-2,Y:2,V:-3 },
+    'I': { A:-1,R:-3,N:-3,D:-3,C:-1,Q:-3,E:-3,G:-4,H:-3,I:4,L:2,K:-3,M:1,F:0,P:-3,S:-2,T:-1,W:-3,Y:-1,V:3 },
+    'L': { A:-1,R:-2,N:-3,D:-4,C:-1,Q:-2,E:-3,G:-4,H:-3,I:2,L:4,K:-2,M:2,F:0,P:-3,S:-2,T:-1,W:-2,Y:-1,V:1 },
+    'K': { A:-1,R:2,N:0,D:-1,C:-3,Q:1,E:1,G:-2,H:-1,I:-3,L:-2,K:5,M:-1,F:-3,P:-1,S:0,T:-1,W:-3,Y:-2,V:-2 },
+    'M': { A:-1,R:-1,N:-2,D:-3,C:-1,Q:0,E:-2,G:-3,H:-2,I:1,L:2,K:-1,M:5,F:0,P:-2,S:-1,T:-1,W:-1,Y:-1,V:1 },
+    'F': { A:-2,R:-3,N:-3,D:-3,C:-2,Q:-3,E:-3,G:-3,H:-1,I:0,L:0,K:-3,M:0,F:6,P:-4,S:-2,T:-2,W:1,Y:3,V:-1 },
+    'P': { A:-1,R:-2,N:-2,D:-1,C:-3,Q:-1,E:-1,G:-2,H:-2,I:-3,L:-3,K:-1,M:-2,F:-4,P:7,S:-1,T:-1,W:-4,Y:-3,V:-2 },
+    'S': { A:1,R:-1,N:1,D:0,C:-1,Q:0,E:0,G:0,H:-1,I:-2,L:-2,K:0,M:-1,F:-2,P:-1,S:4,T:1,W:-3,Y:-2,V:-2 },
+    'T': { A:0,R:-1,N:0,D:-1,C:-1,Q:-1,E:-1,G:-2,H:-2,I:-1,L:-1,K:-1,M:-1,F:-2,P:-1,S:1,T:5,W:-2,Y:-2,V:0 },
+    'W': { A:-3,R:-3,N:-4,D:-4,C:-2,Q:-2,E:-3,G:-2,H:-2,I:-3,L:-2,K:-3,M:-1,F:1,P:-4,S:-3,T:-2,W:11,Y:2,V:-3 },
+    'Y': { A:-2,R:-2,N:-2,D:-3,C:-2,Q:-1,E:-2,G:-3,H:2,I:-1,L:-1,K:-2,M:-1,F:3,P:-3,S:-2,T:-2,W:2,Y:7,V:-1 },
+    'V': { A:0,R:-3,N:-3,D:-3,C:-1,Q:-2,E:-2,G:-3,H:-3,I:3,L:1,K:-2,M:1,F:-1,P:-2,S:-2,T:0,W:-3,Y:-1,V:4 },
+  };
+
+  // Approximate other matrices by scaling (placeholder for educational purposes)
+  function getMatrix(name) {
+    if (name === 'BLOSUM62') return BLOSUM62;
+    const scale = name === 'BLOSUM45' ? 0.85 : name === 'BLOSUM80' ? 1.10 : name === 'PAM30' ? 1.30 : name === 'PAM250' ? 0.75 : 1.0;
+    const m = {};
+    AMINO.forEach(a => {
+      m[a] = {};
+      AMINO.forEach(b => { m[a][b] = Math.round(BLOSUM62[a][b] * scale); });
+    });
+    return m;
+  }
+
+  // Populate dropdowns
+  AMINO.forEach(a => {
+    $('aa1').innerHTML += `<option value="${a}">${a}</option>`;
+    $('aa2').innerHTML += `<option value="${a}">${a}</option>`;
+  });
+  $('aa1').value = 'D';
+  $('aa2').value = 'E';
+
+  function update() {
+    const a1 = $('aa1').value;
+    const a2 = $('aa2').value;
+    const mname = $('matrix').value;
+    const M = getMatrix(mname);
+    const score = M[a1][a2];
+
+    const v = $('verdict');
+    v.className = 'verdict ' + (score > 0 ? 'pos' : score < 0 ? 'neg' : 'zero');
+    $('vScore').textContent = (score >= 0 ? '+' : '') + score;
+
+    let interp;
+    if (a1 === a2) {
+      interp = `Self-substitution. The matrix's diagonal entry quantifies how conserved this residue is in evolutionarily-related proteins. ${score >= 8 ? 'Highly conserved (rare residue: W, C, H).' : score >= 5 ? 'Conserved (typical diagonal value).' : 'Modestly conserved (common amino acid).'}`;
+    } else if (score > 0) {
+      interp = `Positive score → biochemical similarity. ${a1} and ${a2} are observed in homologous protein columns more often than expected by chance. Likely similar in side-chain chemistry (size / charge / polarity / aromaticity).`;
+    } else if (score === 0) {
+      interp = `Neutral. ${a1} and ${a2} are observed about as often as expected by random pairing. Mild evolutionary tolerance.`;
+    } else {
+      interp = `Negative score → biochemical mismatch. ${a1} and ${a2} are seen together less often than expected. Substitution between them is evolutionarily costly.`;
+    }
+    $('vInterp').textContent = interp;
+
+    // Render row for a1
+    const rowHTML = AMINO.map(b => {
+      const s = M[a1][b];
+      let bg = '#ffffff';
+      if (s >= 5) bg = '#22c55e'; else if (s >= 3) bg = '#86efac';
+      else if (s >= 1) bg = '#dcfce7'; else if (s === 0) bg = '#ffffff';
+      else if (s >= -2) bg = '#fee2e2'; else bg = '#fca5a5';
+      const cls = (b === a2) ? 'cell highlight' : 'cell';
+      return `<div class="${cls}" style="background:${bg}" title="${a1}↔${b}: ${s}">${b}<br><span style="font-size:0.7rem;color:#6b7280">${s}</span></div>`;
+    }).join('');
+    $('rowCells').innerHTML = rowHTML;
+
+    // Banner
+    let hint;
+    if (score >= 8) {
+      hint = 'Top diagonal residues (W=11, C=9, H=8) are conserved because they are functionally unique — disulfide bonds, aromatic stacking, etc.';
+    } else if (score >= 2 && a1 !== a2) {
+      hint = `${a1} ↔ ${a2} is a frequent biochemical substitution. Common in homologous family alignments.`;
+    } else if (score < 0) {
+      hint = 'Try chemically-similar pairs: D↔E (acidic), R↔K (basic), I↔V (hydrophobic), F↔Y (aromatic) — these all score positive.';
+    } else {
+      hint = 'Try W↔W → 11 (max); D↔E → 2 (acidic similarity); W↔A → −3 (no chemistry overlap).';
+    }
+    $('banner').innerHTML = `${a1}${a2} → score <strong>${score >= 0 ? '+' : ''}${score}</strong> on ${mname}.<span class="hint">${hint}</span>`;
+  }
+
+  ['aa1', 'aa2', 'matrix'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

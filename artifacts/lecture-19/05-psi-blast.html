@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PSI-BLAST Iteration Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+  .step-info { font-size: var(--text-sm); color: var(--fg-muted); }
+  .step-info .iter { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 800; color: #5b21b6; margin-right: 0.5rem; }
+  button { padding: 0.5rem 1.2rem; border: 1px solid #7c3aed; background: #7c3aed; color: white; border-radius: 6px; cursor: pointer; font-size: var(--text-sm); font-family: inherit; }
+  button.secondary { background: #fff; color: #525252; border-color: var(--border); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .pssm-grid { display: grid; grid-template-columns: repeat(20, 1fr); gap: 1px; max-width: 600px; }
+  .pssm-cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 9px; font-weight: 600; }
+  .hits-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.78rem; }
+  .hits-table th { text-align: left; padding: 0.4rem 0.6rem; background: #f5f5f4; color: var(--fg-muted); font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; }
+  .hits-table td { padding: 0.4rem 0.6rem; border-top: 1px dashed var(--border); }
+  .hits-table tr.new { background: #ede9fe; font-weight: 600; }
+  .hits-table tr.drift { background: #fee2e2; color: #7f1d1d; }
+  .hits-table tr.drift td:first-child::before { content: "⚠ "; color: #c4342c; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>PSI-BLAST Iteration Explorer</h1>
+    <p>Step through 5 iterations of PSI-BLAST on a small toy database; watch the PSSM and hit list evolve, and see drift detection light up when a non-homolog slips in. Aha: PSI-BLAST is iterative profile refinement; sensitivity improves at the cost of drift risk; cap at 3 iterations.</p>
+  </div>
+
+  <div class="controls">
+    <div class="step-info"><span class="iter" id="curIter">0</span> / 5 iterations</div>
+    <button id="step">Next iteration →</button>
+    <button id="reset" class="secondary">Reset</button>
+  </div>
+
+  <div class="panel">
+    <h3>PSSM (20 amino acids × 30 query positions; cell colour = log-odds)</h3>
+    <svg id="pssm" viewBox="0 0 1040 280" width="100%" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+
+  <div class="panel">
+    <h3>Hit list (sorted by E-value)</h3>
+    <table class="hits-table">
+      <thead><tr><th>#</th><th>Subject ID</th><th>E-value</th><th>Identity</th><th>Status</th></tr></thead>
+      <tbody id="hitsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. The PSSM evolution and drift event are scripted, not derived from real BLAST searches. Real PSI-BLAST analysis requires careful manual inspection of new hits between iterations.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  // 5 pre-scripted iterations: each adds hits and refines the PSSM
+  // Each iteration entry: { hits: [{id, e, identity, status}], pssm: 2D array (numericish) }
+
+  const POSITIONS = 30;
+
+  // Build a pseudo-PSSM that gets more "structured" each iteration
+  function buildPSSM(iter) {
+    // Returns 20×30 matrix of values in [-4, +6]
+    const m = [];
+    for (let aa = 0; aa < 20; aa++) {
+      const row = [];
+      for (let p = 0; p < POSITIONS; p++) {
+        // Define which (aa, p) are "conserved": iter 0 = none; iter 1+ = a few specific ones
+        let v;
+        // Designed conserved positions: (5, 7), (10, 14), (8, 21) (aa, position)
+        const conservedSpots = [
+          { aa: 5, p: 7, val: 6, iterStart: 1 },
+          { aa: 10, p: 14, val: 6, iterStart: 1 },
+          { aa: 8, p: 21, val: 6, iterStart: 2 },
+          { aa: 12, p: 4, val: 4, iterStart: 2 },
+          { aa: 17, p: 26, val: 5, iterStart: 3 }
+        ];
+        const spot = conservedSpots.find(s => s.aa === aa && s.p === p && iter >= s.iterStart);
+        if (spot) {
+          v = spot.val;
+        } else {
+          // Background: gentle random with some negative bias
+          const seed = aa * 31 + p * 17 + iter;
+          v = Math.round(((seed % 7) - 3));
+        }
+        row.push(v);
+      }
+      m.push(row);
+    }
+    return m;
+  }
+
+  // Hit lists per iteration
+  const ITERATIONS = [
+    {
+      // Iteration 0: initial BLAST
+      hits: [
+        { id: 'sp|P12345|HOMOLOG_ECOLI',  e: 1e-150, id_pct: 100, status: 'self' },
+        { id: 'sp|Q87654|CLOSE_HUMAN',    e: 2e-50,  id_pct: 65,  status: '' },
+        { id: 'sp|A1B2C3|CLOSE_MOUSE',    e: 5e-48,  id_pct: 63,  status: '' },
+        { id: 'sp|D4E5F6|CLOSE_RAT',      e: 8e-47,  id_pct: 62,  status: '' },
+      ],
+      newCount: 0
+    },
+    {
+      // Iteration 1: profile-driven, finds slightly more distant homologs
+      hits: [
+        { id: 'sp|P12345|HOMOLOG_ECOLI',  e: 1e-150, id_pct: 100, status: 'self' },
+        { id: 'sp|Q87654|CLOSE_HUMAN',    e: 2e-50,  id_pct: 65,  status: '' },
+        { id: 'sp|A1B2C3|CLOSE_MOUSE',    e: 5e-48,  id_pct: 63,  status: '' },
+        { id: 'sp|D4E5F6|CLOSE_RAT',      e: 8e-47,  id_pct: 62,  status: '' },
+        { id: 'sp|G7H8I9|MEDIUM_DROSO',   e: 4e-32,  id_pct: 38,  status: 'new' },
+        { id: 'sp|J1K2L3|MEDIUM_YEAST',   e: 7e-30,  id_pct: 35,  status: 'new' },
+        { id: 'sp|M4N5O6|MEDIUM_ARCH',    e: 2e-28,  id_pct: 33,  status: 'new' },
+      ],
+      newCount: 3
+    },
+    {
+      // Iteration 2: finds even more distant; PSSM more refined
+      hits: [
+        { id: 'sp|P12345|HOMOLOG_ECOLI',  e: 1e-150, id_pct: 100, status: 'self' },
+        { id: 'sp|Q87654|CLOSE_HUMAN',    e: 2e-50,  id_pct: 65,  status: '' },
+        { id: 'sp|A1B2C3|CLOSE_MOUSE',    e: 5e-48,  id_pct: 63,  status: '' },
+        { id: 'sp|D4E5F6|CLOSE_RAT',      e: 8e-47,  id_pct: 62,  status: '' },
+        { id: 'sp|G7H8I9|MEDIUM_DROSO',   e: 1e-50,  id_pct: 38,  status: '' },
+        { id: 'sp|J1K2L3|MEDIUM_YEAST',   e: 4e-46,  id_pct: 35,  status: '' },
+        { id: 'sp|M4N5O6|MEDIUM_ARCH',    e: 8e-44,  id_pct: 33,  status: '' },
+        { id: 'sp|P7Q8R9|DISTANT_PLANT',  e: 3e-22,  id_pct: 23,  status: 'new' },
+        { id: 'sp|S1T2U3|DISTANT_FUNGI',  e: 9e-20,  id_pct: 21,  status: 'new' },
+      ],
+      newCount: 2
+    },
+    {
+      // Iteration 3: a borderline drift candidate appears
+      hits: [
+        { id: 'sp|P12345|HOMOLOG_ECOLI',  e: 1e-150, id_pct: 100, status: 'self' },
+        { id: 'sp|Q87654|CLOSE_HUMAN',    e: 2e-50,  id_pct: 65,  status: '' },
+        { id: 'sp|A1B2C3|CLOSE_MOUSE',    e: 5e-48,  id_pct: 63,  status: '' },
+        { id: 'sp|D4E5F6|CLOSE_RAT',      e: 8e-47,  id_pct: 62,  status: '' },
+        { id: 'sp|G7H8I9|MEDIUM_DROSO',   e: 1e-50,  id_pct: 38,  status: '' },
+        { id: 'sp|J1K2L3|MEDIUM_YEAST',   e: 4e-46,  id_pct: 35,  status: '' },
+        { id: 'sp|M4N5O6|MEDIUM_ARCH',    e: 8e-44,  id_pct: 33,  status: '' },
+        { id: 'sp|P7Q8R9|DISTANT_PLANT',  e: 3e-25,  id_pct: 23,  status: '' },
+        { id: 'sp|S1T2U3|DISTANT_FUNGI',  e: 9e-23,  id_pct: 21,  status: '' },
+        { id: 'sp|V4W5X6|DRIFT_UNKNOWN',  e: 8e-12,  id_pct: 14,  status: 'drift' },
+        { id: 'sp|Y7Z8A9|FAR_HOMOLOG',    e: 2e-10,  id_pct: 19,  status: 'new' },
+      ],
+      newCount: 2
+    },
+    {
+      // Iteration 4: drift cascades — drift hit pulls PSSM further off-target
+      hits: [
+        { id: 'sp|P12345|HOMOLOG_ECOLI',  e: 1e-150, id_pct: 100, status: 'self' },
+        { id: 'sp|Q87654|CLOSE_HUMAN',    e: 2e-50,  id_pct: 65,  status: '' },
+        { id: 'sp|A1B2C3|CLOSE_MOUSE',    e: 5e-48,  id_pct: 63,  status: '' },
+        { id: 'sp|D4E5F6|CLOSE_RAT',      e: 8e-47,  id_pct: 62,  status: '' },
+        { id: 'sp|G7H8I9|MEDIUM_DROSO',   e: 1e-50,  id_pct: 38,  status: '' },
+        { id: 'sp|J1K2L3|MEDIUM_YEAST',   e: 4e-46,  id_pct: 35,  status: '' },
+        { id: 'sp|M4N5O6|MEDIUM_ARCH',    e: 8e-44,  id_pct: 33,  status: '' },
+        { id: 'sp|P7Q8R9|DISTANT_PLANT',  e: 3e-25,  id_pct: 23,  status: '' },
+        { id: 'sp|S1T2U3|DISTANT_FUNGI',  e: 9e-23,  id_pct: 21,  status: '' },
+        { id: 'sp|V4W5X6|DRIFT_UNKNOWN',  e: 5e-30,  id_pct: 14,  status: 'drift' },
+        { id: 'sp|Y7Z8A9|FAR_HOMOLOG',    e: 2e-15,  id_pct: 19,  status: '' },
+        { id: 'sp|B1C2D3|DRIFT_NEIGHBOR', e: 4e-9,   id_pct: 12,  status: 'drift-cascade' },
+        { id: 'sp|E4F5G6|DRIFT_RELATIVE', e: 7e-7,   id_pct: 10,  status: 'drift-cascade' },
+      ],
+      newCount: 2
+    }
+  ];
+
+  let currentIter = 0;
+
+  function colorOf(v) {
+    if (v >= 6) return '#1e3a8a';
+    if (v >= 4) return '#3b82f6';
+    if (v >= 2) return '#bfdbfe';
+    if (v >= 0) return '#f5f5f4';
+    if (v >= -2) return '#fee2e2';
+    return '#fca5a5';
+  }
+
+  function renderPSSM(iter) {
+    const pssm = buildPSSM(iter);
+    const W = 1040, H = 280;
+    const margin = 40;
+    const cellW = (W - margin - 20) / POSITIONS;
+    const cellH = (H - margin - 20) / 20;
+
+    const aas = 'ARNDCQEGHILKMFPSTWYV';
+    let svg = '';
+
+    // Y labels (amino acids)
+    for (let aa = 0; aa < 20; aa++) {
+      svg += `<text x="${margin - 6}" y="${margin + aa * cellH + cellH/2 + 3}" text-anchor="end" font-size="9" font-family="JetBrains Mono" fill="#525252">${aas[aa]}</text>`;
+    }
+
+    // X labels every 5
+    for (let p = 0; p < POSITIONS; p += 5) {
+      svg += `<text x="${margin + p * cellW + cellW/2}" y="${margin - 6}" text-anchor="middle" font-size="9" font-family="JetBrains Mono" fill="#525252">${p + 1}</text>`;
+    }
+
+    // Cells
+    for (let aa = 0; aa < 20; aa++) {
+      for (let p = 0; p < POSITIONS; p++) {
+        const v = pssm[aa][p];
+        svg += `<rect x="${margin + p * cellW}" y="${margin + aa * cellH}" width="${cellW - 0.5}" height="${cellH - 0.5}" fill="${colorOf(v)}"/>`;
+      }
+    }
+
+    $('pssm').innerHTML = svg;
+  }
+
+  function renderHits(iter) {
+    const data = ITERATIONS[iter];
+    const html = data.hits.map((h, i) => {
+      let cls = '';
+      if (h.status === 'new') cls = 'new';
+      else if (h.status === 'drift' || h.status === 'drift-cascade') cls = 'drift';
+      const eStr = h.e < 1e-3 ? h.e.toExponential(1) : h.e.toPrecision(2);
+      return `<tr class="${cls}"><td>${i + 1}</td><td>${h.id}</td><td>${eStr}</td><td>${h.id_pct}%</td><td>${h.status || ''}</td></tr>`;
+    }).join('');
+    $('hitsBody').innerHTML = html;
+  }
+
+  function update() {
+    $('curIter').textContent = currentIter;
+    renderPSSM(currentIter);
+    renderHits(currentIter);
+    $('step').disabled = currentIter >= 4;
+
+    const data = ITERATIONS[currentIter];
+    let hint;
+    if (currentIter === 0) {
+      hint = 'Iteration 0 = standard BLASTP with the query. Only close homologs detected.';
+    } else if (currentIter === 1) {
+      hint = `Iteration ${currentIter} added ${data.newCount} medium-distance homologs via the PSSM. Working as intended.`;
+    } else if (currentIter === 2) {
+      hint = `Iteration ${currentIter} found ${data.newCount} distant homologs (~20% identity). PSSM is increasingly informative.`;
+    } else if (currentIter === 3) {
+      hint = 'Iteration 3 introduced a DRIFT candidate (V4W5X6) — a low-identity hit that may not be a true homolog. Inspect carefully or stop here.';
+    } else if (currentIter === 4) {
+      hint = 'Iteration 4 cascaded — the drift candidate pulled in 2 of its own neighbours. THIS IS WHY YOU STOP AT ITERATION 3.';
+    }
+    $('banner').innerHTML = `Iteration <strong>${currentIter}</strong> · <strong>${data.hits.length}</strong> hits · ${data.newCount} new this round.<span class="hint">${hint}</span>`;
+  }
+
+  $('step').addEventListener('click', () => {
+    if (currentIter < 4) currentIter++;
+    update();
+  });
+  $('reset').addEventListener('click', () => {
+    currentIter = 0;
+    update();
+  });
+
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

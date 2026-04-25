@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIAMOND vs BLASTP Runtime Racer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 100%; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .results { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.85rem; }
+  .results th { text-align: left; padding: 0.5rem 0.7rem; background: #f5f5f4; color: var(--fg-muted); font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; }
+  .results td { padding: 0.5rem 0.7rem; border-top: 1px dashed var(--border); }
+  .bar-container { display: flex; align-items: center; gap: 0.5rem; }
+  .bar { height: 14px; background: #e5e7eb; border-radius: 3px; flex: 1; overflow: hidden; position: relative; }
+  .bar-fill { height: 100%; background: var(--tool-color, #1e3a8a); }
+  .verdict-pill { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; }
+  .pill-best { background: #dcfce7; color: #065f46; }
+  .pill-good { background: #fef3c7; color: #92400e; }
+  .pill-low  { background: #fee2e2; color: #7f1d1d; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>DIAMOND vs BLASTP Runtime Racer</h1>
+    <p>Pick query length and database size; the racer simulates runtime + sensitivity for BLASTP, DIAMOND --sensitive, DIAMOND --fast, MMseqs2, USEARCH. Aha: choice depends on the workload; modern tools cover most of the speedup gap to BLAST while preserving sensitivity at workable identity levels.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="qlen">Query length: <span class="v" id="qlenV">300 aa</span></label>
+      <input type="range" id="qlen" min="50" max="3000" step="50" value="300">
+    </div>
+    <div class="field">
+      <label for="dbsize">Database size: <span class="v" id="dbsizeV">10⁹ residues</span></label>
+      <input type="range" id="dbsize" min="6" max="12" step="1" value="9">
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Tool comparison</h3>
+    <table class="results">
+      <thead>
+        <tr><th>Tool</th><th>Runtime (single CPU)</th><th>Sensitivity @ 25% ID</th><th>Verdict</th></tr>
+      </thead>
+      <tbody id="resBody"></tbody>
+    </table>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Runtime values are calibrated against published benchmarks (Buchfink 2015, Steinegger 2017) but simplified — real runtime depends on disk I/O, CPU SIMD support, parallel cores, and database indexing state. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  // Tools with relative cost factors and sensitivity
+  // Cost factor: seconds per (1000 aa query × 10⁹ residues database)
+  // Sensitivity: recall fraction at 25% identity (typical "distant homology" benchmark)
+  const TOOLS = [
+    {
+      name: 'BLASTP classical',
+      color: '#1e3a8a',
+      costFactor: 600,        // baseline ~10 minutes per Mb-scale query against 10⁹
+      sensitivity: 0.95
+    },
+    {
+      name: 'DIAMOND --sensitive',
+      color: '#b45309',
+      costFactor: 6,          // ~100× faster than BLASTP
+      sensitivity: 0.92
+    },
+    {
+      name: 'DIAMOND --fast',
+      color: '#fdba74',
+      costFactor: 0.6,        // ~1000× faster
+      sensitivity: 0.85
+    },
+    {
+      name: 'MMseqs2',
+      color: '#0d7377',
+      costFactor: 6,          // ~100× faster
+      sensitivity: 0.96       // sits on Pareto frontier
+    },
+    {
+      name: 'USEARCH',
+      color: '#7c3aed',
+      costFactor: 0.06,       // ~10000× faster, but only at high identity
+      sensitivity: 0.65       // poor at 25% identity (designed for ≥70%)
+    }
+  ];
+
+  function fmtTime(seconds) {
+    if (seconds < 1) return `${(seconds * 1000).toFixed(0)} ms`;
+    if (seconds < 60) return `${seconds.toFixed(1)} s`;
+    if (seconds < 3600) return `${(seconds / 60).toFixed(1)} min`;
+    if (seconds < 86400) return `${(seconds / 3600).toFixed(1)} h`;
+    return `${(seconds / 86400).toFixed(1)} d`;
+  }
+
+  function update() {
+    const qlen = parseFloat($('qlen').value);
+    const dbExp = parseFloat($('dbsize').value);
+    const dbsize = Math.pow(10, dbExp);
+
+    $('qlenV').textContent = `${qlen} aa`;
+    $('dbsizeV').textContent = `10${'⁰¹²³⁴⁵⁶⁷⁸⁹'[dbExp]} residues`;
+
+    // Compute runtime per tool
+    // costFactor units: seconds per (1000 aa × 10⁹ residues)
+    // runtime = costFactor * (qlen / 1000) * (dbsize / 1e9)
+    const results = TOOLS.map(t => {
+      const runtime = t.costFactor * (qlen / 1000) * (dbsize / 1e9);
+      return { ...t, runtime };
+    });
+
+    // Find best on each axis for verdict
+    const fastest = Math.min(...results.map(r => r.runtime));
+    const mostSensitive = Math.max(...results.map(r => r.sensitivity));
+
+    // Render rows
+    let html = '';
+    const maxRuntime = Math.max(...results.map(r => Math.log10(r.runtime + 0.001)));
+    const minRuntime = Math.min(...results.map(r => Math.log10(r.runtime + 0.001)));
+
+    results.forEach(r => {
+      const logRt = Math.log10(r.runtime + 0.001);
+      const barPct = ((logRt - minRuntime) / Math.max(0.1, maxRuntime - minRuntime)) * 100;
+      let pill, pillCls;
+      if (r.runtime === fastest && r.sensitivity === mostSensitive) {
+        pill = 'best overall'; pillCls = 'pill-best';
+      } else if (r.sensitivity >= 0.92 && r.runtime < 100) {
+        pill = 'sweet spot'; pillCls = 'pill-best';
+      } else if (r.sensitivity < 0.75) {
+        pill = 'sens-limited'; pillCls = 'pill-low';
+      } else if (r.runtime > 600) {
+        pill = 'slow'; pillCls = 'pill-low';
+      } else {
+        pill = 'good'; pillCls = 'pill-good';
+      }
+
+      html += `<tr>`;
+      html += `<td><strong style="color:${r.color}">${r.name}</strong></td>`;
+      html += `<td><div class="bar-container"><div class="bar"><div class="bar-fill" style="width:${barPct}%; background:${r.color}"></div></div><span style="min-width:80px; text-align:right;">${fmtTime(r.runtime)}</span></div></td>`;
+      html += `<td>${(r.sensitivity * 100).toFixed(0)}%</td>`;
+      html += `<td><span class="verdict-pill ${pillCls}">${pill}</span></td>`;
+      html += `</tr>`;
+    });
+    $('resBody').innerHTML = html;
+
+    // Banner
+    let hint;
+    if (qlen <= 100 && dbsize <= 1e7) {
+      hint = 'Tiny query + small DB — even BLASTP finishes in seconds. Speed advantage of modern tools is irrelevant here.';
+    } else if (dbsize >= 1e11) {
+      hint = 'Large database — DIAMOND or MMseqs2 finish in minutes; BLASTP would take hours to days. Modern tools dominate at scale.';
+    } else if (qlen >= 1000) {
+      hint = 'Long query (full proteome scan or domain database) — runtime scales linearly in query length too.';
+    } else {
+      hint = 'For typical workflows: DIAMOND --sensitive or MMseqs2 give the best speed-sensitivity balance. Reserve BLASTP for the few cases where deep sensitivity matters.';
+    }
+    $('banner').innerHTML = `Query <strong>${qlen}</strong> aa × DB <strong>10^${dbExp}</strong> residues. Fastest: <strong>${results.sort((a,b) => a.runtime - b.runtime)[0].name}</strong>. Most sensitive: <strong>${results.sort((a,b) => b.sensitivity - a.sensitivity)[0].name}</strong>.<span class="hint">${hint}</span>`;
+  }
+
+  ['qlen', 'dbsize'].forEach(id => $(id).addEventListener('input', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

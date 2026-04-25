@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLAST-Based Function Transfer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; background: #fff; min-width: 320px; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .hits { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.78rem; }
+  .hits th { text-align: left; padding: 0.4rem 0.6rem; background: #f5f5f4; color: var(--fg-muted); font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; }
+  .hits td { padding: 0.4rem 0.6rem; border-top: 1px dashed var(--border); }
+  .conf-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; }
+  .conf-high { background: #dcfce7; color: #065f46; }
+  .conf-med  { background: #fef3c7; color: #92400e; }
+  .conf-low  { background: #fee2e2; color: #7f1d1d; }
+  .annotation { background: #fafaf9; border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.8rem; margin: 0.3rem 0; }
+  .annotation .term { font-family: var(--font-mono); font-weight: 600; color: var(--fg); }
+  .annotation .desc { color: var(--fg-muted); font-size: 0.85rem; margin-top: 0.2rem; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>BLAST-Based Function Transfer</h1>
+    <p>Pick a query protein; the artifact shows simulated BLAST hits and offers function annotations transferred from the top hits, colour-coded by confidence. Aha: function transfer is a chain of inferred-from-inferred-from; each step contributes uncertainty.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="query">Query protein</label>
+      <select id="query">
+        <option value="kinase">Putative kinase from new bacterial genome</option>
+        <option value="tf">Transcription factor candidate (DNA-binding domain)</option>
+        <option value="enzyme">Glycolytic enzyme (predicted)</option>
+        <option value="signal">Signalling adapter protein</option>
+        <option value="orphan">Orphan ORF (no obvious homology)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>BLASTP hits against UniProt</h3>
+    <table class="hits"><thead>
+      <tr><th>Subject</th><th>Organism</th><th>Identity</th><th>Coverage</th><th>E-value</th><th>Confidence</th></tr>
+    </thead><tbody id="hitsBody"></tbody></table>
+  </div>
+
+  <div class="panel">
+    <h3>Transferred annotations</h3>
+    <div id="annotations"></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Real function transfer requires manual curation, considering protein domain composition (Pfam), gene context, and experimental validation. Annotations transferred without these checks accumulate errors over generations of databases ("error percolation").</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const QUERIES = {
+    kinase: {
+      hits: [
+        { id: 'sp|P00533|EGFR_HUMAN',     org: 'Homo sapiens',         ident: 72, cov: 95, e: 1e-180 },
+        { id: 'sp|P04626|ERBB2_HUMAN',    org: 'Homo sapiens',         ident: 65, cov: 92, e: 4e-150 },
+        { id: 'sp|P00516|ABL1_HUMAN',     org: 'Homo sapiens',         ident: 38, cov: 60, e: 2e-50 },
+        { id: 'sp|P00524|FYN_HUMAN',      org: 'Homo sapiens',         ident: 35, cov: 58, e: 8e-46 },
+        { id: 'sp|P12345|KIN_BACSU',      org: 'Bacillus subtilis',    ident: 28, cov: 42, e: 5e-22 },
+      ],
+      annotations: [
+        { conf: 'high', term: 'GO:0004672', desc: 'protein kinase activity (catalytic activity, ATP binding, phosphorylation)' },
+        { conf: 'high', term: 'GO:0006468', desc: 'protein phosphorylation (biological process)' },
+        { conf: 'high', term: 'PF00069', desc: 'Pfam: Protein kinase domain' },
+        { conf: 'med',  term: 'GO:0007169', desc: 'transmembrane receptor protein tyrosine kinase signalling pathway' },
+        { conf: 'low',  term: 'GO:0005886', desc: 'plasma membrane (cellular component) — depends on transmembrane domain prediction' },
+      ]
+    },
+    tf: {
+      hits: [
+        { id: 'sp|P10412|H14_HUMAN',     org: 'Homo sapiens',         ident: 58, cov: 78, e: 3e-78 },
+        { id: 'sp|P05408|7B2_HUMAN',     org: 'Homo sapiens',         ident: 41, cov: 62, e: 2e-42 },
+        { id: 'sp|P09022|HXA1_MOUSE',    org: 'Mus musculus',         ident: 36, cov: 55, e: 5e-30 },
+        { id: 'sp|P22810|YA90_DROME',    org: 'Drosophila melanogaster', ident: 32, cov: 48, e: 7e-24 },
+        { id: 'sp|Q9V8X4|HOX_DICDI',    org: 'Dictyostelium discoideum', ident: 25, cov: 40, e: 4e-12 },
+      ],
+      annotations: [
+        { conf: 'high', term: 'GO:0003700', desc: 'DNA-binding transcription factor activity' },
+        { conf: 'high', term: 'GO:0006355', desc: 'regulation of transcription, DNA-templated' },
+        { conf: 'high', term: 'PF00046', desc: 'Pfam: Homeodomain' },
+        { conf: 'med',  term: 'GO:0007275', desc: 'multicellular organism development' },
+        { conf: 'low',  term: 'GO:0048565', desc: 'digestive tract development — single-organism inference' },
+      ]
+    },
+    enzyme: {
+      hits: [
+        { id: 'sp|P14618|KPYM_HUMAN',    org: 'Homo sapiens',         ident: 81, cov: 98, e: 0.0 },
+        { id: 'sp|P11979|KPYM_RAT',      org: 'Rattus norvegicus',    ident: 80, cov: 98, e: 0.0 },
+        { id: 'sp|P13929|ENO1_HUMAN',    org: 'Homo sapiens',         ident: 28, cov: 45, e: 4e-18 },
+        { id: 'sp|P25118|TPIS_HUMAN',    org: 'Homo sapiens',         ident: 22, cov: 38, e: 8e-9 },
+        { id: 'sp|Q86RJ8|G3P_DICDI',     org: 'Dictyostelium discoideum', ident: 19, cov: 30, e: 2e-4 },
+      ],
+      annotations: [
+        { conf: 'high', term: 'GO:0004743', desc: 'pyruvate kinase activity (EC 2.7.1.40)' },
+        { conf: 'high', term: 'GO:0006096', desc: 'glycolytic process' },
+        { conf: 'high', term: 'PF00224', desc: 'Pfam: PK_C / pyruvate kinase, barrel domain' },
+        { conf: 'high', term: 'KEGG: hsa00010', desc: 'Glycolysis / Gluconeogenesis pathway' },
+        { conf: 'med',  term: 'GO:0005737', desc: 'cytoplasm (cellular component)' },
+      ]
+    },
+    signal: {
+      hits: [
+        { id: 'sp|P29353|SHC1_HUMAN',    org: 'Homo sapiens',         ident: 48, cov: 70, e: 8e-65 },
+        { id: 'sp|P62993|GRB2_HUMAN',    org: 'Homo sapiens',         ident: 32, cov: 48, e: 4e-22 },
+        { id: 'sp|P27986|P85A_HUMAN',    org: 'Homo sapiens',         ident: 27, cov: 38, e: 6e-12 },
+        { id: 'sp|Q8IUI4|CAB39_HUMAN',   org: 'Homo sapiens',         ident: 20, cov: 28, e: 9e-4 },
+      ],
+      annotations: [
+        { conf: 'med',  term: 'GO:0005515', desc: 'protein binding' },
+        { conf: 'med',  term: 'PF00017', desc: 'Pfam: SH2 domain' },
+        { conf: 'med',  term: 'GO:0007169', desc: 'signal transduction' },
+        { conf: 'low',  term: 'GO:0004871', desc: 'signal transducer activity — broad inference at 28% identity' },
+      ]
+    },
+    orphan: {
+      hits: [
+        { id: 'tr|A0A024|ORPHAN_BACSU',  org: 'Bacillus subtilis',    ident: 22, cov: 32, e: 1e-3 },
+        { id: 'tr|A0A025|ORPHAN_ECOLI',  org: 'Escherichia coli',     ident: 19, cov: 28, e: 8e-2 },
+        { id: 'tr|A0A026|HYPO_PROVIDENC',org: 'Providencia stuartii', ident: 17, cov: 25, e: 3e-1 },
+      ],
+      annotations: [
+        { conf: 'low',  term: 'GO:0005488', desc: 'binding (most general; below confidence threshold for any specific annotation)' },
+      ]
+    }
+  };
+
+  function render() {
+    const q = QUERIES[$('query').value];
+
+    function confLabel(e, ident) {
+      if (e < 1e-30 && ident >= 50) return 'high';
+      if (e < 1e-10 && ident >= 30) return 'med';
+      return 'low';
+    }
+    function confPill(c) {
+      const cls = c === 'high' ? 'conf-high' : c === 'med' ? 'conf-med' : 'conf-low';
+      const text = c === 'high' ? 'HIGH' : c === 'med' ? 'MED' : 'LOW';
+      return `<span class="conf-pill ${cls}">${text}</span>`;
+    }
+
+    let hitsHtml = '';
+    q.hits.forEach(h => {
+      const c = confLabel(h.e, h.ident);
+      const eStr = h.e === 0 ? '0.0' : h.e < 1e-3 ? h.e.toExponential(1) : h.e.toPrecision(2);
+      hitsHtml += `<tr><td>${h.id}</td><td>${h.org}</td><td>${h.ident}%</td><td>${h.cov}%</td><td>${eStr}</td><td>${confPill(c)}</td></tr>`;
+    });
+    $('hitsBody').innerHTML = hitsHtml;
+
+    let annHtml = '';
+    q.annotations.forEach(a => {
+      annHtml += `<div class="annotation"><span class="term">${a.term}</span> ${confPill(a.conf)}<div class="desc">${a.desc}</div></div>`;
+    });
+    if (q.annotations.length === 0) {
+      annHtml = '<div class="annotation"><span class="term">No transferable annotation</span><div class="desc">All hits below confidence threshold (high E-value, low identity). Cannot reliably transfer function.</div></div>';
+    }
+    $('annotations').innerHTML = annHtml;
+
+    let hint;
+    const topHit = q.hits[0];
+    if (topHit.ident >= 70 && topHit.e < 1e-50) {
+      hint = `Top hit ${topHit.ident}% identity, E = ${topHit.e === 0 ? '0' : topHit.e.toExponential(1)} → high-confidence ortholog. Function transfer is reliable.`;
+    } else if (topHit.ident >= 30 && topHit.e < 1e-10) {
+      hint = `Top hit ${topHit.ident}% identity → confident on broad function (kinase / TF / enzyme class) but specific substrate / target may differ.`;
+    } else {
+      hint = `Below 30% identity → "twilight zone". Same fold likely but function may have diverged. Need experimental validation or structural alignment (AlphaFold).`;
+    }
+    $('banner').innerHTML = `Query: <strong>${$('query').selectedOptions[0].textContent}</strong> · top hit ${topHit.ident}% identity, ${q.annotations.length} transferable annotations.<span class="hint">${hint}</span>`;
+  }
+
+  $('query').addEventListener('change', render);
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

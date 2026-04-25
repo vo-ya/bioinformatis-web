@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X-Drop Extension Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; gap: 1.5rem; align-items: end; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 200px; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 0.75rem; }
+  .stat { background: #fafaf9; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .label { font-size: 0.65rem; letter-spacing: 0.1em; color: var(--fg-subtle); text-transform: uppercase; font-weight: 600; }
+  .stat .val { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .seq-row { font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.4; padding: 0.5rem; background: #fafaf9; border-radius: 4px; overflow-x: auto; }
+  .res { display: inline-block; width: 16px; text-align: center; }
+  .res.match { background: #dcfce7; color: #065f46; font-weight: 700; }
+  .res.mismatch { background: #fee2e2; color: #7f1d1d; }
+  .res.in-hsp { border-bottom: 2px solid #c4342c; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>X-Drop Extension Simulator</h1>
+    <p>Simulate ungapped extension on synthetic query and subject sequences. Slide X to see how it controls the sensitivity-specificity trade-off. Aha: too small X cuts true HSPs short; too large extends into noise.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="scenario">Scenario</label>
+      <select id="scenario">
+        <option value="strong" selected>Strong homology (true HSP)</option>
+        <option value="medium">Medium signal (decay)</option>
+        <option value="noise">Pure noise (random match)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="xdrop">X-drop threshold X: <span class="v" id="xV">22</span></label>
+      <input type="range" id="xdrop" min="5" max="50" step="1" value="22">
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Score trajectory + boundaries</h3>
+    <svg id="chart" viewBox="0 0 1040 280" width="100%" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="label">HSP length</div><div class="val" id="sLen">—</div></div>
+    <div class="stat"><div class="label">HSP score</div><div class="val" id="sScore">—</div></div>
+    <div class="stat"><div class="label">Bit score</div><div class="val" id="sBits">—</div></div>
+    <div class="stat"><div class="label">Identities</div><div class="val" id="sIdent">—</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Aligned segment within HSP</h3>
+    <div class="seq-row" id="qRow"></div>
+    <div class="seq-row" id="sRow"></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Real X-drop uses BLOSUM62 substitution costs at each position; this simplification uses fixed match (+5) / mismatch (−4) for clarity. Real BLAST X-drop default = 22 for gapped extension.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  // Three preset extension scenarios with per-position substitution scores
+  // Each scenario is an array of (query, subject, score) per position
+  function makeScenario(name) {
+    let seed = name.charCodeAt(0) * 31 + name.charCodeAt(1);
+    function rand() { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; }
+    const aas = 'ACDEFGHIKLMNPQRSTVWY';
+    const positions = []; // index 0 = seed; ±50 around it
+    const total = 80;
+    const center = 40;
+
+    if (name === 'strong') {
+      // True homology: high-density matches, gradual decline at edges
+      for (let i = 0; i < total; i++) {
+        const distToCenter = Math.abs(i - center);
+        // Probability of match decreases with distance
+        const pMatch = 0.85 - distToCenter * 0.012;
+        const isMatch = rand() < Math.max(0.15, pMatch);
+        const aa = aas.charAt(Math.floor(rand() * 20));
+        const sAA = isMatch ? aa : aas.charAt(Math.floor(rand() * 20));
+        const score = isMatch ? 5 : -4;
+        positions.push({ pos: i - center, q: aa, s: sAA, score, isMatch });
+      }
+    } else if (name === 'medium') {
+      // Mid-strength: decent run near center, decays to noise
+      for (let i = 0; i < total; i++) {
+        const distToCenter = Math.abs(i - center);
+        const pMatch = 0.7 - distToCenter * 0.025;
+        const isMatch = rand() < Math.max(0.20, pMatch);
+        const aa = aas.charAt(Math.floor(rand() * 20));
+        const sAA = isMatch ? aa : aas.charAt(Math.floor(rand() * 20));
+        const score = isMatch ? 5 : -4;
+        positions.push({ pos: i - center, q: aa, s: sAA, score, isMatch });
+      }
+    } else {
+      // Noise: ~25% match by chance
+      for (let i = 0; i < total; i++) {
+        const isMatch = rand() < 0.25;
+        const aa = aas.charAt(Math.floor(rand() * 20));
+        const sAA = isMatch ? aa : aas.charAt(Math.floor(rand() * 20));
+        const score = isMatch ? 5 : -4;
+        positions.push({ pos: i - center, q: aa, s: sAA, score, isMatch });
+      }
+    }
+    return positions;
+  }
+
+  function extend(positions, X) {
+    // Start at seed (pos = 0), extend right
+    const seedIdx = positions.findIndex(p => p.pos === 0);
+    let cum = 0;
+    let peak = 0;
+    let rightEnd = seedIdx;
+    for (let i = seedIdx; i < positions.length; i++) {
+      cum += positions[i].score;
+      if (cum > peak) peak = cum;
+      if (peak - cum > X) break;
+      rightEnd = i;
+    }
+    // Extend left
+    cum = peak;
+    let peakLeft = peak;
+    let leftEnd = seedIdx;
+    for (let i = seedIdx - 1; i >= 0; i--) {
+      cum += positions[i].score;
+      if (cum > peakLeft) peakLeft = cum;
+      if (peakLeft - cum > X) break;
+      leftEnd = i;
+    }
+    // Final HSP score
+    let hspScore = 0;
+    for (let i = leftEnd; i <= rightEnd; i++) hspScore += positions[i].score;
+    return { leftEnd, rightEnd, score: Math.max(0, hspScore), seedIdx };
+  }
+
+  function update() {
+    const X = parseInt($('xdrop').value, 10);
+    $('xV').textContent = X;
+
+    const scen = $('scenario').value;
+    const positions = makeScenario(scen);
+    const result = extend(positions, X);
+
+    // Compute trajectory for chart (cumulative score from seed)
+    const seedIdx = result.seedIdx;
+    const traj = [];
+    let cum = 0;
+    for (let i = seedIdx; i < positions.length; i++) {
+      cum += positions[i].score;
+      traj.push({ pos: positions[i].pos, score: cum });
+    }
+    let cumL = 0;
+    for (let i = seedIdx - 1; i >= 0; i--) {
+      cumL += positions[i].score;
+      traj.unshift({ pos: positions[i].pos, score: cumL });
+    }
+
+    // Stats
+    const len = result.rightEnd - result.leftEnd + 1;
+    const matches = positions.slice(result.leftEnd, result.rightEnd + 1).filter(p => p.isMatch).length;
+    const bits = result.score / Math.log2(Math.E) * Math.log(2) * 0.347 - Math.log(0.04) / Math.log(2); // crude approximation
+    const bitsApprox = (result.score * 0.347 - 0.5).toFixed(1);
+
+    $('sLen').textContent = len;
+    $('sScore').textContent = result.score;
+    $('sBits').textContent = Math.max(0, bitsApprox);
+    $('sIdent').textContent = `${matches}/${len} (${Math.round(100 * matches / len)}%)`;
+
+    // Chart
+    drawChart(traj, result, X);
+
+    // Aligned segment
+    const segPos = positions.slice(result.leftEnd, result.rightEnd + 1);
+    $('qRow').innerHTML = '<strong style="color:#525252">Q  </strong>' + segPos.map(p => `<span class="res ${p.isMatch ? 'match' : 'mismatch'}">${p.q}</span>`).join('');
+    $('sRow').innerHTML = '<strong style="color:#525252">S  </strong>' + segPos.map(p => `<span class="res ${p.isMatch ? 'match' : 'mismatch'}">${p.s}</span>`).join('');
+
+    // Banner
+    let hint;
+    if (X <= 8) {
+      hint = 'X too small — true HSPs are cut short. Sensitivity drops, especially for distant homologs.';
+    } else if (X >= 35) {
+      hint = 'X too large — extension drifts into noise, inflating HSP length and producing low-identity tails.';
+    } else if (scen === 'noise') {
+      hint = 'Pure noise → X-drop triggers immediately. The tiny HSP recovered here is essentially random.';
+    } else {
+      hint = `BLASTP gapped-extension default is X = 22. ${scen === 'strong' ? 'Strong homology recovers clean full-length HSP.' : 'Mid-strength HSP recovered correctly.'}`;
+    }
+    $('banner').innerHTML = `Scenario <strong>${scen}</strong> · X = <strong>${X}</strong> → HSP length ${len}, score ${result.score}, identities ${matches}/${len}.<span class="hint">${hint}</span>`;
+  }
+
+  function drawChart(traj, result, X) {
+    const W = 1040, H = 280;
+    const margin = 50;
+    const x0 = margin, x1 = W - 30;
+    const y0 = H - margin, y1 = 20;
+
+    const xPos = p => x0 + ((p + 40) / 80) * (x1 - x0);
+    const maxScore = Math.max(60, ...traj.map(t => t.score));
+    const minScore = Math.min(0, ...traj.map(t => t.score));
+    const yPos = s => y0 - ((s - minScore) / (maxScore - minScore + 1)) * (y0 - y1);
+
+    let svg = '';
+    svg += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}" stroke="#a8a29e"/>`;
+    svg += `<line x1="${x0}" y1="${y0}" x2="${x0}" y2="${y1}" stroke="#a8a29e"/>`;
+
+    // Seed line
+    svg += `<line x1="${xPos(0)}" y1="${y1}" x2="${xPos(0)}" y2="${y0}" stroke="#a8a29e" stroke-dasharray="2 3"/>`;
+    svg += `<text x="${xPos(0)}" y="${y1-4}" text-anchor="middle" font-size="10" font-weight="600" fill="#525252">seed</text>`;
+
+    // X-axis labels
+    [-40, -20, 0, 20, 40].forEach(p => {
+      svg += `<text x="${xPos(p)}" y="${y0+14}" text-anchor="middle" font-size="9" fill="#6b7280" font-family="JetBrains Mono">${p}</text>`;
+    });
+    svg += `<text x="${(x0+x1)/2}" y="${H-6}" text-anchor="middle" font-size="11" fill="#525252">offset from seed</text>`;
+
+    // HSP boundary shading
+    svg += `<rect x="${xPos(traj[result.leftEnd >= 0 ? result.leftEnd - result.seedIdx + 0 : 0].pos)}" y="${y1}" width="${xPos(traj[result.rightEnd - result.seedIdx + 0].pos) - xPos(traj[result.leftEnd - result.seedIdx + 0].pos)}" height="${y0-y1}" fill="#fef3c7" fill-opacity="0.4"/>`;
+
+    // Trajectory
+    const path = traj.map((t, i) => `${i === 0 ? 'M' : 'L'} ${xPos(t.pos).toFixed(1)} ${yPos(t.score).toFixed(1)}`).join(' ');
+    svg += `<path d="${path}" stroke="#c4342c" stroke-width="2.5" fill="none"/>`;
+
+    // X-drop reference: peak − X line
+    const peak = Math.max(...traj.map(t => t.score));
+    const thresh = peak - X;
+    svg += `<line x1="${x0}" y1="${yPos(thresh).toFixed(1)}" x2="${x1}" y2="${yPos(thresh).toFixed(1)}" stroke="#b45309" stroke-width="1" stroke-dasharray="3 3"/>`;
+    svg += `<text x="${x1-4}" y="${yPos(thresh)-4}" text-anchor="end" font-size="9" fill="#92400e">peak − X = ${thresh}</text>`;
+
+    // Peak marker
+    const peakIdx = traj.findIndex(t => t.score === peak);
+    if (peakIdx >= 0) {
+      const pp = traj[peakIdx];
+      svg += `<circle cx="${xPos(pp.pos).toFixed(1)}" cy="${yPos(pp.score).toFixed(1)}" r="5" fill="#c4342c"/>`;
+      svg += `<text x="${xPos(pp.pos)}" y="${yPos(pp.score)-10}" text-anchor="middle" font-size="9" font-weight="600" fill="#7f1d1d">peak ${peak}</text>`;
+    }
+
+    // Y-axis ticks
+    [0, 20, 40, 60, 80].filter(s => s <= maxScore + 5).forEach(s => {
+      svg += `<line x1="${x0-5}" y1="${yPos(s)}" x2="${x0}" y2="${yPos(s)}" stroke="#a8a29e"/>`;
+      svg += `<text x="${x0-8}" y="${yPos(s)+3}" text-anchor="end" font-size="9" fill="#6b7280" font-family="JetBrains Mono">${s}</text>`;
+    });
+
+    $('chart').innerHTML = svg;
+  }
+
+  ['scenario', 'xdrop'].forEach(id => $(id).addEventListener('input', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

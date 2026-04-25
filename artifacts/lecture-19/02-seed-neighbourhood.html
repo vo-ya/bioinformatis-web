@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seed Neighbourhood Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1000px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=text] { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 1rem; text-transform: uppercase; width: 80px; text-align: center; }
+  input[type=range] { width: 220px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .label { font-size: 0.7rem; letter-spacing: 0.1em; color: var(--fg-subtle); text-transform: uppercase; font-weight: 600; }
+  .stat .val { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; max-height: 380px; overflow-y: auto; }
+  .nbr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
+  .nbr { padding: 0.4rem 0.5rem; background: #f5f5f4; border: 1px solid var(--border); border-radius: 4px; font-family: var(--font-mono); font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+  .nbr .score { color: var(--fg-muted); font-size: 0.78rem; }
+  .nbr.self { background: #fef3c7; border-color: #b45309; font-weight: 700; }
+  .nbr.high { background: #dcfce7; border-color: #059669; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  .err { color: #c4342c; font-size: var(--text-xs); }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Seed Neighbourhood Explorer</h1>
+    <p>Pick a 3-mer and slide threshold T; the explorer enumerates all neighbouring 3-mers with BLOSUM62 score ≥ T against your query 3-mer. Aha: T is a sensitivity-speed knob — lower T → broader seeds → more extensions → higher recall but slower.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="kmer">Query 3-mer</label>
+      <input type="text" id="kmer" maxlength="3" value="KVL">
+      <span class="err" id="errMsg">&nbsp;</span>
+    </div>
+    <div class="field">
+      <label for="thresh">Threshold T: <span class="v" id="threshV">11</span></label>
+      <input type="range" id="thresh" min="5" max="20" step="1" value="11">
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="label">Total 3-mers possible</div><div class="val">8,000</div></div>
+    <div class="stat"><div class="label">Neighbours at T</div><div class="val" id="sCount">—</div></div>
+    <div class="stat"><div class="label">Coverage at this T</div><div class="val" id="sPct">—</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="nbr-grid" id="nbrGrid"></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. Real BLAST uses BLOSUM62 + composition adjustment + finite alphabet trimming. The neighbourhood-size growth shown here is the dominant cost driver for BLAST seed-phase tuning. Not for production use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const AMINO = 'ARNDCQEGHILKMFPSTWYV'.split('');
+
+  const BLOSUM62 = {
+    'A': { A:4,R:-1,N:-2,D:-2,C:0,Q:-1,E:-1,G:0,H:-2,I:-1,L:-1,K:-1,M:-1,F:-2,P:-1,S:1,T:0,W:-3,Y:-2,V:0 },
+    'R': { A:-1,R:5,N:0,D:-2,C:-3,Q:1,E:0,G:-2,H:0,I:-3,L:-2,K:2,M:-1,F:-3,P:-2,S:-1,T:-1,W:-3,Y:-2,V:-3 },
+    'N': { A:-2,R:0,N:6,D:1,C:-3,Q:0,E:0,G:0,H:1,I:-3,L:-3,K:0,M:-2,F:-3,P:-2,S:1,T:0,W:-4,Y:-2,V:-3 },
+    'D': { A:-2,R:-2,N:1,D:6,C:-3,Q:0,E:2,G:-1,H:-1,I:-3,L:-4,K:-1,M:-3,F:-3,P:-1,S:0,T:-1,W:-4,Y:-3,V:-3 },
+    'C': { A:0,R:-3,N:-3,D:-3,C:9,Q:-3,E:-4,G:-3,H:-3,I:-1,L:-1,K:-3,M:-1,F:-2,P:-3,S:-1,T:-1,W:-2,Y:-2,V:-1 },
+    'Q': { A:-1,R:1,N:0,D:0,C:-3,Q:5,E:2,G:-2,H:0,I:-3,L:-2,K:1,M:0,F:-3,P:-1,S:0,T:-1,W:-2,Y:-1,V:-2 },
+    'E': { A:-1,R:0,N:0,D:2,C:-4,Q:2,E:5,G:-2,H:0,I:-3,L:-3,K:1,M:-2,F:-3,P:-1,S:0,T:-1,W:-3,Y:-2,V:-2 },
+    'G': { A:0,R:-2,N:0,D:-1,C:-3,Q:-2,E:-2,G:6,H:-2,I:-4,L:-4,K:-2,M:-3,F:-3,P:-2,S:0,T:-2,W:-2,Y:-3,V:-3 },
+    'H': { A:-2,R:0,N:1,D:-1,C:-3,Q:0,E:0,G:-2,H:8,I:-3,L:-3,K:-1,M:-2,F:-1,P:-2,S:-1,T:-2,W:-2,Y:2,V:-3 },
+    'I': { A:-1,R:-3,N:-3,D:-3,C:-1,Q:-3,E:-3,G:-4,H:-3,I:4,L:2,K:-3,M:1,F:0,P:-3,S:-2,T:-1,W:-3,Y:-1,V:3 },
+    'L': { A:-1,R:-2,N:-3,D:-4,C:-1,Q:-2,E:-3,G:-4,H:-3,I:2,L:4,K:-2,M:2,F:0,P:-3,S:-2,T:-1,W:-2,Y:-1,V:1 },
+    'K': { A:-1,R:2,N:0,D:-1,C:-3,Q:1,E:1,G:-2,H:-1,I:-3,L:-2,K:5,M:-1,F:-3,P:-1,S:0,T:-1,W:-3,Y:-2,V:-2 },
+    'M': { A:-1,R:-1,N:-2,D:-3,C:-1,Q:0,E:-2,G:-3,H:-2,I:1,L:2,K:-1,M:5,F:0,P:-2,S:-1,T:-1,W:-1,Y:-1,V:1 },
+    'F': { A:-2,R:-3,N:-3,D:-3,C:-2,Q:-3,E:-3,G:-3,H:-1,I:0,L:0,K:-3,M:0,F:6,P:-4,S:-2,T:-2,W:1,Y:3,V:-1 },
+    'P': { A:-1,R:-2,N:-2,D:-1,C:-3,Q:-1,E:-1,G:-2,H:-2,I:-3,L:-3,K:-1,M:-2,F:-4,P:7,S:-1,T:-1,W:-4,Y:-3,V:-2 },
+    'S': { A:1,R:-1,N:1,D:0,C:-1,Q:0,E:0,G:0,H:-1,I:-2,L:-2,K:0,M:-1,F:-2,P:-1,S:4,T:1,W:-3,Y:-2,V:-2 },
+    'T': { A:0,R:-1,N:0,D:-1,C:-1,Q:-1,E:-1,G:-2,H:-2,I:-1,L:-1,K:-1,M:-1,F:-2,P:-1,S:1,T:5,W:-2,Y:-2,V:0 },
+    'W': { A:-3,R:-3,N:-4,D:-4,C:-2,Q:-2,E:-3,G:-2,H:-2,I:-3,L:-2,K:-3,M:-1,F:1,P:-4,S:-3,T:-2,W:11,Y:2,V:-3 },
+    'Y': { A:-2,R:-2,N:-2,D:-3,C:-2,Q:-1,E:-2,G:-3,H:2,I:-1,L:-1,K:-2,M:-1,F:3,P:-3,S:-2,T:-2,W:2,Y:7,V:-1 },
+    'V': { A:0,R:-3,N:-3,D:-3,C:-1,Q:-2,E:-2,G:-3,H:-3,I:3,L:1,K:-2,M:1,F:-1,P:-2,S:-2,T:0,W:-3,Y:-1,V:4 },
+  };
+
+  function score3mer(a, b) {
+    return BLOSUM62[a[0]][b[0]] + BLOSUM62[a[1]][b[1]] + BLOSUM62[a[2]][b[2]];
+  }
+
+  function isValid(s) {
+    return s.length === 3 && s.split('').every(c => AMINO.includes(c));
+  }
+
+  function update() {
+    const raw = $('kmer').value.toUpperCase();
+    $('kmer').value = raw;
+    const T = parseInt($('thresh').value, 10);
+    $('threshV').textContent = T;
+
+    if (!isValid(raw)) {
+      $('errMsg').textContent = 'Enter 3 valid amino acids (one of ARNDCQEGHILKMFPSTWYV)';
+      return;
+    }
+    $('errMsg').textContent = '';
+
+    // Score every possible 3-mer
+    const selfScore = score3mer(raw, raw);
+    const candidates = [];
+    for (const a of AMINO) {
+      for (const b of AMINO) {
+        for (const c of AMINO) {
+          const tri = a + b + c;
+          const s = score3mer(raw, tri);
+          if (s >= T) candidates.push({ tri, s });
+        }
+      }
+    }
+    candidates.sort((x, y) => y.s - x.s);
+
+    $('sCount').textContent = candidates.length.toLocaleString();
+    $('sPct').textContent = ((candidates.length / 8000) * 100).toFixed(2) + '%';
+
+    // Render
+    const html = candidates.slice(0, 200).map(c => {
+      let cls = 'nbr';
+      if (c.tri === raw) cls += ' self';
+      else if (c.s >= selfScore - 4) cls += ' high';
+      return `<div class="${cls}">${c.tri} <span class="score">${c.s >= 0 ? '+' : ''}${c.s}</span></div>`;
+    }).join('');
+    $('nbrGrid').innerHTML = html + (candidates.length > 200 ? `<div style="grid-column: 1/-1; padding: 0.5rem; color: var(--fg-muted); font-size: 0.85rem;">… ${candidates.length - 200} more not shown</div>` : '');
+
+    // Banner
+    let hint;
+    if (T <= 7) {
+      hint = 'Very loose threshold → huge neighbourhood → many spurious extensions. BLAST default T=11 is the sweet spot for typical queries.';
+    } else if (T >= 16) {
+      hint = 'Tight threshold → small neighbourhood → fast but misses distant homologs. Useful for close-homolog searches only.';
+    } else if (raw === 'KVL') {
+      hint = 'KVL is the spec example. At T=11, ~50 neighbours; at T=7, ~500; at T=15, mostly self only.';
+    } else {
+      hint = 'Slide T to see how neighbourhood grows roughly exponentially as T decreases.';
+    }
+    $('banner').innerHTML = `<strong>${raw}</strong> at T=${T}: <strong>${candidates.length}</strong> neighbours of ${8000} possible 3-mers (${((candidates.length/8000)*100).toFixed(1)}%).<span class="hint">${hint}</span>`;
+  }
+
+  $('kmer').addEventListener('input', update);
+  $('thresh').addEventListener('input', update);
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

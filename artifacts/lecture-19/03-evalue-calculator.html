@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E-value Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 100%; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; background: #fff; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 1.25rem 1.4rem; margin-bottom: 0.75rem; }
+  .verdict.signif    { border-color: #059669; background: #f0fdf4; }
+  .verdict.borderline { border-color: #b45309; background: #fef3c7; }
+  .verdict.nope      { border-color: #c4342c; background: #fef2f2; }
+  .verdict .label { font-size: var(--text-xs); letter-spacing: 0.14em; color: var(--fg-subtle); text-transform: uppercase; }
+  .verdict .E { font-family: var(--font-mono); font-size: 1.8rem; font-weight: 800; margin: 0.2rem 0; }
+  .verdict.signif    .E { color: #065f46; }
+  .verdict.borderline .E { color: #92400e; }
+  .verdict.nope      .E { color: #7f1d1d; }
+  .verdict .interp { font-size: var(--text-sm); color: var(--fg); line-height: 1.55; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 0.75rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .label { font-size: 0.65rem; letter-spacing: 0.1em; color: var(--fg-subtle); text-transform: uppercase; font-weight: 600; }
+  .stat .val { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>E-value Calculator</h1>
+    <p>Slide bit score, query length, and database size; the calculator returns E and P, plus a verdict. Aha: E-value scales linearly in database × query, exponentially in bit score.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="bits">Bit score S′: <span class="v" id="bitsV">50</span></label>
+      <input type="range" id="bits" min="20" max="200" step="1" value="50">
+    </div>
+    <div class="field">
+      <label for="m">Query length m: <span class="v" id="mV">300</span></label>
+      <input type="range" id="m" min="50" max="1000" step="10" value="300">
+    </div>
+    <div class="field">
+      <label for="dbPreset">Database</label>
+      <select id="dbPreset">
+        <option value="2e8" selected>SwissProt (~2 × 10⁸ residues)</option>
+        <option value="1e10">UniRef90 (~10¹⁰ residues)</option>
+        <option value="1.5e11">NR / NT (~1.5 × 10¹¹)</option>
+        <option value="1e12">Full UniProt (~10¹²)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="label">Bit score</div><div class="val" id="sBits">—</div></div>
+    <div class="stat"><div class="label">Search space m·n</div><div class="val" id="sMn">—</div></div>
+    <div class="stat"><div class="label">E-value</div><div class="val" id="sE">—</div></div>
+    <div class="stat"><div class="label">P-value</div><div class="val" id="sP">—</div></div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <div class="label">Verdict</div>
+    <div class="E" id="vE">—</div>
+    <div class="interp" id="vInterp">—</div>
+  </div>
+
+  <div class="panel">
+    <h3 style="margin: 0 0 0.5rem; font-size: var(--text-sm); font-weight: 700;">E-value vs bit score (current m, n)</h3>
+    <svg id="chart" viewBox="0 0 1040 240" width="100%" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. Computes the simplified bit-score-to-E-value relationship E = m·n·2^(-S'). Real BLAST applies finite-database corrections, edge-effect adjustments, and composition-based scoring that this tool ignores. Not for production use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  function compute() {
+    const S = parseFloat($('bits').value);
+    const m = parseFloat($('m').value);
+    const n = parseFloat($('dbPreset').value);
+
+    $('bitsV').textContent = S;
+    $('mV').textContent = m;
+
+    // E = m * n * 2^(-S)
+    const log2 = Math.log(2);
+    const log10E = Math.log10(m * n) - S * Math.log10(2);
+    const E = Math.pow(10, log10E);
+    const P = E < 1 ? 1 - Math.exp(-E) : 1 - Math.exp(-Math.min(50, E));
+
+    $('sBits').textContent = S.toFixed(0);
+    $('sMn').textContent = (m * n).toExponential(2);
+
+    function fmtE(x) {
+      if (x === 0) return '0';
+      if (x >= 100) return x.toExponential(2);
+      if (x >= 0.001) return x.toPrecision(2);
+      return x.toExponential(2);
+    }
+    $('sE').textContent = fmtE(E);
+    $('sP').textContent = P < 0.001 ? P.toExponential(2) : P.toPrecision(3);
+
+    $('vE').textContent = `E = ${fmtE(E)}`;
+
+    const v = $('verdict');
+    let interp;
+    if (E < 1e-10) {
+      v.className = 'verdict signif';
+      interp = `Strongly significant. The alignment is essentially impossible by chance — bullet-proof homology if no compositional bias.`;
+    } else if (E < 1e-3) {
+      v.className = 'verdict signif';
+      interp = `Significant. Below the standard reporting threshold. Worth following up with manual inspection of the alignment.`;
+    } else if (E < 1) {
+      v.className = 'verdict borderline';
+      interp = `Borderline. Below 1 expected hit by chance, but above the standard 10⁻³ threshold. Check alignment quality before trusting.`;
+    } else {
+      v.className = 'verdict nope';
+      interp = `Not significant. Expected ${E.toFixed(1)} or more hits by chance under the random-database null. Could easily be coincidence.`;
+    }
+    $('vInterp').textContent = interp;
+
+    drawChart(m, n);
+
+    let hint;
+    if (S < 30) {
+      hint = 'Below ~30 bits is rarely significant for any realistic database. BLAST often filters HSPs below this threshold.';
+    } else if (E < 1e-50) {
+      hint = 'E ≪ 10⁻⁵⁰ is "definitely homologous". Used as a sanity check that the alignment isn\'t a low-complexity artefact.';
+    } else if (S >= 50 && S < 100) {
+      hint = 'The "comfortable middle" — strong enough to trust, not absurdly extreme. Most published homologies cite E in 10⁻¹⁰ to 10⁻⁴⁰ range.';
+    } else {
+      hint = 'Try halving the database — E doubles. Try adding 5 bit score — E halves.';
+    }
+    $('banner').innerHTML = `S′ = <strong>${S}</strong>, m = <strong>${m}</strong>, n = <strong>${n.toExponential(1)}</strong> → E = <strong>${fmtE(E)}</strong>.<span class="hint">${hint}</span>`;
+  }
+
+  function drawChart(m, n) {
+    const W = 1040, H = 240;
+    const margin = 40;
+    const x0 = margin, x1 = W - 20;
+    const y0 = H - margin, y1 = 20;
+
+    // X: bit score 20 to 200
+    const xPos = s => x0 + ((s - 20) / 180) * (x1 - x0);
+    // Y: log10(E) range -60 to 10
+    const yPos = log10E => y0 - ((log10E + 60) / 70) * (y0 - y1);
+
+    let svg = '';
+    // Axes
+    svg += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}" stroke="#a8a29e"/>`;
+    svg += `<line x1="${x0}" y1="${y0}" x2="${x0}" y2="${y1}" stroke="#a8a29e"/>`;
+
+    // X ticks
+    [20, 50, 100, 150, 200].forEach(s => {
+      svg += `<line x1="${xPos(s)}" y1="${y0}" x2="${xPos(s)}" y2="${y0+5}" stroke="#a8a29e"/>`;
+      svg += `<text x="${xPos(s)}" y="${y0+18}" text-anchor="middle" font-size="10" fill="#6b7280" font-family="JetBrains Mono">${s}</text>`;
+    });
+    svg += `<text x="${(x0+x1)/2}" y="${H-6}" text-anchor="middle" font-size="11" fill="#525252">bit score S'</text>`;
+
+    // Y ticks
+    [-60, -40, -20, 0, 10].forEach(le => {
+      svg += `<line x1="${x0-5}" y1="${yPos(le)}" x2="${x0}" y2="${yPos(le)}" stroke="#a8a29e"/>`;
+      svg += `<text x="${x0-8}" y="${yPos(le)+3}" text-anchor="end" font-size="10" fill="#6b7280" font-family="JetBrains Mono">10^${le}</text>`;
+    });
+
+    // Curve: log10(E) = log10(m*n) - S * log10(2)
+    const log10mn = Math.log10(m * n);
+    const path = [];
+    for (let s = 20; s <= 200; s += 2) {
+      const log10E = log10mn - s * Math.log10(2);
+      path.push(`${path.length === 0 ? 'M' : 'L'} ${xPos(s).toFixed(1)} ${yPos(log10E).toFixed(1)}`);
+    }
+    svg += `<path d="${path.join(' ')}" stroke="#1e3a8a" stroke-width="2.5" fill="none"/>`;
+
+    // Reference threshold lines
+    [0, -3, -10, -50].forEach(le => {
+      svg += `<line x1="${x0}" y1="${yPos(le)}" x2="${x1}" y2="${yPos(le)}" stroke="#525252" stroke-dasharray="2 4" stroke-opacity="0.4"/>`;
+      svg += `<text x="${x1-4}" y="${yPos(le)-4}" text-anchor="end" font-size="9" fill="#525252">E = 10^${le}</text>`;
+    });
+
+    // Current point
+    const Scur = parseFloat($('bits').value);
+    const log10Ecur = log10mn - Scur * Math.log10(2);
+    svg += `<circle cx="${xPos(Scur).toFixed(1)}" cy="${yPos(log10Ecur).toFixed(1)}" r="6" fill="#c4342c"/>`;
+
+    $('chart').innerHTML = svg;
+  }
+
+  ['bits', 'm', 'dbPreset'].forEach(id => $(id).addEventListener('input', compute));
+  compute();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

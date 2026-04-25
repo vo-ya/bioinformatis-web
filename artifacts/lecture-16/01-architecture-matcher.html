@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture-to-Problem Matcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 980px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .problem { font-size: 1.1rem; color: var(--fg); line-height: 1.5; padding: 0.5rem 0; }
+  .options { display: grid; gap: 0.5rem; }
+  .opt { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.6rem 0.8rem; background: #fff; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: all 200ms; font-size: var(--text-sm); }
+  .opt:hover { border-color: var(--accent); }
+  .opt.selected { border-color: var(--accent); background: #eff6ff; }
+  .opt.correct { background: #f0fdf4; border-color: #059669; }
+  .opt.wrong { background: #fef2f2; border-color: #c4342c; }
+  .opt input { margin-top: 0.2rem; }
+  .opt .arch-name { font-weight: 600; color: var(--fg); }
+  .opt .arch-tag { font-size: 0.85em; color: var(--fg-muted); margin-left: 0.4rem; }
+  .feedback { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); line-height: 1.6; display: none; }
+  .feedback.show { display: block; }
+  .feedback h4 { margin: 0 0 0.4rem; color: #1d4ed8; font-size: var(--text-sm); }
+  .feedback .key { font-weight: 600; color: var(--accent); }
+  .feedback .ex { font-family: var(--font-mono); color: #6b21a8; font-weight: 600; }
+  .nav { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; }
+  .btn { padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: var(--text-sm); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.secondary { background: #fff; color: var(--fg); border: 1px solid var(--border); }
+  .score { font-family: var(--font-mono); font-weight: 600; color: var(--accent); }
+  .progress { font-family: var(--font-mono); color: var(--fg-muted); font-size: var(--text-xs); }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Architecture-to-Problem Matcher</h1>
+    <p>For each genomic problem, pick the architecture whose inductive bias matches the data's structural property. The choice is usually obvious once you identify the structure — that's the point.</p>
+  </div>
+
+  <div class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+      <p class="panel-label">Problem <span id="qnum">1</span> of 7</p>
+      <div class="progress">Score: <span class="score" id="score">0 / 0</span></div>
+    </div>
+    <p class="problem" id="prob"></p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Pick architecture</p>
+    <div class="options" id="opts"></div>
+  </div>
+
+  <div class="panel feedback" id="feedback"></div>
+
+  <div class="nav">
+    <button class="btn secondary" id="prev">← Previous</button>
+    <button class="btn" id="next">Next →</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const PROBLEMS = [
+    {
+      q: 'Predict gene expression in a given tissue from 100 kb of surrounding DNA.',
+      correct: 'dilated-trans',
+      reasoning: 'Multi-scale structure — motif (~10 bp) → enhancer block (~1 kb) → enhancer-to-gene (~100 kb). Dilated convolutions handle the local-to-mid scales efficiently; transformer attention routes sparse long-range information from distal enhancers.',
+      example: 'Enformer · Borzoi',
+    },
+    {
+      q: 'Classify a candidate genotype (ref / het / hom-alt / no-variant) from a pileup of aligned reads.',
+      correct: 'cnn',
+      reasoning: 'Pileup is a 2D image; mismatches are local features; the column position within the window shouldn\'t matter. Translation invariance + locality + weight sharing are the right priors.',
+      example: 'DeepVariant',
+    },
+    {
+      q: 'Embed cells into a low-dimensional space from over-dispersed gene-expression count vectors, with batch correction.',
+      correct: 'vae',
+      reasoning: 'Over-dispersed counts → Negative Binomial likelihood (not MSE). Batch effects → conditioning the decoder. Latent prior gives a continuous cell-state manifold. The architectural scaffold (VAE) is less important than picking the right likelihood.',
+      example: 'scVI · totalVI',
+    },
+    {
+      q: 'Predict aqueous solubility of a small drug-like molecule given its atom-bond graph.',
+      correct: 'gnn',
+      reasoning: 'Atoms have no canonical order (permutation-invariant); chemistry is local (functional groups, rings); explicit graph topology encodes bonds. Message-passing GNN matches all three.',
+      example: 'GIN · MPNN · SchNet',
+    },
+    {
+      q: 'Predict 3D atomic coordinates of a protein given its sequence + MSA.',
+      correct: 'eqv',
+      reasoning: 'Output is 3D coordinates → SE(3) equivariance is the right prior (rotate input, output rotates the same). MSA × residue 2D structure → axial attention. Pair representation must respect triangle geometry.',
+      example: 'AlphaFold2 · OpenFold · RoseTTAFold',
+    },
+    {
+      q: 'Discover transcription-factor binding motifs from short DNA windows around ChIP-seq peaks.',
+      correct: 'cnn',
+      reasoning: 'Motifs are local position-weight-matrix patterns of ~10 bp. CNN with small kernels recovers them naturally; convolutional weights become PWMs after training (Alipanahi et al. 2015).',
+      example: 'DeepBind · DeepSEA',
+    },
+    {
+      q: 'Aggregate the effect of rare variants in a gene to test for disease association.',
+      correct: 'mlp',
+      reasoning: 'Rare-variant burden / SKAT is fundamentally a low-dimensional statistical aggregation problem (counts, weighted sums, regression). A logistic regression / GLM or a simple MLP is sufficient — no spatial / sequential / graph structure to exploit.',
+      example: 'SKAT-O · burden tests · sometimes a small MLP',
+    },
+  ];
+
+  const OPTIONS = [
+    { id: 'cnn',         name: 'CNN (pileup-style)',          tag: 'translation invariance, locality' },
+    { id: 'dilated-trans', name: 'Dilated conv + transformer', tag: 'multi-scale + sparse long-range' },
+    { id: 'vae',         name: 'VAE with NB likelihood',      tag: 'count data, batch effects' },
+    { id: 'gnn',         name: 'GNN (message-passing)',       tag: 'permutation invariance + locality' },
+    { id: 'eqv',         name: 'Equivariant transformer',     tag: 'SE(3) equivariance, 3D geometry' },
+    { id: 'transformer', name: 'Transformer (base)',          tag: 'global attention, weak prior' },
+    { id: 'mlp',         name: 'MLP / GLM',                   tag: 'no structural prior; statistical aggregation' },
+  ];
+
+  const state = { i: 0, answers: new Array(PROBLEMS.length).fill(null) };
+
+  function renderProblem() {
+    const p = PROBLEMS[state.i];
+    $('qnum').textContent = state.i + 1;
+    $('prob').textContent = p.q;
+    const userAnswer = state.answers[state.i];
+    $('opts').innerHTML = OPTIONS.map(o => {
+      const cls = userAnswer === o.id
+        ? (o.id === p.correct ? 'selected correct' : 'selected wrong')
+        : (userAnswer && o.id === p.correct ? 'correct' : '');
+      return `<label class="opt ${cls}" data-id="${o.id}">
+        <input type="radio" name="arch" value="${o.id}" ${userAnswer === o.id ? 'checked' : ''}>
+        <div><span class="arch-name">${o.name}</span><span class="arch-tag">${o.tag}</span></div>
+      </label>`;
+    }).join('');
+    document.querySelectorAll('.opt').forEach(el => el.addEventListener('click', () => {
+      state.answers[state.i] = el.getAttribute('data-id');
+      renderProblem();
+      renderFeedback();
+      renderScore();
+    }));
+    if (userAnswer) renderFeedback(); else $('feedback').classList.remove('show');
+    $('prev').disabled = state.i === 0;
+    $('next').disabled = state.i === PROBLEMS.length - 1;
+    renderScore();
+  }
+
+  function renderFeedback() {
+    const p = PROBLEMS[state.i];
+    const userAnswer = state.answers[state.i];
+    const correctOpt = OPTIONS.find(o => o.id === p.correct);
+    const isCorrect = userAnswer === p.correct;
+    $('feedback').innerHTML = `
+      <h4>${isCorrect ? '✓ Correct' : '✗ Not quite'}</h4>
+      <div>Best fit: <span class="key">${correctOpt.name}</span></div>
+      <div style="margin-top: 0.5rem;">${p.reasoning}</div>
+      <div style="margin-top: 0.5rem;">Example: <span class="ex">${p.example}</span></div>
+    `;
+    $('feedback').classList.add('show');
+  }
+
+  function renderScore() {
+    let answered = 0, correct = 0;
+    state.answers.forEach((a, i) => { if (a) { answered++; if (a === PROBLEMS[i].correct) correct++; } });
+    $('score').textContent = `${correct} / ${answered}`;
+  }
+
+  $('prev').addEventListener('click', () => { if (state.i > 0) { state.i--; renderProblem(); } });
+  $('next').addEventListener('click', () => { if (state.i < PROBLEMS.length - 1) { state.i++; renderProblem(); } });
+
+  renderProblem();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

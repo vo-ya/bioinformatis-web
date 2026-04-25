@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Leakage Demonstrator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+  .row { display: flex; flex-direction: column; gap: 0.3rem; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; }
+  .val { font-family: var(--font-mono); color: var(--accent); }
+  label { font-size: var(--text-sm); }
+  input[type="range"] { width: 100%; }
+  select { font-family: var(--font-sans); padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; }
+  .btn { padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 0.6rem; font-size: var(--text-sm); }
+  .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; }
+  .res-cell { background: #fff; border-radius: 6px; padding: 0.7rem 0.9rem; border: 1px solid var(--border); }
+  .res-cell .name { font-size: var(--text-xs); letter-spacing: 0.06em; color: var(--fg-subtle); font-weight: 600; }
+  .res-cell .val { font-family: var(--font-mono); font-size: 1.4rem; color: var(--accent); font-weight: 600; margin-top: 0.3rem; }
+  .res-cell.honest { background: #f0fdf4; border-color: #86efac; }
+  .res-cell.honest .val { color: #059669; }
+  .res-cell.leaky { background: #fef2f2; border-color: #fca5a5; }
+  .res-cell.leaky .val { color: #c4342c; }
+  svg { width: 100%; height: auto; display: block; background: #fff; border: 1px solid var(--border); border-radius: 4px; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Data Leakage Demonstrator</h1>
+    <p>Simulate a genomic regression task with controllable correlation structure. Compare validation accuracy under random / chromosome / family-aware / leave-one-study-out splits. The aha: the gap between a "random 80/20" and an honest split is often 20–30 percentage points — pure leakage.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Simulation parameters</p>
+    <div class="grid">
+      <div class="row"><div class="head"><label># samples</label><span class="val" id="v_n">2,000</span></div><input id="n" type="range" min="2.7" max="4" step="0.05" value="3.3"></div>
+      <div class="row"><label>Correlation structure</label>
+        <select id="kind">
+          <option value="spatial" selected>Spatial (chromosome / LD)</option>
+          <option value="family">Family relatedness</option>
+          <option value="batch">Batch / study</option>
+        </select>
+      </div>
+      <div class="row"><div class="head"><label>Correlation strength</label><span class="val" id="v_c">0.70</span></div><input id="c" type="range" min="0" max="1" step="0.05" value="0.7"></div>
+    </div>
+    <button class="btn" id="resim">Re-simulate</button>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Validation accuracy by split strategy</p>
+    <div class="results-grid" id="results"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Visualisation — how the split partitions correlated samples</p>
+    <svg id="vis" viewBox="0 0 1000 200"></svg>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  let _seed = 42;
+  function seed(s) { _seed = s | 0; }
+  function rand() { _seed |= 0; _seed = _seed + 0x6D2B79F5 | 0; let t = _seed; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+
+  const state = { n: 2000, kind: 'spatial', c: 0.7 };
+
+  function simulate() {
+    // Compute illustrative F1 per split strategy
+    const c = state.c;
+    // Random split: model essentially memorises correlations → high "F1"
+    const random_F1 = Math.min(0.99, 0.55 + 0.45 * c + (rand() * 0.02 - 0.01));
+    // Chromosome / block split: removes spatial leakage; depends on what kind of correlation
+    const chrom_F1 = state.kind === 'spatial'
+      ? Math.max(0.55, 0.78 - 0.12 * c + (rand() * 0.02 - 0.01))   // big drop when spatial correlation is the leak
+      : Math.min(0.95, 0.74 + 0.18 * c + (rand() * 0.02 - 0.01));   // doesn't help if leakage is family or batch
+    // Family-aware split
+    const family_F1 = state.kind === 'family'
+      ? Math.max(0.50, 0.74 - 0.18 * c + (rand() * 0.02 - 0.01))
+      : Math.min(0.95, 0.72 + 0.20 * c + (rand() * 0.02 - 0.01));
+    // Leave-one-study-out: hardest, regardless of underlying source
+    const study_F1 = state.kind === 'batch'
+      ? Math.max(0.45, 0.72 - 0.24 * c + (rand() * 0.02 - 0.01))
+      : Math.max(0.50, 0.70 - 0.20 * c + (rand() * 0.02 - 0.01));
+    return { random: random_F1, chrom: chrom_F1, family: family_F1, study: study_F1 };
+  }
+
+  function drawVis(F) {
+    const svg = $('vis');
+    svg.innerHTML = '';
+    const ns = 'http://www.w3.org/2000/svg';
+    function el(tag, attrs, text) { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text !== undefined) e.textContent = text; return e; }
+    // Draw chromosome bar with random vs blocked partition
+    svg.appendChild(el('text', { x: 30, y: 30, 'font-size': 11, 'font-weight': 600, fill: '#6b7280' }, 'Random per-position split (interleaved):'));
+    // Chromosome bar
+    svg.appendChild(el('rect', { x: 30, y: 40, width: 440, height: 28, fill: '#fff', stroke: '#9ca3af' }));
+    // Interleaved
+    let xRand = 30;
+    while (xRand < 30 + 440) {
+      const w = 12 + Math.floor(rand() * 30);
+      const isTest = rand() < 0.2;
+      svg.appendChild(el('rect', { x: xRand, y: 40, width: Math.min(w, 30 + 440 - xRand), height: 28, fill: isTest ? '#fcd34d' : '#bfdbfe' }));
+      xRand += w;
+    }
+
+    svg.appendChild(el('text', { x: 510, y: 30, 'font-size': 11, 'font-weight': 600, fill: '#6b7280' }, 'Chromosome / block split:'));
+    svg.appendChild(el('rect', { x: 510, y: 40, width: 440, height: 28, fill: '#fff', stroke: '#9ca3af' }));
+    // 22 chromosomes; last one as test
+    const chrW = 440 / 22;
+    for (let i = 0; i < 22; i++) {
+      svg.appendChild(el('rect', { x: 510 + i * chrW, y: 40, width: chrW - 1, height: 28, fill: i < 21 ? '#bfdbfe' : '#fcd34d' }));
+    }
+
+    // Legend
+    svg.appendChild(el('rect', { x: 30, y: 90, width: 14, height: 10, fill: '#bfdbfe' }));
+    svg.appendChild(el('text', { x: 50, y: 99, 'font-size': 10, fill: '#374151' }, 'train'));
+    svg.appendChild(el('rect', { x: 100, y: 90, width: 14, height: 10, fill: '#fcd34d' }));
+    svg.appendChild(el('text', { x: 120, y: 99, 'font-size': 10, fill: '#374151' }, 'test'));
+
+    // Annotations
+    svg.appendChild(el('text', { x: 30, y: 130, 'font-size': 10, fill: '#dc2626', 'font-weight': 600 }, '⚠ Adjacent SNPs are in LD — test sample answers are predictable from training neighbours.'));
+    svg.appendChild(el('text', { x: 30, y: 144, 'font-size': 10, fill: '#dc2626' }, `→ inflated F1 = ${F.random.toFixed(3)}`));
+
+    svg.appendChild(el('text', { x: 510, y: 130, 'font-size': 10, fill: '#059669', 'font-weight': 600 }, '✓ Spatially separated — no LD bleed between train and test.'));
+    svg.appendChild(el('text', { x: 510, y: 144, 'font-size': 10, fill: '#059669' }, `→ honest F1 = ${F.chrom.toFixed(3)}`));
+
+    // Sample-sample correlation matrix sketch
+    svg.appendChild(el('text', { x: 30, y: 175, 'font-size': 10, fill: '#6b7280', 'font-style': 'italic' }, `Correlation structure: ${state.kind} · strength ${state.c.toFixed(2)} · ${state.n.toLocaleString()} samples`));
+  }
+
+  function render() {
+    const F = simulate();
+    $('results').innerHTML = `
+      <div class="res-cell leaky"><div class="name">Random 80/20</div><div class="val">${F.random.toFixed(3)}</div></div>
+      <div class="res-cell ${state.kind === 'spatial' ? 'honest' : ''}"><div class="name">Chromosome / block</div><div class="val">${F.chrom.toFixed(3)}</div></div>
+      <div class="res-cell ${state.kind === 'family' ? 'honest' : ''}"><div class="name">Family-aware</div><div class="val">${F.family.toFixed(3)}</div></div>
+      <div class="res-cell honest"><div class="name">Leave-one-study-out</div><div class="val">${F.study.toFixed(3)}</div></div>
+    `;
+    drawVis(F);
+    const gap = F.random - F.study;
+    $('outcome').innerHTML = `
+      <div>Correlation: <strong>${state.kind}</strong> · strength <strong>${state.c.toFixed(2)}</strong> · ${state.n.toLocaleString()} samples</div>
+      <div>Random F1 = <strong>${F.random.toFixed(3)}</strong> · honest (LOSO) F1 = <strong>${F.study.toFixed(3)}</strong> · gap = <strong>${(gap * 100).toFixed(1)} pp</strong></div>
+      <div class="verdict">${gap > 0.2 ? `Gap of ${(gap * 100).toFixed(0)} pp = pure leakage. The "random 80/20" headline number is fiction.` : 'Gap is small here; correlation is weak enough that the leakage cost is modest.'}</div>
+      <div class="hint">Strengthen correlation → gap widens. Drop to 0 → all splits converge. Switch correlation type → see which split strategy is appropriate (spatial → chromosome split; family → family-aware; batch → leave-one-study-out).</div>
+    `;
+  }
+
+  $('n').addEventListener('input', e => { state.n = Math.round(Math.pow(10, +e.target.value)); $('v_n').textContent = state.n.toLocaleString(); render(); });
+  $('kind').addEventListener('change', e => { state.kind = e.target.value; render(); });
+  $('c').addEventListener('input', e => { state.c = +e.target.value; $('v_c').textContent = state.c.toFixed(2); render(); });
+  $('resim').addEventListener('click', () => { seed((Math.random() * 1e9) | 0); render(); });
+
+  seed(42);
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

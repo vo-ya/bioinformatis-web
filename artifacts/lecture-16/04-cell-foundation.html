@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cell Foundation Model Zero-Shot Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+  .row { display: flex; flex-direction: column; gap: 0.3rem; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; }
+  .val { font-family: var(--font-mono); color: var(--accent); }
+  label { font-size: var(--text-sm); }
+  input[type="range"] { width: 100%; }
+  .btn { padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 0.6rem; font-size: var(--text-sm); }
+  .results-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 720px) { .results-pair { grid-template-columns: 1fr; } }
+  .res-cell { padding: 1rem 1.25rem; border-radius: 8px; border: 1.5px solid; }
+  .res-cell .k { font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+  .res-cell .v { font-family: var(--font-mono); font-size: 2rem; font-weight: 600; margin-top: 0.4rem; }
+  .res-cell .desc { font-size: var(--text-xs); margin-top: 0.4rem; line-height: 1.5; }
+  .res-cell.cell { background: #fef2f2; border-color: #fca5a5; }
+  .res-cell.cell .k, .res-cell.cell .v { color: #c4342c; }
+  .res-cell.cell .desc { color: #7f1d1d; }
+  .res-cell.study { background: #f0fdf4; border-color: #86efac; }
+  .res-cell.study .k, .res-cell.study .v { color: #059669; }
+  .res-cell.study .desc { color: #14532d; }
+  .gap-box { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; padding: 0.75rem 1rem; margin-top: 0.75rem; font-size: var(--text-sm); color: #92400e; }
+  svg { width: 100%; height: auto; display: block; background: #fff; border: 1px solid var(--border); border-radius: 4px; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Cell Foundation Model — Zero-Shot Explorer</h1>
+    <p>Simulate a scGPT-like classifier under two evaluation protocols: leave-one-cell-out (LOO-cell, easy) vs leave-one-study-out (LOO-study, honest). Watch the gap. The aha: "zero-shot accuracy" is a function of the protocol, not a single number.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Synthetic cohort parameters</p>
+    <div class="grid">
+      <div class="row"><div class="head"><label># studies</label><span class="val" id="v_s">5</span></div><input id="s" type="range" min="2" max="20" step="1" value="5"></div>
+      <div class="row"><div class="head"><label>Cells per study</label><span class="val" id="v_n">500</span></div><input id="n" type="range" min="100" max="2000" step="100" value="500"></div>
+      <div class="row"><div class="head"><label>Cell-type count</label><span class="val" id="v_t">8</span></div><input id="t" type="range" min="2" max="20" step="1" value="8"></div>
+      <div class="row"><div class="head"><label>Batch effect strength</label><span class="val" id="v_b">0.40</span></div><input id="b" type="range" min="0" max="1" step="0.05" value="0.4"></div>
+    </div>
+    <button class="btn" id="resim">Re-simulate</button>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Zero-shot cell-type accuracy</p>
+    <div class="results-pair">
+      <div class="res-cell cell">
+        <div class="k">LOO-cell-out (leaky)</div>
+        <div class="v" id="acc_cell">—</div>
+        <div class="desc">One cell held out per fold. Test cells share studies with training cells; the model can memorise study-specific batch signatures.</div>
+      </div>
+      <div class="res-cell study">
+        <div class="k">LOO-study-out (honest)</div>
+        <div class="v" id="acc_study">—</div>
+        <div class="desc">Entire study held out. Model must generalise across batches; this is what "zero-shot" should mean.</div>
+      </div>
+    </div>
+    <div class="gap-box" id="gap-note"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Visualisation — embedding by cell type and study</p>
+    <svg id="vis" viewBox="0 0 1000 280"></svg>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  let _seed = 42;
+  function seed(s) { _seed = s | 0; }
+  function rand() { _seed |= 0; _seed = _seed + 0x6D2B79F5 | 0; let t = _seed; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+  function gauss() { const u = Math.max(1e-12, rand()), v = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+  const state = { s: 5, n: 500, t: 8, b: 0.4 };
+
+  function simulate() {
+    // LOO-cell accuracy: high (model uses batch signature)
+    // Higher batch effect → higher LOO-cell, because within-study batch is shared.
+    // LOO-study accuracy: drops as batch effect grows.
+    const cell = Math.min(0.99, 0.65 + 0.35 * state.b + (state.t > 10 ? -0.05 : 0));
+    const study = Math.max(0.30, 0.85 - 0.55 * state.b - (state.t > 10 ? 0.05 : 0));
+    return { cell, study };
+  }
+
+  function drawVis() {
+    const svg = $('vis');
+    svg.innerHTML = '';
+    const ns = 'http://www.w3.org/2000/svg';
+    function el(tag, attrs, text) { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text !== undefined) e.textContent = text; return e; }
+
+    // Two scatter plots: left coloured by cell type, right coloured by study
+    svg.appendChild(el('text', { x: 250, y: 24, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 600, fill: '#374151' }, 'Embedding · coloured by cell type'));
+    svg.appendChild(el('text', { x: 750, y: 24, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 600, fill: '#374151' }, 'Same embedding · coloured by study'));
+
+    // Generate points
+    const cellTypes = state.t;
+    const studies = state.s;
+    const ptsPerStudy = 30;
+    const points = [];
+    seed(7);  // deterministic for visualisation
+    for (let s = 0; s < studies; s++) {
+      // Batch offset
+      const bx = gauss() * state.b * 60;
+      const by = gauss() * state.b * 60;
+      for (let p = 0; p < ptsPerStudy; p++) {
+        const ct = Math.floor(rand() * cellTypes);
+        // Cell-type centre
+        const angle = (ct / cellTypes) * Math.PI * 2;
+        const cx = Math.cos(angle) * 70;
+        const cy = Math.sin(angle) * 70;
+        // Final point: cell-type centre + batch offset + small noise
+        const x = cx + bx + gauss() * 8;
+        const y = cy + by + gauss() * 8;
+        points.push({ s, ct, x, y });
+      }
+    }
+
+    // Left: colour by cell type
+    points.forEach(p => {
+      const hue = (p.ct / cellTypes) * 360;
+      svg.appendChild(el('circle', { cx: 250 + p.x * 1.3, cy: 140 + p.y * 1.0, r: 2.5, fill: `hsl(${hue}, 70%, 55%)`, opacity: 0.7 }));
+    });
+    // Right: colour by study
+    points.forEach(p => {
+      const hue = (p.s / studies) * 280;
+      svg.appendChild(el('circle', { cx: 750 + p.x * 1.3, cy: 140 + p.y * 1.0, r: 2.5, fill: `hsl(${hue}, 70%, 55%)`, opacity: 0.7 }));
+    });
+
+    // Annotations
+    if (state.b < 0.2) {
+      svg.appendChild(el('text', { x: 250, y: 260, 'text-anchor': 'middle', 'font-size': 10, fill: '#059669', 'font-style': 'italic' }, '✓ cells cluster by type'));
+      svg.appendChild(el('text', { x: 750, y: 260, 'text-anchor': 'middle', 'font-size': 10, fill: '#059669', 'font-style': 'italic' }, '✓ studies overlap (no batch effect)'));
+    } else if (state.b > 0.6) {
+      svg.appendChild(el('text', { x: 250, y: 260, 'text-anchor': 'middle', 'font-size': 10, fill: '#dc2626', 'font-style': 'italic' }, '⚠ cell types blurred'));
+      svg.appendChild(el('text', { x: 750, y: 260, 'text-anchor': 'middle', 'font-size': 10, fill: '#dc2626', 'font-style': 'italic' }, '⚠ studies form distinct clusters'));
+    } else {
+      svg.appendChild(el('text', { x: 250, y: 260, 'text-anchor': 'middle', 'font-size': 10, fill: '#b45309', 'font-style': 'italic' }, 'cell types partially separable'));
+      svg.appendChild(el('text', { x: 750, y: 260, 'text-anchor': 'middle', 'font-size': 10, fill: '#b45309', 'font-style': 'italic' }, 'study structure visible'));
+    }
+  }
+
+  function render() {
+    const r = simulate();
+    $('acc_cell').textContent = (r.cell * 100).toFixed(1) + '%';
+    $('acc_study').textContent = (r.study * 100).toFixed(1) + '%';
+    const gap = r.cell - r.study;
+    const gapPP = (gap * 100).toFixed(0);
+    $('gap-note').innerHTML = `Gap: <strong>${gapPP} pp</strong> · ${gap > 0.15 ? 'this gap is the leakage budget; LOO-cell evaluates batch memorisation' : 'small gap — batch effect is weak in this regime'}`;
+
+    drawVis();
+
+    let verdict;
+    if (gap > 0.2) verdict = `Honest accuracy is ${gapPP} pp lower than the leaky number — that's the size of the batch-memorisation effect.`;
+    else if (gap > 0.05) verdict = `Modest gap. Some batch memorisation; protocol still matters.`;
+    else verdict = 'Negligible gap — batch effect is weak; both protocols are fair.';
+
+    $('outcome').innerHTML = `
+      <div>${state.s} studies × ${state.n} cells × ${state.t} cell types · batch strength ${state.b.toFixed(2)}</div>
+      <div>LOO-cell <strong>${(r.cell * 100).toFixed(1)}%</strong> · LOO-study <strong>${(r.study * 100).toFixed(1)}%</strong> · gap <strong>${gapPP} pp</strong></div>
+      <div class="verdict">${verdict}</div>
+      <div class="hint">Drop batch effect to 0 → both protocols converge. Push to 1 → gap widens to 30+ pp. Reading a foundation-model paper: always ask which protocol they use.</div>
+    `;
+  }
+
+  $('s').addEventListener('input', e => { state.s = +e.target.value; $('v_s').textContent = state.s; render(); });
+  $('n').addEventListener('input', e => { state.n = +e.target.value; $('v_n').textContent = state.n; render(); });
+  $('t').addEventListener('input', e => { state.t = +e.target.value; $('v_t').textContent = state.t; render(); });
+  $('b').addEventListener('input', e => { state.b = +e.target.value; $('v_b').textContent = state.b.toFixed(2); render(); });
+  $('resim').addEventListener('click', () => { seed((Math.random() * 1e9) | 0); render(); });
+
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

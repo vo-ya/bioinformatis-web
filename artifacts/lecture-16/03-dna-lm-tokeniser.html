@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DNA-LM Tokeniser Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+  .row { display: flex; flex-direction: column; gap: 0.3rem; }
+  label { font-size: var(--text-sm); }
+  select { font-family: var(--font-sans); padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; }
+  textarea { width: 100%; font-family: var(--font-mono); font-size: var(--text-sm); padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; min-height: 80px; }
+  .tokens { font-family: var(--font-mono); font-size: 11px; line-height: 1.8; padding: 0.6rem 0.8rem; background: #fff; border: 1px solid var(--border); border-radius: 6px; word-break: break-all; max-height: 240px; overflow-y: auto; }
+  .tok { display: inline-block; padding: 1px 5px; margin: 1px 2px; border-radius: 3px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
+  .stat-cell { background: var(--bg-muted); border-radius: 6px; padding: 0.6rem 0.85rem; }
+  .stat-cell .k { font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-subtle); font-weight: 600; }
+  .stat-cell .v { font-family: var(--font-mono); font-size: 1.05rem; color: var(--accent); font-weight: 600; margin-top: 0.25rem; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>DNA-LM Tokeniser Explorer</h1>
+    <p>Compare four DNA tokenisations on a fixed sequence: per-nucleotide, 3-mer, 6-mer, and a small BPE-style vocabulary. The aha: tokenisation is a design choice — finer resolution vs longer effective context, fewer or more vocabulary entries.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="grid">
+      <div class="row"><label>Preset sequence</label>
+        <select id="preset">
+          <option value="motif">Short motif (TF binding ~25 bp)</option>
+          <option value="promoter" selected>Promoter region (~500 bp)</option>
+          <option value="long">Long sequence (~2 kb)</option>
+        </select>
+      </div>
+      <div class="row"><label>Tokenisation</label>
+        <select id="tok">
+          <option value="nuc">Per-nucleotide</option>
+          <option value="3mer">3-mer (sliding)</option>
+          <option value="6mer" selected>6-mer (sliding)</option>
+          <option value="bpe">BPE-style (variable)</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top: 0.6rem;">
+      <label style="font-size: var(--text-sm);">Or paste your own (≤ 5,000 bp):</label>
+      <textarea id="seqIn"></textarea>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Tokens (showing first 200)</p>
+    <div class="tokens" id="toks"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Statistics</p>
+    <div class="stats-grid" id="stats"></div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const PRESETS = {
+    motif: 'TGACTCATGAGTCAGCATGCATGCAT',
+    promoter: 'GCGCGCGGGCGCATAAAAGCGCCGCATCAGGCGCGAGGCATCGCGGGCATCAGGCGCATCGCGCATAAAATATAATGCGCGCATCGCGCGCATCAGCATCAGGCGCGCATCGCGCAGCATCATAAAAGCGCATCGCGCAGCATCAGGCATCGCGCGGGCGCATCAGCATCAGCATCAGGCGCATCGCGCATCAGCATCAGCATAAAAGCGCATCGCGCAGCATCAGCATCAGCATCGCGCAGCATCAGCATCATAAAAGCGCATCAGCATCAGCATCAGCATCGCGCAGCATCATCAGCATCATCATAAGCATCAGCATCGCGCATCAGCATAAGCGCATCAGCATCAGCATCAGCAGCATCAGCATCAGCATAGCATCATCAGCATCAGCATCAGCATCATAAGCGCAGCATCATCATCATCATCATAAAA',
+    long: ('ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT').repeat(5).slice(0, 2000),
+  };
+
+  // BPE-style vocabulary (made-up frequent subwords)
+  const BPE_VOCAB = ['ACGT', 'GATC', 'TATA', 'CGCG', 'AAAA', 'TTTT', 'GGGG', 'CCCC', 'ATG', 'TAA', 'TAG', 'TGA', 'GCG', 'CGC', 'TCG', 'CGA', 'AAT', 'ATA', 'AGC', 'GCA', 'CAG', 'GTC', 'CTG', 'TGT', 'AC', 'GT', 'AT', 'CG', 'A', 'C', 'G', 'T'];
+
+  function tokenize(seq, kind) {
+    seq = seq.toUpperCase().replace(/[^ACGT]/g, '');
+    if (kind === 'nuc') {
+      return seq.split('');
+    } else if (kind === '3mer') {
+      const out = [];
+      for (let i = 0; i + 3 <= seq.length; i++) out.push(seq.slice(i, i + 3));
+      return out;
+    } else if (kind === '6mer') {
+      const out = [];
+      for (let i = 0; i + 6 <= seq.length; i++) out.push(seq.slice(i, i + 6));
+      return out;
+    } else {
+      // BPE greedy: try longest match
+      const sorted = [...BPE_VOCAB].sort((a, b) => b.length - a.length);
+      const out = [];
+      let i = 0;
+      while (i < seq.length) {
+        let matched = null;
+        for (const v of sorted) {
+          if (seq.slice(i, i + v.length) === v) { matched = v; break; }
+        }
+        if (!matched) matched = seq[i];
+        out.push(matched);
+        i += matched.length;
+      }
+      return out;
+    }
+  }
+
+  function vocabSize(kind) {
+    if (kind === 'nuc') return 4;
+    if (kind === '3mer') return 64;
+    if (kind === '6mer') return 4096;
+    if (kind === 'bpe') return BPE_VOCAB.length;
+  }
+
+  function avgTokenBp(kind) {
+    if (kind === 'nuc') return 1;
+    if (kind === '3mer') return 1;  // sliding 1bp step
+    if (kind === '6mer') return 1;
+    if (kind === 'bpe') return 2.4; // approximate average length
+  }
+
+  function colourFor(token) {
+    let h = 5381;
+    for (let i = 0; i < token.length; i++) h = ((h * 33) ^ token.charCodeAt(i)) >>> 0;
+    const hue = h % 360;
+    return `hsl(${hue}, 60%, 88%)`;
+  }
+
+  function render() {
+    let seq = $('seqIn').value.trim();
+    if (!seq) seq = PRESETS[$('preset').value];
+    seq = seq.toUpperCase().replace(/[^ACGT]/g, '');
+    if (seq.length > 5000) seq = seq.slice(0, 5000);
+
+    const kind = $('tok').value;
+    const tokens = tokenize(seq, kind);
+    const total = tokens.length;
+    const vocab = vocabSize(kind);
+    const stride = avgTokenBp(kind);
+    const seqLenAt512 = kind === 'bpe' ? Math.round(512 * stride) : (kind === 'nuc' ? 512 : (kind === '3mer' ? 514 : 517));
+
+    // Tokens display (first 200)
+    const display = tokens.slice(0, 200).map(t => `<span class="tok" style="background:${colourFor(t)};">${t}</span>`).join('');
+    $('toks').innerHTML = display + (total > 200 ? `<div style="color: var(--fg-muted); font-style: italic; font-size: 10px; margin-top: 0.4rem;">...and ${(total - 200).toLocaleString()} more tokens</div>` : '');
+
+    $('stats').innerHTML = `
+      <div class="stat-cell"><div class="k">Sequence length</div><div class="v">${seq.length.toLocaleString()} bp</div></div>
+      <div class="stat-cell"><div class="k">Vocabulary size</div><div class="v">${vocab.toLocaleString()}</div></div>
+      <div class="stat-cell"><div class="k">Total tokens</div><div class="v">${total.toLocaleString()}</div></div>
+      <div class="stat-cell"><div class="k">Bp per token (avg)</div><div class="v">${stride.toFixed(1)}</div></div>
+      <div class="stat-cell"><div class="k">RF at 512 tokens</div><div class="v">${seqLenAt512.toLocaleString()} bp</div></div>
+    `;
+
+    let verdict;
+    if (kind === 'nuc') verdict = 'Per-nucleotide: finest resolution, vocabulary of just 4. Slowest model — 512 tokens covers only 512 bp.';
+    else if (kind === '3mer') verdict = '3-mer overlap: vocabulary of 64. Captures local triplet patterns but redundant — 1 bp shift per token.';
+    else if (kind === '6mer') verdict = '6-mer: vocabulary of 4,096. Common in DNABERT. Larger receptive field per token-window with manageable vocabulary.';
+    else verdict = 'BPE: variable-length tokens learned from data. Frequent motifs collapse to single tokens, expanding effective context.';
+
+    $('outcome').innerHTML = `
+      <div>Tokenisation: <strong>${kind}</strong> · vocab ${vocab.toLocaleString()} · ${total.toLocaleString()} tokens for ${seq.length.toLocaleString()} bp · 512-token window = ${seqLenAt512.toLocaleString()} bp</div>
+      <div class="verdict">${verdict}</div>
+      <div class="hint">DNA is not text. Most DNA is intergenic / repetitive — low information density per base. Tokenisation choice trades resolution for context. No universally best answer; experiment per task.</div>
+    `;
+  }
+
+  $('preset').addEventListener('change', () => { $('seqIn').value = ''; render(); });
+  $('tok').addEventListener('change', render);
+  $('seqIn').addEventListener('input', render);
+
+  $('seqIn').value = '';
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

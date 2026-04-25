@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Genomics ML Pitfall Checklist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.85rem 1.25rem; }
+  .row { display: flex; flex-direction: column; gap: 0.3rem; }
+  label { font-size: var(--text-sm); font-weight: 500; }
+  select { font-family: var(--font-sans); padding: 0.45rem 0.7rem; border: 1px solid var(--border); border-radius: 4px; font-size: var(--text-sm); }
+  .findings { display: grid; gap: 0.55rem; }
+  .finding { display: grid; grid-template-columns: 80px 1fr; gap: 0.7rem; align-items: stretch; padding: 0.75rem 1rem; border-radius: 6px; font-size: var(--text-sm); line-height: 1.5; border: 1.5px solid; }
+  .finding .sev { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; align-self: center; text-align: center; padding: 0.4rem 0.5rem; border-radius: 4px; }
+  .finding.high { background: #fef2f2; border-color: #fca5a5; }
+  .finding.high .sev { background: #fca5a5; color: #7f1d1d; }
+  .finding.med { background: #fef3c7; border-color: #fcd34d; }
+  .finding.med .sev { background: #fcd34d; color: #78350f; }
+  .finding.low { background: #eff6ff; border-color: #bfdbfe; }
+  .finding.low .sev { background: #bfdbfe; color: #1e3a8a; }
+  .finding.ok { background: #f0fdf4; border-color: #86efac; }
+  .finding.ok .sev { background: #86efac; color: #14532d; }
+  .finding strong { color: var(--fg); }
+  .summary { display: flex; gap: 1rem; flex-wrap: wrap; padding: 0.5rem 0; }
+  .summary .pill { font-family: var(--font-mono); font-size: var(--text-xs); padding: 0.3rem 0.7rem; border-radius: 4px; font-weight: 600; }
+  .pill.high { background: #fca5a5; color: #7f1d1d; }
+  .pill.med { background: #fcd34d; color: #78350f; }
+  .pill.low { background: #bfdbfe; color: #1e3a8a; }
+  .pill.ok { background: #86efac; color: #14532d; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Genomics ML Pitfall Checklist</h1>
+    <p>Describe a proposed project below. The checklist flags likely pitfalls — leakage, mismatched architecture, weak baselines, wrong likelihood. Most genomics ML design bugs are predictable; the artifact lists the predictable ones.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Define your proposed project</p>
+    <div class="grid">
+      <div class="row"><label>Problem type</label>
+        <select id="problem">
+          <option value="variant">Variant calling / classification</option>
+          <option value="regulation" selected>Regulatory prediction (TF, expression)</option>
+          <option value="sc-celltype">Single-cell cell-type classification</option>
+          <option value="protein-fn">Protein function / pathogenicity</option>
+          <option value="molecule">Molecular property</option>
+          <option value="protein-3d">Protein 3D structure</option>
+        </select>
+      </div>
+      <div class="row"><label>Architecture</label>
+        <select id="arch">
+          <option value="cnn">CNN</option>
+          <option value="dilated">Dilated conv + transformer</option>
+          <option value="vae">VAE + NB</option>
+          <option value="gnn">GNN</option>
+          <option value="eqv">Equivariant transformer</option>
+          <option value="transformer">Plain transformer</option>
+          <option value="mlp">MLP / GLM</option>
+        </select>
+      </div>
+      <div class="row"><label>Training-data source</label>
+        <select id="data">
+          <option value="public">Public benchmark (with reference splits)</option>
+          <option value="custom" selected>Custom curated dataset</option>
+          <option value="combined">Multiple studies combined</option>
+          <option value="biobank">Biobank cohort (UKBB-style)</option>
+        </select>
+      </div>
+      <div class="row"><label>Train/test split strategy</label>
+        <select id="split">
+          <option value="random">Random 80/20</option>
+          <option value="chr">Chromosome-based</option>
+          <option value="family">Family / kinship-aware</option>
+          <option value="loso">Leave-one-study-out</option>
+          <option value="time">Time-based (CAFA-style)</option>
+          <option value="homology">Homology cluster (CD-HIT, MMseqs2)</option>
+        </select>
+      </div>
+      <div class="row"><label>Loss / likelihood</label>
+        <select id="loss">
+          <option value="mse">MSE</option>
+          <option value="ce" selected>Cross-entropy</option>
+          <option value="poisson">Poisson</option>
+          <option value="nb">Negative binomial</option>
+          <option value="ranking">Ranking / triplet</option>
+        </select>
+      </div>
+      <div class="row"><label>Baseline comparison</label>
+        <select id="baseline">
+          <option value="random">Random / class-prior baseline</option>
+          <option value="simple" selected>Simple model (logistic, MLP)</option>
+          <option value="published">Published SOTA on this task</option>
+          <option value="none">No comparison</option>
+        </select>
+      </div>
+      <div class="row"><label>Pretraining strategy</label>
+        <select id="pre">
+          <option value="none" selected>From scratch</option>
+          <option value="self">Self-supervised on unlabelled corpus</option>
+          <option value="weights">Use pretrained weights (ESM, DNABERT, ...)</option>
+          <option value="multi">Multi-task with auxiliary labels</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Audit findings</p>
+    <div class="summary" id="summary"></div>
+    <div class="findings" id="findings"></div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const ARCH_FOR_PROBLEM = {
+    'variant': ['cnn'],
+    'regulation': ['dilated', 'cnn'],
+    'sc-celltype': ['vae', 'transformer'],
+    'protein-fn': ['transformer'],
+    'molecule': ['gnn'],
+    'protein-3d': ['eqv'],
+  };
+
+  const ARCH_NAME = {
+    cnn: 'CNN', dilated: 'Dilated conv + transformer', vae: 'VAE + NB', gnn: 'GNN',
+    eqv: 'Equivariant transformer', transformer: 'Plain transformer', mlp: 'MLP / GLM',
+  };
+
+  function audit() {
+    const p = $('problem').value;
+    const a = $('arch').value;
+    const d = $('data').value;
+    const s = $('split').value;
+    const l = $('loss').value;
+    const b = $('baseline').value;
+    const pre = $('pre').value;
+    const findings = [];
+
+    // 1. Architecture-problem match
+    const allowed = ARCH_FOR_PROBLEM[p] || [];
+    if (!allowed.includes(a)) {
+      findings.push({ sev: 'high', title: 'Architecture mismatch', body: `<strong>${ARCH_NAME[a]}</strong> doesn't match the structural property of "${$('problem').selectedOptions[0].textContent}". Consider <strong>${allowed.map(x => ARCH_NAME[x]).join(' or ')}</strong>. Mismatched inductive bias is the #1 cause of genomics ML failures.` });
+    } else {
+      findings.push({ sev: 'ok', title: 'Architecture fits the problem', body: `Inductive bias matches the data's structural property.` });
+    }
+
+    // 2. Split strategy
+    const correctSplits = {
+      'variant': ['chr', 'time', 'homology'],
+      'regulation': ['chr'],
+      'sc-celltype': ['loso'],
+      'protein-fn': ['homology', 'time'],
+      'molecule': ['random', 'time'],
+      'protein-3d': ['homology', 'time'],
+    };
+    const ok = (correctSplits[p] || []).includes(s);
+    if (s === 'random' && p !== 'molecule') {
+      findings.push({ sev: 'high', title: 'Likely data leakage', body: `Random splits leak via <strong>${{
+        variant: 'LD between adjacent SNPs',
+        regulation: 'LD + regulatory neighbourhood',
+        'sc-celltype': 'study-specific batch effects',
+        'protein-fn': 'sequence homology',
+        'protein-3d': 'sequence homology',
+      }[p] || 'correlated samples'}</strong>. Headline accuracy will be inflated by 15–30 pp. Use <strong>${(correctSplits[p] || ['leakage-aware']).join(' or ')}</strong> instead.` });
+    } else if (ok) {
+      findings.push({ sev: 'ok', title: 'Split strategy is leakage-aware', body: `Honest evaluation protocol for this problem.` });
+    } else {
+      findings.push({ sev: 'med', title: 'Split strategy is unusual', body: `${$('split').selectedOptions[0].textContent} isn't standard for this problem; double-check with a stricter alternative (${(correctSplits[p] || []).join(', ') || 'time-based'}).` });
+    }
+
+    // 3. Loss/likelihood
+    const correctLoss = {
+      'sc-celltype': ['nb', 'poisson', 'ce'],
+      'variant': ['ce'],
+      'regulation': ['poisson', 'mse'],
+      'protein-fn': ['ce'],
+      'molecule': ['mse', 'ce'],
+      'protein-3d': ['mse'],
+    };
+    if (p === 'sc-celltype' && (l === 'mse' || l === 'ce')) {
+      findings.push({ sev: 'med', title: 'Loss may not match count distribution', body: 'Single-cell count data is over-dispersed. <strong>Negative binomial</strong> matches the empirical distribution; MSE assumes Gaussian; cross-entropy ignores count semantics. For latent-space modelling, NB; for classification on latent embeddings, CE is fine.' });
+    } else if ((correctLoss[p] || []).includes(l)) {
+      findings.push({ sev: 'ok', title: 'Loss function is appropriate', body: 'Matches the problem\'s data type.' });
+    } else {
+      findings.push({ sev: 'low', title: 'Verify the loss matches the noise model', body: 'The right likelihood beats deep architecture; double-check before training.' });
+    }
+
+    // 4. Baseline
+    if (b === 'none') {
+      findings.push({ sev: 'high', title: 'No baseline — results uninterpretable', body: 'Always compare to at least the published SOTA on the task. "We achieved 95% accuracy" is meaningless without "vs the best existing method achieved 96%."' });
+    } else if (b === 'random' || b === 'simple') {
+      findings.push({ sev: 'med', title: 'Baseline may be too weak', body: 'Beating a random or trivial baseline is uninformative. Compare to the strongest published method on the same task and protocol.' });
+    } else {
+      findings.push({ sev: 'ok', title: 'Strong baseline', body: 'Comparing against published SOTA — the right benchmark.' });
+    }
+
+    // 5. Pretraining
+    if (pre === 'none' && (p === 'protein-fn' || p === 'sc-celltype' || p === 'regulation')) {
+      findings.push({ sev: 'med', title: 'Consider pretraining', body: 'Genomics has scarce labels. Pretraining on unlabelled sequences (or using off-the-shelf ESM/DNABERT/Geneformer weights) typically buys 10×–100× sample efficiency.' });
+    } else if (pre === 'weights' || pre === 'self') {
+      findings.push({ sev: 'ok', title: 'Pretraining strategy in place', body: 'Pretrained representations + fine-tuning is the dominant pattern in label-scarce genomics.' });
+    }
+
+    // 6. Data source caveats
+    if (d === 'biobank') {
+      findings.push({ sev: 'med', title: 'Watch for cryptic relatedness', body: 'Biobanks contain thousands of cousin pairs. Random individual splits leak via shared haplotype segments. Use kinship-aware splitting (kinship &gt; 0.05 not allowed across train/test).' });
+    } else if (d === 'combined') {
+      findings.push({ sev: 'med', title: 'Cross-study batch effects', body: 'Combining studies risks the model learning "which lab" rather than "which biology". Use leave-one-study-out evaluation.' });
+    }
+
+    return findings;
+  }
+
+  function render() {
+    const findings = audit();
+    const counts = { high: 0, med: 0, low: 0, ok: 0 };
+    findings.forEach(f => counts[f.sev]++);
+
+    $('summary').innerHTML = `
+      ${counts.high > 0 ? `<span class="pill high">${counts.high} HIGH</span>` : ''}
+      ${counts.med > 0 ? `<span class="pill med">${counts.med} MEDIUM</span>` : ''}
+      ${counts.low > 0 ? `<span class="pill low">${counts.low} LOW</span>` : ''}
+      ${counts.ok > 0 ? `<span class="pill ok">${counts.ok} OK</span>` : ''}
+    `;
+
+    $('findings').innerHTML = findings.map(f => `
+      <div class="finding ${f.sev}">
+        <div class="sev">${f.sev === 'ok' ? '✓' : f.sev}</div>
+        <div><strong>${f.title}</strong><br>${f.body}</div>
+      </div>
+    `).join('');
+
+    let verdict;
+    if (counts.high > 0) verdict = 'Project has critical pitfalls — fix before training.';
+    else if (counts.med > 0) verdict = 'Project is reasonable; address the medium-severity flags before publishing.';
+    else verdict = 'Project audits cleanly — strong baseline, leakage-aware split, matched loss.';
+
+    $('outcome').innerHTML = `
+      <div>Findings: ${counts.high} high · ${counts.med} medium · ${counts.low} low · ${counts.ok} OK</div>
+      <div class="verdict">${verdict}</div>
+      <div class="hint">Toggle the dropdowns to see how each design choice affects the audit. Most genomics ML mistakes are recognisable — the checklist isn't exhaustive but covers the predictable failure modes.</div>
+    `;
+  }
+
+  ['problem', 'arch', 'data', 'split', 'loss', 'baseline', 'pre'].forEach(id => $(id).addEventListener('change', render));
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

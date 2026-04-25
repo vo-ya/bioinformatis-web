@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Self-Supervised Pretraining Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+  .row { display: flex; flex-direction: column; gap: 0.3rem; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; }
+  .val { font-family: var(--font-mono); color: var(--accent); }
+  label { font-size: var(--text-sm); }
+  input[type="range"] { width: 100%; }
+  select { font-family: var(--font-sans); padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; }
+  .results-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 720px) { .results-pair { grid-template-columns: 1fr; } }
+  .res-cell { padding: 1rem 1.25rem; border-radius: 8px; border: 1.5px solid; }
+  .res-cell .k { font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+  .res-cell .v { font-family: var(--font-mono); font-size: 2rem; font-weight: 600; margin-top: 0.4rem; }
+  .res-cell.scratch { background: #fef2f2; border-color: #fca5a5; }
+  .res-cell.scratch .k, .res-cell.scratch .v { color: #c4342c; }
+  .res-cell.pretrained { background: #f0fdf4; border-color: #86efac; }
+  .res-cell.pretrained .k, .res-cell.pretrained .v { color: #059669; }
+  svg { width: 100%; height: auto; display: block; background: #fff; border: 1px solid var(--border); border-radius: 4px; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Self-Supervised Pretraining Simulator</h1>
+    <p>Compare scratch-trained vs pretrained + fine-tuned models at varying labelled-data budgets. The aha: pretraining is ~10–100× sample-efficient; with 1k labels it matches scratch at 100k.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Setup</p>
+    <div class="grid">
+      <div class="row"><div class="head"><label>Pretraining corpus (log tokens)</label><span class="val" id="v_p">1.0M</span></div><input id="p" type="range" min="0" max="7" step="0.1" value="6"></div>
+      <div class="row"><div class="head"><label>Downstream labelled budget</label><span class="val" id="v_l">1,000</span></div><input id="l" type="range" min="2" max="5" step="0.1" value="3"></div>
+      <div class="row"><label>Pretraining objective</label>
+        <select id="obj">
+          <option value="mlm" selected>MLM (masked-token)</option>
+          <option value="next">Next-token (causal)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Validation F1 at the chosen labelled budget</p>
+    <div class="results-pair">
+      <div class="res-cell scratch">
+        <div class="k">From scratch</div>
+        <div class="v" id="acc_scratch">—</div>
+        <div style="font-size: var(--text-xs); color: #7f1d1d; margin-top: 0.4rem;">Train transformer cold; no pretraining.</div>
+      </div>
+      <div class="res-cell pretrained">
+        <div class="k">Pretrain + fine-tune</div>
+        <div class="v" id="acc_pre">—</div>
+        <div style="font-size: var(--text-xs); color: #14532d; margin-top: 0.4rem;">Pretrain on unlabelled corpus; fine-tune on labelled data.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">F1 vs labelled-data budget (log)</p>
+    <svg id="curves" viewBox="0 0 1000 280"></svg>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const state = { p: 1e6, l: 1000, obj: 'mlm' };
+
+  // F1 curves
+  function f1Scratch(L) {
+    const logL = Math.log10(L);
+    return Math.min(0.96, 0.45 + 0.12 * logL);
+  }
+  function f1Pretrained(L, P, obj) {
+    const logL = Math.log10(L);
+    const logP = Math.log10(Math.max(1, P));
+    const corpusBoost = Math.min(0.35, 0.04 * logP);
+    const objBonus = obj === 'mlm' ? 0.02 : 0;
+    return Math.min(0.99, 0.65 + 0.08 * logL + corpusBoost + objBonus);
+  }
+
+  function render() {
+    const scr = f1Scratch(state.l);
+    const pre = f1Pretrained(state.l, state.p, state.obj);
+    $('acc_scratch').textContent = scr.toFixed(3);
+    $('acc_pre').textContent = pre.toFixed(3);
+
+    drawCurves();
+
+    // Find equivalent N for scratch to match pretrained at current L
+    let equivN = state.l;
+    for (let n = state.l; n <= 1e7; n *= 1.2) {
+      if (f1Scratch(n) >= pre) { equivN = n; break; }
+    }
+    const ratio = equivN / state.l;
+
+    const gap = pre - scr;
+    let verdict;
+    if (state.p < 1000) verdict = 'Pretraining corpus too small to help — pretrained ≈ scratch.';
+    else if (gap > 0.15) verdict = `Pretrained at ${state.l.toLocaleString()} labels matches scratch at ~${equivN.toLocaleString()} labels — ${ratio.toFixed(0)}× sample efficiency.`;
+    else verdict = `Modest gap (${(gap * 100).toFixed(0)} pp). Pretraining helps but the labelled budget is already enough.`;
+
+    $('outcome').innerHTML = `
+      <div>Pretraining corpus: <strong>${formatTokens(state.p)}</strong> · objective <strong>${state.obj.toUpperCase()}</strong> · labelled budget <strong>${state.l.toLocaleString()}</strong></div>
+      <div>Scratch F1 <strong>${scr.toFixed(3)}</strong> · Pretrained F1 <strong>${pre.toFixed(3)}</strong> · gap <strong>${(gap * 100).toFixed(0)} pp</strong></div>
+      <div class="verdict">${verdict}</div>
+      <div class="hint">Drop pretraining corpus to 0 → curves merge. Increase labelled budget to 100k → both converge near the asymptote. The gain is largest in the small-labelled-budget regime — exactly where genomics lives.</div>
+    `;
+  }
+
+  function formatTokens(n) {
+    if (n < 1000) return n + '';
+    if (n < 1e6) return (n / 1000).toFixed(1) + 'k';
+    if (n < 1e9) return (n / 1e6).toFixed(1) + 'M';
+    return (n / 1e9).toFixed(1) + 'B';
+  }
+
+  function drawCurves() {
+    const svg = $('curves');
+    svg.innerHTML = '';
+    const ns = 'http://www.w3.org/2000/svg';
+    function el(tag, attrs, text) { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text !== undefined) e.textContent = text; return e; }
+
+    const W = 1000, H = 280, pad = { l: 60, r: 30, t: 20, b: 40 };
+    svg.appendChild(el('rect', { x: pad.l, y: pad.t, width: W - pad.l - pad.r, height: H - pad.t - pad.b, fill: '#fafaf9', stroke: '#e5e7eb' }));
+
+    const xScale = lL => pad.l + (lL - 2) / 3 * (W - pad.l - pad.r);  // log10 L from 2 to 5
+    const yScale = f => H - pad.b - (f - 0.4) / 0.6 * (H - pad.t - pad.b);
+
+    for (let i = 2; i <= 5; i++) {
+      svg.appendChild(el('line', { x1: xScale(i), y1: H - pad.b, x2: xScale(i), y2: H - pad.b + 4, stroke: '#374151' }));
+      svg.appendChild(el('text', { x: xScale(i), y: H - pad.b + 16, 'text-anchor': 'middle', 'font-size': 10, 'font-family': 'JetBrains Mono', fill: '#6b7280' }, '10' + ['²', '³', '⁴', '⁵'][i - 2]));
+    }
+    for (let f = 0.4; f <= 1; f += 0.1) {
+      svg.appendChild(el('line', { x1: pad.l - 4, y1: yScale(f), x2: pad.l, y2: yScale(f), stroke: '#374151' }));
+      svg.appendChild(el('text', { x: pad.l - 6, y: yScale(f) + 3, 'text-anchor': 'end', 'font-size': 10, 'font-family': 'JetBrains Mono', fill: '#6b7280' }, f.toFixed(1)));
+    }
+    svg.appendChild(el('text', { x: (pad.l + W - pad.r) / 2, y: H - 6, 'text-anchor': 'middle', 'font-size': 11, fill: '#374151' }, 'Labelled examples (log)'));
+    svg.appendChild(el('text', { x: 20, y: H / 2, 'text-anchor': 'middle', 'font-size': 11, fill: '#374151', transform: `rotate(-90 20 ${H / 2})` }, 'Validation F1'));
+
+    // Scratch curve
+    let pathS = '';
+    for (let lL = 2; lL <= 5; lL += 0.1) {
+      const f = f1Scratch(Math.pow(10, lL));
+      pathS += (pathS ? ' L ' : 'M ') + xScale(lL).toFixed(1) + ' ' + yScale(f).toFixed(1);
+    }
+    svg.appendChild(el('path', { d: pathS, fill: 'none', stroke: '#c4342c', 'stroke-width': 2.5 }));
+
+    // Pretrained curve
+    let pathP = '';
+    for (let lL = 2; lL <= 5; lL += 0.1) {
+      const f = f1Pretrained(Math.pow(10, lL), state.p, state.obj);
+      pathP += (pathP ? ' L ' : 'M ') + xScale(lL).toFixed(1) + ' ' + yScale(f).toFixed(1);
+    }
+    svg.appendChild(el('path', { d: pathP, fill: 'none', stroke: '#059669', 'stroke-width': 2.5 }));
+
+    // Current marker
+    const lL = Math.log10(state.l);
+    svg.appendChild(el('line', { x1: xScale(lL), y1: pad.t, x2: xScale(lL), y2: H - pad.b, stroke: '#fbbf24', 'stroke-width': 1.5, 'stroke-dasharray': '4,3' }));
+    svg.appendChild(el('circle', { cx: xScale(lL), cy: yScale(f1Scratch(state.l)), r: 6, fill: '#c4342c', stroke: '#fff', 'stroke-width': 2 }));
+    svg.appendChild(el('circle', { cx: xScale(lL), cy: yScale(f1Pretrained(state.l, state.p, state.obj)), r: 6, fill: '#059669', stroke: '#fff', 'stroke-width': 2 }));
+
+    // Legend
+    svg.appendChild(el('rect', { x: pad.l + 14, y: pad.t + 6, width: 10, height: 10, fill: '#c4342c' }));
+    svg.appendChild(el('text', { x: pad.l + 28, y: pad.t + 15, 'font-size': 10, fill: '#374151' }, 'From scratch'));
+    svg.appendChild(el('rect', { x: pad.l + 130, y: pad.t + 6, width: 10, height: 10, fill: '#059669' }));
+    svg.appendChild(el('text', { x: pad.l + 144, y: pad.t + 15, 'font-size': 10, fill: '#374151' }, 'Pretrain + fine-tune'));
+  }
+
+  $('p').addEventListener('input', e => { state.p = Math.round(Math.pow(10, +e.target.value)); $('v_p').textContent = formatTokens(state.p); render(); });
+  $('l').addEventListener('input', e => { state.l = Math.round(Math.pow(10, +e.target.value)); $('v_l').textContent = state.l.toLocaleString(); render(); });
+  $('obj').addEventListener('change', e => { state.obj = e.target.value; render(); });
+
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

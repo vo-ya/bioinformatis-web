@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProteinMPNN Inverse-Folding Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1100px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+  .row { display: flex; flex-direction: column; gap: 0.3rem; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; }
+  .val { font-family: var(--font-mono); color: var(--accent); }
+  label { font-size: var(--text-sm); }
+  select { font-family: var(--font-sans); padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; }
+  input[type="range"] { width: 100%; }
+  .btn { padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 0.6rem; font-size: var(--text-sm); }
+  svg.bb { width: 100%; height: 240px; display: block; background: #fff; border: 1px solid var(--border); border-radius: 4px; }
+  .seqs { display: grid; gap: 0.4rem; font-family: var(--font-mono); font-size: 12px; }
+  .seq { padding: 0.4rem 0.6rem; background: var(--bg-muted); border-radius: 4px; display: flex; justify-content: space-between; gap: 1rem; }
+  .seq .seqstr { color: #1e3a8a; letter-spacing: 0.05em; flex: 1; overflow-x: auto; }
+  .seq .score { color: var(--accent); font-weight: 600; white-space: nowrap; }
+  .freq-grid { display: grid; gap: 0.2rem; }
+  .freq-row { display: flex; gap: 0.15rem; align-items: center; }
+  .freq-row .pos { font-family: var(--font-mono); width: 24px; font-size: 10px; color: var(--fg-muted); text-align: right; padding-right: 4px; }
+  .freq-bar { flex: 1; height: 14px; background: var(--bg-muted); display: flex; }
+  .freq-bar > span { height: 14px; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>ProteinMPNN Inverse-Folding Demo</h1>
+    <p>Pick a target backbone; sample sequences from a toy ProteinMPNN-style model. Watch many distinct sequences score high on self-consistency — the inverse-folding map is many-to-one. Temperature trades diversity for fidelity.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="grid">
+      <div class="row"><label>Target backbone</label>
+        <select id="bb">
+          <option value="bundle" selected>4-helix bundle</option>
+          <option value="barrel">β-barrel</option>
+          <option value="random">Random native</option>
+        </select>
+      </div>
+      <div class="row"><div class="head"><label># residues</label><span class="val" id="v_n">50</span></div><input id="n" type="range" min="30" max="80" step="2" value="50"></div>
+      <div class="row"><div class="head"><label>Temperature</label><span class="val" id="v_t">0.50</span></div><input id="t" type="range" min="0.1" max="2.0" step="0.05" value="0.5"></div>
+      <div class="row"><div class="head"><label># samples</label><span class="val" id="v_k">10</span></div><input id="k" type="range" min="5" max="20" step="1" value="10"></div>
+    </div>
+    <button class="btn" id="gen">Generate sequences</button>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Backbone with k-NN graph</p>
+    <svg class="bb" id="bb-vis" viewBox="-160 -90 320 180"></svg>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Sampled sequences</p>
+    <div class="seqs" id="seqs"></div>
+    <div style="margin-top:0.6rem; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg);">
+      Mean self-consistency: <span id="mean-sc" class="val">—</span> · Native recovery: <span id="recov" class="val">—</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Per-position amino-acid frequency (across samples)</p>
+    <div class="freq-grid" id="freq"></div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  let _seed = 12345;
+  function seed(s) { _seed = s | 0; }
+  function rand() { _seed |= 0; _seed = _seed + 0x6D2B79F5 | 0; let t = _seed; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+
+  const AA = 'ACDEFGHIKLMNPQRSTVWY';
+  const HYDROPHOBIC = new Set('AVILMFWYC');
+  const POLAR = new Set('STNQGHKR');
+  const CHARGED = new Set('DEKR');
+  const COL = { A: '#bfdbfe', V: '#bfdbfe', I: '#bfdbfe', L: '#bfdbfe', M: '#bfdbfe', F: '#bfdbfe', W: '#bfdbfe', Y: '#bfdbfe', C: '#bfdbfe',
+                S: '#86efac', T: '#86efac', N: '#86efac', Q: '#86efac', G: '#86efac', H: '#86efac',
+                D: '#fca5a5', E: '#fca5a5', K: '#fcd34d', R: '#fcd34d', P: '#e9d5ff' };
+
+  const state = { bb: 'bundle', n: 50, t: 0.5, k: 10 };
+
+  function makeBackbone() {
+    const N = state.n;
+    const pos = [];
+    if (state.bb === 'bundle') {
+      const per = Math.ceil(N / 4);
+      for (let h = 0; h < 4; h++) {
+        const cx = -60 + h * 40;
+        for (let i = 0; i < per && pos.length < N; i++) {
+          pos.push({ x: cx + (i % 2 === 0 ? -3 : 3), y: -45 + i * (90 / per) });
+        }
+      }
+    } else if (state.bb === 'barrel') {
+      const radius = 50;
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * Math.PI * 2;
+        const stagger = (i % 2 === 0 ? -2 : 2);
+        pos.push({ x: Math.cos(a) * (radius + stagger), y: Math.sin(a) * (radius + stagger) });
+      }
+    } else {
+      // Random native-like: irregular fold
+      for (let i = 0; i < N; i++) {
+        const a = i / 8 + (rand() - 0.5) * 0.3;
+        const r = 30 + Math.sin(i / 4) * 20;
+        pos.push({ x: Math.cos(a) * r, y: Math.sin(a) * r + (i / N) * 30 - 15 });
+      }
+    }
+    // Compute solvent exposure heuristic: distance to centroid
+    const cx = pos.reduce((a, p) => a + p.x, 0) / N;
+    const cy = pos.reduce((a, p) => a + p.y, 0) / N;
+    pos.forEach(p => { p.exposure = Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2); });
+    const maxE = Math.max(...pos.map(p => p.exposure));
+    pos.forEach(p => { p.exposure = p.exposure / maxE; });
+    return pos;
+  }
+
+  function kNNEdges(pos, k) {
+    const N = pos.length;
+    const edges = [];
+    for (let i = 0; i < N; i++) {
+      const ds = pos.map((p, j) => ({ j, d: Math.hypot(pos[i].x - p.x, pos[i].y - p.y) })).filter(e => e.j !== i);
+      ds.sort((a, b) => a.d - b.d);
+      for (let m = 0; m < Math.min(k, ds.length); m++) edges.push({ i, j: ds[m].j });
+    }
+    return edges;
+  }
+
+  function residuePrior(p) {
+    // Buried (low exposure) prefers hydrophobic; exposed prefers polar/charged
+    const probs = {};
+    for (const aa of AA) {
+      let s = 0;
+      if (HYDROPHOBIC.has(aa)) s = 1 - p.exposure;
+      else if (CHARGED.has(aa)) s = p.exposure * 0.6;
+      else s = 0.4;
+      probs[aa] = s + 0.05;
+    }
+    let sum = 0;
+    for (const aa of AA) sum += probs[aa];
+    for (const aa of AA) probs[aa] /= sum;
+    return probs;
+  }
+
+  function sampleSequence(pos, T) {
+    let seq = '';
+    let logp = 0;
+    for (const p of pos) {
+      const probs = residuePrior(p);
+      // Apply temperature
+      const adj = {};
+      let max = 0;
+      for (const aa of AA) { adj[aa] = Math.pow(probs[aa], 1 / T); if (adj[aa] > max) max = adj[aa]; }
+      let sum = 0;
+      for (const aa of AA) sum += adj[aa];
+      const u = rand() * sum;
+      let acc = 0, chosen = AA[0];
+      for (const aa of AA) {
+        acc += adj[aa];
+        if (u <= acc) { chosen = aa; break; }
+      }
+      seq += chosen;
+      logp += Math.log(probs[chosen]);
+    }
+    return { seq, logp };
+  }
+
+  function selfConsistency(seq, pos) {
+    // Simple: average alignment of buried hydrophobics + exposed polars
+    let score = 0, n = pos.length;
+    for (let i = 0; i < n; i++) {
+      const aa = seq[i];
+      const exposed = pos[i].exposure > 0.6;
+      const buried = pos[i].exposure < 0.4;
+      if (buried && HYDROPHOBIC.has(aa)) score += 1;
+      else if (exposed && (POLAR.has(aa) || CHARGED.has(aa))) score += 1;
+      else if (!buried && !exposed) score += 0.7;
+      else score += 0.3;
+    }
+    return score / n;
+  }
+
+  function nativeReference() {
+    // Toy "native" sequence: hydrophobic at buried, polar at exposed
+    const pos = makeBackbone();
+    let seq = '';
+    for (const p of pos) {
+      if (p.exposure < 0.4) seq += 'AVIL'[Math.floor(Math.random() * 4)];
+      else if (p.exposure > 0.6) seq += 'STKE'[Math.floor(Math.random() * 4)];
+      else seq += 'GNQF'[Math.floor(Math.random() * 4)];
+    }
+    return seq;
+  }
+
+  function drawBackbone(pos, edges) {
+    const svg = $('bb-vis');
+    svg.innerHTML = '';
+    // Edges
+    for (const e of edges) {
+      const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      ln.setAttribute('x1', pos[e.i].x); ln.setAttribute('y1', pos[e.i].y);
+      ln.setAttribute('x2', pos[e.j].x); ln.setAttribute('y2', pos[e.j].y);
+      ln.setAttribute('stroke', '#cbd5e1'); ln.setAttribute('stroke-width', 0.4);
+      svg.appendChild(ln);
+    }
+    // Backbone trace
+    let path = '';
+    for (let i = 0; i < pos.length; i++) path += (i === 0 ? 'M ' : ' L ') + pos[i].x.toFixed(1) + ' ' + pos[i].y.toFixed(1);
+    const bp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    bp.setAttribute('d', path); bp.setAttribute('fill', 'none'); bp.setAttribute('stroke', '#9ca3af'); bp.setAttribute('stroke-width', 1.5);
+    svg.appendChild(bp);
+    // Residue nodes
+    for (let i = 0; i < pos.length; i++) {
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', pos[i].x); c.setAttribute('cy', pos[i].y); c.setAttribute('r', 3);
+      c.setAttribute('fill', `hsl(${220 - pos[i].exposure * 120}, 70%, 55%)`);
+      svg.appendChild(c);
+    }
+  }
+
+  function colourSeq(seq) {
+    return seq.split('').map(aa => `<span style="background:${COL[aa] || '#fff'}; padding: 0 1px;">${aa}</span>`).join('');
+  }
+
+  function go() {
+    const pos = makeBackbone();
+    const edges = kNNEdges(pos, 4);
+    drawBackbone(pos, edges);
+    // Sample sequences
+    const samples = [];
+    for (let s = 0; s < state.k; s++) samples.push(sampleSequence(pos, state.t));
+    samples.forEach(s => { s.sc = selfConsistency(s.seq, pos); });
+    samples.sort((a, b) => b.sc - a.sc);
+    // Native reference
+    const native = nativeReference();
+    // Display
+    $('seqs').innerHTML = samples.map(s => `
+      <div class="seq">
+        <span class="seqstr">${colourSeq(s.seq)}</span>
+        <span class="score">SC ${s.sc.toFixed(2)}</span>
+      </div>
+    `).join('');
+    const meanSC = samples.reduce((a, b) => a + b.sc, 0) / samples.length;
+    let recov = 0;
+    for (const s of samples) {
+      let m = 0;
+      for (let i = 0; i < s.seq.length; i++) if (s.seq[i] === native[i]) m++;
+      recov += m / s.seq.length;
+    }
+    recov /= samples.length;
+    $('mean-sc').textContent = meanSC.toFixed(3);
+    $('recov').textContent = (recov * 100).toFixed(0) + '%';
+
+    // Per-position frequency for first 30 positions
+    const N = pos.length;
+    const freqs = Array.from({ length: N }, () => ({}));
+    for (const s of samples) {
+      for (let i = 0; i < N; i++) freqs[i][s.seq[i]] = (freqs[i][s.seq[i]] || 0) + 1;
+    }
+    const freqHtml = [];
+    for (let i = 0; i < Math.min(N, 30); i++) {
+      const f = freqs[i];
+      const total = samples.length;
+      const sorted = Object.entries(f).sort((a, b) => b[1] - a[1]);
+      let row = `<div class="freq-row"><span class="pos">${i + 1}</span><div class="freq-bar">`;
+      for (const [aa, cnt] of sorted) {
+        const pct = cnt / total * 100;
+        row += `<span title="${aa} ${cnt}/${total}" style="width:${pct.toFixed(1)}%; background:${COL[aa]};"></span>`;
+      }
+      row += `</div></div>`;
+      freqHtml.push(row);
+    }
+    $('freq').innerHTML = freqHtml.join('') + (N > 30 ? `<div style="font-size: var(--text-xs); color: var(--fg-muted); margin-top: 0.4rem;">…showing first 30 of ${N} positions.</div>` : '');
+
+    $('outcome').innerHTML = `
+      <div>Backbone <strong>${state.bb}</strong> · N=${state.n} · T=${state.t.toFixed(2)} · ${state.k} samples</div>
+      <div>Mean self-consistency <strong>${meanSC.toFixed(3)}</strong> · native recovery <strong>${(recov * 100).toFixed(0)}%</strong></div>
+      <div class="verdict">${meanSC > 0.75 ? 'Sequences score consistently — many distinct ones fold to the same backbone.' : 'Lower fidelity — try reducing temperature.'}</div>
+      <div class="hint">Raise T → diversity up, consistency down. Lower T → fewer choices, more deterministic. The inverse-folding map is many-to-one; the model picks the high-probability manifold.</div>
+    `;
+  }
+
+  $('bb').addEventListener('change', e => { state.bb = e.target.value; go(); });
+  $('n').addEventListener('input', e => { state.n = +e.target.value; $('v_n').textContent = state.n; go(); });
+  $('t').addEventListener('input', e => { state.t = +e.target.value; $('v_t').textContent = state.t.toFixed(2); go(); });
+  $('k').addEventListener('input', e => { state.k = +e.target.value; $('v_k').textContent = state.k; go(); });
+  $('gen').addEventListener('click', () => { seed((Math.random() * 1e9) | 0); go(); });
+
+  seed(7);
+  go();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

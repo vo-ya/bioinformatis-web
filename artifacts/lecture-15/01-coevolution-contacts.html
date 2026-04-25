@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MSA Coevolution and Contact Prediction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1100px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+  .row { display: flex; flex-direction: column; gap: 0.3rem; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; }
+  label { font-size: var(--text-sm); }
+  .val { font-family: var(--font-mono); color: var(--accent); }
+  input[type="range"] { width: 100%; }
+  select { font-family: var(--font-sans); padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; }
+  .btn { padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 0.6rem; }
+  .mats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .mat-cell h4 { font-size: var(--text-sm); margin: 0 0 0.5rem; text-align: center; color: var(--fg-subtle); letter-spacing: 0.06em; text-transform: uppercase; }
+  .mat-cell svg { width: 100%; aspect-ratio: 1; display: block; background: #fff; border: 1px solid var(--border); }
+  .pr-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: var(--text-sm); }
+  .pr-table th, .pr-table td { padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); text-align: right; }
+  .pr-table th:first-child, .pr-table td:first-child { text-align: left; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>MSA Coevolution and Contact Prediction</h1>
+    <p>Build a toy protein family under a contact topology you choose. Sample an MSA from a Potts model with those contacts. Compute mutual information and DCA scores. Watch DCA recover the true contacts cleanly while MI tangles direct and indirect correlations.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="grid">
+      <div class="row"><label>Contact topology</label>
+        <select id="topo">
+          <option value="helix">α-helix (i, i+3 / i+4)</option>
+          <option value="sheet">β-sheet</option>
+          <option value="chain">1D chain</option>
+          <option value="random">random sparse</option>
+        </select>
+      </div>
+      <div class="row"><div class="head"><label># residues</label><span class="val" id="v_n">30</span></div><input id="n" type="range" min="10" max="50" step="2" value="30"></div>
+      <div class="row"><div class="head"><label>MSA depth</label><span class="val" id="v_d">500</span></div><input id="d" type="range" min="1.5" max="3.3" step="0.05" value="2.7"></div>
+      <div class="row"><div class="head"><label>Coupling strength</label><span class="val" id="v_j">0.80</span></div><input id="j" type="range" min="0" max="1.5" step="0.05" value="0.8"></div>
+    </div>
+    <button class="btn" id="resim">Re-simulate MSA</button>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Contact-score matrices</p>
+    <div class="mats">
+      <div class="mat-cell"><h4>Mutual Information</h4><svg id="mi" viewBox="0 0 100 100" preserveAspectRatio="none"></svg></div>
+      <div class="mat-cell"><h4>DCA (mfDCA)</h4><svg id="dca" viewBox="0 0 100 100" preserveAspectRatio="none"></svg></div>
+      <div class="mat-cell"><h4>Ground truth</h4><svg id="gt" viewBox="0 0 100 100" preserveAspectRatio="none"></svg></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Precision at top-K contacts</p>
+    <table class="pr-table" id="pr"><thead><tr><th>K</th><th>MI</th><th>DCA</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  let _seed = 42;
+  function seed(s) { _seed = s | 0; }
+  function rand() { _seed |= 0; _seed = _seed + 0x6D2B79F5 | 0; let t = _seed; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+
+  const state = { topo: 'helix', n: 30, d: 500, j: 0.8 };
+
+  // Simplified 4-letter alphabet for speed
+  const A = ['A', 'C', 'G', 'T'];
+  const Q = 4;
+
+  function buildContacts() {
+    const N = state.n;
+    const set = new Set();
+    function add(i, j) { if (i !== j && i >= 0 && j >= 0 && i < N && j < N) set.add(i < j ? `${i},${j}` : `${j},${i}`); }
+    if (state.topo === 'helix') {
+      for (let i = 0; i < N - 4; i++) { add(i, i + 3); add(i, i + 4); }
+    } else if (state.topo === 'sheet') {
+      // Two strands antiparallel: pair k with N-1-k for first half
+      const half = Math.floor(N / 2);
+      for (let i = 0; i < half - 2; i++) add(i, N - 1 - i);
+    } else if (state.topo === 'chain') {
+      for (let i = 0; i < N - 1; i++) add(i, i + 1);
+    } else {
+      // random sparse
+      const target = Math.round(N * 0.4);
+      let added = 0;
+      while (added < target) {
+        const a = Math.floor(rand() * N);
+        const b = Math.floor(rand() * N);
+        if (Math.abs(a - b) >= 2) { add(a, b); added++; }
+      }
+    }
+    return set;
+  }
+
+  function simulateMSA(contacts) {
+    const N = state.n, D = state.d, J = state.j;
+    // Sample by Gibbs sampling: each row independently
+    const msa = [];
+    for (let r = 0; r < D; r++) {
+      // Initialise random
+      const seq = new Int8Array(N);
+      for (let i = 0; i < N; i++) seq[i] = Math.floor(rand() * Q);
+      // Run a few sweeps with the Potts energy
+      const sweeps = 10;
+      for (let s = 0; s < sweeps; s++) {
+        for (let i = 0; i < N; i++) {
+          // Compute conditional probability for each letter
+          const probs = new Float64Array(Q);
+          for (let q = 0; q < Q; q++) {
+            let E = 0;
+            for (const c of contacts) {
+              const [a, b] = c.split(',').map(Number);
+              if (a === i) E += (q === seq[b] ? J : -J / 3);
+              else if (b === i) E += (q === seq[a] ? J : -J / 3);
+            }
+            probs[q] = Math.exp(E);
+          }
+          let sum = 0;
+          for (let q = 0; q < Q; q++) sum += probs[q];
+          const u = rand() * sum;
+          let acc = 0;
+          for (let q = 0; q < Q; q++) {
+            acc += probs[q];
+            if (u <= acc) { seq[i] = q; break; }
+          }
+        }
+      }
+      msa.push(seq);
+    }
+    return msa;
+  }
+
+  function computeMI(msa) {
+    const N = state.n, D = msa.length;
+    const M = Array.from({ length: N }, () => new Float64Array(N));
+    // Marginal frequencies
+    const freq = Array.from({ length: N }, () => new Float64Array(Q));
+    for (let r = 0; r < D; r++) for (let i = 0; i < N; i++) freq[i][msa[r][i]]++;
+    for (let i = 0; i < N; i++) for (let q = 0; q < Q; q++) freq[i][q] /= D;
+    // Pair frequencies
+    for (let i = 0; i < N; i++) {
+      for (let j = i + 1; j < N; j++) {
+        const pj = new Float64Array(Q * Q);
+        for (let r = 0; r < D; r++) pj[msa[r][i] * Q + msa[r][j]]++;
+        let mi = 0;
+        for (let a = 0; a < Q; a++) for (let b = 0; b < Q; b++) {
+          const p = pj[a * Q + b] / D;
+          if (p > 0) {
+            const pa = freq[i][a], pb = freq[j][b];
+            mi += p * Math.log(p / Math.max(1e-12, pa * pb));
+          }
+        }
+        M[i][j] = mi; M[j][i] = mi;
+      }
+    }
+    return M;
+  }
+
+  function computeDCA(msa) {
+    // mfDCA: estimate covariance matrix C[i,a; j,b] = f(a,b at i,j) - f(a at i)*f(b at j)
+    // Invert with regularisation; couplings J[i,a; j,b] = -C^{-1} restricted to off-diagonal blocks
+    // For simplicity use a coarsened version: one scalar per pair from inverse-covariance Frobenius
+    const N = state.n, D = msa.length;
+    // Build flat covariance: NQ x NQ. With N=50, NQ=200, that's 40000-elem matrix.
+    const NQ = N * Q;
+    const cov = new Float64Array(NQ * NQ);
+    const f = new Float64Array(NQ);
+    for (let r = 0; r < D; r++) for (let i = 0; i < N; i++) f[i * Q + msa[r][i]]++;
+    for (let k = 0; k < NQ; k++) f[k] /= D;
+    for (let r = 0; r < D; r++) {
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+        cov[(i * Q + msa[r][i]) * NQ + (j * Q + msa[r][j])]++;
+      }
+    }
+    for (let k = 0; k < NQ * NQ; k++) cov[k] /= D;
+    // Subtract product of marginals
+    for (let a = 0; a < NQ; a++) for (let b = 0; b < NQ; b++) cov[a * NQ + b] -= f[a] * f[b];
+    // Regularise diagonal
+    const lambda = 0.01;
+    for (let k = 0; k < NQ; k++) cov[k * NQ + k] += lambda;
+    // Invert via simple Gauss-Jordan (slow but adequate for N≤50)
+    const inv = invert(cov, NQ);
+    // Build N×N DCA score by Frobenius norm of (i,a; j,b) block
+    const S = Array.from({ length: N }, () => new Float64Array(N));
+    for (let i = 0; i < N; i++) {
+      for (let j = i + 1; j < N; j++) {
+        let s = 0;
+        for (let a = 0; a < Q; a++) for (let b = 0; b < Q; b++) {
+          const v = inv[(i * Q + a) * NQ + (j * Q + b)];
+          s += v * v;
+        }
+        S[i][j] = Math.sqrt(s); S[j][i] = S[i][j];
+      }
+    }
+    return S;
+  }
+
+  function invert(A, n) {
+    // Gauss-Jordan; A is row-major flat
+    const M = new Float64Array(n * n * 2);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) M[i * 2 * n + j] = A[i * n + j];
+      M[i * 2 * n + n + i] = 1;
+    }
+    for (let i = 0; i < n; i++) {
+      // Pivot
+      let mx = Math.abs(M[i * 2 * n + i]), pivot = i;
+      for (let k = i + 1; k < n; k++) {
+        const v = Math.abs(M[k * 2 * n + i]);
+        if (v > mx) { mx = v; pivot = k; }
+      }
+      if (mx < 1e-12) continue;
+      if (pivot !== i) {
+        for (let j = 0; j < 2 * n; j++) { const t = M[i * 2 * n + j]; M[i * 2 * n + j] = M[pivot * 2 * n + j]; M[pivot * 2 * n + j] = t; }
+      }
+      const piv = M[i * 2 * n + i];
+      for (let j = 0; j < 2 * n; j++) M[i * 2 * n + j] /= piv;
+      for (let k = 0; k < n; k++) {
+        if (k === i) continue;
+        const f = M[k * 2 * n + i];
+        if (f === 0) continue;
+        for (let j = 0; j < 2 * n; j++) M[k * 2 * n + j] -= f * M[i * 2 * n + j];
+      }
+    }
+    const inv = new Float64Array(n * n);
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) inv[i * n + j] = M[i * 2 * n + n + j];
+    return inv;
+  }
+
+  function drawMatrix(svgId, M, contacts) {
+    const svg = $(svgId);
+    svg.innerHTML = '';
+    const N = state.n;
+    // Find max for normalisation
+    let max = 0;
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) if (i !== j && M[i][j] > max) max = M[i][j];
+    if (max <= 0) max = 1;
+    const cell = 100 / N;
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) {
+        let v = 0;
+        if (svgId === 'gt') v = contacts.has(i < j ? `${i},${j}` : `${j},${i}`) ? 1 : 0;
+        else v = Math.max(0, Math.min(1, M[i][j] / max));
+        if (v < 0.05) continue;
+        const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        r.setAttribute('x', j * cell); r.setAttribute('y', i * cell);
+        r.setAttribute('width', cell + 0.1); r.setAttribute('height', cell + 0.1);
+        let col;
+        if (svgId === 'gt') col = '#059669';
+        else if (svgId === 'dca') col = `rgba(29, 78, 216, ${v})`;
+        else col = `rgba(124, 58, 237, ${v})`;
+        r.setAttribute('fill', col);
+        svg.appendChild(r);
+      }
+    }
+    // Diagonal
+    const diag = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    diag.setAttribute('x1', 0); diag.setAttribute('y1', 0); diag.setAttribute('x2', 100); diag.setAttribute('y2', 100);
+    diag.setAttribute('stroke', '#9ca3af'); diag.setAttribute('stroke-width', 0.3);
+    svg.appendChild(diag);
+  }
+
+  function topK(M, k) {
+    const pairs = [];
+    const N = state.n;
+    for (let i = 0; i < N; i++) for (let j = i + 2; j < N; j++) pairs.push([i, j, M[i][j]]);
+    pairs.sort((a, b) => b[2] - a[2]);
+    return new Set(pairs.slice(0, k).map(p => `${p[0]},${p[1]}`));
+  }
+
+  function precision(predicted, truth) {
+    let hit = 0;
+    for (const p of predicted) if (truth.has(p)) hit++;
+    return predicted.size > 0 ? hit / predicted.size : 0;
+  }
+
+  function rerun() {
+    const contacts = buildContacts();
+    const msa = simulateMSA(contacts);
+    const MI = computeMI(msa);
+    const DCA = computeDCA(msa);
+    drawMatrix('mi', MI, contacts);
+    drawMatrix('dca', DCA, contacts);
+    drawMatrix('gt', null, contacts);
+    // PR table
+    const tb = $('pr').querySelector('tbody');
+    const ks = [10, 20, 30, 50];
+    tb.innerHTML = ks.map(k => {
+      const miK = topK(MI, k);
+      const dcaK = topK(DCA, k);
+      const miP = precision(miK, contacts);
+      const dcaP = precision(dcaK, contacts);
+      return `<tr><td>K=${k}</td><td>${(miP * 100).toFixed(0)}%</td><td>${(dcaP * 100).toFixed(0)}%</td></tr>`;
+    }).join('');
+    const dca20 = precision(topK(DCA, 20), contacts);
+    const mi20 = precision(topK(MI, 20), contacts);
+    $('outcome').innerHTML = `
+      <div>Topology <strong>${state.topo}</strong> · N=${state.n} residues · MSA depth ${state.d} · J=${state.j.toFixed(2)} · ${contacts.size} true contacts</div>
+      <div>Top-20 precision: MI <strong>${(mi20 * 100).toFixed(0)}%</strong>, DCA <strong>${(dca20 * 100).toFixed(0)}%</strong></div>
+      <div class="verdict">${dca20 - mi20 > 0.2
+        ? `DCA recovers contacts cleanly; MI is confounded by indirect correlations.`
+        : 'DCA edge is small here — try increasing MSA depth or coupling strength.'}</div>
+      <div class="hint">Drop MSA depth to 30 → DCA's edge shrinks (estimation noisy). Increase coupling strength → both improve, DCA dominates. Set J=0 → both random.</div>
+    `;
+  }
+
+  $('topo').addEventListener('change', e => { state.topo = e.target.value; rerun(); });
+  $('n').addEventListener('input', e => { state.n = +e.target.value; $('v_n').textContent = state.n; rerun(); });
+  $('d').addEventListener('input', e => { state.d = Math.round(Math.pow(10, +e.target.value)); $('v_d').textContent = state.d; rerun(); });
+  $('j').addEventListener('input', e => { state.j = +e.target.value; $('v_j').textContent = state.j.toFixed(2); rerun(); });
+  $('resim').addEventListener('click', () => { seed((Math.random() * 1e9) | 0); rerun(); });
+
+  seed(42);
+  rerun();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

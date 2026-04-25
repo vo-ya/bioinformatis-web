@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AlphaFold Database Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1100px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+  .row { display: flex; flex-direction: column; gap: 0.3rem; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; }
+  .val { font-family: var(--font-mono); color: var(--accent); }
+  label { font-size: var(--text-sm); }
+  select { font-family: var(--font-sans); padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; }
+  input[type="range"] { width: 100%; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.75rem; font-size: var(--text-xs); }
+  .card svg { width: 100%; aspect-ratio: 1; display: block; margin-bottom: 0.4rem; }
+  .card .id { font-family: var(--font-mono); color: var(--accent); font-weight: 600; }
+  .card .meta { color: var(--fg-muted); font-size: 10px; margin-top: 0.2rem; }
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; }
+  .stat-cell { background: var(--bg-muted); border-radius: 6px; padding: 0.6rem 0.8rem; }
+  .stat-cell .k { font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-subtle); font-weight: 600; }
+  .stat-cell .v { font-family: var(--font-mono); font-size: 1.1rem; color: var(--accent); font-weight: 600; margin-top: 0.25rem; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>AlphaFold Database Explorer</h1>
+    <p>Browse a curated catalogue of 50 preset AlphaFold predictions. Filter by mean pLDDT, disorder fraction, length, and function category. The aha: the database is searchable by confidence — high-pLDDT subsets enable real downstream work.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Filters</p>
+    <div class="filters">
+      <div class="row"><div class="head"><label>Min mean pLDDT</label><span class="val" id="v_p">70</span></div><input id="p" type="range" min="0" max="100" step="5" value="70"></div>
+      <div class="row"><div class="head"><label>Max disorder %</label><span class="val" id="v_d">30</span></div><input id="d" type="range" min="0" max="100" step="5" value="30"></div>
+      <div class="row"><div class="head"><label>Length min</label><span class="val" id="v_lmin">50</span></div><input id="lmin" type="range" min="30" max="500" step="10" value="50"></div>
+      <div class="row"><div class="head"><label>Length max</label><span class="val" id="v_lmax">800</span></div><input id="lmax" type="range" min="100" max="2000" step="50" value="800"></div>
+      <div class="row"><label>Function category</label>
+        <select id="cat">
+          <option value="any">any</option>
+          <option value="enzyme">enzyme</option>
+          <option value="transporter">transporter</option>
+          <option value="signalling">signalling</option>
+          <option value="structural">structural</option>
+          <option value="disordered">disordered</option>
+          <option value="orphan">orphan / dark</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Summary of filtered set</p>
+    <div class="summary" id="summary"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Results · <span id="count">—</span> entries</p>
+    <div class="grid" id="cards"></div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  // 50 preset AFDB entries (mock UniProt IDs)
+  function buildCatalog() {
+    const cats = ['enzyme', 'transporter', 'signalling', 'structural', 'disordered', 'orphan'];
+    const entries = [];
+    let s = 1;
+    function pseudo() { s = (s * 9301 + 49297) % 233280; return s / 233280; }
+    for (let i = 0; i < 50; i++) {
+      const cat = cats[i % cats.length];
+      let pLDDT, disorder, length;
+      if (cat === 'enzyme' || cat === 'transporter') {
+        pLDDT = 80 + pseudo() * 15;
+        disorder = pseudo() * 15;
+        length = 200 + Math.floor(pseudo() * 600);
+      } else if (cat === 'signalling') {
+        pLDDT = 70 + pseudo() * 20;
+        disorder = 10 + pseudo() * 30;
+        length = 150 + Math.floor(pseudo() * 400);
+      } else if (cat === 'structural') {
+        pLDDT = 78 + pseudo() * 15;
+        disorder = pseudo() * 10;
+        length = 80 + Math.floor(pseudo() * 300);
+      } else if (cat === 'disordered') {
+        pLDDT = 35 + pseudo() * 25;
+        disorder = 50 + pseudo() * 40;
+        length = 100 + Math.floor(pseudo() * 400);
+      } else {
+        pLDDT = 45 + pseudo() * 30;
+        disorder = 20 + pseudo() * 30;
+        length = 60 + Math.floor(pseudo() * 250);
+      }
+      entries.push({
+        id: `Q${(80000 + i * 137).toString(36).toUpperCase().padStart(5, '0')}`,
+        cat,
+        pLDDT: Math.round(pLDDT),
+        disorder: Math.round(disorder),
+        length,
+        species: ['H. sapiens', 'M. musculus', 'D. melanogaster', 'E. coli', 'A. thaliana', 'S. cerevisiae'][i % 6],
+        function: ['kinase', 'transporter', 'GPCR', 'ribosomal', 'TF', 'chaperone', 'signalling adapter', 'orphan'][i % 8],
+      });
+    }
+    return entries;
+  }
+
+  const CATALOG = buildCatalog();
+
+  function pLDDTColour(v) {
+    if (v >= 90) return '#1d4ed8';
+    if (v >= 70) return '#3b82f6';
+    if (v >= 50) return '#facc15';
+    return '#f59e0b';
+  }
+
+  function thumbnail(e) {
+    const N = Math.min(e.length, 50);
+    const cy = 50;
+    let path = '';
+    for (let i = 0; i < N; i++) {
+      const a = i / 6 + (e.id.charCodeAt(0) % 7) * 0.3;
+      const r = 28 + Math.sin(i / 3 + e.length / 100) * 10;
+      const x = 50 + Math.cos(a) * r * (e.cat === 'disordered' ? 1.4 : 1);
+      const y = cy + Math.sin(a) * r * (e.cat === 'disordered' ? 0.6 : 1);
+      path += (i === 0 ? 'M ' : ' L ') + x.toFixed(1) + ' ' + y.toFixed(1);
+    }
+    let dots = '';
+    for (let i = 0; i < N; i++) {
+      const a = i / 6 + (e.id.charCodeAt(0) % 7) * 0.3;
+      const r = 28 + Math.sin(i / 3 + e.length / 100) * 10;
+      const x = 50 + Math.cos(a) * r * (e.cat === 'disordered' ? 1.4 : 1);
+      const y = cy + Math.sin(a) * r * (e.cat === 'disordered' ? 0.6 : 1);
+      const v = e.pLDDT + (Math.sin(i * 0.7) * 8);
+      dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2" fill="${pLDDTColour(v)}"/>`;
+    }
+    return `<svg viewBox="0 0 100 100" preserveAspectRatio="none">
+      <path d="${path}" fill="none" stroke="#9ca3af" stroke-width="0.5"/>
+      ${dots}
+    </svg>`;
+  }
+
+  function render() {
+    const minP = +$('p').value;
+    const maxD = +$('d').value;
+    const lmin = +$('lmin').value;
+    const lmax = +$('lmax').value;
+    const cat = $('cat').value;
+    const filtered = CATALOG.filter(e =>
+      e.pLDDT >= minP &&
+      e.disorder <= maxD &&
+      e.length >= lmin &&
+      e.length <= lmax &&
+      (cat === 'any' || e.cat === cat)
+    );
+    $('cards').innerHTML = filtered.length === 0
+      ? '<div style="color: var(--fg-muted); font-style: italic; padding: 0.5rem;">No entries match these filters.</div>'
+      : filtered.map(e => `
+        <div class="card">
+          ${thumbnail(e)}
+          <div class="id">${e.id}</div>
+          <div class="meta">${e.species} · ${e.function}</div>
+          <div class="meta">L ${e.length} · pLDDT ${e.pLDDT} · ${e.disorder}% disorder</div>
+        </div>
+      `).join('');
+    $('count').textContent = filtered.length + ' / 50';
+
+    // Summary
+    if (filtered.length) {
+      const meanP = filtered.reduce((a, b) => a + b.pLDDT, 0) / filtered.length;
+      const meanL = filtered.reduce((a, b) => a + b.length, 0) / filtered.length;
+      const high = filtered.filter(e => e.pLDDT >= 90).length;
+      const conf = filtered.filter(e => e.pLDDT >= 70 && e.pLDDT < 90).length;
+      const low = filtered.filter(e => e.pLDDT >= 50 && e.pLDDT < 70).length;
+      const veryLow = filtered.filter(e => e.pLDDT < 50).length;
+      $('summary').innerHTML = `
+        <div class="stat-cell"><div class="k">Mean pLDDT</div><div class="v">${meanP.toFixed(1)}</div></div>
+        <div class="stat-cell"><div class="k">Mean length</div><div class="v">${meanL.toFixed(0)}</div></div>
+        <div class="stat-cell"><div class="k">Very high &gt; 90</div><div class="v">${high}</div></div>
+        <div class="stat-cell"><div class="k">Confident 70–90</div><div class="v">${conf}</div></div>
+        <div class="stat-cell"><div class="k">Low 50–70</div><div class="v">${low}</div></div>
+        <div class="stat-cell"><div class="k">Disordered &lt; 50</div><div class="v">${veryLow}</div></div>
+      `;
+    } else {
+      $('summary').innerHTML = '<div style="color: var(--fg-muted); font-style: italic;">No entries to summarise.</div>';
+    }
+
+    const excluded = 50 - filtered.length;
+    $('outcome').innerHTML = `
+      <div>Filters: pLDDT ≥ <strong>${minP}</strong> · disorder ≤ <strong>${maxD}%</strong> · length ${lmin}–${lmax} · category <strong>${cat}</strong></div>
+      <div>${filtered.length}/50 entries pass · ${excluded} excluded.</div>
+      <div class="verdict">${filtered.length > 25 ? 'Plenty of high-quality matches — usable for drug discovery, structural homology, evolutionary analyses.'
+        : filtered.length > 5 ? 'A modest set — manually inspect each before using.'
+        : 'Filters too tight; relax them to expand the candidate set.'}</div>
+      <div class="hint">Drop pLDDT minimum to 50 to see the orphan / disordered tail. Raise it to 90 to see only experimental-quality predictions. The full AFDB has ~200M entries; this is a 50-entry sampler.</div>
+    `;
+  }
+
+  $('p').addEventListener('input', e => { $('v_p').textContent = e.target.value; render(); });
+  $('d').addEventListener('input', e => { $('v_d').textContent = e.target.value; render(); });
+  $('lmin').addEventListener('input', e => { $('v_lmin').textContent = e.target.value; render(); });
+  $('lmax').addEventListener('input', e => { $('v_lmax').textContent = e.target.value; render(); });
+  $('cat').addEventListener('change', render);
+
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

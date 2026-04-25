@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Protein Structure Level Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1100px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  select { font-family: var(--font-sans); padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 4px; min-width: 240px; }
+  .seq-strip { font-family: var(--font-mono); font-size: 14px; line-height: 1.7; letter-spacing: 0.18em; word-break: break-all; padding: 0.5rem 0.7rem; background: #fff; border: 1px solid var(--border); border-radius: 4px; }
+  .seq-strip .res { display: inline-block; padding: 1px 2px; cursor: pointer; }
+  .seq-strip .res.selected { background: #fbbf24; color: #fff; font-weight: 600; }
+  .seq-strip .res:hover { background: #fef3c7; }
+  .secondary-strip { font-family: var(--font-mono); font-size: 12px; padding: 0.5rem 0.7rem; background: #fff; border: 1px solid var(--border); border-radius: 4px; line-height: 1.4; }
+  .ss-line { display: flex; gap: 1px; }
+  .ss-line .ss-cell { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .ss-cell.H { background: #c4342c; color: white; }
+  .ss-cell.E { background: #b45309; color: white; }
+  .ss-cell.L { background: #e5e7eb; color: #6b7280; }
+  .ss-cell.selected { outline: 2px solid #fbbf24; }
+  svg { width: 100%; height: 240px; display: block; background: #fff; border: 1px solid var(--border); border-radius: 4px; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Protein Structure Level Explorer</h1>
+    <p>The same protein at four levels of representation. Click a residue in any panel — it lights up in the others. The aha: a protein isn't a string or a blob; it's a hierarchy of representations, each supporting different analyses.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Protein</p>
+    <select id="protein">
+      <option value="hb_alpha" selected>Haemoglobin α-subunit (141 aa)</option>
+      <option value="myoglobin">Myoglobin (153 aa)</option>
+      <option value="rnase">Ribonuclease A (124 aa)</option>
+    </select>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Primary — sequence</p>
+    <div class="seq-strip" id="seq"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Secondary — local structure (H = helix, E = strand, L = loop)</p>
+    <div class="secondary-strip" id="ss"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Tertiary — folded chain (2D cartoon)</p>
+    <svg id="tertiary" viewBox="-160 -120 320 240"></svg>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Quaternary — assembly (selected chain highlighted)</p>
+    <svg id="quaternary" viewBox="-200 -150 400 300"></svg>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const PROTEINS = {
+    hb_alpha: {
+      name: 'Haemoglobin α-subunit',
+      seq: 'VLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR',
+      // Simplified secondary structure (helices A-H of haemoglobin)
+      ss: '',
+      special: { 58: 'proximal histidine — coordinates haem iron', 87: 'distal histidine — stabilises bound O₂' },
+      quaternary: 'tetramer α₂β₂',
+    },
+    myoglobin: {
+      name: 'Myoglobin',
+      seq: 'MGLSDGEWQLVLNVWGKVEADIPGHGQEVLIRLFKGHPETLEKFDKFKHLKSEDEMKASEDLKKHGATVLTALGGILKKKGHHEAEIKPLAQSHATKHKIPVKYLEFISEAIIHVLHSKHPGDFGADAQGAMNKALELFRKDMASNYKELGFQG',
+      ss: '',
+      special: { 64: 'distal histidine — stabilises bound O₂', 93: 'proximal histidine — coordinates haem iron' },
+      quaternary: 'monomer',
+    },
+    rnase: {
+      name: 'Ribonuclease A',
+      seq: 'KETAAAKFERQHMDSSTSAASSSNYCNQMMKSRNLTKDRCKPVNTFVHESLADVQAVCSQKNVACKNGQTNCYQSYSTMSITDCRETGSSKYPNCAYKTTQANKHIIVACEGNPYVPVHFDASV',
+      ss: '',
+      special: { 12: 'catalytic histidine', 119: 'catalytic histidine' },
+      quaternary: 'monomer · 4 disulfide bonds',
+    },
+  };
+
+  // Generate plausible secondary structure annotations (helices / strands / loops)
+  function annotateSS(seq, kind) {
+    const ss = new Array(seq.length).fill('L');
+    if (kind === 'hb_alpha') {
+      // Haemoglobin α-helices: A (4-17), B (21-35), C (37-43), D (47-51), E (53-71), F (81-89), G (95-112), H (119-138)
+      const helices = [[4, 17], [21, 35], [37, 43], [47, 51], [53, 71], [81, 89], [95, 112], [119, 138]];
+      helices.forEach(([s, e]) => { for (let i = s; i < e; i++) ss[i] = 'H'; });
+    } else if (kind === 'myoglobin') {
+      const helices = [[3, 18], [20, 35], [36, 41], [51, 56], [58, 77], [86, 94], [100, 118], [124, 148]];
+      helices.forEach(([s, e]) => { for (let i = s; i < e; i++) ss[i] = 'H'; });
+    } else {
+      // RNase A: mostly β-sheet + 3 short helices
+      const helices = [[3, 12], [25, 33], [50, 58]];
+      const strands = [[42, 47], [70, 75], [78, 86], [97, 105], [115, 122]];
+      helices.forEach(([s, e]) => { for (let i = s; i < e; i++) ss[i] = 'H'; });
+      strands.forEach(([s, e]) => { for (let i = s; i < e; i++) ss[i] = 'E'; });
+    }
+    return ss;
+  }
+
+  function tertiaryPositions(seq, kind) {
+    const pos = [];
+    if (kind === 'hb_alpha' || kind === 'myoglobin') {
+      // Globin fold: 8 α-helices arranged around a haem pocket
+      const helixCount = 8;
+      const perHelix = Math.floor(seq.length / helixCount);
+      for (let h = 0; h < helixCount; h++) {
+        const baseAngle = h * Math.PI / 4;
+        const baseR = 80;
+        const cx = Math.cos(baseAngle) * baseR;
+        const cy = Math.sin(baseAngle) * baseR;
+        const helixDir = Math.cos(baseAngle + Math.PI / 2);
+        for (let i = 0; i < perHelix; i++) {
+          const along = (i - perHelix / 2) * 5;
+          pos.push({ x: cx + Math.cos(baseAngle + Math.PI / 2) * along, y: cy + Math.sin(baseAngle + Math.PI / 2) * along });
+        }
+      }
+      while (pos.length < seq.length) pos.push({ x: 0, y: 0 });
+    } else {
+      // RNase: β-sheet stack
+      for (let i = 0; i < seq.length; i++) {
+        const a = i / 6;
+        const r = 50 + Math.sin(i / 3) * 25;
+        pos.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+      }
+    }
+    return pos;
+  }
+
+  let state = { proteinKey: 'hb_alpha', selected: 58 };
+
+  function renderSeq(seq) {
+    $('seq').innerHTML = seq.split('').map((c, i) => `<span class="res ${i === state.selected ? 'selected' : ''}" data-i="${i}">${c}</span>`).join('');
+    $('seq').querySelectorAll('.res').forEach(r => r.addEventListener('click', () => { state.selected = +r.getAttribute('data-i'); rerender(); }));
+  }
+
+  function renderSS(seq, ss) {
+    const cells = [];
+    for (let i = 0; i < seq.length; i++) {
+      cells.push(`<div class="ss-cell ${ss[i]} ${i === state.selected ? 'selected' : ''}" data-i="${i}" title="${i + 1}: ${seq[i]} (${ss[i]})">${ss[i]}</div>`);
+    }
+    $('ss').innerHTML = `<div class="ss-line">${cells.join('')}</div>`;
+    $('ss').querySelectorAll('.ss-cell').forEach(c => c.addEventListener('click', () => { state.selected = +c.getAttribute('data-i'); rerender(); }));
+  }
+
+  function renderTertiary(seq, ss) {
+    const svg = $('tertiary');
+    svg.innerHTML = '';
+    const pos = tertiaryPositions(seq, state.proteinKey);
+    // Backbone
+    let path = '';
+    for (let i = 0; i < pos.length; i++) path += (i === 0 ? 'M ' : ' L ') + pos[i].x.toFixed(1) + ' ' + pos[i].y.toFixed(1);
+    const bp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    bp.setAttribute('d', path); bp.setAttribute('fill', 'none'); bp.setAttribute('stroke', '#9ca3af'); bp.setAttribute('stroke-width', '1.2');
+    svg.appendChild(bp);
+    // Residues coloured by SS
+    for (let i = 0; i < pos.length; i++) {
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', pos[i].x); c.setAttribute('cy', pos[i].y);
+      c.setAttribute('r', i === state.selected ? 6 : 2.6);
+      c.setAttribute('fill', i === state.selected ? '#fbbf24' : (ss[i] === 'H' ? '#c4342c' : ss[i] === 'E' ? '#b45309' : '#9ca3af'));
+      c.setAttribute('stroke', i === state.selected ? '#92400e' : 'none');
+      c.setAttribute('stroke-width', i === state.selected ? '2' : '0');
+      c.setAttribute('data-i', i);
+      c.style.cursor = 'pointer';
+      c.addEventListener('click', () => { state.selected = i; rerender(); });
+      svg.appendChild(c);
+    }
+    // Haem cofactor for globins
+    if (state.proteinKey === 'hb_alpha' || state.proteinKey === 'myoglobin') {
+      const haem = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      haem.setAttribute('x', -10); haem.setAttribute('y', -10); haem.setAttribute('width', 20); haem.setAttribute('height', 20);
+      haem.setAttribute('fill', '#dc2626'); haem.setAttribute('opacity', '0.7'); haem.setAttribute('rx', 2);
+      svg.appendChild(haem);
+      const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      lbl.setAttribute('x', 0); lbl.setAttribute('y', 4); lbl.setAttribute('text-anchor', 'middle');
+      lbl.setAttribute('font-size', '8'); lbl.setAttribute('fill', 'white'); lbl.setAttribute('font-weight', '600');
+      lbl.textContent = 'Fe²⁺';
+      svg.appendChild(lbl);
+    }
+  }
+
+  function renderQuaternary() {
+    const svg = $('quaternary');
+    svg.innerHTML = '';
+    const p = PROTEINS[state.proteinKey];
+    if (state.proteinKey === 'hb_alpha') {
+      // Tetramer
+      const positions = [{ x: -55, y: -45, label: 'α₁' }, { x: 55, y: -45, label: 'β₁' }, { x: -55, y: 45, label: 'β₂' }, { x: 55, y: 45, label: 'α₂' }];
+      const selectedLabel = state.proteinKey === 'hb_alpha' ? 'α₁' : null;
+      positions.forEach(pos => {
+        const isHigh = pos.label === selectedLabel;
+        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        c.setAttribute('cx', pos.x); c.setAttribute('cy', pos.y); c.setAttribute('r', 50);
+        c.setAttribute('fill', isHigh ? '#dbeafe' : '#f3f4f6');
+        c.setAttribute('stroke', isHigh ? '#1d4ed8' : '#9ca3af'); c.setAttribute('stroke-width', isHigh ? 2 : 1);
+        svg.appendChild(c);
+        const haem = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        haem.setAttribute('x', pos.x - 8); haem.setAttribute('y', pos.y - 8); haem.setAttribute('width', 16); haem.setAttribute('height', 16);
+        haem.setAttribute('fill', '#dc2626'); haem.setAttribute('opacity', '0.7'); haem.setAttribute('rx', 2);
+        svg.appendChild(haem);
+        const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        t.setAttribute('x', pos.x); t.setAttribute('y', pos.y - 30); t.setAttribute('text-anchor', 'middle');
+        t.setAttribute('font-size', 12); t.setAttribute('font-weight', 600); t.setAttribute('fill', isHigh ? '#1e40af' : '#9ca3af');
+        t.textContent = pos.label;
+        svg.appendChild(t);
+      });
+    } else {
+      // Monomer
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', 0); c.setAttribute('cy', 0); c.setAttribute('r', 70);
+      c.setAttribute('fill', '#dbeafe'); c.setAttribute('stroke', '#1d4ed8'); c.setAttribute('stroke-width', 2);
+      svg.appendChild(c);
+      if (state.proteinKey === 'myoglobin') {
+        const haem = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        haem.setAttribute('x', -10); haem.setAttribute('y', -10); haem.setAttribute('width', 20); haem.setAttribute('height', 20);
+        haem.setAttribute('fill', '#dc2626'); haem.setAttribute('opacity', '0.7'); haem.setAttribute('rx', 2);
+        svg.appendChild(haem);
+      }
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', 0); t.setAttribute('y', -90); t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-size', 12); t.setAttribute('font-weight', 600); t.setAttribute('fill', '#1e40af');
+      t.textContent = p.quaternary;
+      svg.appendChild(t);
+    }
+  }
+
+  function rerender() {
+    const p = PROTEINS[state.proteinKey];
+    const ss = annotateSS(p.seq, state.proteinKey);
+    renderSeq(p.seq);
+    renderSS(p.seq, ss);
+    renderTertiary(p.seq, ss);
+    renderQuaternary();
+
+    const aa = p.seq[state.selected];
+    const ssLabel = ss[state.selected] === 'H' ? 'α-helix' : ss[state.selected] === 'E' ? 'β-strand' : 'loop';
+    const special = p.special[state.selected + 1] || p.special[state.selected];
+    $('outcome').innerHTML = `
+      <div>${p.name} · residue <strong>${state.selected + 1}</strong> <strong>${aa}</strong> · <strong>${ssLabel}</strong> · <strong>${p.quaternary}</strong></div>
+      ${special ? `<div>Note: ${special}</div>` : ''}
+      <div class="verdict">A protein is a hierarchy of representations. The same residue plays a role at every level.</div>
+      <div class="hint">Click any residue in any panel to see it light up across all four. Switch to myoglobin → similar globin fold, monomer instead of tetramer.</div>
+    `;
+  }
+
+  $('protein').addEventListener('change', e => { state.proteinKey = e.target.value; state.selected = state.proteinKey === 'rnase' ? 11 : (state.proteinKey === 'myoglobin' ? 92 : 57); rerender(); });
+
+  rerender();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

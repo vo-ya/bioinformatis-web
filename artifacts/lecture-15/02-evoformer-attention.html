@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evoformer Attention Visualiser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1100px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 72ch; }
+  .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-label { font-size: var(--text-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 0.85rem; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.25rem; }
+  .row { display: flex; flex-direction: column; gap: 0.3rem; }
+  label { font-size: var(--text-sm); }
+  select, input[type="range"] { width: 100%; }
+  .btn { padding: 0.55rem 1.2rem; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; margin: 0.6rem 0.4rem 0 0; font-size: var(--text-sm); }
+  .btn.secondary { background: #fff; color: var(--fg); border: 1px solid var(--border); }
+  .step-name { font-family: var(--font-mono); color: var(--accent); font-weight: 600; padding: 0.4rem 0.6rem; background: #eff6ff; border-radius: 4px; display: inline-block; }
+  .mats { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .mat-cell { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.8rem; }
+  .mat-cell h4 { font-size: var(--text-sm); margin: 0 0 0.4rem; color: var(--fg-subtle); }
+  .mat-cell .shape { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-muted); }
+  .mat-cell svg { width: 100%; aspect-ratio: 2/1; display: block; margin-top: 0.4rem; }
+  .pair-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.75rem; }
+  .pair-cell { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem; text-align: center; }
+  .pair-cell h5 { font-size: var(--text-xs); margin: 0 0 0.3rem; color: var(--fg-subtle); }
+  .pair-cell svg { width: 100%; aspect-ratio: 1; display: block; }
+  .outcome { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.65; color: #1e3a8a; }
+  .verdict { font-weight: 700; color: var(--accent); margin-top: 0.6rem; font-family: var(--font-sans); }
+  .hint { font-family: var(--font-sans); color: var(--fg-muted); font-size: var(--text-xs); margin-top: 0.5rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Evoformer Axial-Attention Visualiser</h1>
+    <p>Step through one Evoformer block on a small MSA and pair representation. See axial attention, the outer-product mean, and triangle updates each transform the matrices. Then watch how the pair representation sharpens across multiple blocks.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Controls</p>
+    <div class="grid">
+      <div class="row"><label>Input preset</label>
+        <select id="preset">
+          <option value="helix" selected>Helix-like (i, i+3 contacts)</option>
+          <option value="sheet">Sheet-like (cross-strand)</option>
+          <option value="random">Toy random</option>
+        </select>
+      </div>
+      <div class="row"><label>Residues L</label><input id="L" type="range" min="10" max="30" step="2" value="20"></div>
+      <div class="row"><label>MSA depth s</label><input id="S" type="range" min="4" max="32" step="2" value="16"></div>
+      <div class="row"><label>Run blocks</label><input id="B" type="range" min="0" max="32" step="1" value="0"></div>
+    </div>
+    <button class="btn" id="step">Step one op</button>
+    <button class="btn" id="run">Run all 32 blocks</button>
+    <button class="btn secondary" id="reset">Reset</button>
+    <div style="margin-top:0.6rem; font-size: var(--text-sm); color: var(--fg);">Current op: <span class="step-name" id="curop">— (initial)</span></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Tensors before/after current op</p>
+    <div class="mats">
+      <div class="mat-cell">
+        <h4>MSA representation M</h4>
+        <div class="shape" id="msa-shape">s × L × c</div>
+        <svg id="msa-vis" viewBox="0 0 200 100" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="mat-cell">
+        <h4>Pair representation Z</h4>
+        <div class="shape" id="pair-shape">L × L × c</div>
+        <svg id="pair-vis" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-label">Pair-representation evolution across blocks</p>
+    <div class="pair-grid">
+      <div class="pair-cell"><h5>Block 0</h5><svg id="pair0" viewBox="0 0 100 100" preserveAspectRatio="none"></svg></div>
+      <div class="pair-cell"><h5>Block 8</h5><svg id="pair8" viewBox="0 0 100 100" preserveAspectRatio="none"></svg></div>
+      <div class="pair-cell"><h5>Block 16</h5><svg id="pair16" viewBox="0 0 100 100" preserveAspectRatio="none"></svg></div>
+      <div class="pair-cell"><h5>Block 32</h5><svg id="pair32" viewBox="0 0 100 100" preserveAspectRatio="none"></svg></div>
+    </div>
+  </div>
+
+  <div class="outcome" id="outcome"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  let _seed = 42;
+  function seed(s) { _seed = s | 0; }
+  function rand() { _seed |= 0; _seed = _seed + 0x6D2B79F5 | 0; let t = _seed; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+  const state = { preset: 'helix', L: 20, S: 16, B: 0, op: 0 };
+  const OPS = [
+    'Row-wise MSA attention (with pair bias)',
+    'Column-wise MSA attention',
+    'MSA transition (FF)',
+    'Outer product mean → pair update',
+    'Triangle multiplicative update',
+    'Triangle self-attention',
+  ];
+
+  // MSA: s × L (single channel for simplicity)
+  // Pair: L × L scalar (one channel)
+  let M, Z;
+
+  function targetPair() {
+    const L = state.L;
+    const T = Array.from({ length: L }, () => new Float64Array(L));
+    if (state.preset === 'helix') {
+      for (let i = 0; i < L; i++) for (let k = 3; k <= 4; k++) {
+        if (i + k < L) T[i][i + k] = T[i + k][i] = 1;
+      }
+    } else if (state.preset === 'sheet') {
+      for (let i = 0; i < Math.floor(L / 2) - 1; i++) T[i][L - 1 - i] = T[L - 1 - i][i] = 1;
+    } else {
+      for (let i = 0; i < L; i++) {
+        const k = i + 2 + Math.floor(rand() * 3);
+        if (k < L) T[i][k] = T[k][i] = 1;
+      }
+    }
+    return T;
+  }
+
+  function init() {
+    state.B = 0; state.op = 0;
+    M = Array.from({ length: state.S }, () => new Float64Array(state.L).map(() => rand() * 2 - 1));
+    Z = Array.from({ length: state.L }, () => new Float64Array(state.L).map(() => rand() * 0.2 - 0.1));
+  }
+
+  function applyOp(opIdx) {
+    const T = targetPair();
+    const L = state.L, S = state.S;
+    if (opIdx === 0) {
+      // Row-wise MSA attention with pair bias: smooth M rows by Z-like attention
+      const newM = Array.from({ length: S }, () => new Float64Array(L));
+      for (let s = 0; s < S; s++) {
+        for (let i = 0; i < L; i++) {
+          let acc = 0, w = 0;
+          for (let j = 0; j < L; j++) {
+            const a = Math.exp(Z[i][j]);
+            acc += a * M[s][j]; w += a;
+          }
+          newM[s][i] = acc / Math.max(1e-9, w);
+        }
+      }
+      M = newM;
+    } else if (opIdx === 1) {
+      // Column-wise MSA attention: smooth M columns
+      const newM = Array.from({ length: S }, () => new Float64Array(L));
+      for (let i = 0; i < L; i++) {
+        let mean = 0;
+        for (let s = 0; s < S; s++) mean += M[s][i];
+        mean /= S;
+        for (let s = 0; s < S; s++) newM[s][i] = M[s][i] * 0.6 + mean * 0.4;
+      }
+      M = newM;
+    } else if (opIdx === 2) {
+      // MSA transition (FF): nonlinearity
+      for (let s = 0; s < S; s++) for (let i = 0; i < L; i++) M[s][i] = Math.tanh(M[s][i]);
+    } else if (opIdx === 3) {
+      // Outer product mean → pair update
+      for (let i = 0; i < L; i++) for (let j = 0; j < L; j++) {
+        let outer = 0;
+        for (let s = 0; s < S; s++) outer += M[s][i] * M[s][j];
+        outer /= S;
+        // Bias toward target with strength decreasing as block index grows
+        Z[i][j] += 0.05 * outer + 0.06 * T[i][j];
+      }
+    } else if (opIdx === 4) {
+      // Triangle multiplicative: Z[i,j] += sum_k Z[i,k]*Z[k,j] (small step)
+      const newZ = Array.from({ length: L }, () => new Float64Array(L));
+      for (let i = 0; i < L; i++) for (let j = 0; j < L; j++) newZ[i][j] = Z[i][j];
+      for (let i = 0; i < L; i++) for (let j = 0; j < L; j++) {
+        let s = 0;
+        for (let k = 0; k < L; k++) s += Z[i][k] * Z[k][j];
+        newZ[i][j] += 0.005 * s;
+      }
+      Z = newZ;
+    } else if (opIdx === 5) {
+      // Triangle self-attention: smooth Z; bias toward target
+      const newZ = Array.from({ length: L }, () => new Float64Array(L));
+      for (let i = 0; i < L; i++) for (let j = 0; j < L; j++) {
+        newZ[i][j] = Z[i][j] * 0.92 + 0.08 * T[i][j];
+      }
+      Z = newZ;
+    }
+    state.op = (opIdx + 1) % OPS.length;
+    if (opIdx === OPS.length - 1) state.B++;
+  }
+
+  function snapshotPair() {
+    const L = state.L;
+    const out = Array.from({ length: L }, () => new Float64Array(L));
+    for (let i = 0; i < L; i++) for (let j = 0; j < L; j++) out[i][j] = Z[i][j];
+    return out;
+  }
+
+  let snapshots = { 0: null, 8: null, 16: null, 32: null };
+
+  function runToBlock(target) {
+    if (target < state.B) { init(); }
+    while (state.B < target) {
+      for (let op = 0; op < OPS.length; op++) applyOp(op);
+      if (state.B in snapshots) snapshots[state.B] = snapshotPair();
+    }
+    if (state.B in snapshots) snapshots[state.B] = snapshotPair();
+    render();
+    drawSnapshots();
+  }
+
+  function drawMatrixToSVG(svg, mat, opts) {
+    svg.innerHTML = '';
+    const r = mat.length, c = mat[0].length;
+    let max = 0.001;
+    for (let i = 0; i < r; i++) for (let j = 0; j < c; j++) {
+      const v = Math.abs(mat[i][j]);
+      if (v > max) max = v;
+    }
+    const cw = (opts && opts.aspect2) ? 200 / c : 100 / c;
+    const ch = (opts && opts.aspect2) ? 100 / r : 100 / r;
+    for (let i = 0; i < r; i++) for (let j = 0; j < c; j++) {
+      const v = mat[i][j];
+      const intensity = Math.min(1, Math.abs(v) / max);
+      if (intensity < 0.05) continue;
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', j * cw); rect.setAttribute('y', i * ch);
+      rect.setAttribute('width', cw + 0.1); rect.setAttribute('height', ch + 0.1);
+      const col = v > 0 ? `rgba(29,78,216,${intensity})` : `rgba(220,38,38,${intensity})`;
+      rect.setAttribute('fill', col);
+      svg.appendChild(rect);
+    }
+  }
+
+  function render() {
+    const opName = state.op === 0 && state.B === 0 ? '— (initial)' : OPS[(state.op + OPS.length - 1) % OPS.length];
+    $('curop').textContent = opName;
+    $('msa-shape').textContent = `${state.S} × ${state.L} × c`;
+    $('pair-shape').textContent = `${state.L} × ${state.L} × c · block ${state.B}`;
+    drawMatrixToSVG($('msa-vis'), M, { aspect2: true });
+    drawMatrixToSVG($('pair-vis'), Z, {});
+  }
+
+  function drawSnapshots() {
+    if (snapshots[0]) drawMatrixToSVG($('pair0'), snapshots[0], {});
+    if (snapshots[8]) drawMatrixToSVG($('pair8'), snapshots[8], {});
+    if (snapshots[16]) drawMatrixToSVG($('pair16'), snapshots[16], {});
+    if (snapshots[32]) drawMatrixToSVG($('pair32'), snapshots[32], {});
+  }
+
+  function go() {
+    init();
+    snapshots[0] = snapshotPair();
+    drawSnapshots();
+    render();
+    $('outcome').innerHTML = `
+      <div>Preset <strong>${state.preset}</strong> · L=${state.L} · s=${state.S} · block ${state.B}</div>
+      <div class="verdict">Step through ops to see each transformation. Run all 32 blocks to see the pair representation sharpen.</div>
+      <div class="hint">Helix preset → diagonal bands at offset 3–4 emerge. Sheet preset → cross-strand contacts emerge. Random preset → idiosyncratic pattern.</div>
+    `;
+  }
+
+  $('preset').addEventListener('change', e => { state.preset = e.target.value; go(); });
+  $('L').addEventListener('input', e => { state.L = +e.target.value; go(); });
+  $('S').addEventListener('input', e => { state.S = +e.target.value; go(); });
+  $('B').addEventListener('input', e => {
+    const target = +e.target.value;
+    runToBlock(target);
+  });
+  $('step').addEventListener('click', () => {
+    applyOp(state.op);
+    if (state.B in snapshots) snapshots[state.B] = snapshotPair();
+    render(); drawSnapshots();
+  });
+  $('run').addEventListener('click', () => { runToBlock(32); });
+  $('reset').addEventListener('click', go);
+
+  go();
+  // Auto-run a couple of blocks to show progression
+  runToBlock(8);
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 480" width="1080" height="480" font-family="Inter, sans-serif">
+  <defs><style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }</style></defs>
+  <rect width="1080" height="480" fill="#fafaf9" rx="6"/>
+  <text x="540" y="26" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">Sample efficiency on a synthetic pileup task — the right inductive bias buys 10×–100× data</text>
+
+  <!-- Plot area -->
+  <rect x="80" y="60" width="900" height="340" fill="#fff" stroke="#e5e7eb"/>
+
+  <!-- Y axis: F1 from 0.5 to 1.0 -->
+  <g class="mono" fill="#6b7280">
+    <line x1="76" y1="400" x2="80" y2="400" stroke="#374151"/><text x="72" y="403" text-anchor="end">0.5</text>
+    <line x1="76" y1="332" x2="80" y2="332" stroke="#374151"/><text x="72" y="335" text-anchor="end">0.6</text>
+    <line x1="76" y1="264" x2="80" y2="264" stroke="#374151"/><text x="72" y="267" text-anchor="end">0.7</text>
+    <line x1="76" y1="196" x2="80" y2="196" stroke="#374151"/><text x="72" y="199" text-anchor="end">0.8</text>
+    <line x1="76" y1="128" x2="80" y2="128" stroke="#374151"/><text x="72" y="131" text-anchor="end">0.9</text>
+    <line x1="76" y1="60" x2="80" y2="60" stroke="#374151"/><text x="72" y="63" text-anchor="end">1.0</text>
+  </g>
+  <text x="32" y="230" text-anchor="middle" font-size="11" fill="#374151" transform="rotate(-90 32 230)">Validation F1</text>
+
+  <!-- X axis: log training set 10^3 to 10^7 -->
+  <g class="mono" fill="#6b7280" font-size="11">
+    <line x1="80" y1="400" x2="80" y2="404" stroke="#374151"/><text x="80" y="418" text-anchor="middle">10³</text>
+    <line x1="305" y1="400" x2="305" y2="404" stroke="#374151"/><text x="305" y="418" text-anchor="middle">10⁴</text>
+    <line x1="530" y1="400" x2="530" y2="404" stroke="#374151"/><text x="530" y="418" text-anchor="middle">10⁵</text>
+    <line x1="755" y1="400" x2="755" y2="404" stroke="#374151"/><text x="755" y="418" text-anchor="middle">10⁶</text>
+    <line x1="980" y1="400" x2="980" y2="404" stroke="#374151"/><text x="980" y="418" text-anchor="middle">10⁷</text>
+  </g>
+  <text x="530" y="442" text-anchor="middle" font-size="11" fill="#374151">Training-set size (log)</text>
+
+  <!-- Reference line at F1=0.99 -->
+  <line x1="80" y1="68" x2="980" y2="68" stroke="#9ca3af" stroke-width="0.8" stroke-dasharray="3,3"/>
+  <text x="980" y="60" text-anchor="end" font-size="9" fill="#6b7280" font-style="italic">F1 = 0.99 (asymptote)</text>
+
+  <!-- CNN curve: starts high, plateaus near 0.995 -->
+  <!-- y for F1=0.85 is 196-(0.85-0.8)/0.1*68=162; F1=0.99 → y=66 -->
+  <!-- Polyline: (80, 240) F1~0.77, (200, 110) ~0.96, (305, 80) ~0.99, (450, 70) ~0.995, (980, 66) -->
+  <path d="M 80 240 Q 200 130 305 86 Q 450 75 980 68" fill="none" stroke="#b45309" stroke-width="2.5"/>
+  <text x="220" y="115" font-size="11" font-weight="600" fill="#b45309">CNN</text>
+
+  <!-- MLP: stays low, peaks around 0.95 at large data -->
+  <path d="M 80 360 Q 305 300 530 240 Q 755 180 980 150" fill="none" stroke="#9ca3af" stroke-width="2.5"/>
+  <text x="600" y="200" font-size="11" font-weight="600" fill="#6b7280">MLP</text>
+
+  <!-- Plain Transformer: slow start, climbs late -->
+  <path d="M 80 380 Q 305 350 530 260 Q 755 130 980 70" fill="none" stroke="#1d4ed8" stroke-width="2.5"/>
+  <text x="700" y="170" font-size="11" font-weight="600" fill="#1d4ed8">Transformer</text>
+  <text x="700" y="184" font-size="9" fill="#1d4ed8">(no positional bias)</text>
+
+  <!-- Transformer with 2D positional + local-attention bias: matches CNN at moderate data; closes gap -->
+  <path d="M 80 280 Q 305 130 530 80 Q 755 70 980 65" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-dasharray="4,3"/>
+  <text x="450" y="120" font-size="10" fill="#1d4ed8" font-style="italic">Transformer + 2D pos + local bias</text>
+
+  <!-- Annotation arrows -->
+  <g>
+    <text x="350" y="370" font-size="10" fill="#374151" font-weight="600">at small data,</text>
+    <text x="350" y="384" font-size="10" fill="#b45309" font-weight="600">CNN's prior wins by a lot</text>
+    <line x1="345" y1="375" x2="240" y2="195" stroke="#b45309" stroke-width="1" stroke-dasharray="2,2"/>
+  </g>
+  <g>
+    <text x="800" y="285" font-size="10" font-weight="600" fill="#1d4ed8">at huge data,</text>
+    <text x="800" y="299" font-size="10" fill="#1d4ed8">architectures converge</text>
+    <line x1="800" y1="290" x2="900" y2="100" stroke="#1d4ed8" stroke-width="1" stroke-dasharray="2,2"/>
+  </g>
+
+  <!-- Footer -->
+  <rect x="40" y="450" width="1000" height="22" fill="none"/>
+  <text x="540" y="466" text-anchor="middle" font-size="11" fill="#374151" font-style="italic">Inductive bias isn't "old vs new"; it's "right vs wrong for this data". On limited-data genomics tasks, the explicit prior of CNNs often still wins.</text>
+</svg>

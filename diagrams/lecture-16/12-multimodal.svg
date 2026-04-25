@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 480" width="1080" height="480" font-family="Inter, sans-serif">
+  <defs><style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }</style></defs>
+  <rect width="1080" height="480" fill="#fafaf9" rx="6"/>
+  <text x="540" y="26" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">Multimodal foundation model landscape — modalities × scale</text>
+
+  <!-- Plot area -->
+  <rect x="80" y="60" width="900" height="320" fill="#fff" stroke="#e5e7eb"/>
+  <!-- Frontier shading top-right -->
+  <rect x="660" y="60" width="320" height="160" fill="#fef3c7" opacity="0.5"/>
+  <text x="820" y="80" text-anchor="middle" font-size="10" fill="#92400e" font-style="italic">frontier — multi-modal + high-param</text>
+
+  <!-- Y axis: parameter count log 100M to 100B -->
+  <g class="mono" fill="#6b7280">
+    <line x1="76" y1="370" x2="80" y2="370" stroke="#374151"/><text x="72" y="373" text-anchor="end">100M</text>
+    <line x1="76" y1="290" x2="80" y2="290" stroke="#374151"/><text x="72" y="293" text-anchor="end">1B</text>
+    <line x1="76" y1="210" x2="80" y2="210" stroke="#374151"/><text x="72" y="213" text-anchor="end">10B</text>
+    <line x1="76" y1="130" x2="80" y2="130" stroke="#374151"/><text x="72" y="133" text-anchor="end">100B</text>
+  </g>
+  <text x="32" y="220" text-anchor="middle" font-size="11" fill="#374151" transform="rotate(-90 32 220)">Parameter count (log)</text>
+
+  <!-- X axis: 1, 2, 3+ modalities -->
+  <g class="mono" fill="#6b7280" font-size="11">
+    <line x1="200" y1="380" x2="200" y2="384" stroke="#374151"/><text x="200" y="398" text-anchor="middle">1 modality</text>
+    <line x1="500" y1="380" x2="500" y2="384" stroke="#374151"/><text x="500" y="398" text-anchor="middle">2 modalities</text>
+    <line x1="800" y1="380" x2="800" y2="384" stroke="#374151"/><text x="800" y="398" text-anchor="middle">3+ modalities</text>
+  </g>
+  <text x="500" y="426" text-anchor="middle" font-size="11" fill="#374151">Modalities covered</text>
+
+  <!-- Models -->
+  <!-- ESM-2: protein seq only, ~15B params; log10(15e9)=10.18; y range: log 8 (100M) to 11 (100B), 100M=370, 100B=130; 240 px / 3 decades = 80/decade -->
+  <!-- y(p) = 370 - (log10(p)-8)/3 * 240 -->
+  <!-- ESM-2: log10(15e9)=10.18 → y = 370 - 2.18/3*240 = 370 - 174 = 196 -->
+  <g transform="translate(200,196)">
+    <circle cx="0" cy="0" r="14" fill="#1d4ed8"/>
+    <text x="20" y="-4" font-size="11" font-weight="600" fill="#1e40af">ESM-2</text>
+    <text x="20" y="10" class="mono" fill="#6b7280">protein seq · 15B</text>
+  </g>
+
+  <!-- DNABERT: DNA only, 100M; y=370 -->
+  <g transform="translate(200,370)">
+    <circle cx="0" cy="0" r="9" fill="#7c3aed"/>
+    <text x="14" y="-4" font-size="10" font-weight="600" fill="#6b21a8">DNABERT</text>
+    <text x="14" y="8" class="mono" fill="#6b7280">DNA · 100M</text>
+  </g>
+
+  <!-- Evo: DNA-only, 7B; y = 370 - (9.85-8)/3*240 = 370 - 148 = 222 -->
+  <g transform="translate(200,222)">
+    <circle cx="0" cy="0" r="11" fill="#7c3aed"/>
+    <text x="16" y="-4" font-size="11" font-weight="600" fill="#6b21a8">Evo</text>
+    <text x="16" y="10" class="mono" fill="#6b7280">DNA · 7B · cross-species</text>
+  </g>
+
+  <!-- AlphaFold3: protein + nucleic + ligand → 3 modalities, ~moderate params (under 1B); y = 370 - 0.3 = ~342 -->
+  <g transform="translate(800,310)">
+    <circle cx="0" cy="0" r="12" fill="#9a3412"/>
+    <text x="-16" y="-18" text-anchor="end" font-size="11" font-weight="600" fill="#9a3412">AlphaFold3</text>
+    <text x="-16" y="-4" text-anchor="end" class="mono" fill="#6b7280">protein + nucleic + ligand</text>
+    <text x="-16" y="8" text-anchor="end" class="mono" fill="#6b7280">~ 1B</text>
+  </g>
+
+  <!-- ESM-3: 3+ modalities (seq + struct + function), ~100B; y=130 -->
+  <g transform="translate(800,130)">
+    <circle cx="0" cy="0" r="16" fill="#1e3a8a"/>
+    <text x="20" y="-4" font-size="11" font-weight="600" fill="#1e3a8a">ESM-3</text>
+    <text x="20" y="10" class="mono" fill="#6b7280">seq + structure + function · 100B</text>
+  </g>
+
+  <!-- scGPT/Geneformer: cell + RNA, 10-50M; y = 370 - (7.5-8)/3*240 = 370 + 40 = 410 - clip to 380? Use 50M = log10=7.7 -->
+  <!-- For 50M: y = 370 - (7.7-8)/3*240 = 370 - (-0.3)/3*240 = 370 + 24 = 394 → clip to plot bottom 370 -->
+  <g transform="translate(500,370)">
+    <circle cx="0" cy="0" r="9" fill="#0d7377"/>
+    <text x="14" y="-4" font-size="10" font-weight="600" fill="#0d7377">scGPT / Geneformer</text>
+    <text x="14" y="8" class="mono" fill="#6b7280">cell + RNA · 10–50M</text>
+  </g>
+
+  <!-- Nucleotide Transformer: DNA only, 2.5B; log10=9.4 → y = 370 - 1.4/3*240 = 370-112 = 258 -->
+  <g transform="translate(200,258)">
+    <circle cx="0" cy="0" r="10" fill="#7c3aed"/>
+    <text x="16" y="0" font-size="10" font-weight="600" fill="#6b21a8">Nucleotide Transformer</text>
+    <text x="16" y="14" class="mono" fill="#6b7280">DNA · 2.5B</text>
+  </g>
+
+  <!-- "Future" indication -->
+  <g transform="translate(800,200)">
+    <circle cx="0" cy="0" r="22" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/>
+    <text x="0" y="4" text-anchor="middle" font-size="11" font-style="italic" fill="#6b7280">future?</text>
+    <text x="0" y="-30" text-anchor="middle" font-size="10" fill="#374151" font-style="italic">cross-modality at scale</text>
+  </g>
+
+  <!-- Footer -->
+  <rect x="40" y="420" width="1000" height="40" fill="#fef3c7" stroke="#fcd34d"/>
+  <text x="55" y="440" font-size="11" font-weight="600" fill="#92400e">The frontier moves toward multi-modal</text>
+  <text x="55" y="454" font-size="10" fill="#78350f">Engineering recipe is clear: separate encoders per modality → shared transformer → per-modality heads. <strong>Data availability is the bottleneck</strong>: matched multi-modal datasets are still small.</text>
+</svg>

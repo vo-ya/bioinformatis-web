@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 19 — BLAST and Sequence Search Statistics · Bioinformatics for EE</title>
+  <meta name="description" content="From read mapping to database search: BLAST seed-and-extend, BLOSUM/PAM substitution matrices, Karlin-Altschul E-value statistics, PSI-BLAST iterative profile search, and modern fast alternatives (DIAMOND, MMseqs2).">
+
+  <meta property="og:title" content="Lecture 19 — BLAST and Sequence Search Statistics">
+  <meta property="og:description" content="Heuristic search with statistical guarantees · seed-extend-score · bit scores as log-odds · E-values as Poisson rates · PSI-BLAST as EM-flavoured profile refinement.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — From Read Mapping to Database Search</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Two different problems</a></li>
+          <li><a href="#sec-1-2">1.2 Why exact algorithms fail</a></li>
+          <li><a href="#sec-1-3">1.3 Heuristic search with statistical guarantees</a></li>
+          <li><a href="#sec-1-4">1.4 The detection-theoretic frame</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Substitution Matrices and Bit Scores</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 Why protein dominates</a></li>
+          <li><a href="#sec-2-2">2.2 PAM matrices</a></li>
+          <li><a href="#sec-2-3">2.3 BLOSUM matrices</a></li>
+          <li><a href="#sec-2-4">2.4 Bit scores</a></li>
+          <li><a href="#sec-2-5">2.5 Gap penalties</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Seed-and-Extend Heuristic</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Word lists and neighbourhoods</a></li>
+          <li><a href="#sec-3-2">3.2 The two-hit method</a></li>
+          <li><a href="#sec-3-3">3.3 Ungapped extension</a></li>
+          <li><a href="#sec-3-4">3.4 Gapped extension</a></li>
+          <li><a href="#sec-3-5">3.5 Composition-based score adjustment</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Karlin-Altschul Statistics and E-values</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 The null model</a></li>
+          <li><a href="#sec-4-2">4.2 Bit-score interpretation</a></li>
+          <li><a href="#sec-4-3">4.3 P-values vs E-values</a></li>
+          <li><a href="#sec-4-4">4.4 Database-size effects</a></li>
+          <li><a href="#sec-4-5">4.5 BLAST output format</a></li>
+          <li><a href="#sec-4-6">4.6 Composition correction in detail</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — PSI-BLAST and Profile-Based Search</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 Why iterate</a></li>
+          <li><a href="#sec-5-2">5.2 The PSI-BLAST algorithm</a></li>
+          <li><a href="#sec-5-3">5.3 PSSM construction</a></li>
+          <li><a href="#sec-5-4">5.4 Why PSI-BLAST works — and where it fails</a></li>
+          <li><a href="#sec-5-5">5.5 Connection to HMMER</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Modern Fast Alternatives</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 Why classical BLAST is slow</a></li>
+          <li><a href="#sec-6-2">6.2 USEARCH and UCLUST</a></li>
+          <li><a href="#sec-6-3">6.3 DIAMOND</a></li>
+          <li><a href="#sec-6-4">6.4 MMseqs2</a></li>
+          <li><a href="#sec-6-5">6.5 The speed-sensitivity Pareto</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — Application Patterns</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 Genome annotation</a></li>
+          <li><a href="#sec-7-2">7.2 Reciprocal best hits</a></li>
+          <li><a href="#sec-7-3">7.3 Protein function transfer</a></li>
+          <li><a href="#sec-7-4">7.4 Detecting horizontal gene transfer</a></li>
+          <li><a href="#sec-7-5">7.5 Drug target / off-target prediction</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 19</div>
+      <h1 class="lecture-title">BLAST and Sequence Search Statistics</h1>
+      <p class="lecture-subtitle">Heuristic search with statistical guarantees. The seed-and-extend cascade gives up exactness but recovers an honest E-value: how many hits this strong would you expect by chance against a random database of this size? The most-used scientific software in history, plus its modern replacements (DIAMOND, MMseqs2) that trade modest sensitivity for 100-1000× speedup.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — From read mapping to database search</a></li>
+        <li><a href="#part-2">Part 2 — Substitution matrices and bit scores</a></li>
+        <li><a href="#part-3">Part 3 — Seed-and-extend</a></li>
+        <li><a href="#part-4">Part 4 — Karlin-Altschul and E-values</a></li>
+        <li><a href="#part-5">Part 5 — PSI-BLAST and profiles</a></li>
+        <li><a href="#part-6">Part 6 — Modern fast alternatives</a></li>
+        <li><a href="#part-7">Part 7 — Application patterns</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Five moves:</em>
+        <span class="lecture-tagline-beat">build a word list</span>,
+        <span class="lecture-tagline-beat">scan for seeds</span>,
+        <span class="lecture-tagline-beat">extend with X-drop</span>,
+        <span class="lecture-tagline-beat">score with bits</span>,
+        <span class="lecture-tagline-beat">read the E-value</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Distinguish read alignment (one short query against one fixed reference) from database search (one query against millions of unknown homologs); explain why a different algorithm class is needed.</li>
+          <li>Describe the BLAST seed-and-extend heuristic: word-list construction, neighbourhood expansion, two-hit gap filtering, ungapped extension, gapped extension.</li>
+          <li>Compute an E-value from a bit score, query length, and database size using the Karlin-Altschul formula.</li>
+          <li>Explain bit scores as log-likelihood ratios derived from substitution matrices (PAM, BLOSUM); compare PAM30 vs PAM250 vs BLOSUM62 use-cases.</li>
+          <li>Walk through PSI-BLAST iteration: from seed BLAST to PSSM construction to iterative refinement; recognise the EM-style structure.</li>
+          <li>Compare modern fast alternatives — DIAMOND, MMseqs2, USEARCH — by their algorithmic compromise (precomputed indices, double-spaced seeds, k-mer filtering).</li>
+          <li>Frame BLAST as a detection-theoretic problem: the bit-score threshold is a false-discovery threshold; E-value statistics quantify the sensitivity-specificity trade-off.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 20 min</span>
+          From Read Mapping to Database Search
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Two different problems</h3>
+
+          <p>In Lecture 2 you learned to map reads to a reference. The setup:</p>
+          <ul>
+            <li><strong>Query</strong>: ~10⁸ reads, each ~150 bp.</li>
+            <li><strong>Reference</strong>: one genome, ~3 Gbp, fixed.</li>
+            <li><strong>Indexing</strong>: build the FM-index once; reuse for every read.</li>
+            <li><strong>Goal</strong>: find approximate locations of each read.</li>
+          </ul>
+
+          <p>This lecture solves a different problem:</p>
+          <ul>
+            <li><strong>Query</strong>: one or a few sequences of interest (typically ~10²–10⁵ bp).</li>
+            <li><strong>Database</strong>: millions of sequences from many organisms (NCBI nr ~600 GB; UniProt ~250 GB).</li>
+            <li><strong>Goal</strong>: find evolutionarily-related sequences ("homologs") in the database, with statistical confidence.</li>
+          </ul>
+
+          <p>The two differ in three ways:</p>
+          <ol>
+            <li><strong>Scale flips</strong>: read mapping has many queries against one reference; database search has one query against many references. The optimal data structure flips with it.</li>
+            <li><strong>Edit distance is no longer the right metric</strong>: distantly related proteins may share only ~25% identity but conserve structural function. We need a substitution-aware score.</li>
+            <li><strong>Statistical significance</strong>: with millions of database hits, what makes a single hit <em>not</em> random? Karlin-Altschul gives the answer.</li>
+          </ol>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 Why exact algorithms fail</h3>
+
+          <p>A naive Smith-Waterman against the entire database: $O(\text{query} \times \text{database}) \approx O(10^5 \times 10^{11}) = O(10^{16})$ operations per query. At $10^9$ ops/s this is $10^7$ seconds = ~4 months per query.</p>
+
+          <p>The observation that fixed BLAST: most database sequences are completely unrelated to your query, and we only need full-precision alignment for the small fraction that share <strong>at least a small region of strong similarity</strong>. So:</p>
+
+          <ol>
+            <li>Find short, high-scoring <strong>seeds</strong> rapidly via hashing.</li>
+            <li><strong>Extend</strong> seeds to gapless then gapped alignments only when a seed is strong enough.</li>
+            <li>Compute E-values to decide which extensions are statistically significant.</li>
+          </ol>
+
+          <p>This three-step pattern — <strong>seed → extend → score</strong> — is the BLAST pipeline.</p>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 The first miracle: heuristic search with statistical guarantees</h3>
+
+          <p>BLAST (Altschul, Gish, Miller, Myers, Lipman 1990, <em>J. Mol. Biol.</em>) was a phenomenal trick: it gave up exact optimality but recovered statistical interpretability. You don't get the optimal alignment, but you get an honest E-value: <strong>how many hits this strong would you expect by chance against a random database of this size?</strong></p>
+
+          <p>This made BLAST the most-used scientific software in history. As of 2024 the NCBI BLAST web service handles ~3M queries / day.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-19/01-blast-pipeline.svg"
+                 alt="Top-to-bottom BLAST search architecture: query sequence → word-list construction (k-mer enumeration + neighbourhood at threshold T) → database hash scan (~10^5 initial seeds) → two-hit pairing within distance A → gapless extension via X-drop → HSPs (~10^2) → gapped extension (banded Smith-Waterman) → E-value calculation → significance filter → significant hits (~10). Sidebar callout: BLAST trades exactness for tractability and recovers statistical interpretability.">
+            <figcaption>Figure 1. BLAST search architecture. Five stages cascade from the raw query through hashing-based seed detection, two-hit gating, gapless then gapped extension, and finally E-value-based significance.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 The detection-theoretic frame</h3>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — BLAST as matched-filter cascade with multiple-testing correction</span>
+            <p>BLAST is a <strong>two-stage matched filter</strong>. Stage 1 (seed phase): cheap k-mer hash table acts as a coarse matched filter on every k-mer in the database. Stage 2 (extension phase): expensive full-substitution-matrix scoring acts as the high-resolution matched filter applied only to passing seeds. The bit score $S$ is a log-likelihood ratio test statistic; the E-value is the expected number of false-positive detections at threshold $S$ under a null model (random database of size $N$). This is exactly the Neyman-Pearson detector cascade with a Bonferroni-style correction over $N$. The student who has internalised matched-filter detection from L9 can read the BLAST output by analogy.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 30 min</span>
+          Substitution Matrices and Bit Scores
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 Why protein, not nucleotide, dominates</h3>
+
+          <p>For evolutionarily distant comparisons, <strong>protein BLAST (BLASTP)</strong> dominates over nucleotide BLAST because:</p>
+          <ul>
+            <li>The genetic code is degenerate: 64 codons → 20 amino acids. Synonymous nucleotide changes (no protein change) are noise we want to discount.</li>
+            <li>Protein-level identity decays slower than nucleotide identity; you can detect homology at 25% protein identity that's invisible at the nucleotide level.</li>
+          </ul>
+
+          <p>For protein search, we need a <strong>substitution matrix</strong>: a 20×20 score for replacing residue $i$ with residue $j$.</p>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 PAM matrices</h3>
+
+          <p><strong>PAM (Point Accepted Mutation)</strong> matrices (Margaret Dayhoff, 1978) are computed from observed substitutions in closely-related proteins (~85% identity), then <strong>extrapolated</strong> by matrix exponentiation:</p>
+
+          <ul>
+            <li>PAM1: substitution probabilities expected after <strong>1% of residues have changed</strong>.</li>
+            <li>PAM250 = PAM1²⁵⁰: the model after 250% expected substitutions per residue (with multiple substitutions at the same position).</li>
+          </ul>
+
+          <p>Each matrix entry $s_{ij}$:</p>
+          <p style="text-align: center;">$s_{ij} = \log_2 \dfrac{p_{ij}}{f_i \cdot f_j}$</p>
+
+          <p>where $p_{ij}$ is observed joint frequency and $f_i, f_j$ are background residue frequencies. The score is the <strong>log-odds</strong> that residues $i$ and $j$ co-occur due to homology rather than chance.</p>
+
+          <ul>
+            <li><strong>PAM30 / PAM70</strong>: short, closely-related searches.</li>
+            <li><strong>PAM250</strong>: distantly-related comparisons (the classical default).</li>
+          </ul>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 BLOSUM matrices</h3>
+
+          <p><strong>BLOSUM (BLOcks SUbstitution Matrix)</strong> matrices (Henikoff &amp; Henikoff, 1992) are computed directly from observed substitutions in conserved blocks of distantly-related proteins (Pfam-like data):</p>
+
+          <ul>
+            <li>BLOSUM62 is the most-used substitution matrix in computational biology. Trained on protein blocks where pairwise identity is $\leq 62\%$.</li>
+            <li>Smaller BLOSUM number = more distant comparisons it was trained on.</li>
+            <li>Larger BLOSUM number = more closely-related.</li>
+          </ul>
+
+          <p>BLOSUM62 superseded PAM250 because:</p>
+          <ol>
+            <li>Direct observation, no extrapolation.</li>
+            <li>Robust for protein-search tasks at the typical homology range.</li>
+            <li>Empirically better sensitivity at distant homology levels.</li>
+          </ol>
+
+          <p>NCBI BLAST defaults to BLOSUM62.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-19/06-blosum62.svg"
+                 alt="20×20 colour-coded heat map of BLOSUM62 substitution matrix entries. Rows and columns: amino acids in standard order (A R N D C Q E G H I L K M F P S T W Y V). Positive scores rendered in green shades; zero in white; negative in red shades. Cell values shown in monospace. Side panel groups residues by chemistry (hydrophobic, polar, charged, aromatic).">
+            <figcaption>Figure 6. The BLOSUM62 substitution matrix. Diagonal (self-substitution) scores are highest; chemically-similar pairs (D↔E, K↔R) score positive; distant pairs (W↔A) score negative.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-19/07-pam-blosum.svg"
+                 alt="Horizontal axis showing percent identity of expected homologs from 100% down to 10%. Multiple horizontal bars showing applicability range of PAM30, PAM70, PAM250, BLOSUM45, BLOSUM62, BLOSUM80, BLOSUM90 along this axis. PAM30/BLOSUM90 sit at the close-homolog end; BLOSUM62 spans the moderate (default) range; PAM250/BLOSUM45 sit at the distant-homolog end.">
+            <figcaption>Figure 7. Choosing a substitution matrix. BLOSUM62 is the universal default; PAM250 the legacy classical; close homologs use higher-numbered BLOSUMs / lower-numbered PAMs.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Bit scores</h3>
+
+          <p>Aligning two sequences with BLAST produces a <strong>raw score</strong> $S$ (sum of substitution-matrix entries minus gap costs). Raw scores are matrix-dependent (a 100 with BLOSUM62 ≠ a 100 with PAM250).</p>
+
+          <p>To make scores comparable, BLAST converts to <strong>bit scores</strong>:</p>
+
+          <p style="text-align: center;">$S' = \dfrac{\lambda S - \log K}{\log 2}$</p>
+
+          <p>where $\lambda$ and $K$ are matrix-specific Karlin-Altschul parameters. Bit scores are matrix-independent and have a precise log-likelihood-ratio interpretation: a bit score of $S'$ means the alignment is $2^{S'}$ times more likely under the homology model than under random.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 1 — Substitution-Matrix Score Calculator.</strong> Pick two amino acids and a matrix; the calculator returns the score with its log-odds interpretation. Aha: substitution matrices are log-odds; positive scores mean the residue pair is observed more than chance, encoding biochemical similarity.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-19/01-substitution-score.html" loading="lazy" title="Artifact 1 — Substitution Score Calculator"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-2-5">
+          <h3>2.5 Gap penalties</h3>
+
+          <p>Beyond residue substitutions, alignments include <strong>gaps</strong> (insertions / deletions). BLAST uses an <strong>affine gap penalty</strong>:</p>
+
+          <p style="text-align: center;">$\text{gap penalty} = -G_o - (n - 1) \cdot G_e$</p>
+
+          <p>where $G_o$ is gap-open penalty, $G_e$ is gap-extend, $n$ is gap length. Affine penalties are biologically realistic — opening a gap is hard, extending an existing one is easier.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 40 min</span>
+          The Seed-and-Extend Heuristic
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 Word lists and neighbourhoods</h3>
+
+          <p>The query is decomposed into all overlapping <strong>k-mers</strong> (BLASTP default $k = 3$; BLASTN default $k = 11$). For each k-mer in the query, BLAST computes its <strong>neighbourhood</strong>: all k-mers in the alphabet whose substitution-matrix score with the query k-mer exceeds a threshold $T$.</p>
+
+          <p>For BLASTP $k = 3$:</p>
+          <ul>
+            <li>Total possible 3-mers: $20^3 = 8{,}000$.</li>
+            <li>For a typical query 3-mer, its neighbourhood at $T = 11$ contains ~50 3-mers.</li>
+            <li>Total neighbourhood size for a 300-residue query: $\sim 50 \times 300 \approx 15{,}000$ 3-mers.</li>
+          </ul>
+
+          <p>The database is hashed by 3-mer, so a 3-mer lookup is $O(1)$.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 2 — Seed Neighbourhood Explorer.</strong> Pick a 3-mer and slide the threshold T; the explorer enumerates all neighbouring 3-mers with score ≥ T. Aha: T is a sensitivity-speed knob — lower T → broader seeds → more extensions → higher recall but slower.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-19/02-seed-neighbourhood.html" loading="lazy" title="Artifact 2 — Seed Neighbourhood Explorer"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 The two-hit method</h3>
+
+          <p>Earlier BLAST versions extended every seed match. In BLAST 2.0 (Altschul et al. 1997) this was tightened: an extension is triggered only when <strong>two non-overlapping seed hits occur within distance $A$</strong> on the same database sequence (the "two-hit method"). This dramatically reduces extension cost while preserving sensitivity for true homologs (which typically have multiple close seeds).</p>
+
+          <p>Default $A = 40$ for BLASTP.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-19/08-two-hit.svg"
+                 alt="Database sequence drawn as a horizontal track with several seed hits at residues 100, 145, 200, and 350. Pair A-B (distance 45) satisfies the spacing constraint A ≤ 40 and triggers extension. Hit C alone (no nearby neighbour within 40) does not trigger extension. Pair B-C also satisfies and triggers. Annotation: the two-hit constraint cuts extension cost ~10× while preserving sensitivity for true homologs (which have multiple close seeds).">
+            <figcaption>Figure 8. The two-hit method. Extension fires only when two seeds occur within $A = 40$ residues; isolated hits are filtered out cheaply.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Ungapped extension</h3>
+
+          <p>Each two-hit-paired seed is extended in both directions without allowing gaps. The extension stops when the running score drops by more than $X$ from its current maximum (an <strong>X-drop algorithm</strong>). This produces a <strong>High-scoring Segment Pair (HSP)</strong> — a maximal ungapped local alignment.</p>
+
+          <p>The X-drop heuristic is essentially the matched-filter analog of "if the running cross-correlation has dropped this far below peak, we've left the peak; stop".</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-19/09-x-drop.svg"
+                 alt="Three score trajectories during ungapped extension. X-axis: residue position relative to seed. Y-axis: cumulative score. Trajectory 1 (true homology): score climbs steadily, reaches 90 at the right boundary; X-drop never triggered. Trajectory 2 (mid-strength): score climbs to 60, drifts; X-drop triggers at score drop of X = 22 from peak; extension stops. Trajectory 3 (noise): score wobbles around 30; X-drop triggers immediately.">
+            <figcaption>Figure 9. The X-drop extension. Stop when the running score drops $X$ below its current max — the matched-filter analog of leaving the peak region.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 4 — X-Drop Extension Simulator.</strong> Simulate ungapped extension on a synthetic subject sequence with embedded homology. Slide X to see how it controls the sensitivity-specificity trade-off. Aha: too small X cuts true HSPs short; too large extends into noise.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-19/04-xdrop-extension.html" loading="lazy" title="Artifact 4 — X-Drop Extension"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Gapped extension</h3>
+
+          <p>HSPs that pass an HSP-score threshold are then <strong>gap-extended</strong> — Smith-Waterman is run, restricted to a band around the HSP. The result is the final gapped alignment.</p>
+
+          <p>In modern BLAST (post-2.0), gapped extension is performed on only the strongest HSP per query-database-sequence pair (the "best HSP" model).</p>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 The composition-based score adjustment</h3>
+
+          <p><strong>Composition-based statistics</strong> (Schäffer et al. 2001) adjust scores when the database sequence has unusual amino-acid composition (e.g., signal peptides rich in hydrophobic residues, low-complexity regions). Without adjustment, low-complexity regions produce huge numbers of spurious high-scoring matches. With adjustment, the bit-score is corrected for the local background frequency.</p>
+
+          <p>This is on by default in modern BLAST.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-19/02-seed-extend.svg"
+                 alt="Three-panel walkthrough of the seed-extend-score sequence. Panel 1: query peptide MKVLWAGCERFPN with one 3-mer KVL highlighted; database scan finds match at position 47 of subject AGCKVLWAQ. Panel 2: neighbourhood of KVL — three matrix-equivalent 3-mers (KVI, RVL, KVM) also match in subject; visual neighbourhood radius shown as a circle in scoring space. Panel 3: ungapped extension from the seed in both directions; running score curve; X-drop stop boundaries; final HSP boxed.">
+            <figcaption>Figure 2. Seed-extend-score worked example. The query 3-mer KVL hits subject position 47; matrix-neighbours KVI, RVL, KVM also match; ungapped extension produces a final HSP bounded by X-drop.</figcaption>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 40 min</span>
+          Karlin-Altschul Statistics and E-values
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 The null model</h3>
+
+          <p>What's the distribution of bit scores you'd see from a <strong>random</strong> query against a random database? If the answer were Gaussian, we'd be in trouble: the tail of a Gaussian decays slowly. Karlin and Altschul (1990, 1991) proved a beautiful result: <strong>bit scores from optimal local alignments follow an extreme-value (Gumbel) distribution.</strong></p>
+
+          <p>For a query of length $m$ against a database of length $n$, the expected number of HSPs with bit score $\geq S'$ is approximately:</p>
+
+          <p style="text-align: center;">$E = K \cdot m \cdot n \cdot e^{-\lambda S}$</p>
+
+          <p>where $\lambda$ and $K$ are matrix-and-gap-specific constants (precomputed and tabulated in BLAST).</p>
+
+          <p>In bit-score form (since $S' = (\lambda S - \log K) / \log 2$), this simplifies to:</p>
+
+          <p style="text-align: center;">$E = m \cdot n \cdot 2^{-S'}$</p>
+
+          <p>Beautiful. The expected-by-chance number of hits at bit score $S'$ falls <strong>exponentially</strong> in $S'$.</p>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 Bit-score interpretation</h3>
+
+          <p>The exponential form gives bit scores their name and intuition:</p>
+
+          <ul>
+            <li>A bit score of 30 in a database of size $n = 10^9$ and query length $m = 100$ gives $E = 10^{11} \cdot 2^{-30} \approx 100$. Not significant.</li>
+            <li>A bit score of 50 gives $E = 10^{11} \cdot 2^{-50} \approx 10^{-4}$. Strongly significant.</li>
+            <li>Each extra bit halves the expected by-chance count.</li>
+          </ul>
+
+          <p>The classic significance thresholds:</p>
+          <ul>
+            <li>$E < 10^{-3}$: probably significant.</li>
+            <li>$E < 10^{-10}$: almost certainly significant.</li>
+            <li>$E < 10^{-50}$: bullet-proof homology.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-19/03-evalue-curve.svg"
+                 alt="Two-panel figure. Panel 1: Gumbel (extreme-value) distribution of random-database bit scores with quantile thresholds marked at S' = 30, 50, 100; annotation that the tail decays as exp(−λS). Panel 2: log-y plot of E-value vs bit score for three database sizes (10⁶, 10⁹, 10¹²); horizontal reference lines at E = 1, 0.001, 10⁻¹⁰, 10⁻⁵⁰; canonical thresholds annotated.">
+            <figcaption>Figure 3. Karlin-Altschul: bit score → E-value. The Gumbel tail decays exponentially in $S'$; doubling the database size doubles the E-value at any fixed bit score.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 3 — E-value Calculator.</strong> Slide bit score, query length, and database size; the calculator returns E and P, plus a verdict (significant / borderline / not significant). Aha: E-value scales linearly in database × query, exponentially in bit score.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-19/03-evalue-calculator.html" loading="lazy" title="Artifact 3 — E-value Calculator"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 P-values vs E-values</h3>
+
+          <p>The relationship: $P = 1 - e^{-E}$. For small $E$ (the regime that matters), $P \approx E$. BLAST reports E-values because they're more interpretable when $E > 1$ — saying "this alignment is expected to occur 5 times by chance" is clearer than "P = 0.99326".</p>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Database-size effects</h3>
+
+          <p>E-values <strong>scale linearly with database size</strong> (the $m \cdot n$ term). Doubling the database doubles the E-value at any given bit score.</p>
+
+          <p>Practical implications:</p>
+          <ul>
+            <li>Searching the same query against NR (small) vs UniRef90 (medium) vs full UniProt (large) gives <strong>different E-values for the same alignment</strong>.</li>
+            <li>The bit score is the same; only its statistical interpretation changes.</li>
+            <li>"BLAST against a small database first, then re-test" is a common workflow trick: get the alignment from a small DB, but interpret it against a more complete DB if it survives.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-19/10-database-scaling.svg"
+                 alt="Line plot showing E-value at fixed bit score (S' = 50) as database size grows from 10⁶ to 10¹² residues. The E-value increases linearly in n. Visual examples marked with vertical lines: SwissProt (~2×10⁸ residues), UniRef90 (~10¹¹), nr (~10¹¹), full UniProt (~10¹²). Annotation: doubling the database doubles the E-value at any fixed bit score.">
+            <figcaption>Figure 10. E-value scaling with database size. Same bit score, different statistical interpretation depending on which database you searched.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 The BLAST output format</h3>
+
+          <p>A typical BLAST hit reports:</p>
+
+          <pre><code>&gt; tr|A0A024R7T9|A0A024R7T9_HUMAN  Some Protein
+Length=247
+Score = 187 bits (475),  Expect = 4e-49, Method: Composition-based stats.
+Identities = 95/120 (79%),  Positives = 102/120 (85%),  Gaps = 0/120 (0%)</code></pre>
+
+          <ul>
+            <li><strong>Score (in bits)</strong>: the bit score of the alignment.</li>
+            <li><strong>Expect</strong>: the E-value.</li>
+            <li><strong>Identities</strong>: the count and percentage of exact matches in the alignment.</li>
+            <li><strong>Positives</strong>: the count and percentage of positions where the substitution-matrix score is positive (e.g., D ↔ E counts as positive even though they're not identical).</li>
+            <li><strong>Method: Composition-based stats</strong>: the score-adjustment scheme used.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-19/12-blast-output.svg"
+                 alt="A typical BLAST output snippet with each line annotated. Score = 187 bits (475) — bit score (matrix-independent) and raw score (matrix-dependent) labelled. Expect = 4e-49 — E-value labelled. Method: Composition-based stats — local-composition correction labelled. Identities = 95/120 — exact-match count and proportion. Positives = 102/120 — positive-substitution count. Query / Sbjct alignment region with offset labels. Side panel listing what to ignore (low-Identities high-bit hits in low-complexity regions).">
+            <figcaption>Figure 12. Anatomy of a BLAST hit. Each numeric field has a precise interpretation; learning to read them is half the skill.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-6">
+          <h3>4.6 The composition correction in detail</h3>
+
+          <p>Without composition correction, a query that's compositionally biased (e.g., glycine-rich) gets inflated bit scores against any glycine-rich database hit, regardless of whether they're truly homologous. The correction reweights the substitution matrix on a per-alignment basis to account for local residue frequencies. It's a clean Bayesian-prior adjustment in disguise.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — E-values as Poisson statistics on a random hit process</span>
+            <p>Under the random-database null model, HSPs above threshold $S'$ form a <strong>Poisson process</strong> with rate $K \cdot m \cdot n \cdot e^{-\lambda S}$. This is a direct consequence of the extreme-value-distribution result combined with the independence of distant database positions. The E-value is the <strong>mean of this Poisson</strong>, not a probability — which is why $E$ can exceed 1 (you can have 5 expected by-chance hits) but $P$ cannot. The connection to detection theory: setting an E-value threshold $E_{\text{thresh}}$ is equivalent to specifying a per-search false-positive rate; it's the analog of the "missed detection" rate in Neyman-Pearson framing. The BLAST community settled on $E < 10^{-3}$ as a default because at typical query and DB sizes that gives roughly one false hit per typical search.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 25 min</span>
+          PSI-BLAST and Profile-Based Search
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 Why iterate</h3>
+
+          <p>Standard BLASTP detects homologs at ~25% identity. Below that, sensitivity drops. <strong>Many real homologs share less than 25% identity</strong> (e.g., distantly related kinases, transcription factor families). Single-pass BLAST misses them.</p>
+
+          <p>The trick: run BLAST iteratively, each iteration feeding the alignment of detected hits back as a <strong>profile</strong> that becomes the new query.</p>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 The PSI-BLAST algorithm</h3>
+
+          <p><strong>PSI-BLAST (Position-Specific Iterated BLAST)</strong>, Altschul et al. 1997:</p>
+
+          <ol>
+            <li><strong>Iteration 0</strong>: standard BLASTP with the query.</li>
+            <li><strong>Construct profile</strong>: from all hits with $E < E_{\text{include}}$ (default 0.005), build a multiple alignment, then a <strong>Position-Specific Scoring Matrix (PSSM)</strong> — a $20 \times L$ matrix giving substitution scores per query position.</li>
+            <li><strong>Iteration $\geq 1$</strong>: run BLAST again, but use the PSSM instead of BLOSUM62 for scoring.</li>
+            <li>Repeat until convergence (no new hits) or maximum iterations (default 5).</li>
+          </ol>
+
+          <p>Each iteration the PSSM gets better; the search becomes more sensitive at distant homology levels.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-19/04-psi-blast.svg"
+                 alt="Circular iteration diagram for PSI-BLAST. Iteration 0: query → BLAST → initial hits. Iteration 1: hits → MSA → PSSM → BLAST. Iterations 2-5: more hits → updated PSSM → more hits. Convergence label visible. Side panel shows PSSM heat map (20 amino acids × 100 positions) with conserved positions standing out as bright stripes. Bottom annotation: EM-flavoured profile refinement; cap at 3 iterations to limit drift.">
+            <figcaption>Figure 4. PSI-BLAST iteration as EM. Each round refines the PSSM from the latest hit set; convergence delivers a sensitive profile-based search at the cost of drift risk.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 PSSM construction</h3>
+
+          <p>For each column $i$ of the alignment, compute the observed frequency $q_{i,a}$ of amino acid $a$. The PSSM entry is:</p>
+
+          <p style="text-align: center;">$M_{i,a} = \log \dfrac{q_{i,a}}{f_a}$</p>
+
+          <p>where $f_a$ is the background frequency. With pseudocounts (Dirichlet priors) to avoid zero-frequency artefacts.</p>
+
+          <p>Conserved positions (always D in the alignment) get high scores for D, very low for everything else. Variable positions (any amino acid) give near-zero scores.</p>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Why PSI-BLAST works — and where it fails</h3>
+
+          <p>PSI-BLAST is essentially a generalised EM-style iteration: alternate between "what's in my homology set" (E-step: BLAST) and "what's the best profile" (M-step: PSSM construction). It increases sensitivity but introduces <strong>drift risk</strong> — if a non-homologous hit slips into the profile early, it pulls the PSSM off-target and subsequent iterations cascade the error.</p>
+
+          <p>Practical tips:</p>
+          <ul>
+            <li>Set $E_{\text{include}}$ tighter than default (e.g., $10^{-4}$) for distantly-related searches.</li>
+            <li>Manually inspect the alignment between iterations; remove obvious non-homologs.</li>
+            <li>Cap at 3 iterations for safety.</li>
+          </ul>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 5 — PSI-BLAST Iteration Explorer.</strong> Step through 5 iterations of PSI-BLAST on a small toy database; watch the PSSM and hit list evolve, and see drift detection light up when a non-homolog slips in. Aha: PSI-BLAST is iterative profile refinement; sensitivity improves at the cost of drift risk; cap at 3 iterations.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-19/05-psi-blast.html" loading="lazy" title="Artifact 5 — PSI-BLAST"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-5-5">
+          <h3>5.5 Connection to HMMER</h3>
+
+          <p><strong>HMMER</strong> (next lecture, L7-new) generalises this idea: instead of a position-specific scoring matrix, build a <strong>profile HMM</strong> with explicit insertion / deletion states. PSI-BLAST is to HMMER what k-means is to Gaussian mixture models — same family, more limited noise model.</p>
+
+          <p>The two are complementary in practice: PSI-BLAST is fast and easy; HMMER is more sensitive at the deep-homology end (~10–20% identity).</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 25 min</span>
+          Modern Fast Alternatives
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 Why classical BLAST is slow</h3>
+
+          <p>The classical BLAST design from 1997 was tuned for hardware of the era (~MHz CPUs, MBs of RAM, GBs of disk). Modern bioinformatics has:</p>
+
+          <ul>
+            <li>~$10^9$ protein sequences in databases.</li>
+            <li>TB-scale RAM available.</li>
+            <li>Multi-core CPUs.</li>
+            <li>GPU accelerators.</li>
+          </ul>
+
+          <p>Modern alternatives exploit these to deliver <strong>100–1000× speedup</strong> while preserving most of BLAST's sensitivity.</p>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 USEARCH and UCLUST</h3>
+
+          <p><strong>USEARCH</strong> (Edgar 2010): orders database by length and uses precomputed k-mer profiles per database sequence. Massive speedup for <strong>clustering</strong> and <strong>search at high identity</strong> ($\geq 70\%$). The free version (UCLUST) is widely used in microbiome 16S workflows.</p>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 DIAMOND</h3>
+
+          <p><strong>DIAMOND</strong> (Buchfink, Xie, Huson 2015) is the de facto BLASTP replacement at scale:</p>
+
+          <ul>
+            <li><strong>Double-indexed seeds</strong>: indexes both query and database, then matches index entries.</li>
+            <li><strong>Spaced seeds</strong>: instead of contiguous k-mer matches, allows certain "wildcard" positions in the seed pattern (e.g., XX-XXX where – is any).</li>
+            <li><strong>Block-based caching</strong>: streams database blocks through cache-friendly batch processing.</li>
+          </ul>
+
+          <p>Achieves ~100–1000× speedup over BLASTP at ~95% sensitivity. The default for metagenomic searches against Pfam / UniRef90.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 7 — DIAMOND vs BLASTP Runtime Racer.</strong> Pick query length and database size; the racer simulates runtime + sensitivity for BLASTP, DIAMOND --sensitive, DIAMOND --fast, MMseqs2, USEARCH. Aha: choice depends on the workload; modern tools cover most of the speedup gap to BLAST while preserving sensitivity at workable identity levels.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-19/07-diamond-blast-race.html" loading="lazy" title="Artifact 7 — DIAMOND vs BLASTP Race"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 MMseqs2</h3>
+
+          <p><strong>MMseqs2</strong> (Steinegger &amp; Söding 2017): targets the deepest homology (~10% identity), at speeds competitive with DIAMOND.</p>
+
+          <ul>
+            <li>Uses a <strong>k-mer prefilter</strong> (similar to BLAST's seed step) but with much larger k-mer tables.</li>
+            <li>Vectorised SIMD-accelerated extension.</li>
+            <li>Scales gracefully to billion-sequence databases.</li>
+          </ul>
+
+          <p>MMseqs2 cluster mode handles UniRef-scale clustering in hours where pre-MMseqs tools took weeks.</p>
+        </section>
+
+        <section id="sec-6-5">
+          <h3>6.5 The speed-sensitivity Pareto</h3>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-19/05-pareto.svg"
+                 alt="2D scatter plot. Y-axis: sensitivity (recall at 25% identity), 0 to 1. X-axis: queries-per-second on a typical CPU, log scale 10⁰ to 10⁴. Points labelled: classical BLASTP (low speed, high sensitivity), DIAMOND --sensitive (moderate speed, high sensitivity), DIAMOND --fast (high speed, moderate sensitivity), MMseqs2 (high speed, very high sensitivity), USEARCH (very high speed, low sensitivity at distant homology). Dashed line indicating the empirical Pareto frontier.">
+            <figcaption>Figure 5. Search-speed-vs-sensitivity Pareto. MMseqs2 sits on the Pareto frontier across most query types; pick by what you can tolerate to lose.</figcaption>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 20 min</span>
+          Application Patterns
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 Genome annotation</h3>
+
+          <p>When a new genome is assembled, <strong>first-pass annotation</strong> uses BLAST: search the predicted protein-coding genes against UniProt. Each hit annotates a gene with its closest UniProt match's name, function, and Pfam domain assignments.</p>
+
+          <p>This is the workhorse of every assembly pipeline: NCBI's PGAP, Ensembl, MAKER, BRAKER all use BLAST/DIAMOND under the hood.</p>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Reciprocal best hits</h3>
+
+          <p>To identify <strong>orthologs</strong> (genes from different species sharing common ancestry without duplication), the simplest method is <strong>Reciprocal Best Hits (RBH)</strong>:</p>
+
+          <ol>
+            <li>BLAST gene A from species 1 against species 2; best hit is gene B.</li>
+            <li>BLAST gene B from species 2 against species 1; if best hit is gene A → A and B are reciprocal best hits.</li>
+            <li>RBH pairs are predicted orthologs (with caveats around recent duplications).</li>
+          </ol>
+
+          <p><strong>OrthoMCL</strong> and <strong>OrthoFinder</strong> are modern extensions of RBH using clustering.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-19/11-rbh.svg"
+                 alt="Two species' protein sets shown as columns of nodes. Forward search: gene A in species 1 BLASTs against species 2 with best hit gene B. Reverse search: gene B in species 2 BLASTs against species 1 with best hit gene A. So A and B are reciprocal best hits = orthologs. Counter-example: gene A best hit X in species 2; X's best hit C (not A) in species 1, so not RBH. Annotation: RBH catches ~80% of orthologs; falls down on recent paralogs (use OrthoFinder).">
+            <figcaption>Figure 11. Reciprocal best hits for ortholog identification. Pairwise BLAST in both directions; a pair are orthologs only if each is the other's best hit.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 Protein function transfer</h3>
+
+          <p>The <strong>transitive function-transfer</strong> workflow:</p>
+
+          <ol>
+            <li>Query protein X against UniProt.</li>
+            <li>Top hit is Y, with E-value $10^{-50}$.</li>
+            <li>Y has a curated GO term annotation (from L6).</li>
+            <li>Transfer Y's annotation to X (with appropriate caveats about confidence).</li>
+          </ol>
+
+          <p>This is how every newly-sequenced microbe gets functional annotations within hours of assembly. Caveat: function transfer only works above ~50% identity; below that, the protein may share fold without sharing function.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 6 — BLAST-Based Function Transfer.</strong> Pick a query protein; the artifact shows simulated BLAST hits and offers function annotations transferred from the top hits, colour-coded by confidence. Aha: function transfer is a chain of inferred-from-inferred-from; each step contributes uncertainty.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-19/06-function-transfer.html" loading="lazy" title="Artifact 6 — Function Transfer"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-7-4">
+          <h3>7.4 Detecting horizontal gene transfer</h3>
+
+          <p>Genes acquired by <strong>horizontal transfer</strong> (HGT) — transferred between species rather than vertically inherited — show <strong>anomalous BLAST profiles</strong>: a microbial gene's best hit is in a distant phylum rather than a sibling species. Detecting HGT events relies on this anomaly. Used for tracking antibiotic-resistance gene spread, bacterial-eukaryote transfer, and phage-host integration.</p>
+        </section>
+
+        <section id="sec-7-5">
+          <h3>7.5 Drug target / off-target prediction</h3>
+
+          <p>If a drug binds protein A, a <strong>BLAST search</strong> of A against the proteome reveals other proteins with similar sequences — likely off-target candidates. Used in <strong>selectivity profiling</strong>: kinases share structural fold and 30-50% identity in their kinase domains, so even highly-specific drugs hit ~5-10 off-target kinases. BLAST-derived off-target lists are the standard first-pass for safety profiling.</p>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup">
+        <h2>Wrap-up</h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>BLAST is heuristic search with statistical guarantees</strong>: seed-and-extend gives up exactness but recovers an honest E-value.</li>
+          <li><strong>Bit scores are log-odds</strong>: matrix-independent, additively interpretable, scaling exponentially in significance.</li>
+          <li><strong>Karlin-Altschul gives E-values</strong>: extreme-value distribution → Poisson hit-process under random null. The E-value scales linearly with database size and exponentially with bit score.</li>
+          <li><strong>PSI-BLAST iterates from query to PSSM</strong>: EM-flavoured profile refinement; sensitive to drift; capped at ~3 iterations in practice.</li>
+          <li><strong>Modern alternatives (DIAMOND, MMseqs2)</strong> trade modest sensitivity for 100–1000× speedup. They've replaced classical BLAST for any serious large-scale workflow.</li>
+          <li><strong>Application patterns are predictable</strong>: genome annotation (UniProt search), ortholog identification (RBH), function transfer, HGT detection, off-target prediction. BLAST is in every genomics pipeline somewhere.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Multiple sequence alignment (MSA) — generalising pairwise to families. Phylogenetics: building evolutionary trees. Comparative genomics: synteny, orthologs, paralogs. Lecture 20 / new L4 in the proposed reorder.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Run BLASTP via NCBI's web interface with a query of your choice (any UniProt protein) against the SwissProt subset. Note bit scores, E-values, and identity percentages of the top 10 hits. Repeat against UniRef90; compare E-values for identical alignments.</li>
+          <li>Pick a kinase domain (~250 aa) from PDB. Run PSI-BLAST for 3 iterations. Track how the hit list grows; note any clear drift cases (kinase → non-kinase domains).</li>
+          <li>Compute by hand: a query of length 100 against a database of length $10^9$ produces an HSP with bit score 45. Compute E. Compute the bit score that would yield $E = 10^{-3}$.</li>
+          <li>Use DIAMOND --sensitive on a metagenomic translated read set against UniRef90. Compare runtime and result count to BLASTP. What proportion of significant hits agree between the two tools?</li>
+          <li>From a Pfam domain of your choice, construct a manual PSSM by aligning 5 representative sequences. Use it to score a held-out query; compute the bit-score-to-E-value conversion for a hypothetical search.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Altschul, S. F., Gish, W., Miller, W., Myers, E. W., &amp; Lipman, D. J. (1990). Basic local alignment search tool. <em>Journal of Molecular Biology</em> 215, 403–410.</li>
+          <li>Altschul, S. F., Madden, T. L., Schäffer, A. A., et al. (1997). Gapped BLAST and PSI-BLAST: a new generation of protein database search programs. <em>Nucleic Acids Research</em> 25, 3389–3402.</li>
+          <li>Karlin, S., &amp; Altschul, S. F. (1990). Methods for assessing the statistical significance of molecular sequence features by using general scoring schemes. <em>PNAS</em> 87, 2264–2268.</li>
+          <li>Henikoff, S., &amp; Henikoff, J. G. (1992). Amino acid substitution matrices from protein blocks. <em>PNAS</em> 89, 10915–10919.</li>
+          <li>Buchfink, B., Xie, C., &amp; Huson, D. H. (2015). Fast and sensitive protein alignment using DIAMOND. <em>Nature Methods</em> 12, 59–60.</li>
+          <li>Steinegger, M., &amp; Söding, J. (2017). MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. <em>Nature Biotechnology</em> 35, 1026–1028.</li>
+          <li>Edgar, R. C. (2010). Search and clustering orders of magnitude faster than BLAST. <em>Bioinformatics</em> 26, 2460–2461.</li>
+          <li>NCBI BLAST: <a href="https://blast.ncbi.nlm.nih.gov/" target="_blank" rel="noopener">blast.ncbi.nlm.nih.gov</a></li>
+          <li>DIAMOND: <a href="https://github.com/bbuchfink/diamond" target="_blank" rel="noopener">github.com/bbuchfink/diamond</a></li>
+          <li>MMseqs2: <a href="https://github.com/soedinglab/MMseqs2" target="_blank" rel="noopener">github.com/soedinglab/MMseqs2</a></li>
+          <li>UniProt: <a href="https://www.uniprot.org/" target="_blank" rel="noopener">uniprot.org</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — From Read Mapping to Database Search</td>    <td>20&nbsp;min</td><td>0:20</td></tr>
+            <tr><td>Part 2 — Substitution Matrices and Bit Scores</td>     <td>30&nbsp;min</td><td>0:50</td></tr>
+            <tr><td>Part 3 — The Seed-and-Extend Heuristic</td>            <td>40&nbsp;min</td><td>1:30</td></tr>
+            <tr><td>Part 4 — Karlin-Altschul Statistics and E-values</td>  <td>40&nbsp;min</td><td>2:10</td></tr>
+            <tr><td>Part 5 — PSI-BLAST and Profile-Based Search</td>       <td>25&nbsp;min</td><td>2:35</td></tr>
+            <tr><td>Part 6 — Modern Fast Alternatives</td>                  <td>25&nbsp;min</td><td>3:00</td></tr>
+            <tr><td>Part 7 — Application Patterns</td>                       <td>20&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                              <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) f.style.height = d.height + 'px';
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

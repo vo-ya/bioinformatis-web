@@ -12,7 +12,7 @@
 - Quantification colours: LFQ grey, SILAC cobalt+amber pair, TMT/iTRAQ multi-colour spectrum.
 - Typography: Inter for chrome; JetBrains Mono for peptide sequences, m/z values, protein IDs.
 
-## Figure budget — 12 figures
+## Figure budget — 13 figures
 
 | # | Title | Part |
 |---|---|---|
@@ -28,6 +28,7 @@
 | 10 | PTM peptide mass shifts | Part 3 |
 | 11 | Missing-value patterns in proteomics | Part 5 |
 | 12 | Phosphoproteomics enrichment workflow | Part 3 |
+| 13 | Metabolomics LC-MS workflow | Part 6.5 |
 
 ---
 
@@ -253,3 +254,30 @@ Top-to-bottom:
 6. Output: phosphosite × sample abundance matrix.
 
 Side panel: typical scale (~20,000 phosphosites identified per experiment).
+
+---
+
+## Figure 13 — Metabolomics LC-MS workflow
+
+**File**: `diagrams/lecture-27/13-metabolomics.svg`
+**ViewBox**: `0 0 1200 720`
+
+Top-to-bottom flow:
+
+1. Sample (plasma / tissue / cell extract).
+2. Extraction (polar / non-polar / lipid fractions).
+3. LC separation — two columns side-by-side: reverse-phase (lipophilic) vs HILIC (polar).
+4. Ionisation (positive ESI for amines, negative ESI for organic acids).
+5. MS1 scan (accurate mass, ppm-level resolution).
+6. MS2 fragmentation per peak.
+7. Identification cascade:
+   - Accurate mass match (HMDB / METLIN).
+   - MS/MS fragmentation match.
+   - Retention-time match against standards (Level 1 confidence).
+   - Without standards: Levels 2-4.
+
+Annotation: "~30-50% of detected peaks remain unidentified — the identification gap. Modern tools (SIRIUS, CSI:FingerID) use deep learning on fragmentation."
+
+Side panel: plasma metabolome abundance range (10⁻¹³ to 10⁻³ M); typical LC-MS untargeted experiment detects ~5,000-10,000 peaks; ~50-200 metabolites in targeted clinical panels (Biocrates, Metabolon).
+
+Bottom annotation: "metabolomics is the post-translational readout — closer to phenotype than transcriptomics or proteomics, but identification is harder than peptide ID."

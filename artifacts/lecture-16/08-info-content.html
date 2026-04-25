@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sequence Information Content + Mutual Information</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  textarea { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; min-width: 380px; min-height: 120px; resize: vertical; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; background: #fff; min-width: 220px; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 0.75rem; }
+  .stat { background: #fafaf9; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .label { font-size: 0.7rem; letter-spacing: 0.1em; color: var(--fg-subtle); text-transform: uppercase; font-weight: 600; }
+  .stat .val { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Sequence Information Content + Mutual Information</h1>
+    <p>Paste an MSA (or pick a preset). The artifact computes per-column information content (sequence-logo style) and pairwise mutual information across columns. Aha: conserved columns have high IC; coevolving column-pairs have high MI — the same signal AlphaFold consumes from MSAs.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="preset">Preset alignment</label>
+      <select id="preset">
+        <option value="kinase-active">Kinase active site (conserved DFG, HRD)</option>
+        <option value="zincfinger">Zinc finger (CxxC...HxxH)</option>
+        <option value="coevolving">Coevolving pair (toy)</option>
+        <option value="random">Random (background)</option>
+        <option value="custom">Custom (paste your own)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="msa">MSA (one sequence per line, equal length)</label>
+      <textarea id="msa" spellcheck="false"></textarea>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Per-column information content</h3>
+    <svg id="logo" viewBox="0 0 1080 200" width="100%" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="stats">
+      <div class="stat"><div class="label">Total IC (bits)</div><div class="val" id="sTotalIC">—</div></div>
+      <div class="stat"><div class="label">Mean IC / col</div><div class="val" id="sMeanIC">—</div></div>
+      <div class="stat"><div class="label">Sequences × cols</div><div class="val" id="sShape">—</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Mutual information (column-pair)</h3>
+    <svg id="mi" viewBox="0 0 720 720" width="60%" preserveAspectRatio="xMidYMid meet" style="display: block; margin: 0 auto;"></svg>
+    <p style="margin-top: 0.5rem; font-size: var(--text-sm); color: var(--fg-muted); text-align: center;">Heat map of MI(i, j); high MI off-diagonal = potentially-coevolving / 3D-contact pairs.</p>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. Real MSA analysis (e.g., DCA / GREMLIN / EVcouplings for AlphaFold-quality coevolution) uses larger alignments (~10³ sequences) + statistical-physics models that go beyond raw MI. Pseudocount and finite-sample bias corrections matter at the values shown. Not for production use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const PRESETS = {
+    'kinase-active': [
+      'GHIVKLEKDFGAAY',
+      'GHIVKLERDFGAVY',
+      'GHIVKVEKDFGAVY',
+      'GHIVKLEKDFGAGY',
+      'GHIVRLERDFGAVY',
+      'GHIIKLEKDFGAVF',
+      'GHILKLEKDFGAVY',
+      'GHIVKLEKDFGSVY'
+    ],
+    'zincfinger': [
+      'PYKCEYCGRSFSQSGNLKVHQRTH',
+      'PYKCDYCGRGFSDSSALKAHRRTH',
+      'PYKCNYCGRSFSRSSALKVHQRTH',
+      'PYKCEYCERSFSDSGNLKAHHRTH',
+      'PYKCRYCGRSFSQSSNLKEHHRSH',
+      'PYKCEYCGRGFSQSGNLKQHHRTH',
+      'PYKCDYCGRSFSDSGTLKAHHRTH',
+      'PYKCEYCERSFSESGNLKVHHRSH'
+    ],
+    'coevolving': [
+      'AAACAA',
+      'AAGCAA',
+      'AAACTA',
+      'AATCAA',
+      'AAGCAT',
+      'AAACAA',
+      'AATCTA',
+      'AAGCTA'
+    ],
+    'random': [
+      'KQRELYTSNDFM',
+      'WVHGAINPDQEL',
+      'CSVRKTGHAFDM',
+      'PETDQNAYVKLR',
+      'GMHLEFRSCANP',
+      'TRVQGYIESDLP',
+      'NCAFDIYRPHKM',
+      'DKLTAEVNGYHQ'
+    ]
+  };
+
+  const AMINO_AA = 'ACDEFGHIKLMNPQRSTVWY';
+  const AMINO_NT = 'ACGT';
+  const COLOR = {
+    A: '#059669', C: '#1e40af', G: '#c4342c', T: '#b45309', U: '#b45309',
+    // amino acids: chemistry coloring
+    R: '#1e40af', K: '#1e40af', H: '#1e40af',
+    D: '#c4342c', E: '#c4342c',
+    S: '#059669', Th: '#059669', N: '#059669', Q: '#059669', Y: '#059669',
+    F: '#7c3aed', W: '#7c3aed',
+    L: '#525252', I: '#525252', V: '#525252', M: '#525252',
+    P: '#b45309'
+  };
+  function colorOf(c) { return COLOR[c] || '#525252'; }
+
+  function isProtein(seqs) {
+    const charset = new Set();
+    seqs.forEach(s => { for (const c of s) charset.add(c); });
+    return charset.size > 6;
+  }
+
+  function shannonEntropy(counts, total) {
+    let H = 0;
+    counts.forEach(c => {
+      if (c > 0) {
+        const p = c / total;
+        H -= p * Math.log2(p);
+      }
+    });
+    return H;
+  }
+
+  function computeIC(seqs) {
+    if (!seqs.length) return [];
+    const L = seqs[0].length;
+    const N = seqs.length;
+    const isProt = isProtein(seqs);
+    const alphabet = isProt ? AMINO_AA : AMINO_NT;
+    const Hmax = Math.log2(alphabet.length);
+    const result = [];
+    for (let col = 0; col < L; col++) {
+      const counts = {};
+      seqs.forEach(s => {
+        const c = s[col] || 'X';
+        if (alphabet.includes(c)) counts[c] = (counts[c] || 0) + 1;
+      });
+      const total = Object.values(counts).reduce((a, b) => a + b, 0);
+      const H = shannonEntropy(Object.values(counts), total);
+      const IC = Hmax - H;
+      // Sort residues by frequency
+      const stack = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([r, c]) => ({ r, p: c / total, height: (c / total) * IC }));
+      result.push({ IC, H, stack });
+    }
+    return result;
+  }
+
+  function computeMI(seqs) {
+    if (!seqs.length) return [];
+    const L = seqs[0].length;
+    const N = seqs.length;
+    const matrix = Array.from({ length: L }, () => new Array(L).fill(0));
+    for (let i = 0; i < L; i++) {
+      // Marginal P(X_i)
+      const px = {};
+      seqs.forEach(s => { px[s[i]] = (px[s[i]] || 0) + 1; });
+      Object.keys(px).forEach(k => px[k] /= N);
+      for (let j = i + 1; j < L; j++) {
+        const py = {};
+        const pxy = {};
+        seqs.forEach(s => {
+          py[s[j]] = (py[s[j]] || 0) + 1;
+          const k = s[i] + s[j];
+          pxy[k] = (pxy[k] || 0) + 1;
+        });
+        Object.keys(py).forEach(k => py[k] /= N);
+        Object.keys(pxy).forEach(k => pxy[k] /= N);
+        let mi = 0;
+        Object.entries(pxy).forEach(([k, p]) => {
+          const a = k[0], b = k[1];
+          if (px[a] > 0 && py[b] > 0 && p > 0) {
+            mi += p * Math.log2(p / (px[a] * py[b]));
+          }
+        });
+        matrix[i][j] = matrix[j][i] = Math.max(0, mi);
+      }
+    }
+    return matrix;
+  }
+
+  function renderLogo(ic) {
+    const svg = $('logo');
+    if (!ic.length) { svg.innerHTML = ''; return; }
+    const W = 1080, H = 200;
+    const margin = 30;
+    const colW = (W - 2 * margin) / ic.length;
+    const maxIC = Math.log2(isProtein(getCurrent()) ? 20 : 4);
+    const scale = (H - 60) / maxIC;
+    let s = '';
+    // Y-axis
+    s += `<line x1="${margin}" y1="20" x2="${margin}" y2="${H - 40}" stroke="#a8a29e"/>`;
+    s += `<line x1="${margin}" y1="${H - 40}" x2="${W - margin}" y2="${H - 40}" stroke="#a8a29e"/>`;
+    s += `<text x="${margin - 10}" y="22" text-anchor="end" font-size="9" fill="#6b7280">${maxIC.toFixed(1)}</text>`;
+    s += `<text x="${margin - 10}" y="${H - 40}" text-anchor="end" font-size="9" fill="#6b7280">0</text>`;
+    s += `<text x="${margin - 18}" y="${(H - 20) / 2}" text-anchor="middle" font-size="9" fill="#525252" transform="rotate(-90 ${margin - 18} ${(H - 20) / 2})">bits</text>`;
+
+    ic.forEach((col, i) => {
+      const x = margin + i * colW + colW / 2;
+      let y = H - 40;
+      // Position label
+      s += `<text x="${x}" y="${H - 24}" text-anchor="middle" font-size="9" fill="#6b7280" font-family="JetBrains Mono">${i + 1}</text>`;
+      col.stack.forEach(({ r, height }) => {
+        const h = height * scale;
+        if (h > 1) {
+          const fontSize = h * 1.0;
+          s += `<text x="${x}" y="${y}" text-anchor="middle" font-size="${fontSize}" font-family="JetBrains Mono" font-weight="700" fill="${colorOf(r)}">${r}</text>`;
+          y -= h;
+        }
+      });
+    });
+    svg.innerHTML = s;
+  }
+
+  function renderMI(matrix) {
+    const svg = $('mi');
+    if (!matrix.length) { svg.innerHTML = ''; return; }
+    const L = matrix.length;
+    const W = 720, H = 720;
+    const margin = 40;
+    const cell = (W - 2 * margin) / L;
+    let s = '';
+    let maxMI = 0.001;
+    matrix.forEach(row => row.forEach(v => { if (v > maxMI) maxMI = v; }));
+    for (let i = 0; i < L; i++) {
+      for (let j = 0; j < L; j++) {
+        const v = matrix[i][j];
+        const intensity = Math.min(1, v / maxMI);
+        let color;
+        if (i === j) color = `rgba(82,82,82,0.3)`;
+        else if (intensity > 0.7) color = `rgba(196,52,44,${0.3 + 0.7 * intensity})`;
+        else if (intensity > 0.3) color = `rgba(180,83,9,${0.3 + 0.7 * intensity})`;
+        else color = `rgba(82,82,82,${0.05 + 0.2 * intensity})`;
+        s += `<rect x="${margin + j * cell}" y="${margin + i * cell}" width="${cell}" height="${cell}" fill="${color}"/>`;
+      }
+    }
+    // Axis labels
+    for (let i = 0; i < L; i++) {
+      s += `<text x="${margin - 6}" y="${margin + i * cell + cell / 2 + 3}" text-anchor="end" font-size="9" fill="#6b7280" font-family="JetBrains Mono">${i + 1}</text>`;
+      s += `<text x="${margin + i * cell + cell / 2}" y="${margin - 6}" text-anchor="middle" font-size="9" fill="#6b7280" font-family="JetBrains Mono">${i + 1}</text>`;
+    }
+    s += `<text x="${W / 2}" y="${H - 10}" text-anchor="middle" font-size="11" fill="#525252">column j</text>`;
+    s += `<text x="14" y="${H / 2}" text-anchor="middle" font-size="11" fill="#525252" transform="rotate(-90 14 ${H / 2})">column i</text>`;
+    s += `<text x="${W - margin}" y="${margin - 18}" text-anchor="end" font-size="10" fill="#525252">max MI = ${maxMI.toFixed(2)} bits</text>`;
+    svg.innerHTML = s;
+  }
+
+  function getCurrent() {
+    const text = $('msa').value.trim();
+    return text.split(/\s+/).filter(Boolean);
+  }
+
+  function update() {
+    const seqs = getCurrent();
+    if (!seqs.length || !seqs[0]) return;
+    const L = seqs[0].length;
+    const valid = seqs.filter(s => s.length === L);
+    const ic = computeIC(valid);
+    const mi = computeMI(valid);
+
+    // Stats
+    const totalIC = ic.reduce((a, b) => a + b.IC, 0);
+    $('sTotalIC').textContent = totalIC.toFixed(2);
+    $('sMeanIC').textContent = (totalIC / Math.max(1, ic.length)).toFixed(2);
+    $('sShape').textContent = `${valid.length} × ${L}`;
+
+    renderLogo(ic);
+    renderMI(mi);
+
+    // Banner
+    let maxMI = 0, miPair = null;
+    for (let i = 0; i < mi.length; i++) {
+      for (let j = i + 1; j < mi.length; j++) {
+        if (mi[i][j] > maxMI) { maxMI = mi[i][j]; miPair = [i + 1, j + 1]; }
+      }
+    }
+    let hint;
+    if (maxMI > 1.0) {
+      hint = `Strong coevolution at columns ${miPair[0]} ↔ ${miPair[1]} (MI ${maxMI.toFixed(2)} bits) — likely 3D contact.`;
+    } else if (maxMI > 0.5) {
+      hint = 'Moderate coevolution detected; need a larger MSA (10²+ seqs) for confident contact prediction.';
+    } else {
+      hint = 'No strong coevolution. Add more sequences (~100s) for AlphaFold-quality coevolution signal.';
+    }
+    $('banner').innerHTML = `Total IC = ${totalIC.toFixed(1)} bits across ${ic.length} columns. Max MI = ${maxMI.toFixed(2)} bits.<span class="hint">${hint}</span>`;
+  }
+
+  function loadPreset() {
+    const v = $('preset').value;
+    if (v === 'custom') return;
+    $('msa').value = PRESETS[v].join('\n');
+    update();
+  }
+
+  $('preset').addEventListener('change', loadPreset);
+  $('msa').addEventListener('input', () => {
+    $('preset').value = 'custom';
+    update();
+  });
+
+  loadPreset();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

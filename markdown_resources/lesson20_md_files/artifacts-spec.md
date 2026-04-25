@@ -17,7 +17,7 @@
 
 ## Artifact budget
 
-Seven interactive tools.
+Eight interactive tools.
 
 | # | Title | Anchor |
 |---|---|---|
@@ -28,6 +28,7 @@ Seven interactive tools.
 | 5 | MSA quality scorer | §2 |
 | 6 | Synteny browser | §6.2 |
 | 7 | Long-branch attraction demo | §3.5 |
+| 8 | RNA secondary structure folder | §6.5 |
 
 ---
 
@@ -247,3 +248,38 @@ Parsimony has known failure modes; ML is more robust. Use ML.
 ## Testing checklist (per artifact)
 
 Standard checklist (renders standalone; controls function; acceptance criteria pass; legible 720px → 1200px; resize.js × 1; outcome banner; disclaimer).
+
+---
+
+## Artifact #8 — RNA Secondary Structure Folder
+
+**File**: `artifacts/lecture-20/08-rna-fold.html`
+**Anchor**: §6.5
+
+### Teaching purpose
+
+Paste an RNA sequence (or pick a preset: tRNA, riboswitch, miRNA precursor); artifact computes minimum-free-energy structure via a simplified Zuker-like folder; renders the dot-bracket notation + cloverleaf / hairpin diagram.
+
+### UI layout
+
+- Sequence input (preset or custom).
+- Slider: temperature (15–45 °C) — affects energy parameters and MFE structure.
+- Output: dot-bracket notation, MFE in kcal/mol, base-pair probability heatmap.
+- 2D structure visualisation (force-directed graph layout).
+- Outcome banner: "tRNA-Phe folds to canonical cloverleaf (ΔG = −24.5 kcal/mol) at 37 °C; raising to 45 °C destabilises the D-arm."
+
+### Target aha
+
+RNA secondary structure is determined by base-pairing thermodynamics; structure stability depends on temperature; profile-CMs (Infernal) detect homologs by structure-aware alignment.
+
+### Acceptance criteria
+
+- 4 presets (tRNA, hairpin riboswitch, miRNA precursor, ribozyme).
+- HTML parses; JS passes `node --check`; resize.js × 1.
+
+---
+
+## Updated cross-artifact consistency
+
+- Eight artifacts share base CSS via `../_shared/artifact-theme.css`.
+- RNA structure colours in #8 match Figure 13 conventions.

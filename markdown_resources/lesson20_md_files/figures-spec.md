@@ -15,7 +15,7 @@
 
 ## Figure budget
 
-Twelve figures.
+Thirteen figures.
 
 | # | Title | Part |
 |---|---|---|
@@ -31,6 +31,7 @@ Twelve figures.
 | 10 | Ortholog vs paralog distinction | Part 6 |
 | 11 | Long-branch attraction failure mode | Part 3 |
 | 12 | Tree of life (vertebrates excerpt) | Part 7 |
+| 13 | RNA secondary structure and SCFG model | Part 6.5 |
 
 ---
 
@@ -218,3 +219,20 @@ Simplified vertebrate phylogeny:
 - Branch lengths approximate to time since divergence.
 - Calibration points (fossils) marked.
 - Annotation: "modern tree-of-life work uses 100s of marker genes + relaxed clock; Hug et al. 2016 placed archaea as sister to eukaryotes."
+
+---
+
+## Figure 13 — RNA secondary structure and SCFG model
+
+**File**: `diagrams/lecture-20/13-rna-structure.svg`
+**ViewBox**: `0 0 1200 720`
+
+Three panels:
+
+- Panel 1 (top-left): tRNA cloverleaf diagram with anticodon arm (red), acceptor stem (cobalt), D-arm (green), TΨC arm (amber); secondary structure clearly drawn.
+- Panel 2 (top-right): same tRNA in dot-bracket notation: `(((((..(((....))).(((....))).....(((....)))))))).` aligned with the sequence beneath.
+- Panel 3 (bottom): profile-CM (covariance model) for the tRNA family — match-pair states (paired columns), match-singlet states (loop columns), insert and delete states. SCFG production rules schematically shown.
+
+Annotation: "SCFGs handle RNA's nested base-pairing structure exactly via the inside-outside algorithm. Pseudoknots make folding NP-hard; classical RNA folding ignores them."
+
+Side panel: example Infernal `cmsearch` output line: family ID, E-value, bit score, strand, structure conservation.

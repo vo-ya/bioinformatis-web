@@ -480,6 +480,19 @@
 
           <p>The pattern is the same: an underdetermined linear system $\mathbf{y} = A \mathbf{x}$ where $\mathbf{x}$ is sparse; recovery via convex optimisation or NMF. Modern genomics has rediscovered this independently in each domain.</p>
 
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-16/13-info-theory.svg"
+                 alt="Top-left: TF binding motif sequence logo with per-column information content (e.g., 2.0 bits at fully conserved positions, 0.5 bits at variable). Top-right: 5x5 mutual information heatmap with high MI off-diagonal pairs marked as coevolving. Middle: 4x4 codon table colored by mutation tolerance (green for full 4-codon synonymy via 3rd-base wobble, light green for 2+2 splits, amber for irregular Stop/Trp/Met). Annotation showing how 3rd-base mutations are usually silent, 1st-base usually similar AA, 2nd-base most disruptive. Bottom: EE framing tying inductive bias to channel coding's rate-distortion trade-off.">
+            <figcaption>Figure 13. Information theory in genomics. Top: Shannon entropy / IC for motif detection (left); mutual information for coevolution / 3D-contact inference (right). Middle: the genetic code as a (64,20) error-correcting code — the wobble-position 3rd-base degeneracy is structured to minimise mutation damage. Freeland &amp; Hurst (1998) showed the real code is in the top 0.02% of randomly-permuted codes for damage minimisation.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 8 — Sequence Information Content + Mutual Information.</strong> Paste an MSA or pick a preset (kinase active site, zinc finger, coevolving pair). The artifact computes per-column IC (sequence-logo style) and pairwise MI across columns. Aha: conserved columns have high IC; coevolving column-pairs have high MI — the same signal AlphaFold consumes from MSAs.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-16/08-info-content.html" loading="lazy" title="Artifact 8 — Information Content + Mutual Information"></iframe>
+          </figure>
+
           <aside class="callout callout--info">
             <span class="callout-label">EE framing — inductive bias as a generalised channel-coding problem</span>
             <p>In channel coding, the trade-off is <strong>code rate vs error correction</strong>: more parity bits give better recovery but lower information density. In inductive bias, the trade-off is identical: a stronger architectural prior gives better generalisation from less data but cannot represent signals outside its inductive class. The matched filter (CNN's translation invariance), the constant-time decoder (transformer's parallel attention), the LDPC-style sparse mixing matrix (GNN's local aggregation) — each is a different region in the rate-distortion plane for genomic-data recovery. The right architecture is determined by the <strong>signal's source distribution</strong>, just as the right code is determined by the channel's noise distribution.</p>

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neoantigen Prediction Ranker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select, input[type=range] { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; background: #fff; }
+  .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.78rem; }
+  .table th { text-align: left; padding: 0.4rem 0.6rem; background: #f5f5f4; color: var(--fg-muted); font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; }
+  .table td { padding: 0.4rem 0.6rem; border-top: 1px dashed var(--border); }
+  .table .strong { background: #fee2e2; }
+  .table .strong td { color: #7f1d1d; font-weight: 600; }
+  .table .weak { background: #fef3c7; }
+  .table .nope { color: var(--fg-subtle); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 0.75rem; }
+  .stat { background: #fafaf9; border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.8rem; }
+  .stat .label { font-size: 0.65rem; letter-spacing: 0.1em; color: var(--fg-subtle); text-transform: uppercase; font-weight: 600; }
+  .stat .val { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 700; color: #1e3a8a; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Neoantigen Prediction Ranker</h1>
+    <p>Pick a tumour scenario + patient HLA alleles + filter strictness. The ranker simulates the cancer-immunotherapy neoantigen pipeline: somatic mutations → 9-mer peptides → HLA binding prediction → expression filter → ranked actionable list. Aha: the neoantigen pipeline is a deterministic chain of filters; HLA genotype + tumour expression dominate.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="tumour">Tumour scenario</label>
+      <select id="tumour">
+        <option value="melanoma">Melanoma (high TMB · UV signature)</option>
+        <option value="nsclc">NSCLC (smoker · high TMB)</option>
+        <option value="msi">MSI-high colorectal (high TMB)</option>
+        <option value="brca">BRCA1-deficient ovarian (HRD)</option>
+        <option value="pancreas">Pancreatic adenocarcinoma (low TMB)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="hla">Patient HLA-A allele</label>
+      <select id="hla">
+        <option value="A0201">HLA-A*02:01 (most common, EU/USA)</option>
+        <option value="A0301">HLA-A*03:01</option>
+        <option value="A2402">HLA-A*24:02 (common, East Asian)</option>
+        <option value="A1101">HLA-A*11:01</option>
+        <option value="B5701">HLA-B*57:01</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="strict">Binding-rank threshold: <span class="v" id="strictV">0.5%</span></label>
+      <input type="range" id="strict" min="0.1" max="2.0" step="0.1" value="0.5">
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Pipeline cascade</h3>
+    <div class="stats">
+      <div class="stat"><div class="label">Somatic missense</div><div class="val" id="sNmuts">—</div></div>
+      <div class="stat"><div class="label">9-mer windows</div><div class="val" id="sNpep">—</div></div>
+      <div class="stat"><div class="label">Strong binders</div><div class="val" id="sNbind">—</div></div>
+      <div class="stat"><div class="label">Tumour-expressed</div><div class="val" id="sNfinal">—</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Top 10 ranked neoantigen candidates</h3>
+    <table class="table" id="resTable">
+      <thead><tr><th>Rank</th><th>Mutation</th><th>Peptide</th><th>Bind rank</th><th>Affinity (nM)</th><th>TPM</th><th>Verdict</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Neoantigen prediction in production uses NetMHCpan / MHCflurry / pVACtools with real tumour-normal sequencing + HLA typing + RNA-seq. Binding affinity values here are simulated within realistic ranges. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  let seed = 1;
+  function rand() {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  }
+
+  const TUMOURS = {
+    melanoma: { mutCount: 280, ratioBindable: 0.18, ratioExpressed: 0.55, label: 'melanoma' },
+    nsclc:    { mutCount: 220, ratioBindable: 0.16, ratioExpressed: 0.50, label: 'NSCLC' },
+    msi:      { mutCount: 950, ratioBindable: 0.20, ratioExpressed: 0.45, label: 'MSI-H CRC' },
+    brca:     { mutCount: 95,  ratioBindable: 0.14, ratioExpressed: 0.60, label: 'BRCA1-def OvCa' },
+    pancreas: { mutCount: 45,  ratioBindable: 0.15, ratioExpressed: 0.55, label: 'PDAC' }
+  };
+
+  // HLA-allele specificity: relative permissiveness (higher = more peptides bind)
+  const HLA_PERMIT = {
+    A0201: 1.10, A0301: 0.95, A2402: 1.05, A1101: 0.95, B5701: 0.85
+  };
+
+  // Sample peptide pool
+  const AMINO = 'ACDEFGHIKLMNPQRSTVWY';
+  function randomPeptide(len) {
+    let s = '';
+    for (let i = 0; i < len; i++) s += AMINO.charAt(Math.floor(rand() * AMINO.length));
+    return s;
+  }
+
+  function generateNeoantigens(tumour, hla, threshold) {
+    seed = (
+      Object.keys(TUMOURS).indexOf($('tumour').value) * 1000 +
+      Object.keys(HLA_PERMIT).indexOf($('hla').value) * 100 +
+      Math.round(threshold * 10)
+    ) || 1;
+
+    const t = TUMOURS[tumour];
+    const permit = HLA_PERMIT[hla];
+
+    const nMuts = t.mutCount;
+    // ~6 9-mer windows per mutation
+    const nPep = Math.round(nMuts * 6);
+
+    // Bind rank distribution: a fraction will be < threshold
+    // Simulate ranks; ranks below threshold "pass"
+    const candidates = [];
+    for (let i = 0; i < Math.min(50, nPep); i++) {
+      // Each peptide gets a simulated bind-rank (in %)
+      // Skewed distribution: most are weak, some strong
+      const u = rand();
+      const bindRank = Math.pow(u, 0.5) * 5.0 / permit; // 0 to 5%, skewed toward 0 with permissive HLA
+      const affinity = bindRank * 1000 + 50; // crude approximation in nM
+      // Tumour expression (TPM)
+      const tpm = Math.exp(rand() * 6) - 1; // 0 to ~400
+      const expressed = tpm > 1;
+      // Peptide
+      const pep = randomPeptide(9);
+      // Mutation position (just a letter index)
+      const mutPos = Math.floor(rand() * 9) + 1;
+      const gene = ['TP53', 'KRAS', 'EGFR', 'BRAF', 'PIK3CA', 'CTNNB1', 'NRAS', 'IDH1', 'PTEN', 'APC'][i % 10];
+      const mut = `${gene} p.X${100 + Math.floor(rand() * 500)}Y`;
+      candidates.push({ pep, mut, bindRank, affinity, tpm, expressed });
+    }
+
+    candidates.sort((a, b) => a.bindRank - b.bindRank);
+
+    // Filter
+    const strongBinders = candidates.filter(c => c.bindRank <= threshold);
+    const finalSet = strongBinders.filter(c => c.expressed);
+
+    // Estimate counts at population scale (from rates)
+    const estStrong = Math.round(nPep * t.ratioBindable * permit * (threshold / 0.5));
+    const estFinal = Math.round(estStrong * t.ratioExpressed);
+
+    return { nMuts, nPep, strongBinders, finalSet, estStrong, estFinal, candidates };
+  }
+
+  function render() {
+    const threshold = parseFloat($('strict').value);
+    $('strictV').textContent = threshold.toFixed(1) + '%';
+
+    const result = generateNeoantigens($('tumour').value, $('hla').value, threshold);
+
+    $('sNmuts').textContent = result.nMuts.toString();
+    $('sNpep').textContent = result.nPep.toLocaleString();
+    $('sNbind').textContent = result.estStrong.toString();
+    $('sNfinal').textContent = result.estFinal.toString();
+
+    // Render top 10
+    const top10 = result.candidates.slice(0, 10);
+    let html = '';
+    top10.forEach((c, i) => {
+      const cls = c.bindRank <= 0.5 && c.expressed ? 'strong' :
+                   c.bindRank <= threshold && c.expressed ? 'weak' :
+                   '';
+      const verdict = c.bindRank <= 0.5 && c.expressed
+        ? 'high-confidence'
+        : c.bindRank <= threshold && c.expressed
+        ? 'candidate'
+        : c.bindRank <= threshold
+        ? 'binds (low TPM)'
+        : 'rejected';
+      html += `<tr class="${cls}"><td>${i + 1}</td><td>${c.mut}</td><td>${c.pep}</td>`
+            + `<td>${c.bindRank.toFixed(2)}%</td><td>${Math.round(c.affinity)}</td>`
+            + `<td>${c.tpm.toFixed(1)}</td><td>${verdict}</td></tr>`;
+    });
+    document.querySelector('#resTable tbody').innerHTML = html;
+
+    // Banner
+    let hint;
+    if ($('tumour').value === 'msi') {
+      hint = 'MSI-H tumours produce many neoantigens — best responders to pembrolizumab. Tumour-agnostic FDA approval based on this signal.';
+    } else if ($('tumour').value === 'pancreas') {
+      hint = 'Low-TMB tumours yield few neoantigens — explains why immunotherapy is less effective in pancreatic cancer.';
+    } else if (threshold < 0.5) {
+      hint = 'Tighter binding-rank threshold = fewer false positives but missed weak binders. 0.5% is the standard.';
+    } else if (threshold > 1.0) {
+      hint = 'Loose threshold = many candidates but lower precision. Validate with mass-spec MHC-bound peptide ID.';
+    } else {
+      hint = 'Try MSI-H CRC vs PDAC — the TMB difference drives 10× neoantigen count difference.';
+    }
+    $('banner').innerHTML = `<strong>${TUMOURS[$('tumour').value].label}</strong> · HLA-${$('hla').value} · top-rank ≤ ${threshold.toFixed(1)}% → ${result.estFinal} actionable candidates.<span class="hint">${hint}</span>`;
+  }
+
+  ['tumour', 'hla', 'strict'].forEach(id => $(id).addEventListener('input', render));
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

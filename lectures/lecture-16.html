@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 16 — ML in Genomics: Architectures, Pitfalls, Frontiers · Bioinformatics for EE</title>
+  <meta name="description" content="A synthesis lecture: pileups → CNN, long-range regulation → dilated conv + transformer, count matrices → VAE, molecular graphs → GNN, protein 3D → equivariant transformer. Inductive biases, data leakage, DNA language models, cell foundation models.">
+
+  <meta property="og:title" content="Lecture 16 — ML in Genomics: Architectures, Pitfalls, Frontiers">
+  <meta property="og:description" content="Architecture-to-problem matching · the right likelihood beats deep architectures · self-supervised pretraining as the answer to label scarcity · leakage-aware splits · honest reads of DNA LMs and cell foundation models.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — Architectural Pattern Survey</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Why a synthesis lecture</a></li>
+          <li><a href="#sec-1-2">1.2 Pileups → CNN</a></li>
+          <li><a href="#sec-1-3">1.3 Long-range regulation → dilated conv + transformer</a></li>
+          <li><a href="#sec-1-4">1.4 Count matrices → VAE</a></li>
+          <li><a href="#sec-1-5">1.5 Molecular graphs → GNN</a></li>
+          <li><a href="#sec-1-6">1.6 Protein 3D → equivariant transformer</a></li>
+          <li><a href="#sec-1-7">1.7 Common threads</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Inductive Biases: Why Each Works</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 What inductive bias means</a></li>
+          <li><a href="#sec-2-2">2.2 CNN vs MLP vs Transformer on pileups</a></li>
+          <li><a href="#sec-2-3">2.3 NB likelihood vs MSE for counts</a></li>
+          <li><a href="#sec-2-4">2.4 When transformers eat CNNs</a></li>
+          <li><a href="#sec-2-5">2.5 Equivariant networks</a></li>
+          <li><a href="#sec-2-6">2.6 Summary</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Training Data Is the Bottleneck</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Where labels come from</a></li>
+          <li><a href="#sec-3-2">3.2 Why this shape matters</a></li>
+          <li><a href="#sec-3-3">3.3 Self-supervised pretraining</a></li>
+          <li><a href="#sec-3-4">3.4 Weak supervision</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — The Data Leakage Problem</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Why genomics leaks</a></li>
+          <li><a href="#sec-4-2">4.2 Homology-based splits</a></li>
+          <li><a href="#sec-4-3">4.3 Chromosome splits</a></li>
+          <li><a href="#sec-4-4">4.4 Cryptic relatedness</a></li>
+          <li><a href="#sec-4-5">4.5 Batch effects</a></li>
+          <li><a href="#sec-4-6">4.6 Case studies</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — DNA Language Models</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 What DNA-LMs are</a></li>
+          <li><a href="#sec-5-2">5.2 What pretraining buys</a></li>
+          <li><a href="#sec-5-3">5.3 What it doesn't</a></li>
+          <li><a href="#sec-5-4">5.4 Why DNA isn't text</a></li>
+          <li><a href="#sec-5-5">5.5 Current state of the art</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Foundation Models for Cells</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 The pitch</a></li>
+          <li><a href="#sec-6-2">6.2 What works</a></li>
+          <li><a href="#sec-6-3">6.3 What's oversold</a></li>
+          <li><a href="#sec-6-4">6.4 Where it might matter</a></li>
+          <li><a href="#sec-6-5">6.5 Reading these papers honestly</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — What's Coming</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 Multimodal foundation models</a></li>
+          <li><a href="#sec-7-2">7.2 Protein-DNA co-design</a></li>
+          <li><a href="#sec-7-3">7.3 Generative biology</a></li>
+          <li><a href="#sec-7-4">7.4 Convergence with mainstream AI</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 16</div>
+      <h1 class="lecture-title">ML in Genomics: Architectures, Pitfalls, Frontiers</h1>
+      <p class="lecture-subtitle">A synthesis across the previous lectures: each problem's structural property dictates an architecture's inductive bias, the right likelihood beats a deep stack, self-supervised pretraining is the workhorse for label-scarce domains, and leakage-aware splits separate honest results from press releases.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — Architectural pattern survey</a></li>
+        <li><a href="#part-2">Part 2 — Inductive biases</a></li>
+        <li><a href="#part-3">Part 3 — Training data is the bottleneck</a></li>
+        <li><a href="#part-4">Part 4 — The data leakage problem</a></li>
+        <li><a href="#part-5">Part 5 — DNA language models</a></li>
+        <li><a href="#part-6">Part 6 — Foundation models for cells</a></li>
+        <li><a href="#part-7">Part 7 — What's coming</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Seven moves:</em>
+        <span class="lecture-tagline-beat">match architecture to data structure</span>,
+        <span class="lecture-tagline-beat">pick the right likelihood</span>,
+        <span class="lecture-tagline-beat">pretrain on what's abundant</span>,
+        <span class="lecture-tagline-beat">fine-tune on what's scarce</span>,
+        <span class="lecture-tagline-beat">split honestly</span>,
+        <span class="lecture-tagline-beat">benchmark against the strong baseline</span>,
+        <span class="lecture-tagline-beat">audit before you trust</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Map genomic prediction problems to their dominant ML architectures: pileups → CNN, long-range regulation → dilated convolution + transformer, count matrices → VAE, molecular graphs → GNN, protein 3D → equivariant transformer.</li>
+          <li>Explain <em>why</em> each architecture matches its problem — translate the architecture's inductive bias into the structural property of the data it exploits.</li>
+          <li>Describe where labelled data in genomics comes from, why it's chronically limited, and how self-supervised pretraining compensates.</li>
+          <li>Diagnose data-leakage patterns in genomics — sequence homology, family relatedness, cross-study batch effects — and design splits (chromosome-wise, species-wise, family-wise) that avoid them.</li>
+          <li>Walk through DNA language models (DNABERT, Nucleotide Transformer, HyenaDNA, Evo) and give an honest assessment of what pretraining-on-DNA does and does not buy.</li>
+          <li>Assess cell foundation models (scGPT, Geneformer, scFoundation, UCE) — what they claim, what the evidence shows, and what "zero-shot" means at the single-cell scale.</li>
+          <li>Predict which genomics-ML advances are most likely to matter in the next 3 years and why.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 45 min</span>
+          Architectural Pattern Survey
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Why a synthesis lecture</h3>
+
+          <p>You've already met the main architectures in this course:</p>
+
+          <ul>
+            <li><strong>L4 — DeepVariant</strong>: CNN classifier on read pileups.</li>
+            <li><strong>L6 — DESeq2 / limma</strong>: GLM-based differential-expression testing (pre-deep-learning, included for contrast).</li>
+            <li><strong>L8 — scVI / totalVI</strong>: VAE for single-cell count matrices.</li>
+            <li><strong>L9 — Enformer / Borzoi</strong>: dilated convolution + transformer for long-range regulatory sequence.</li>
+            <li><strong>L13 — SuSiE / LDpred</strong>: Bayesian sparse regression for fine-mapping + PRS.</li>
+            <li><strong>L15 — AlphaFold2</strong>: equivariant transformer + iterative refinement for protein structure.</li>
+          </ul>
+
+          <p>Individually, each lecture treats its method as "the right approach for this problem." This lecture pulls the pattern out: for each problem, the architecture's <strong>inductive bias</strong> matches the data's <strong>structural property</strong>. Architecture-problem matching is the core design skill in genomics ML.</p>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 Pileups → Convolutional Neural Network</h3>
+
+          <p><strong>Problem</strong> (Lecture 4): variant calling. Given a pileup of reads at a candidate position, classify the genotype (ref/ref, ref/alt, alt/alt, no-variant).</p>
+
+          <p><strong>Input representation</strong>: a small 2D image. Rows = reads; columns = positions around the candidate; channels = (base, base-quality, strand, mapping-quality, variant-support, …). Typical size: ~100 rows × ~200 columns × ~6 channels.</p>
+
+          <p><strong>Architecture</strong>: 2D CNN. Convolutional layers extract local patterns; pooling reduces to context-aware representations; dense layers produce the final classification.</p>
+
+          <p><strong>Why CNN works</strong>: <em>translation invariance</em> (the column of the candidate doesn't matter; weight sharing handles "where in the window" by construction); <em>local feature extraction</em> (mismatches, deletions, strand-bias patterns are local features in a 2D image); <em>compositional hierarchy</em> (early layers detect base mismatches; later layers detect concerted patterns — many reads with the same mismatch = strong variant evidence).</p>
+
+          <p>DeepVariant (Poplin et al. 2018) demonstrated that a CNN on pileup images could match or exceed the hand-engineered HaplotypeCaller. The CNN's inductive bias matches pileup evidence exactly.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-16/01-deepvariant-cnn.svg"
+                 alt="Left: pileup image with reads as rows, positions as columns, bases colour-coded. Middle: CNN architecture — stack of Conv → ReLU → MaxPool layers, dense → softmax over four genotype classes. Right: output probability vector. Annotation: translation-invariant local-feature extraction matches the pileup's structure.">
+            <figcaption>Figure 1. DeepVariant. The pileup is a 2D image; the CNN's translation invariance and locality bias match it exactly.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 Long-range sequence regulation → Dilated Conv + Transformer</h3>
+
+          <p><strong>Problem</strong> (Lecture 9): predict regulatory output (TF binding, chromatin accessibility, gene expression) from 100&nbsp;kb of surrounding genomic DNA.</p>
+
+          <p><strong>Input representation</strong>: a one-hot encoded DNA sequence, ~100,000 × 4.</p>
+
+          <p><strong>Architecture</strong>: a two-stage hybrid.</p>
+
+          <ul>
+            <li><strong>Stage 1 (local)</strong> — stacked dilated convolutions. Each layer's receptive field grows exponentially with dilation rate. After 10 layers with dilations 1, 2, 4, …, 512, the receptive field is ~2&nbsp;kb. Extracts motif-scale features.</li>
+            <li><strong>Stage 2 (long-range)</strong> — transformer layers with multi-head self-attention on the dilated-conv output. Attention heads route information from distal regulatory elements (enhancers ~100&nbsp;kb away) to the gene body.</li>
+          </ul>
+
+          <p>The combination is the <strong>Enformer</strong> / <strong>Borzoi</strong> architecture.</p>
+
+          <p>Why this works: <em>hierarchy matches scale</em> (motifs ~10&nbsp;bp → enhancer blocks ~1&nbsp;kb → enhancer-to-gene ~100&nbsp;kb; dilated conv handles the first two scales; attention handles the third); <em>attention is the right tool for sparse long-range interactions</em> (only a handful of distal enhancers regulate any given gene; attention's per-query routing captures sparsity naturally); <em>receptive-field management</em> (full self-attention at 100&nbsp;kb would be $O(L^2) = O(10^{10})$ — the dilated-conv stage down-samples first).</p>
+
+          <p>Alternative: <strong>HyenaDNA</strong> (Nguyen et al. 2023) replaces attention with long convolutions parameterised via implicit operators; scales to &gt; 1M-bp contexts at linear cost.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-16/02-enformer.svg"
+                 alt="Left: 100 kb DNA sequence one-hot encoded. Middle: stack of dilated convolutions with dilations 1, 2, 4 up to 512 expanding the receptive field. Middle-right: multi-head self-attention over the down-sampled sequence. Right: output heads predicting chromatin accessibility, CAGE gene expression, ChIP-seq per cell type. Annotation: dilated conv = efficient local-to-mid scale; attention = sparse long-range routing.">
+            <figcaption>Figure 2. Enformer. Two stages, two scales: dilated conv handles local-to-mid, attention handles long-range — efficient because attention runs only after down-sampling.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 Count matrices → Variational Autoencoder</h3>
+
+          <p><strong>Problem</strong> (Lecture 8): model single-cell count data. Observations: cells × genes count matrix with high sparsity, batch effects, technical dropout.</p>
+
+          <p><strong>Input representation</strong>: per-cell count vector over ~20k genes.</p>
+
+          <p><strong>Architecture</strong>: Variational Autoencoder (VAE). <strong>Encoder</strong> maps a cell's count vector to a low-dimensional latent $\mathbf{z}$ (~10–30 dims) via a neural network. <strong>Decoder</strong> takes $\mathbf{z}$ + batch covariates and outputs parameters of a count likelihood (typically negative binomial). <strong>Loss</strong> = negative ELBO = reconstruction (NB log-likelihood) + KL regularisation toward $\mathcal{N}(0, I)$. <strong>scVI</strong> (Lopez et al. 2018) is the canonical implementation; <strong>totalVI</strong> handles RNA + protein; <strong>MultiVI</strong> handles RNA + ATAC.</p>
+
+          <p>Why VAE works: <em>dimensionality reduction via a learned prior</em> (Gaussian latent → compact representation; PCA does this linearly, the VAE's nonlinear encoder captures cell-state manifolds); <em>right likelihood matters</em> (gene counts are over-dispersed; using Gaussian reconstruction grossly misfits; NB matches the empirical distribution); <em>batch correction by conditioning</em> (decoder takes batch as input, latent learns a batch-invariant representation); <em>probabilistic framework</em> (ELBO gives a likelihood; uncertainty in the latent is calibrated).</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — VAE with NB likelihood as a statistically calibrated auto-encoder</span>
+            <p>A vanilla auto-encoder minimises reconstruction MSE, which implicitly assumes Gaussian noise. Count data don't follow Gaussian distributions — they follow NB, Poisson, or ZINB. Switching the reconstruction likelihood from Gaussian MSE to NB log-likelihood is the right domain adaptation. Same pattern when the measurement noise model is wrong in signal processing — assume Gaussian when it's Poisson, get estimation bias; using the correct likelihood fixes it. scVI's core trick is <strong>not</strong> "deep learning on sc-RNA"; it's "matched the noise model to the data."</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-5">
+          <h3>1.5 Molecular graphs → Graph Neural Network</h3>
+
+          <p><strong>Problem</strong>: predict molecular properties (solubility, binding affinity, toxicity) from molecular structure. Cheminformatics-adjacent; in genomics, relevant for protein-ligand interaction and metabolomics.</p>
+
+          <p><strong>Input representation</strong>: a graph. Nodes = atoms (with features: element, hybridisation, formal charge); edges = bonds (with features: bond type, aromaticity). Typical size: 10–100 atoms.</p>
+
+          <p><strong>Architecture</strong>: Graph Neural Network (message-passing). At each layer, each node aggregates messages from its neighbours; node features update; after several layers each node's representation encodes a neighbourhood of increasing radius. A graph-level readout (sum / mean / attention pool) produces a single vector per molecule. Variants: <strong>GCN</strong> (Kipf &amp; Welling 2017), <strong>GraphSAGE</strong> (Hamilton et al. 2017), <strong>GIN</strong> (Xu et al. 2019), <strong>MPNN</strong> (Gilmer et al. 2017).</p>
+
+          <p>Why GNN works: <em>permutation invariance</em> (atoms have no canonical order; the GNN is invariant to reordering); <em>locality</em> (most chemical properties depend on local neighbourhoods — functional groups, rings); <em>explicit graph structure</em> (atoms close in graph distance but far in any linear ordering are handled correctly).</p>
+        </section>
+
+        <section id="sec-1-6">
+          <h3>1.6 Protein 3D → Equivariant Transformer</h3>
+
+          <p><strong>Problem</strong> (Lecture 15): predict 3D protein structure from sequence.</p>
+
+          <p><strong>Input representation</strong>: MSA + pair representation (L × L).</p>
+
+          <p><strong>Architecture</strong>: Evoformer (axial attention + triangle updates) + structure module (Invariant Point Attention, $\text{SE}(3)$-equivariant).</p>
+
+          <p>Why this works: <em>axial attention on MSA</em> (2D data — full 2D attention prohibitive; axial alternates row + column at quadratic cost); <em>triangle updates</em> (respect geometric consistency of pair representations — if $(i,j)$ and $(j,k)$ are close, $(i,k)$ should be constrained); <em>$\text{SE}(3)$ equivariance in the structure module</em> (rotate input, output rotates the same; no rotation-augmentation needed during training; far more sample-efficient).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-16/03-architecture-map.svg"
+                 alt="A grid mapping problem to input representation, architecture, key inductive bias, and example model. Rows: variant calling, long-range regulation, count matrix, molecular graph, protein structure. Each colour-tagged with the architecture's signature colour.">
+            <figcaption>Figure 3. Five problems, five architectures, one rule: pick the inductive bias that matches the data's structural property.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-7">
+          <h3>1.7 Common threads</h3>
+
+          <p>Looking across all five:</p>
+
+          <ul>
+            <li>Each architecture <strong>commits</strong> to a structural prior. That prior must match the data.</li>
+            <li>"Commit to a prior" is the essence of <strong>inductive bias</strong>. Stronger prior → more sample-efficient on matching data, worse on mismatched data.</li>
+            <li>Architectures don't need to be exotic. Most genomics ML is CNN, transformer, VAE, GNN, or combinations. Innovation comes from matching the right variant to the right problem.</li>
+          </ul>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 1 — Architecture-to-Problem Matcher.</strong> A matching game: you get a genomic problem ("predict enhancer activity from 100 kb sequence"), pick from CNN / dilated conv + transformer / VAE / GNN / equivariant transformer; immediate feedback explains why each choice does or doesn't fit. Aha: the choice is usually obvious once you identify the data's structural property.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-16/01-architecture-matcher.html" loading="lazy" title="Artifact 1 — Architecture Matcher"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 35 min</span>
+          Inductive Biases — Why Each One Works
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 What "inductive bias" really means</h3>
+
+          <p>An <strong>inductive bias</strong> is any assumption an algorithm makes that isn't justified by the training data alone. Every learning algorithm has them, whether explicit or hidden:</p>
+
+          <ul>
+            <li><strong>Linear regression</strong>: response is linear in predictors.</li>
+            <li><strong>k-NN</strong>: nearby points have similar labels.</li>
+            <li><strong>Random forest</strong>: response decomposes into axis-aligned piecewise-constant regions.</li>
+            <li><strong>CNN</strong>: features are local + translation-invariant.</li>
+            <li><strong>Transformer (with positional embeddings)</strong>: contextual interactions matter, but locality is weak.</li>
+            <li><strong>Equivariant network</strong>: invariance to a specific group ($\text{SO}(3)$, $\text{SE}(3)$, permutation).</li>
+          </ul>
+
+          <p>Without an inductive bias, learning needs exponentially more data to generalise (the no-free-lunch theorem makes this precise).</p>
+
+          <p>The genomics ML design problem: <strong>pick an architecture whose inductive bias matches your problem's structure</strong>. Mismatch is the #1 cause of genomics ML failures.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>Inductive bias is what the architect brings to the table — a prior about what "should work." If you know the feature you want is local and position-independent (a motif), baking translation invariance into your network (CNN) is worth thousands of training examples. If the feature is rotation-invariant (3D protein structure), baking $\text{SO}(3)$ equivariance buys you sample-efficient training. If the data has no useful prior structure, a fully general transformer + mountains of data is your remaining option. Picking the right inductive bias is why genomics ML isn't just "more parameters, more data" — it's choosing the prior that fits the problem.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 CNN vs MLP vs Transformer on pileup-like data</h3>
+
+          <p>Scenario: classifying pileup images.</p>
+
+          <ul>
+            <li><strong>MLP</strong> (fully connected): treats each pixel independently. No locality, no translation invariance, no weight sharing. Must learn each feature separately for each position.</li>
+            <li><strong>CNN</strong>: local + translation-invariant + weight-sharing. Dramatically more sample-efficient.</li>
+            <li><strong>Transformer</strong>: attends globally, no locality bias. More data needed to learn that only local patterns matter.</li>
+          </ul>
+
+          <p>On the DeepVariant task at comparable training budget: CNN ~99.5% F1 (the published number); transformer with absolute positional embeddings ~98.0% F1 with 10× more training data; transformer with 2D positional + local-attention bias ~99.3% F1 — restoring the CNN's inductive bias by other means closes the gap. MLP ~95% F1 — underfits systematic position/translation structure.</p>
+
+          <p><strong>Lesson</strong>: inductive bias isn't "old vs new"; it's "right vs wrong for this data". When transformers beat CNNs (image classification at scale, protein structure), it's because they amass enough data to learn equivalent priors themselves. On limited-data genomics tasks, the explicit inductive bias of CNNs often still wins.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-16/10-architecture-comparison.svg"
+                 alt="Line plot of validation F1 vs training-set size on a synthetic pileup task. CNN curve plateaus high quickly. Plain transformer climbs slowly and crosses CNN at very large data. Transformer with 2D positional + local-attention bias matches CNN earlier. MLP underperforms throughout.">
+            <figcaption>Figure 10. CNN vs transformer vs MLP at matched training budget. The right inductive bias buys 10×–100× data efficiency on small data; the gap closes at very large data.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 5 — Inductive Bias Explorer.</strong> Pit MLP, CNN, and Transformer against a synthetic pileup-classification task at user-controlled training-set size. See validation accuracy under matched budgets. Aha: at small data CNN wins by a lot; at huge data the architectures converge.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-16/05-inductive-bias.html" loading="lazy" title="Artifact 5 — Inductive Bias Explorer"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 NB likelihood vs MSE for count data</h3>
+
+          <p>Counts from single-cell RNA-seq: mean much less than variance (over-dispersed), often zero-inflated.</p>
+
+          <p>If you use <strong>MSE reconstruction</strong> in a VAE, you implicitly assume Gaussian $P(x|\hat{x}) \propto \exp(-(x-\hat{x})^2)$. Heavily penalises large deviations; over-dispersion drags predictions toward a mean that can't be right; predicts negative counts; NaN under log transforms; generally wrong everywhere.</p>
+
+          <p>If you use <strong>Poisson reconstruction</strong>, $P(x|\hat{x}) \propto \hat{x}^x e^{-\hat{x}} / x!$. Appropriate for integer counts; assumes mean = variance, but single-cell data have variance ≫ mean, so you still under-fit.</p>
+
+          <p>If you use <strong>Negative Binomial</strong>, the variance $\hat{x} + \hat{x}^2 / r$ captures over-dispersion; matches empirical single-cell distributions. <strong>Zero-Inflated NB</strong> handles 10×-Chromium-era technical dropout.</p>
+
+          <p>The right likelihood buys orders of magnitude in statistical efficiency. <strong>The noise model is the problem-matching decision, not the architecture depth.</strong></p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — inductive bias as the matched-filter analogue</span>
+            <p>A matched filter is optimal when the signal template and the noise covariance are both known exactly. Get either wrong — wrong signal shape, wrong noise model — performance collapses. An ML architecture's inductive bias is the generalised version: "template" = architectural symmetries the network can efficiently represent; "noise model" = the likelihood used for training. The matched filter for a rectangular pulse in white Gaussian noise is the CNN with MSE on denoising; the matched filter for counts is NB-likelihood VAE; the matched filter for 3D rotation-invariant features is an equivariant network. Architecture design = matched-filter design at scale.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 When to break the rule — transformers eating CNNs</h3>
+
+          <p>ViT (Dosovitskiy et al. 2020) showed that transformers beat CNNs on ImageNet-scale data. Why?</p>
+
+          <ul>
+            <li>With enough data (100M+ images), transformers learn the equivalent of local priors themselves.</li>
+            <li>Transformers' weakness (no built-in locality) becomes a strength (can learn any prior from data).</li>
+            <li>Their inductive bias is weaker and more general; at sufficient data scale, this is better.</li>
+          </ul>
+
+          <p>The same dynamic applies in genomics:</p>
+
+          <ul>
+            <li><strong>Protein structure (AlphaFold2)</strong>: transformers + specific inductive biases (axial, triangle, equivariance) + massive data (150M+ sequences) → SOTA.</li>
+            <li><strong>Single-cell foundation models (scGPT, Geneformer)</strong>: transformers on millions of cells. Work OK; the jury is still out on whether they beat specialised VAEs at matched data.</li>
+          </ul>
+
+          <p>When does the transformer win? When you have <em>a lot</em> of pretraining data and the downstream tasks aren't so specialised that a specialised prior helps. For most genomics tasks today, the answer is "not yet — keep using specialised priors."</p>
+        </section>
+
+        <section id="sec-2-5">
+          <h3>2.5 Equivariant networks — when physics gives you the prior</h3>
+
+          <p>If your problem has a known symmetry — rotation of 3D coordinates, permutation of items in a set, translation of a signal — you can <strong>bake it into the network</strong>:</p>
+
+          <ul>
+            <li><strong>Translation equivariance</strong>: standard CNN.</li>
+            <li><strong>Rotation equivariance in 2D</strong>: group-convolutional networks (Cohen &amp; Welling 2016), steerable filters.</li>
+            <li><strong>$\text{SE}(3)$ equivariance in 3D</strong>: e3nn / NequIP / SE(3)-Transformer (Geiger et al. 2022), SchNet, DimeNet. AlphaFold2's IPA.</li>
+            <li><strong>Permutation equivariance / invariance</strong>: GNNs for graphs, Deep Sets (Zaheer et al. 2017) for unordered sets.</li>
+          </ul>
+
+          <p>Baking symmetry in &gt; learning it via data augmentation. Rule of thumb: 10×–100× data efficiency.</p>
+        </section>
+
+        <section id="sec-2-6">
+          <h3>2.6 Summary table</h3>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-16/04-inductive-biases.svg"
+                 alt="Three-column table. Architecture column lists CNN, dilated conv + transformer, VAE+NB, GNN, equivariant transformer, fully-connected, transformer base. Inductive bias column lists translation invariance + locality, multi-scale + sparse long-range, NB likelihood + latent prior, permutation invariance + local aggregation, SO(3) equivariance, none, and no locality. Data regime column lists where each wins.">
+            <figcaption>Figure 4. Architecture / inductive-bias / data-regime cheat sheet. Pick by data property, not by familiarity.</figcaption>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 25 min</span>
+          Training Data Is the Bottleneck
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 Where labels come from in genomics</h3>
+
+          <p>Architecture choices are constrained by <strong>how much labelled data</strong> you have. In genomics that's almost always much less than comparable ML domains. Roughly ranked by abundance:</p>
+
+          <ul>
+            <li><strong>Unlabelled sequences</strong> (DNA, protein). Billions (UniRef, NCBI, SRA). Usable for self-supervised pretraining.</li>
+            <li><strong>GWAS associations</strong>. Hundreds of thousands of SNPs × hundreds of traits. Noisy; biobank-scale.</li>
+            <li><strong>Bulk RNA-seq</strong>. Millions of samples (SRA, GEO). Labels = tissue / condition; noisy annotations + batch effects.</li>
+            <li><strong>Single-cell expression</strong>. ~100M cells (cellxgene, HCA). Labels = cluster / cell-type — re-clustering changes them.</li>
+            <li><strong>Protein structures</strong>. ~180k experimental in PDB; 200M predicted in the AF DB. Predicted ones usable as labels with confidence filtering.</li>
+            <li><strong>Gene annotations</strong>. Tens of thousands per genome. Mostly-curated.</li>
+            <li><strong>Variant pathogenicity</strong>. Hundreds of thousands in ClinVar. Domain-expert-curated, slow to grow.</li>
+            <li><strong>Functional experimental data</strong> (DMS, MPRA). ~1k genes; hundreds of thousands of mutations per study. Gold-standard but tiny.</li>
+            <li><strong>Clinical outcomes</strong>. Access-controlled (dbGaP, EGA). Incomparable across studies.</li>
+          </ul>
+
+          <p>This is an <strong>inverted pyramid</strong> vs generic ML: text has trillions of tokens; images have hundreds of millions; genomic functional outcomes have low thousands.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-16/05-data-pyramid.svg"
+                 alt="Inverted pyramid. Top widest: unlabelled sequences ten to the tenth entries. Below: bulk RNA-seq million samples. Below: GWAS associations hundred-thousand SNP-trait pairs. Below: single-cell hundred-million cells. Below: ClinVar variants million with pathogenicity calls. Bottom narrowest: MPRA / DMS experiments ten-thousand variants per gene.">
+            <figcaption>Figure 5. The genomics labelled-data pyramid is inverted: unlabelled sequence is abundant; gold-standard functional labels are rare.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Why this shape matters</h3>
+
+          <p>Supervised deep learning wants millions of labelled examples. Most genomics tasks have hundreds to thousands that meet the quality bar. Consequences:</p>
+
+          <ul>
+            <li><strong>Foundation-model strategies dominate</strong>: pretrain on unlabelled, fine-tune on labelled.</li>
+            <li><strong>Self-supervised objectives matter more</strong> than in generic ML. Masked-language-model on DNA / protein sequences is the workhorse.</li>
+            <li><strong>Evaluation is perilous</strong>: with small test sets, benchmarks are noisy; differences within a few % often aren't significant.</li>
+            <li><strong>Transfer between tasks</strong> is the only way many tasks get solved.</li>
+          </ul>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Self-supervised pretraining</h3>
+
+          <p><strong>Self-supervised pretraining</strong>: take unlabelled data, invent a label, train. Two dominant objectives:</p>
+
+          <ul>
+            <li><strong>Masked language modelling (MLM)</strong>. Mask ~15% of tokens; predict them from context. BERT (2018) for text; DNABERT (2021) for DNA k-mers; ESM (2021) for proteins.</li>
+            <li><strong>Causal next-token prediction</strong>. Predict token $t+1$ given $1..t$. GPT for text; HyenaDNA, Evo for DNA; ProGen, ESM-IF for proteins.</li>
+          </ul>
+
+          <p>After pretraining, the model has learned <strong>contextual representations</strong>. Downstream uses: feature extraction (freeze, classify on top); fine-tuning (continue training on labelled task); in-context / prompting (less established in genomics).</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>Self-supervised pretraining is "read the whole library before answering any specific question". Instead of teaching the network exactly what you want from a small labelled set, you let it read billions of unlabelled examples with invented puzzles (guess the masked token, continue the next one). It builds a rich representation of "what kinds of sequences exist". When you hand it a small supervised task, it doesn't start from scratch — it starts from "I already know this language; you're asking me to label one aspect of it". Supervised fine-tuning needs ~100× fewer examples than training from scratch. The single most important trick that made genomics ML work with small labelled data.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-16/06-ssl-flow.svg"
+                 alt="Left: massive unlabelled sequence corpus, UniProt about 650 million proteins. Middle: pretraining — mask some tokens, predict them; iterate over millions. Right: pretrained model frozen / fine-tuned on a small labelled downstream task such as predicting which variants are pathogenic, label count about 50k. Annotation: scale in unlabelled pretraining bought roughly ten times more downstream efficiency than training from scratch.">
+            <figcaption>Figure 6. Self-supervised pretraining flow. The ratio matters: hundreds of millions of unlabelled examples, tens of thousands of labelled ones — pretraining is what bridges the gap.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 6 — Self-Supervised Pretraining Simulator.</strong> Toggle pretraining on/off; vary the downstream label budget; watch validation accuracy as fine-tuning proceeds. Aha: pretraining gives a large and persistent head start — with 1k labelled examples, pretrained matches scratch-trained at 100k.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-16/06-ssl-pretraining.html" loading="lazy" title="Artifact 6 — Self-Supervised Pretraining"></iframe>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — SSL as representation learning from unlabelled data</span>
+            <p>Self-supervised pretraining is the generalised answer to "your labels are expensive, your unlabelled data is abundant". You invent a pretext task, optimise it across unlabelled data, and learn a representation that's generally useful for downstream tasks. Signal-processing analogue: unsupervised feature learning (k-means, sparse coding, PCA) before supervised classification. Modern variant: contrastive learning (SimCLR), extending MLM's "predict what was hidden" idea to "predict whether these two augmentations are of the same example".</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Weak supervision and noisy labels</h3>
+
+          <p>When labels are scarce, use noisy ones:</p>
+
+          <ul>
+            <li><strong>Distant supervision</strong>: infer labels from auxiliary data (gene expression inferred from bulk tissue; protein function from GO).</li>
+            <li><strong>Heuristic labels</strong>: rule-based labelling of large corpora.</li>
+            <li><strong>Multi-task learning</strong>: train on related tasks with more labels, transfer representations.</li>
+            <li><strong>Active learning</strong>: prioritise expert labels for the samples the model is most uncertain about.</li>
+          </ul>
+
+          <p>All standard ML, particularly valuable in genomics because label scarcity is structural.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 30 min</span>
+          The Data Leakage Problem
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 Why genomics leaks worse than almost any domain</h3>
+
+          <p><strong>Data leakage</strong>: when train and test sets share information they shouldn't, producing falsely-optimistic performance. Standard ML advice ("shuffle and split 80/20") is catastrophic in genomics because genomic data is highly correlated. Sources:</p>
+
+          <ul>
+            <li><strong>Sequence homology</strong>: protein sequences from related species share 60–95% identity. A random split puts close homologues on both sides — test "answers" trivial to predict.</li>
+            <li><strong>Genomic locality</strong>: nearby positions on a chromosome are in LD. Per-SNP random splits put correlated SNPs on both sides.</li>
+            <li><strong>Family relatedness</strong>: cohort individuals are often distant relatives. Sib-pairs and cousin-pairs share segments of DNA.</li>
+            <li><strong>Batch effects across studies</strong>: samples processed together have systematic technical signatures. Random splits across studies put correlated batch artefacts on both sides; the model learns "which lab?" rather than "which phenotype?".</li>
+          </ul>
+
+          <p>Consequence: <strong>published numbers are often dramatically optimistic</strong>. Papers reporting 99% test accuracy on naïvely-split data frequently drop to 60–80% on properly-split data.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — leakage as violated independence in correlated samples</span>
+            <p>Every train/test evaluation assumes the samples are i.i.d. and that train / test are independent draws. In genomics, neither holds. Neighbouring SNPs are autocorrelated along a chromosome; homologous sequences across species; samples from the same lab via batch effects. Same statistical issue as <strong>spatial autocorrelation</strong> in geostatistics or <strong>temporal autocorrelation</strong> in time-series evaluation: a random hold-out from correlated data gives no meaningful test because test points are statistically tethered to training points. Fix: <strong>blocked cross-validation</strong> — hold out whole blocks (chromosomes, families, studies, time windows) that share correlation structure internally but are independent of others. Get this wrong and your reported accuracy measures memorisation, not generalisation.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-16/07-leakage-splits.svg"
+                 alt="Two side-by-side panels. Left: random split — chromosome bar with train (blue) and test (amber) positions interleaved at random. Annotation: adjacent SNPs are in LD; test info is trivially predictable from train. Right: chromosome split — chromosomes 1–21 = train; chromosome 22 = test. Spatially separated; no LD bleed.">
+            <figcaption>Figure 7. Random vs chromosome-aware split. Random hold-out at the SNP level evaluates memorisation of LD; chromosome-block hold-out evaluates generalisation to unseen regions.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 Homology-based splits for protein tasks</h3>
+
+          <p><strong>CAFA</strong> (Critical Assessment of Functional Annotation, 2010+) uses strict time-based splits: train = sequences known by date $T$; test = sequences added by $T + 2$ years. Avoids sequence leakage via time.</p>
+
+          <p><strong>Sequence-identity clustering</strong>: cluster sequences with CD-HIT or MMseqs2 at 30–50% identity; split cluster-wise. Test cluster contains only sequences sharing &lt; 50% identity with any training cluster. The MCMD standard for protein splits.</p>
+
+          <p>Common mistakes: splitting by sequence ID without clustering; splitting by UniProt accession randomly; splitting by species when species share homologues. Rule of thumb: <strong>if a random baseline scores 60% on your test set, you have leakage, not a model.</strong></p>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Chromosome splits for sequence regulation</h3>
+
+          <p>For Enformer-style long-range regulation:</p>
+
+          <ul>
+            <li>Random per-position split: catastrophic — adjacent positions are in LD.</li>
+            <li>Per-window split: still leaky if test windows are within the receptive field of training windows.</li>
+            <li><strong>Chromosome split</strong>: hold out entire chromosomes. Enformer uses chr8 + chr9. Community standard.</li>
+            <li><strong>Whole-species split</strong>: train on human, test on mouse. Stricter, rarely done at foundation scale.</li>
+          </ul>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Cryptic relatedness in biobank cohorts</h3>
+
+          <p>UK Biobank has ~500k individuals. By chance, thousands of pairs are cousins-or-closer. Simple random splits leak via these pairs: a case in train + a second-cousin control in test = the model learns to distinguish them via shared haplotype patterns. <strong>Kinship-aware splitting</strong>: compute the kinship matrix; ensure no train-test pair has kinship &gt; 0.05. GWAS evaluation pipelines always implement this; ML pipelines often don't.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>The right mental image for genomics data leakage is "adjacent pixels in an image". Hand a model a photo pixel-by-pixel — train on 80% of random pixels, test on the other 20% — and the model barely needs to look at anything; it just averages neighbouring training pixels. You haven't tested anything. Genomic data is structurally identical: SNPs along a chromosome are the "adjacent pixels"; related individuals are "adjacent patients"; samples from one lab run are "adjacent batches". Random hold-outs on any of these produce an exam you've already seen the answers to. Leakage-aware splits hold out <em>whole regions</em> of this correlation structure.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 Batch effects across studies</h3>
+
+          <p>Single-cell: a cell-type classifier trained on some studies and tested on others over-performs vs leave-one-study-out. Reason: the model learns "this came from Study X". Fixes:</p>
+
+          <ul>
+            <li><strong>Leave-one-study-out</strong> evaluation: each held-out study evaluates cross-study generalisation.</li>
+            <li><strong>Batch correction before split</strong>: remove known batch effects; remaining signal is biology.</li>
+            <li>Benchmarks that enforce this (Luecken et al. 2022) explicitly use leave-one-study-out.</li>
+          </ul>
+        </section>
+
+        <section id="sec-4-6">
+          <h3>4.6 Real-world case studies</h3>
+
+          <p>Three widely-cited cases of published work affected by leakage:</p>
+
+          <ul>
+            <li><strong>Protein-function prediction benchmarks (~2015 era)</strong>: naive sequence splits → 95%+ accuracy claims; CAFA-style time-based splits → ~40–60%.</li>
+            <li><strong>Cancer-driver prediction (2014–2018)</strong>: some tools trained and tested on overlapping known-driver databases; independent benchmarks dropped them from 99% to 70%.</li>
+            <li><strong>Enformer's initial-release test</strong> (2021): passed chromosome splits, but a 2023 reanalysis showed within-chromosome regulatory correlation meant chromosome splits leaked too.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-16/11-leakage-cases.svg"
+                 alt="Grouped bar chart with three case studies on the x-axis. For each, two bars: as reported (tall) and after tightened split (much shorter). Case 1 protein function 2015: 95% to 45%. Case 2 cancer driver 2016: 99% to 70%. Case 3 Enformer 2021 chromosome split: 0.82 Pearson to 0.74 Pearson.">
+            <figcaption>Figure 11. As-reported vs leakage-aware accuracy on three case studies. The corrected number is usually the honest one.</figcaption>
+          </figure>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>When a genomics ML paper has accuracy that seems too good to be true, your first question should be: <strong>how was the train/test split done?</strong> If the answer is "random 80/20" or isn't explained in detail, discount the number heavily. The paper's method may still be sound — but the metric is likely inflated. Reproducing with a leakage-aware split is a standard sanity check, and it frequently changes the headline number.</p>
+          </aside>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>You're reviewing a genomics ML paper claiming SOTA on a variant-pathogenicity classifier. The split: "ClinVar dataset randomly split 80/20 stratified by gene". Identify three potential leakage sources. Suggest a better strategy. Predict the paper's true held-out accuracy after tightening. (Hints: variant neighbours in the same gene; related genes with shared structural features; training corpus containing variants highly correlated with test variants in the same family.)</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 2 — Data Leakage Demonstrator.</strong> Simulate a variant-effect-prediction task with controllable sequence correlation between nearby positions. Watch test performance under random-position split vs chromosome split vs clustered-by-homology split. Aha: the accuracy gap can be 30+ percentage points — "random split" is a well-intentioned disaster on correlated genomics data.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-16/02-data-leakage.html" loading="lazy" title="Artifact 2 — Data Leakage"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 25 min</span>
+          DNA Language Models
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 What DNA-LMs are</h3>
+
+          <p>A <strong>DNA language model</strong> is a large transformer (or transformer-variant) pretrained on genomic sequence with an MLM-style objective: chop the genome into windows (500&nbsp;bp – 1&nbsp;Mb), tokenise (k-mer / BPE / per-nucleotide), mask some tokens, predict them from context (or causal next-token). Fine-tune or feature-extract for downstream tasks (promoter detection, TF binding, variant effect, regulatory classification).</p>
+
+          <p>Key entries (2021–2024):</p>
+
+          <ul>
+            <li><strong>DNABERT</strong> (Ji et al. 2021). BERT-style; k-mer tokens; 512-token context; ~100M params.</li>
+            <li><strong>Nucleotide Transformer</strong> (Dalla-Torre et al. 2023, InstaDeep). 500M–2.5B params; multi-species pretraining; ~12&nbsp;kb context.</li>
+            <li><strong>HyenaDNA</strong> (Nguyen et al. 2023, Stanford). Replaces attention with Hyena's long convolutions; scales to 1&nbsp;Mb context at sub-quadratic cost.</li>
+            <li><strong>Evo</strong> (Nguyen et al. 2024, Arc Institute). Hyena-style; trained on millions of genomes across prokaryotes and eukaryotes; generates plausible full genomes. Context up to ~131&nbsp;kb.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-16/08-dna-lm-timeline.svg"
+                 alt="Timeline 2021 to 2024. DNA-LMs plotted by year on x-axis and context length in bases on y-axis (log). DNABERT at 512 bp 2021; Nucleotide Transformer at 12 kb 2023; HyenaDNA at 1 Mb 2023; Evo at 131 kb 2024. Annotations include parameter counts.">
+            <figcaption>Figure 8. The DNA-LM landscape, 2021–2024. Context length is the main axis of competition — it determines what scale of regulation is learnable.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 What DNA pretraining gives you</h3>
+
+          <p>Honest account of what DNA LMs buy:</p>
+
+          <ul>
+            <li><strong>Motif discovery at no cost</strong>. Trained models can be probed to recover known TF binding motifs (Alipanahi et al. 2015 showed it's possible; DNA LMs do it naturally).</li>
+            <li><strong>Moderate improvements on regulatory prediction</strong>. Downstream tasks see 1–5% absolute improvements over specialised architectures. Real, not dramatic.</li>
+            <li><strong>Cross-species transfer</strong>. Models pretrained across species generalise better on held-out species.</li>
+            <li><strong>In-silico mutagenesis</strong>: differential scoring of reference vs mutant. Faster than SHAP-style attribution on specialised models.</li>
+          </ul>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 What DNA pretraining does NOT give you</h3>
+
+          <ul>
+            <li><strong>No uniform large wins over specialised methods</strong>. Enformer still beats DNA LMs on its own tasks. DNA LMs haven't collapsed the field.</li>
+            <li><strong>Generative quality is suspect</strong>. They generate plausible-looking sequences; unclear whether subtle biology survives.</li>
+            <li><strong>Long-range dependency isn't free</strong>. HyenaDNA / Evo have long context in name; empirically, distal-element interactions are still weakly learned.</li>
+            <li><strong>Species bias</strong>. Most DNA LMs are dominated by human + a few model organisms.</li>
+            <li><strong>Evaluation-set contamination</strong>. Benchmarks may overlap pretraining sequences. Audit carefully.</li>
+          </ul>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Why DNA is NOT like text</h3>
+
+          <p>A critical EE point: DNA is <strong>not</strong> just text in a 4-letter alphabet. Differences that matter:</p>
+
+          <ul>
+            <li><strong>Orders of magnitude more "text"</strong>. Human genome ~3 Gb; prokaryotic pan-genomes effectively unbounded. Pretraining corpora are tens of TB.</li>
+            <li><strong>Very low information density per token</strong> vs English words. Most DNA is intergenic / non-coding / repetitive.</li>
+            <li><strong>Functional structure is multi-scale and sparse</strong>. Promoter motif 10&nbsp;bp; enhancer 300&nbsp;bp; TAD 1&nbsp;Mb. Attention over 1&nbsp;Mb to find 10&nbsp;bp signals is a needle in a haystack.</li>
+            <li><strong>Frame-shift and reverse-complement symmetries</strong>. The signal on the + strand is the reverse complement of the − strand. Language models need explicit data augmentation.</li>
+            <li><strong>Mutation statistics differ from language editing statistics</strong>. DNA variants are SNP / indel / SV; text edits are character swaps. Pretraining objectives designed for text may not align.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — DNA-LMs as language models on a 4-letter alphabet with very different statistics</span>
+            <p>A naive analogy with NLP foundation models predicts large gains from scale. In practice the gains have been modest. Reasons: signal-to-noise per base is much lower than per word; functional elements are sparser; tokenisation choices (k-mer vs per-nucleotide vs BPE) materially affect what's learnable. Not reasons to give up — reasons to be careful with the analogy. DNA is its own modality with its own statistics.</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 3 — DNA-LM Tokeniser Explorer.</strong> Tokenise a DNA sequence per-nucleotide, as 3-mers, 6-mers, and BPE-style. See vocabulary size, tokens-per-sequence, and how the receptive field of a 512-token window changes. Aha: tokenisation choice determines what scale the model can attend over.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-16/03-dna-lm-tokeniser.html" loading="lazy" title="Artifact 3 — DNA-LM Tokeniser"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-5-5">
+          <h3>5.5 Current state of the art</h3>
+
+          <p>As of 2025:</p>
+
+          <ul>
+            <li>Very long-range prediction (&gt; 100&nbsp;kb): Enformer-class specialised models; limited DNA-LM contributions.</li>
+            <li>Mid-range (10&nbsp;kb): DNA LMs starting to match specialised methods.</li>
+            <li>Short-range (&lt; 1&nbsp;kb) motif discovery: DNA LMs are competitive.</li>
+            <li>Generation: Evo and successors are the frontier; experimental validation ongoing.</li>
+            <li>Cross-species transfer: DNA LMs clearly win.</li>
+          </ul>
+
+          <p>Honest assessment: DNA LMs are a useful tool but haven't transformed the field the way ESM transformed protein prediction or GPT transformed NLP.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 25 min</span>
+          Foundation Models for Cells
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 The pitch</h3>
+
+          <p><strong>scGPT</strong> (Cui et al. 2024), <strong>Geneformer</strong> (Theodoris et al. 2023), <strong>scFoundation</strong> (Hao et al. 2024), <strong>UCE / Universal Cell Embedding</strong> (Rosen et al. 2024). Transformer-based models pretrained on millions to hundreds of millions of single-cell transcriptomes. Pitch: "scGPT is to single-cell what GPT is to text." A foundation model whose pretrained representations transfer to <em>any</em> downstream single-cell task.</p>
+
+          <p>Each model takes a gene-expression vector and tokenises it differently:</p>
+
+          <ul>
+            <li><strong>Geneformer</strong> (2023): rank-value encoding — order genes by expression, use rank as token.</li>
+            <li><strong>scGPT</strong> (2024): binned expression values + gene identity as parallel token channels.</li>
+            <li><strong>scFoundation</strong> (2024): per-gene real-valued expression via a custom embedding.</li>
+            <li><strong>UCE</strong> (2024): cross-species shared embedding.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-16/09-cell-foundation-model.svg"
+                 alt="Schematic of an scGPT/Geneformer-style architecture. Input: a cell's gene-expression vector tokenised as rank-value or binned pairs. Stack of 12 to 24 transformer blocks. Output: cell-level embedding for any downstream task. Right-side annotation: pretraining corpus about 30M cells; downstream tasks include cell-type classification, perturbation prediction, cross-species. Note: specialised methods still win on specialised downstream tasks.">
+            <figcaption>Figure 9. A cell foundation model. Cell-as-token-sequence; transformer; downstream embeddings. The architecture is straightforward; the right tokenisation is the open question.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 What works</h3>
+
+          <ul>
+            <li><strong>Zero-shot cell-type classification</strong>: 70–80% on held-out studies; decent, not replacing specialised classifiers.</li>
+            <li><strong>Perturbation response prediction</strong>: scGPT shows moderate success.</li>
+            <li><strong>Gene-gene interaction discovery</strong>: extract which genes are "connected" through attention.</li>
+            <li><strong>Cross-species transfer via shared embedding</strong>: UCE shows mouse-human cell-type alignment at improved accuracy.</li>
+          </ul>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 What's oversold</h3>
+
+          <ul>
+            <li><strong>Evaluation is immature</strong>. Many papers report zero-shot accuracy on cell types present in pretraining (under different names). Proper leave-one-study-out gives much lower numbers.</li>
+            <li><strong>Specialised methods still win on specialised tasks</strong>. scVI for integration; Harmony for batch correction; CellTypist for cell-type classification. Foundation models aren't the default yet.</li>
+            <li><strong>Cost is high</strong>. Pretraining: thousands of GPU-hours; fine-tuning: hundreds. Downstream utility is not yet proportional.</li>
+            <li><strong>Biological interpretability is limited</strong>. The "learned representations" are not straightforwardly interpretable as gene-regulatory networks or pathways.</li>
+            <li><strong>The "GPT analogy" is loose</strong>. Text has semantic meaning per token; gene-expression vectors encode a cell's state, a different kind of object.</li>
+          </ul>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 Where these models might matter</h3>
+
+          <ul>
+            <li><strong>Cross-species alignment</strong> at scale: UCE's direction is promising for translating findings between model organisms and humans.</li>
+            <li><strong>Patient-level predictions from sc-data</strong>: combining multi-patient data into a shared embedding may enable disease-state classification the way radiomics enabled imaging-based diagnosis.</li>
+            <li><strong>Perturbation screens at virtual scale</strong>: pretrained representations + a small amount of experimental data could predict CRISPR screen outcomes across cell types.</li>
+            <li><strong>Multi-modal integration</strong>: foundation models that cover scRNA + scATAC + protein are the likely future; current-gen are a stepping stone.</li>
+          </ul>
+        </section>
+
+        <section id="sec-6-5">
+          <h3>6.5 Reading a foundation-model paper honestly</h3>
+
+          <ol>
+            <li><strong>What was the pretraining corpus?</strong> Which cells, which studies, which technology? Held-out studies for evaluation?</li>
+            <li><strong>What's the evaluation protocol?</strong> Leave-one-study-out (hard) vs leave-one-cell-out (trivial)?</li>
+            <li><strong>What's the baseline?</strong> Best specialised tool vs trivial baseline?</li>
+            <li><strong>What's the downstream task?</strong> Great at cell-typing ≠ great at perturbation prediction.</li>
+            <li><strong>How much fine-tuning?</strong> "Zero-shot" with heavy embedding lookup is effectively fine-tuning.</li>
+          </ol>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>Foundation models for cells are marketed as transformative but, as of 2025, the evidence is mixed. Responsible evaluation compares them on the <em>exact</em> benchmark and splitting protocol used by the specialised method. Many "scGPT beats X" headlines don't survive that comparison. Use foundation-model cell embeddings as one tool, not as a replacement for specialised methods.</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 4 — Cell Foundation Model Zero-Shot Explorer.</strong> Preset single-cell embeddings from a scGPT-like model. Pick an evaluation protocol — leave-one-cell-out vs leave-one-study-out — and watch the accuracy gap. Aha: zero-shot accuracy is a function of the protocol, not a single number.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-16/04-cell-foundation.html" loading="lazy" title="Artifact 4 — Cell Foundation Model"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 15 min</span>
+          What's Coming
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 Multimodal foundation models</h3>
+
+          <p>The likely next wave: foundation models that cover <strong>more than one modality</strong> in a single latent space. Protein sequence + structure + function (ESM-3 already, and richer downstream); DNA sequence + chromatin state + RNA expression; scRNA + scATAC + protein. The engineering recipe is clear (separate encoders → shared transformer → per-modality heads); the data is the bottleneck — datasets with matched multi-modal measurements are small.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-16/12-multimodal.svg"
+                 alt="2D plot. X-axis: modalities covered (single → 2 → 3+). Y-axis: parameter count log scale 100M to 100B. Dots: ESM-2 (protein-only, 15B), AlphaFold3 (protein + nucleic + ligand, moderate params), DNABERT (DNA-only, 100M), Evo (DNA-only cross-species, ~7B), scGPT/Geneformer (cell + RNA, 10–50M), ESM-3 (seq + structure + function, ~100B). Shaded frontier region in the top-right.">
+            <figcaption>Figure 12. The multimodal frontier. Models concentrate in single-modality + high-param or multi-modal + moderate-param; data, not scale, is the current bottleneck.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Protein-DNA co-design</h3>
+
+          <p>Combining AlphaFold (protein) + DNA-LM (nucleic acid) to design <strong>both a protein and its target DNA / RNA jointly</strong>: a TF + its binding site; an RNA-binding protein + its bound RNA; a CRISPR variant + its guide RNA preference. RFDiffusion-All-Atom (2024) and AlphaFold3 are starting to do this.</p>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 Generative models for designed biology</h3>
+
+          <p>Beyond prediction: generate novel biology. Designed proteins (RFDiffusion, ProteinMPNN, §L15). Designed DNA / RNA (Evo and successors). Designed cells / whole organisms — speculative, far from current tech. The dual-use question (§L15.6.4) becomes more acute with each generation.</p>
+        </section>
+
+        <section id="sec-7-4">
+          <h3>7.4 Convergence with mainstream AI</h3>
+
+          <p>Genomics ML used to lag mainstream ML by 2–3 years. The gap is closing: protein structure (AlphaFold) has become mainstream ML; transformer adoption in genomics has been fast; DNA LMs benefit from all of NLP's progress; scaling laws and inference optimisation are cross-applicable. Emerging scenario: genomics ML = mainstream ML + biology-specific inductive biases + biology-specific data challenges. Not a separate field.</p>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>The DeepVariant paper (Poplin et al. 2018) is a good marker for when genomics ML seriously entered the mainstream. Before 2018, most bioinformatics tools were hand-engineered statistical methods (GATK's HaplotypeCaller is essentially an HMM + hand-crafted features). DeepVariant showed that a plain 2D CNN trained on pileup images could match or beat a decade of careful engineering — and importantly, retrain for a new sequencing technology in a few GPU-days. The 2018–2021 window saw this pattern repeat: scVI for single-cell, DeepSEA / Enformer for regulation, AlphaFold for structure. The driver was the same: enough labelled / pretraining data had accumulated that the right deep-learning architecture beat hand-engineered baselines.</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 7 — Genomics ML Pitfall Checklist.</strong> Describe a proposed genomics ML project (architecture, data source, split strategy, evaluation metric, baselines). The artifact flags likely pitfalls: "this split looks leaky", "this baseline is too weak", "this loss function mismatches the data's noise model". Aha: most genomics ML design bugs are recognisable from a checklist — the mistakes are predictable.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-16/07-pitfall-checklist.html" loading="lazy" title="Artifact 7 — Pitfall Checklist"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup" class="lecture-wrapup">
+        <h2>
+          <span class="part-kicker">Wrap-up · 10 min</span>
+          Takeaways, homework, and next lecture
+        </h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Architecture choice is inductive-bias matching</strong>. For each genomics problem, the structural property of the data (translation invariance, long-range sparsity, count over-dispersion, rotation symmetry) should dictate the architecture.</li>
+          <li><strong>Right likelihood &gt; deep architecture</strong>. scVI's NB likelihood is what matters; the VAE scaffold is scaffolding. Signal-processing analogy: matched-filter correctness &gt; filter complexity.</li>
+          <li><strong>Data is the bottleneck</strong>. Unlabelled sequences are abundant; labelled outcomes are scarce. Self-supervised pretraining + fine-tuning is the dominant pattern.</li>
+          <li><strong>Data leakage is catastrophic and widely under-acknowledged</strong>. Random splits leak via homology, LD, relatedness, batch. Leakage-aware splits are mandatory for honest evaluation.</li>
+          <li><strong>DNA language models are useful but not transformative</strong>. Moderate gains on regulatory prediction; they don't yet beat specialised architectures on the tasks those were built for.</li>
+          <li><strong>Foundation models for cells are in their infancy</strong>. The marketing outpaces the evidence; specialised methods remain competitive.</li>
+          <li><strong>Inductive bias design is THE skill</strong>. Architecture + likelihood + split design + pretraining strategy together define the result.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Clinical genomics, variant interpretation, and ethics. ACMG/AMP variant classification; the evidence ecosystem (population frequency, functional predictors, splice predictors, ClinVar); pharmacogenomics; incidental findings; FDA / regulatory landscape; ancestry bias and data sovereignty.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Pick a genomics ML paper from 2022+ with a reported 95%+ accuracy. Reproduce the data split; design a tighter split (chromosome / family / time-based); re-evaluate. Report the accuracy delta.</li>
+          <li>Take a DNA-LM (DNABERT or Nucleotide Transformer via HuggingFace) and fine-tune on a small downstream task (promoter classification from DeepProm). Compare against a CNN trained from scratch on the same data.</li>
+          <li>Train a simple VAE (PyTorch, 50 lines) on a sc-RNA dataset with MSE, Poisson, and NB likelihoods. Compare reconstruction quality and biological coherence on UMAP.</li>
+          <li>Read the scGPT paper and audit its benchmark. Does the evaluation use leave-one-study-out? How are "zero-shot" results framed? What baselines are compared? Write a one-page honest assessment.</li>
+          <li>Design an architecture + inductive bias for predicting chromatin 3D contacts at 10 kb resolution from 1 Mb of surrounding sequence. Justify from first principles.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Poplin, R., Chang, P., Alexander, D., et al. (2018). A universal SNP and small-indel variant caller using deep neural networks. <em>Nature Biotechnology</em> 36, 983–987. (DeepVariant.)</li>
+          <li>Avsec, Ž., Agarwal, V., Visentin, D., et al. (2021). Effective gene expression prediction from sequence by integrating long-range interactions. <em>Nature Methods</em> 18, 1196–1203. (Enformer.)</li>
+          <li>Lopez, R., Regier, J., Cole, M. B., Jordan, M. I., &amp; Yosef, N. (2018). Deep generative modeling for single-cell transcriptomics. <em>Nature Methods</em> 15, 1053–1058. (scVI.)</li>
+          <li>Jumper, J. et al. (2021). Highly accurate protein structure prediction with AlphaFold. <em>Nature</em> 596, 583–589.</li>
+          <li>Dosovitskiy, A. et al. (2020). An image is worth 16×16 words: Transformers for image recognition at scale. <em>ICLR 2021</em>.</li>
+          <li>Ji, Y. et al. (2021). DNABERT. <em>Bioinformatics</em> 37, 2112–2120.</li>
+          <li>Dalla-Torre, H. et al. (2023). The Nucleotide Transformer. <em>bioRxiv</em>.</li>
+          <li>Nguyen, E. et al. (2023). HyenaDNA: long-range genomic sequence modeling at single nucleotide resolution. <em>NeurIPS 2023</em>.</li>
+          <li>Nguyen, E. et al. (2024). Sequence modeling and design from molecular to genome scale with Evo. <em>Science</em> 386.</li>
+          <li>Theodoris, C. V. et al. (2023). Transfer learning enables predictions in network biology. <em>Nature</em> 618, 616–624. (Geneformer.)</li>
+          <li>Cui, H. et al. (2024). scGPT: toward building a foundation model for single-cell multi-omics using generative AI. <em>Nature Methods</em> 21, 1470–1480.</li>
+          <li>Rosen, Y. et al. (2024). Universal Cell Embeddings: A foundation model for cell biology. <em>bioRxiv</em>.</li>
+          <li>Luecken, M. D. et al. (2022). Benchmarking atlas-level data integration in single-cell genomics. <em>Nature Methods</em> 19, 41–50.</li>
+          <li>Papers With Code — Genomics: <a href="https://paperswithcode.com/area/biology" target="_blank" rel="noopener">paperswithcode.com/area/biology</a></li>
+          <li>HuggingFace Hub (DNA models): <a href="https://huggingface.co/models?search=dna" target="_blank" rel="noopener">huggingface.co/models?search=dna</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — Architectural Pattern Survey</td>           <td>45&nbsp;min</td><td>0:45</td></tr>
+            <tr><td>Part 2 — Inductive Biases — Why Each Works</td>      <td>35&nbsp;min</td><td>1:20</td></tr>
+            <tr><td>Part 3 — Training Data Is the Bottleneck</td>        <td>25&nbsp;min</td><td>1:45</td></tr>
+            <tr><td>Part 4 — The Data Leakage Problem</td>               <td>30&nbsp;min</td><td>2:15</td></tr>
+            <tr><td>Part 5 — DNA Language Models</td>                    <td>25&nbsp;min</td><td>2:40</td></tr>
+            <tr><td>Part 6 — Foundation Models for Cells</td>            <td>25&nbsp;min</td><td>3:05</td></tr>
+            <tr><td>Part 7 — What's Coming</td>                          <td>15&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                         <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) f.style.height = d.height + 'px';
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

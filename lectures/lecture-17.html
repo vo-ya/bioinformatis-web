@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 17 — Clinical Genomics, Variant Interpretation, and Ethics · Bioinformatics for EE</title>
+  <meta name="description" content="From research to clinic: CLIA/CAP/IVDR, the ACMG/AMP variant classification framework, gnomAD/REVEL/AlphaMissense/SpliceAI, pharmacogenomics, incidental findings, the FDA LDT rule, GINA, and ancestry bias.">
+
+  <meta property="og:title" content="Lecture 17 — Clinical Genomics, Variant Interpretation, and Ethics">
+  <meta property="og:description" content="Clinical bioinformatics is regulated software · ACMG/AMP rules · evidence ecosystem · pharmacogenomics · secondary findings · LDT rule · GINA · ancestry bias.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — From Research to Clinic</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Why this lecture</a></li>
+          <li><a href="#sec-1-2">1.2 CLIA, CAP, and the lab ecosystem</a></li>
+          <li><a href="#sec-1-3">1.3 LDTs, IVDs, RUO</a></li>
+          <li><a href="#sec-1-4">1.4 What changes in the code</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — ACMG/AMP Variant Classification</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 Why a classification standard exists</a></li>
+          <li><a href="#sec-2-2">2.2 The five-class output</a></li>
+          <li><a href="#sec-2-3">2.3 Evidence codes and their strengths</a></li>
+          <li><a href="#sec-2-4">2.4 Rule combination</a></li>
+          <li><a href="#sec-2-5">2.5 ClinGen refinements</a></li>
+          <li><a href="#sec-2-6">2.6 Sherloc and other frameworks</a></li>
+          <li><a href="#sec-2-7">2.7 ClinVar as community truth</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — The Variant Evidence Ecosystem</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Population frequency: gnomAD</a></li>
+          <li><a href="#sec-3-2">3.2 Functional impact: REVEL, AlphaMissense</a></li>
+          <li><a href="#sec-3-3">3.3 Splicing: SpliceAI deep dive</a></li>
+          <li><a href="#sec-3-4">3.4 Literature mining and ClinGen</a></li>
+          <li><a href="#sec-3-5">3.5 Variant interpretation is a profession</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Pharmacogenomics</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 The basics</a></li>
+          <li><a href="#sec-4-2">4.2 The canonical cases</a></li>
+          <li><a href="#sec-4-3">4.3 Star-allele nomenclature</a></li>
+          <li><a href="#sec-4-4">4.4 PharmGKB and CPIC</a></li>
+          <li><a href="#sec-4-5">4.5 PGx is under-used</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Incidental Findings</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 The problem</a></li>
+          <li><a href="#sec-5-2">5.2 The ACMG SF list</a></li>
+          <li><a href="#sec-5-3">5.3 The right not to know</a></li>
+          <li><a href="#sec-5-4">5.4 Incidental findings in practice</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Regulatory Landscape</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 FDA-cleared sequencing assays</a></li>
+          <li><a href="#sec-6-2">6.2 The 2024 FDA LDT rule</a></li>
+          <li><a href="#sec-6-3">6.3 EU IVDR</a></li>
+          <li><a href="#sec-6-4">6.4 Direct-to-consumer testing</a></li>
+          <li><a href="#sec-6-5">6.5 What this means for software</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — Ethics, Equity, Data Sovereignty</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 GINA and its limits</a></li>
+          <li><a href="#sec-7-2">7.2 Ancestry bias in clinical databases</a></li>
+          <li><a href="#sec-7-3">7.3 Havasupai and data sovereignty</a></li>
+          <li><a href="#sec-7-4">7.4 CARE principles</a></li>
+          <li><a href="#sec-7-5">7.5 Diverse cohorts</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 17</div>
+      <h1 class="lecture-title">Clinical Genomics, Variant Interpretation, and Ethics</h1>
+      <p class="lecture-subtitle">When a pipeline's output informs a patient's diagnosis, dosing, or surgical decision, the rules change. Clinical bioinformatics is regulated software; the ACMG/AMP rule table is an auditable Bayesian classifier; pharmacogenomics is a state-machine lookup; GINA is narrower than people assume; ancestry bias is a training-distribution coverage problem.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — From research to clinic</a></li>
+        <li><a href="#part-2">Part 2 — ACMG/AMP variant classification</a></li>
+        <li><a href="#part-3">Part 3 — Variant evidence ecosystem</a></li>
+        <li><a href="#part-4">Part 4 — Pharmacogenomics</a></li>
+        <li><a href="#part-5">Part 5 — Incidental findings</a></li>
+        <li><a href="#part-6">Part 6 — Regulatory landscape</a></li>
+        <li><a href="#part-7">Part 7 — Ethics, equity, data sovereignty</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Eight moves:</em>
+        <span class="lecture-tagline-beat">pin every version</span>,
+        <span class="lecture-tagline-beat">assign evidence codes</span>,
+        <span class="lecture-tagline-beat">apply the rule table</span>,
+        <span class="lecture-tagline-beat">aggregate the dossier</span>,
+        <span class="lecture-tagline-beat">look up the dose</span>,
+        <span class="lecture-tagline-beat">gate the secondary findings</span>,
+        <span class="lecture-tagline-beat">match the regulatory pathway</span>,
+        <span class="lecture-tagline-beat">audit for ancestry bias</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Distinguish research and clinical bioinformatics pipelines; explain what CLIA / CAP certification, LDT vs IVD, and clinical validation require.</li>
+          <li>Apply the ACMG/AMP 2015 variant-classification framework: identify evidence codes (PVS1, PS1–4, PM1–6, PP1–5, BA1, BS1–4, BP1–7), combine them via the rule set, and arrive at a pathogenic / likely pathogenic / VUS / likely benign / benign call.</li>
+          <li>Assemble a variant evidence dossier using the standard resources — gnomAD for population frequency, REVEL / AlphaMissense for missense-impact prediction, SpliceAI for splice effects, ClinVar for prior classifications.</li>
+          <li>Describe the current state of pharmacogenomics: CYP2D6/codeine, VKORC1/CYP2C9/warfarin, HLA-B*57:01/abacavir, TPMT/thiopurines; use PharmGKB and CPIC guidelines.</li>
+          <li>Explain the ACMG secondary-findings list (v3.x), the right-not-to-know debate, and the operational workflow when incidental findings appear.</li>
+          <li>Outline the US and EU regulatory landscape: FDA-approved sequencing assays (FoundationOne, MSK-IMPACT), the 2024 FDA LDT rule, EU IVDR, and DTC genomics (23andMe history).</li>
+          <li>Articulate the ethics and data-sovereignty issues: GINA protections and their limits, ancestry bias in clinical databases, the Havasupai case, indigenous data sovereignty (CARE principles), and initiatives to improve diversity (All of Us, Our Future Health, H3Africa).</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 20 min</span>
+          From Research to Clinic
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Why this lecture</h3>
+
+          <p>Previous lectures treated bioinformatics as research: pipelines, methods, open questions. This lecture covers the transition from "research result" to "clinical deliverable." When your pipeline's output informs a patient's diagnosis, dosing, or surgical decision, the rules change. Every EE student entering the genomics industry will, sooner or later, write code that touches this boundary.</p>
+
+          <p>Clinical bioinformatics differs from research bioinformatics in five fundamental ways:</p>
+
+          <ul>
+            <li><strong>Accuracy at the individual level.</strong> A research pipeline reporting 99.8% recall is excellent; a clinical pipeline that misses 0.2% of pathogenic variants has missed a patient.</li>
+            <li><strong>Reproducibility and auditability.</strong> Every call must be re-derivable years later; every step logged; every tool version pinned.</li>
+            <li><strong>Turnaround time (TAT).</strong> Research: weeks. Clinical: 3–14 days for most tests.</li>
+            <li><strong>Regulation.</strong> Clinical labs are regulated (CLIA in the US, equivalents elsewhere); research labs are not.</li>
+            <li><strong>Sign-off.</strong> Every clinical report has a named physician signatory. Research papers have authors; clinical reports have a doctor whose license is at stake.</li>
+          </ul>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 CLIA, CAP, and the lab ecosystem</h3>
+
+          <p>In the United States:</p>
+          <ul>
+            <li><strong>CLIA</strong> (Clinical Laboratory Improvement Amendments, 1988). Federal regulation of all clinical labs. Any lab testing human samples for health-related results must be CLIA-certified. Genomic tests are "high-complexity" CLIA tests.</li>
+            <li><strong>CAP accreditation</strong> (College of American Pathologists). Voluntary-but-expected peer accreditation; more rigorous than CLIA minimums. Most respected clinical labs carry CAP.</li>
+            <li><strong>NYS CLEP</strong> (New York State Clinical Laboratory Evaluation Program). Separate state-level certification. NYS has the strictest clinical-lab regulation in the US. Getting "NY approval" is a meaningful bar.</li>
+          </ul>
+
+          <p>Outside the US:</p>
+          <ul>
+            <li><strong>ISO 15189</strong>: international medical-laboratory quality standard. Essentially the global equivalent of CLIA + CAP.</li>
+            <li><strong>UKAS</strong>, <strong>DAkkS</strong>: UK and German national accreditation bodies, respectively.</li>
+          </ul>
+
+          <p>Bioinformatics in CLIA labs:</p>
+          <ul>
+            <li>Pipeline must have a written <strong>validation document</strong> (Vali-doc) demonstrating accuracy on known samples.</li>
+            <li>Every release has a <strong>standard operating procedure (SOP)</strong> with version tracking.</li>
+            <li>Any change — even a tool version bump — requires re-validation or at minimum documentation.</li>
+            <li><strong>Internal Quality Control (IQC)</strong>: known positive + negative controls run with each batch.</li>
+            <li><strong>External Quality Assessment (EQA)</strong>: periodic blind proficiency tests (e.g. GenQA).</li>
+          </ul>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 LDTs, IVDs, RUO</h3>
+
+          <p>Assay regulatory classification:</p>
+          <ul>
+            <li><strong>LDT</strong> (Laboratory-Developed Test). A test developed, validated, and performed within a single lab. Historically FDA's hands-off position; 2023–2024 rule changes (Part 6) now bring LDTs under FDA oversight.</li>
+            <li><strong>IVD</strong> (In-Vitro Diagnostic device). An FDA-cleared or FDA-approved assay sold as a kit (reagents, instruments, software). Much higher regulatory bar. Examples: FoundationOne CDx, Illumina TSO500.</li>
+            <li><strong>RUO</strong> (Research Use Only). Reagent or tool labelled for research, <strong>not</strong> clinical use. Many academic tools are RUO. Using RUO reagents for clinical reporting is a regulatory violation unless the lab performs their own clinical validation (turning the RUO input into a validated LDT output).</li>
+          </ul>
+
+          <p>Most modern clinical genomic tests are LDTs built on a mix of FDA-cleared hardware (Illumina sequencers, IVDR-certified library-prep kits) + in-house analysis pipelines.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-17/11-regulatory-landscape.svg"
+                 alt="Layered diagram of clinical-lab regulation. Bottom band: physical infrastructure (sequencer, IVD-certified reagents, library-prep). Middle band: three overlapping rings — CLIA (required), CAP (expected), NYS CLEP (strictest); overlap labelled fully-certified clinical genomics lab. Top band: three test-output tiles — RUO grey, LDT amber with post-2024 FDA marker, IVD cobalt. Arrows from bottom to top indicate the regulatory flow.">
+            <figcaption>Figure 11. The clinical-lab stack: physical infrastructure → certified lab → classified test output. Each layer adds regulation; the 2024 FDA rule reaches into the LDT tier that used to operate under enforcement discretion.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-17/01-research-vs-clinical.svg"
+                 alt="Two parallel horizontal pipelines. Top track research: sample → sequence → align → variant call → analysis → manuscript, annotated tool versions float, months TAT, publication-grade. Bottom track clinical: sample with chain-of-custody → sequence with pinned reagent lot → align with pinned reference MD5 → variant call validated SOP → curation by named variant scientist → signed clinical report → EHR deposit, annotated SOP documented, CLIA/CAP audited, 3-14 day TAT, physician-signed. Vertical divider labelled regulatory boundary; everything below is regulated software.">
+            <figcaption>Figure 1. Same shape, different rules. The clinical track reuses every research stage — but every step is SOP-documented, every tool version is pinned, and the report carries a physician's signature.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 What changes in the code</h3>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box — bit-identical reruns</span>
+            <p>The simplest way to feel the research-to-clinic shift is to picture rerunning last month's analysis. In research, you pull the latest tool version, re-align, see the results wiggle by a few percent, and write a note in the methods section. In a clinical pipeline, rerunning last month's patient sample must produce <strong>bit-identical</strong> output to the original report — or a documented re-validation event is required. Every knob is frozen; every file is hashed; every run has a UUID traceable back through the chain. This isn't bureaucratic overreach — it's what makes the downstream clinical decision legally defensible years later when a patient's lawyer (or the state medical board) asks "how did you reach this call?"</p>
+          </aside>
+
+          <p>Concrete differences a clinical software engineer notices:</p>
+
+          <ul>
+            <li><strong>No bleeding-edge tool versions.</strong> Production is typically 1–2 years behind the research frontier. Stability &gt; novelty.</li>
+            <li><strong>Containerised everything.</strong> The container image used is part of the validation; updating it requires re-validation.</li>
+            <li><strong>Explicit version pinning</strong> of reference genome, databases (ClinVar, gnomAD, HGMD), every auxiliary file. Pin by MD5 hash.</li>
+            <li><strong>Run-level audit trails.</strong> Every run has a UUID; each file produced has a provenance chain back to raw reads.</li>
+            <li><strong>Automated detection of validation drift.</strong> Regular reruns on reference samples (e.g. HG002 / GIAB) to catch any regression.</li>
+            <li><strong>Fail-closed, not fail-open.</strong> Ambiguous outputs must be reviewed, not auto-reported. A caller that silently outputs "no calls" on a low-coverage region should throw a loud warning, not a quiet empty VCF.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — clinical pipelines as FDA-regulated devices</span>
+            <p>Running a clinical bioinformatics pipeline is structurally the same as running an FDA-regulated medical device or RF-certified radio. Every change requires re-validation; every deployment has a version-locked release; every failure mode is characterised in a documented limitations section. The analogy in electrical engineering is the difference between a hobby radio circuit and an FCC-certified broadcast transmitter, or between a research-grade ECG and a 510(k)-cleared clinical one. The engineering is similar in kind — the regulatory and documentation burden is the differentiator. If you've worked in a safety-critical EE domain (automotive, aviation, medical devices), most of the culture here will feel familiar.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 50 min</span>
+          ACMG/AMP Variant Classification
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 Why a classification standard exists</h3>
+
+          <p>Before 2015, clinical labs classified variants independently; the same variant could be called "pathogenic" in one lab and "VUS" in another. This was a problem for patients transferring between providers, for meta-analyses, and for multidisciplinary teams.</p>
+
+          <p>In 2015 the <strong>American College of Medical Genetics and Genomics (ACMG)</strong> and the <strong>Association for Molecular Pathology (AMP)</strong> jointly published a 28-page document (Richards et al. 2015, <em>Genetics in Medicine</em>) defining the standardised framework. The framework:</p>
+
+          <ul>
+            <li><strong>Five-class output</strong>: pathogenic (P), likely pathogenic (LP), variant of uncertain significance (VUS), likely benign (LB), benign (B).</li>
+            <li><strong>Evidence codes</strong>: individual lines of evidence (e.g. "extremely rare in gnomAD" or "predicted to disrupt protein structure"), each with a specific strength label.</li>
+            <li><strong>Rules for combination</strong>: how evidence codes combine to produce the five-class call.</li>
+          </ul>
+
+          <p>The goal was to make variant classification <strong>reproducible, auditable, and interpretable</strong> across labs. It has largely succeeded; ACMG/AMP is now the operating standard in almost every clinical genomics lab worldwide.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Historical pointer</span>
+            <p>The ACMG/AMP 2015 guidelines (Richards, Aziz, Bale et al.) emerged from working groups that had spent three years trying to reconcile the classification systems used at major US labs (GeneDx, Ambry, ARUP, Partners / Laboratory for Molecular Medicine, Myriad, Invitae, and others). The 2015 document codifies not a new classification scheme, but a <strong>common language</strong> across existing ones. The related <strong>ClinGen</strong> initiative (<a href="https://clinicalgenome.org/" target="_blank" rel="noopener">clinicalgenome.org</a>) maintains gene- and disease-specific refinements of ACMG/AMP — for some high-interest genes (BRCA1/2, MMR genes, cardiac channelopathies), ClinGen has published expert-curated modifications that supersede the generic rules. ClinVar (the NIH-hosted community classification database) absorbs these as they're published.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 The five-class output</h3>
+
+          <p>Each class carries a probabilistic interpretation:</p>
+
+          <ul>
+            <li><strong>Pathogenic (P)</strong>: $\geq 99\%$ probability of disease-causing for the patient's phenotype.</li>
+            <li><strong>Likely pathogenic (LP)</strong>: 90–99% probability.</li>
+            <li><strong>Variant of Uncertain Significance (VUS)</strong>: 10–90% probability. <strong>Reporting threshold</strong>: VUS results are returned to physicians but without clinical action.</li>
+            <li><strong>Likely benign (LB)</strong>: 0.1–10% probability of pathogenic.</li>
+            <li><strong>Benign (B)</strong>: $\leq 0.1\%$ probability.</li>
+          </ul>
+
+          <p>Clinical actionability:</p>
+
+          <ul>
+            <li><strong>P / LP</strong>: acted on (medication choice, surveillance, risk-reducing surgery, family testing).</li>
+            <li><strong>VUS</strong>: not acted on. Reported with a note. Reclassified as evidence accumulates.</li>
+            <li><strong>LB / B</strong>: not acted on. Usually not reported in a clinical context at all.</li>
+          </ul>
+
+          <p>The <strong>VUS problem</strong>: the majority of variants in most genes are VUS. For rare genes with little population frequency data, VUS rates approach 50%. Reclassifying VUS → P/LP/B as evidence accumulates is a full-time job for variant scientists.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-17/02-acmg-classes.svg"
+                 alt="Top: horizontal classification spectrum split into B, LB, VUS, LP, P with probability bands and action labels under each segment. Bottom: distribution of clinical-exome variant calls — most LB/B, large VUS bar, small P/LP tip. Annotation: VUS reclassification is continuous field-wide work.">
+            <figcaption>Figure 2. The five classes are not a slider with VUS as the middle: they are five distinct decisions with five distinct actions. VUS is "we don't know yet" and that information matters.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Evidence codes and their strengths</h3>
+
+          <p>Twenty-eight evidence codes, organised by direction (pathogenic / benign) and strength.</p>
+
+          <p><strong>Pathogenic evidence</strong> (stronger → weaker):</p>
+          <ul>
+            <li><strong>PVS1</strong> (Very Strong): <strong>loss-of-function (LoF)</strong> variant in a gene where LoF is a known disease mechanism. Examples: nonsense, frameshift, canonical splice site, single-exon deletion. Specific caveats apply — e.g. a stop-gain in the last exon may escape NMD and thus not be truly LoF.</li>
+            <li><strong>PS1–PS4</strong> (Strong): PS1 — same amino-acid change as a previously-established pathogenic variant; PS2 — de novo confirmed by parental testing + confirmed parentage; PS3 — well-established functional studies showing damaging effect; PS4 — statistically significant enrichment in cases vs controls.</li>
+            <li><strong>PM1–PM6</strong> (Moderate): PM1 — in a hotspot / critical domain; PM2 — absent from gnomAD (or extremely rare); PM3 — in trans with pathogenic variant in recessive disease; PM4 — protein-length change due to in-frame indel / stop-loss; PM5 — novel missense where different amino-acid change at same residue is known pathogenic; PM6 — assumed de novo without confirmed parentage.</li>
+            <li><strong>PP1–PP5</strong> (Supporting): PP1 — co-segregation with disease in family; PP2 — missense in a gene with low benign-missense rate; PP3 — multiple in-silico predictors agree on damaging effect; PP4 — patient phenotype highly specific for the disease; PP5 — reported as pathogenic in a reputable source (now <strong>deprecated</strong> as of 2018 ClinGen update).</li>
+          </ul>
+
+          <p><strong>Benign evidence</strong>:</p>
+          <ul>
+            <li><strong>BA1</strong> (Stand-alone): allele frequency $\geq 5\%$ in gnomAD. Stand-alone = enough by itself to classify as B.</li>
+            <li><strong>BS1–BS4</strong> (Strong): BS1 — allele frequency inconsistent with disease prevalence; BS2 — observed in healthy adults at an allele count inconsistent with disease; BS3 — well-established functional studies showing no damaging effect; BS4 — lack of segregation in affected family members.</li>
+            <li><strong>BP1–BP7</strong> (Supporting): BP1 — missense in a gene where truncating variants (not missense) cause disease; BP2 — observed in trans with a pathogenic variant in a recessive gene, in a phenotypically healthy individual; BP3 — in-frame indel in repetitive region without known function; BP4 — multiple predictors agree benign; BP5 — observed in a case with an alternative molecular diagnosis; BP6 — reported benign in a reputable source (<strong>deprecated</strong> 2018); BP7 — silent variant not at splice consensus with no predicted splice effect.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-17/03-evidence-codes.svg"
+                 alt="Two-column reference table. Left column pathogenic codes from PVS1 (deep red) down to PP supporting (light red), each with brief description and strength label. Right column benign codes from BA1 stand-alone (amber) and BS strong cobalt down to BP supporting (light cobalt). Deprecated codes PP5 and BP6 shown with strikethrough.">
+            <figcaption>Figure 3. The 28-code map. Strength gradients (cobalt / red) tell you which codes carry more weight; the two deprecated codes (PP5, BP6) are crossed out.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Rule combination</h3>
+
+          <p>Once evidence codes are assigned, the <strong>combinatorial rules</strong> determine classification:</p>
+
+          <p><strong>Pathogenic (P)</strong>:</p>
+          <ol>
+            <li>$1 \times \text{PVS1} + \geq 1 \times$ (PS or PM or PP with specific weighting), OR</li>
+            <li>$\geq 2 \times \text{PS}$, OR</li>
+            <li>$1 \times \text{PS} + \geq 3 \times \text{PM}$, OR</li>
+            <li>$1 \times \text{PS} + 2 \times \text{PM} + 2 \times \text{PP}$, OR</li>
+            <li>$1 \times \text{PS} + \geq 4 \times \text{PP}$, OR</li>
+            <li>$\geq 3 \times \text{PM} + 2 \times \text{PP}$ (etc.)</li>
+          </ol>
+
+          <p><strong>Likely pathogenic (LP)</strong>:</p>
+          <ul>
+            <li>$1 \times \text{PVS1} + 1 \times \text{PM}$, OR</li>
+            <li>$1 \times \text{PS} + 1\text{–}2 \times \text{PM}$, OR</li>
+            <li>$1 \times \text{PS} + \geq 2 \times \text{PP}$, OR</li>
+            <li>$\geq 3 \times \text{PM}$, OR ...</li>
+          </ul>
+
+          <p><strong>Benign (B)</strong>: $1 \times \text{BA1}$ alone, OR $\geq 2 \times \text{BS}$.</p>
+          <p><strong>Likely benign (LB)</strong>: $1 \times \text{BS} + 1 \times \text{BP}$, OR $\geq 2 \times \text{BP}$.</p>
+          <p><strong>VUS</strong>: default when none of the above rules are met, or when pathogenic and benign evidence codes conflict.</p>
+
+          <p>The specific rules are a lookup table that's essentially memorised by variant scientists. Modern tools (InterVar, VarSome, Franklin) automate the lookup — but understanding what the rules <em>say</em> is still the core skill.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — ACMG/AMP as a structured rule-based classifier</span>
+            <p>ACMG/AMP classification is an explicit, auditable <strong>rule-based classifier</strong>. Each evidence code is a Boolean (applies / doesn't apply); the rules combine them via a lookup table to produce the class label. This is deliberately <strong>not</strong> end-to-end ML. Reasons: (a) auditability — every call can be traced back to specific evidence; (b) regulatory acceptance — FDA / CE-IVDR approval processes require explainable outputs; (c) expert agreement — the framework encodes decades of clinical-genetics consensus that a neural network would have to rediscover. An EE analogy: it's like the difference between a hand-coded FSM for safety-critical signal processing and a learned RNN. The FSM is less powerful but vastly more auditable. In domains where mistakes harm people, the FSM wins. ML-based pathogenicity predictors exist (Part 3) and <em>inform</em> evidence codes like PP3/BP4; they don't replace the rule-based framework. This will likely stay true for the foreseeable future.</p>
+          </aside>
+        </section>
+
+        <section id="sec-2-5">
+          <h3>2.5 ClinGen refinements</h3>
+
+          <p>The base ACMG/AMP rules are gene-agnostic. For high-interest genes, the <strong>ClinGen</strong> expert panels have published gene-specific refinements:</p>
+          <ul>
+            <li><strong>BRCA1 / BRCA2</strong> (breast/ovarian cancer): specific rules for when PVS1 applies based on exon location; frequency thresholds tuned for founder populations.</li>
+            <li><strong>TP53</strong> (Li-Fraumeni syndrome): modifications for hotspot definitions.</li>
+            <li><strong>MMR genes</strong> (Lynch syndrome): specific thresholds + additional evidence codes.</li>
+            <li><strong>RASopathy genes</strong>: modifications for de novo handling.</li>
+            <li><strong>Cardiac channelopathies</strong> (SCN5A, KCNQ1): modifications reflecting the high VUS burden in these genes.</li>
+          </ul>
+
+          <p>When a gene-specific ClinGen refinement exists, <strong>use it</strong>. When it doesn't, fall back to generic ACMG/AMP.</p>
+        </section>
+
+        <section id="sec-2-6">
+          <h3>2.6 Sherloc and other frameworks</h3>
+
+          <p><strong>Sherloc</strong> (Nykamp et al. 2017, Invitae) is a refined variant-classification framework that extends ACMG/AMP with additional granularity. Specifics:</p>
+          <ul>
+            <li>More evidence-code subcategories.</li>
+            <li>Explicit quantitative thresholds (points per code, summed to a score).</li>
+            <li>Designed for high-throughput reclassification at scale.</li>
+          </ul>
+          <p>Most Invitae / Ambry clinical reports follow Sherloc internally but report results using ACMG/AMP five-class labels.</p>
+        </section>
+
+        <section id="sec-2-7">
+          <h3>2.7 ClinVar as community truth</h3>
+
+          <p><strong>ClinVar</strong> (NIH, freely accessible) is the community's aggregate variant-classification database:</p>
+          <ul>
+            <li>~2.5M unique variants as of 2024.</li>
+            <li>Each variant has one or more "submissions" from clinical labs, research groups, expert panels.</li>
+            <li>Submissions are classified using ACMG/AMP (or Sherloc); ClinVar aggregates them.</li>
+            <li>Aggregation result: single-star (one submission) to 4-star (multiple concordant submissions + expert panel + practice guideline).</li>
+          </ul>
+
+          <p>How clinical variant scientists use ClinVar:</p>
+          <ul>
+            <li><strong>Starting point</strong>: what has been said about this variant?</li>
+            <li><strong>Confidence check</strong>: is this variant widely agreed on or controversial?</li>
+            <li><strong>Historical tracker</strong>: was a variant previously LP but reclassified to VUS? (This happens regularly and is important.)</li>
+          </ul>
+
+          <p>Not all ClinVar submissions are equal. Single-star, no-citation submissions can disagree with 4-star expert-panel classifications; the expert panel is usually right.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — variant classification as multi-evidence Bayesian aggregation</span>
+            <p>Under the hood, the ACMG/AMP rule table is an approximation to a Bayesian posterior over the latent "is this variant truly pathogenic?" hypothesis. Each evidence code is a likelihood ratio: PVS1 ≈ $\text{LR}^+ \approx 350$, PS ≈ 19, PM ≈ 4.3, PP ≈ 2.1, and on the benign side BA1 is an absolute threshold while BS, BP are the mirror downweights. Combining independent evidence = multiplying likelihood ratios; the rule table encodes which combinations cross the 99% / 90% / 10% / 0.1% posterior-probability thresholds corresponding to the five classes. Tavtigian et al. (2018) published the explicit Bayesian reformulation; it reproduces the 2015 rule table almost exactly. The EE analogy is <strong>Neyman–Pearson multi-sensor detection</strong>: independent sensors (evidence codes) with known likelihood ratios combine into a posterior; thresholds map posteriors to decisions. The rule-based form exists because that's what clinicians can audit; the Bayesian form exists because that's what's mathematically true.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-17/04-clinvar.svg"
+                 alt="Top: ClinVar submission count growth from 2013 launch to 2024 on log axis, rising from ~50k to ~5M with milestones marked at expert-panel onset and large-submitter policy tightening. Bottom: donut of unique-variant classification distribution — P/LP ~15%, VUS ~40%, LB/B ~40%, conflicting ~5%.">
+            <figcaption>Figure 4. ClinVar at scale. Submissions grow log-linearly; the plurality of unique variants are still VUS — the field's ongoing reclassification work.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 1 — ACMG/AMP Classifier.</strong> Toggle the 28 evidence codes; the artifact applies the rule table and shows which combination fired. Aha: classification is deterministic given the codes. The hard problem is assigning codes — clinical judgment — not combining them.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-17/01-acmg-classifier.html" loading="lazy" title="Artifact 1 — ACMG/AMP Classifier"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 30 min</span>
+          The Variant Evidence Ecosystem
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 Population frequency: gnomAD</h3>
+
+          <p>The single most-used resource in variant classification is <strong>gnomAD</strong> (Karczewski et al. 2020). Allele frequencies across ~800k exomes + ~150k whole genomes, stratified by 8 continental ancestry groups.</p>
+
+          <p>Use cases in ACMG/AMP:</p>
+          <ul>
+            <li><strong>BA1</strong>: variant present at $&gt; 5\%$ in gnomAD → stand-alone benign.</li>
+            <li><strong>BS1</strong>: variant more common than disease prevalence (gene-specific threshold) → strong benign.</li>
+            <li><strong>PM2_Supporting</strong>: absent or extremely rare in gnomAD (various thresholds) → moderate-to-supporting pathogenic.</li>
+          </ul>
+
+          <p>Specific gene-level frequency thresholds are important:</p>
+          <ul>
+            <li>For fully-penetrant autosomal dominant diseases: PM2 threshold usually $1/200\text{k}$ alleles.</li>
+            <li>For recessive: PM2 threshold usually $1/20\text{k}$.</li>
+            <li>For high-penetrance oncogenes (BRCA1): specific ClinGen-recommended thresholds.</li>
+          </ul>
+
+          <p><strong>Ancestry stratification</strong> matters: a variant that's rare in Europeans but common in Africans is still benign; don't use European-only frequencies for a patient of African ancestry.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-17/05-gnomad-thresholds.svg"
+                 alt="Horizontal log-scale frequency axis from 10^-7 to 10^0. Cobalt-shaded regions for PM2 thresholds (1/200k dominant, 1/20k recessive). Grey region between PM2 and BA1. Amber-shaded region for BA1 stand-alone benign at ≥5%. Two example variants plotted: ultra-rare missense at 1/500k applying PM2; common SNP at 12% applying BA1.">
+            <figcaption>Figure 5. The gnomAD axis. PM2 lives at the rare end (different cutoffs for dominant vs recessive disease); BA1 lives at the common end. The grey middle is "neither PM2 nor BA1" — the frequency contributes no evidence on its own.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Functional impact: REVEL, AlphaMissense</h3>
+
+          <p>For missense variants, <strong>multiple in-silico predictors</strong> score the likelihood of functional impact. Agreement among predictors supports PP3 (supporting pathogenic) or BP4 (supporting benign).</p>
+
+          <p>Major predictors:</p>
+          <ul>
+            <li><strong>REVEL</strong> (Ioannidis et al. 2016). Ensemble of 13 older predictors (SIFT, PolyPhen-2, MutationTaster, GERP, etc.). Produces a 0–1 score. Widely used; thresholds: $\geq 0.7$ for PP3, $\leq 0.15$ for BP4.</li>
+            <li><strong>AlphaMissense</strong> (Cheng et al. 2023). AlphaFold2-derived; predicts likely-pathogenic / likely-benign / ambiguous for every possible missense substitution. State of the art in 2024–2025. Thresholds similar to REVEL.</li>
+            <li><strong>CADD</strong> (Kircher et al. 2014). Ensemble score trained on evolutionary conservation + functional features. Produces a "phred-like" scaled score (typically 0–40). Still widely used but now mostly superseded.</li>
+            <li><strong>SpliceAI</strong> (Jaganathan et al. 2019). Deep-learning predictor of splice-altering variants. Essential for evaluating variants near splice sites but not in canonical sites. Thresholds: $\geq 0.5$ for splice disruption evidence (PP3 or PM5 depending on context).</li>
+          </ul>
+
+          <p>Key caveats:</p>
+          <ul>
+            <li>These are <em>decision supports</em>, not deciders. PP3 is supporting evidence; don't call pathogenic on PP3 alone.</li>
+            <li>Predictor <strong>ancestry bias</strong>: predictors trained predominantly on European data may underperform on African variants. This is a real and active research concern.</li>
+            <li><strong>Agreement required</strong>. Using just one predictor is discouraged; ACMG/AMP asks for multiple to agree. ClinGen panels often specify exactly which.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-17/06-predictors.svg"
+                 alt="Three side-by-side panels. Panel 1 REVEL: input missense, architecture ensemble of 13 simpler predictors fed into random forest, score 0-1, thresholds ≥0.7 PP3 ≤0.15 BP4. Panel 2 AlphaMissense: input missense, architecture AlphaFold2-derived structural-context classifier, score 0-1, thresholds ≥0.564 PP3 ≤0.340 BP4. Panel 3 SpliceAI: input variant ±10kb context, architecture deep CNN on one-hot sequence, score 0-1 per acceptor/donor gain/loss, thresholds ≥0.5 supporting and ≥0.8 strong. Bottom caption: multiple predictors must agree for PP3 or BP4.">
+            <figcaption>Figure 6. The three core predictors. Different inputs, different architectures, similar role — each contributes to the PP3/BP4 supporting line. Agreement across predictors is required; no single score is actionable alone.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Splicing: SpliceAI deep dive</h3>
+
+          <p>Splice-altering variants are an under-appreciated pathogenicity class. A variant 50&nbsp;bp inside an intron can create a new splice site, skipping an exon and producing a truncated protein.</p>
+
+          <p><strong>SpliceAI</strong> is the workhorse:</p>
+          <ul>
+            <li>Takes a 10&nbsp;kb window of genomic sequence centred on the variant.</li>
+            <li>Outputs per-position "acceptor gain", "donor gain", "acceptor loss", "donor loss" probabilities.</li>
+            <li>If any of these exceed a threshold (0.5 typical), the variant has a predicted splice effect.</li>
+          </ul>
+
+          <p>Use in ACMG/AMP:</p>
+          <ul>
+            <li>SpliceAI $\geq 0.5$: splice effect evidence, applied as PP3 (supporting) or in specific cases PVS1_strong (very strong) if the variant disrupts a canonical splice site.</li>
+            <li>SpliceAI $\geq 0.8$: strong evidence of splice disruption; PS3_moderate or PVS1 depending on context.</li>
+          </ul>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Literature mining and ClinGen</h3>
+
+          <p><strong>Literature</strong> — case reports, functional studies, family studies — contributes evidence codes PS3 (functional), PS4 (case-control statistics), PP1 (family segregation), PP4 (phenotype).</p>
+
+          <p>Tools to find relevant literature:</p>
+          <ul>
+            <li><strong>LitVar</strong> (NCBI). Links variants to PubMed articles automatically. Saves hours of hand-searching.</li>
+            <li><strong>Mastermind</strong> (Genomenon). Commercial; broader coverage; subscription-based.</li>
+            <li><strong>ClinVar submissions</strong> themselves frequently include literature citations.</li>
+          </ul>
+
+          <p>A typical clinical variant-scientist workflow for one variant:</p>
+          <ol>
+            <li>Query gnomAD → check frequency across ancestries.</li>
+            <li>Query ClinVar → check prior classifications.</li>
+            <li>Query functional predictors → REVEL / AM / SpliceAI scores.</li>
+            <li>Literature search via LitVar or Mastermind → case reports, functional studies.</li>
+            <li>Query phenotype databases (HGMD, OMIM) → is this gene associated with the patient's disease?</li>
+            <li>Assemble evidence codes.</li>
+            <li>Apply ACMG/AMP rules.</li>
+            <li>Write a <strong>classification rationale</strong> (plain-text justification).</li>
+            <li>Enter the classification into the lab's LIMS; generate the patient-facing report.</li>
+          </ol>
+
+          <p>Total time per variant: 30 minutes to 4 hours depending on complexity. A clinical variant scientist handles 10–30 variants per day.</p>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 Variant interpretation is a profession</h3>
+
+          <p>"Variant scientist" (or "variant analyst" / "clinical molecular geneticist") is a distinct professional role. Typical training: M.Sc. or Ph.D. in genetics / molecular biology, followed by 2–3 years of certification-track supervised practice, culminating in ACMG / board certification.</p>
+
+          <p>This is not a role an AI replaces today. ML predictors inform individual evidence codes (PP3/BP4); a variant scientist synthesises everything into a clinically-defensible classification with a human-readable rationale. Regulatory frameworks (CLIA, FDA) explicitly require this human-in-the-loop workflow.</p>
+
+          <p>The ML-augmented future: variant scientists' productivity doubles as AI pre-fills evidence codes and literature synthesis; human judgment still signs off.</p>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 2 — Variant Evidence Dossier Compiler.</strong> Pick a preset variant (BRCA1 LoF, MLH1 missense, common benign, etc.) — the artifact composes a mock dossier across gnomAD, ClinVar, REVEL, AlphaMissense, SpliceAI and suggests which evidence codes apply. Aha: variant classification is structured information synthesis. Concordant signals across sources drive confident calls; conflicting signals drive VUS.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-17/02-evidence-dossier.html" loading="lazy" title="Artifact 2 — Variant Evidence Dossier Compiler"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 30 min</span>
+          Pharmacogenomics
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 The basics</h3>
+
+          <p><strong>Pharmacogenomics (PGx)</strong>: how genetic variants affect drug response. A person's CYP450 enzyme genotypes affect how fast they metabolise many drugs. Standard dosing assumes average metabolism; for poor or ultra-rapid metabolisers, standard dosing can be dangerous.</p>
+
+          <p>Scope:</p>
+          <ul>
+            <li>Currently ~20 drug-gene pairs have <strong>Clinical Pharmacogenetics Implementation Consortium (CPIC)</strong> Level A evidence — "use this test result to change dosing."</li>
+            <li>Another ~40 pairs at CPIC Level B — actionable recommendations but less universally adopted.</li>
+            <li>Roughly 50% of FDA-approved drugs have some PGx label, though fewer are routinely genotyped clinically.</li>
+          </ul>
+
+          <p>The underlying science: cytochrome P450 enzymes (CYP2D6, CYP2C9, CYP2C19, CYP3A4) and other pharmacokinetic enzymes have common loss-of-function or gain-of-function variants. Different ethnic groups carry these variants at different frequencies.</p>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 The canonical cases</h3>
+
+          <p><strong>CYP2D6 and codeine</strong>:</p>
+          <ul>
+            <li>Codeine is a prodrug. CYP2D6 metabolises it to <strong>morphine</strong>, which provides analgesia.</li>
+            <li>Poor metabolisers (~7% of Europeans): get no pain relief from codeine.</li>
+            <li>Ultra-rapid metabolisers (~3% of Europeans, up to 30% in some North African populations): metabolise codeine so fast that morphine levels spike → respiratory depression. A few paediatric deaths from codeine-containing cough syrups in ultra-rapid metabolisers led the FDA to restrict codeine use in children.</li>
+            <li>PGx action: know the patient's CYP2D6 metaboliser status; choose an alternative opioid (hydromorphone, oxycodone for normal metabolism via CYP3A4) if PM or UM.</li>
+          </ul>
+
+          <p><strong>Warfarin (VKORC1 + CYP2C9)</strong>:</p>
+          <ul>
+            <li>Warfarin is the classical anticoagulant. Dosing is notoriously difficult — too little and the patient clots; too much and the patient bleeds.</li>
+            <li><strong>VKORC1</strong> -1639G&gt;A variant: enzyme-sensitivity locus. Affects warfarin requirement.</li>
+            <li><strong>CYP2C9</strong> *2 and *3 alleles: metabolism locus. Slower metabolism → lower dose needed.</li>
+            <li>Genotype-guided dosing algorithms (Gage et al. 2008, IWPC 2009) predict steady-state dose from genotype + age + weight + INR. Reduces time-to-stable-INR by ~15%. Not yet universally adopted; DOACs (rivaroxaban, apixaban) have displaced warfarin for most indications.</li>
+          </ul>
+
+          <p><strong>HLA-B*57:01 and abacavir</strong>:</p>
+          <ul>
+            <li>Abacavir is an HIV reverse-transcriptase inhibitor.</li>
+            <li>Patients carrying HLA-B*57:01 have a ~50% rate of severe hypersensitivity reaction. Without testing, ~5% of patients experience life-threatening reactions.</li>
+            <li><strong>Pre-prescription HLA-B*57:01 genotyping is standard of care</strong> in every HIV clinic globally. Reduced hypersensitivity incidence by &gt; 95%.</li>
+          </ul>
+
+          <p><strong>TPMT / NUDT15 and thiopurines</strong>:</p>
+          <ul>
+            <li>Thiopurines (azathioprine, mercaptopurine) are used for leukaemia, autoimmune disease, and inflammatory bowel disease.</li>
+            <li>TPMT enzyme metabolises them. TPMT deficiency (homozygous *3A, *3B, *3C) causes severe myelosuppression at standard doses.</li>
+            <li>NUDT15 variants, common in East Asian populations, have a similar effect.</li>
+            <li>Pre-treatment TPMT (and NUDT15 for Asian ancestry) testing reduces severe toxicity events.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-17/07-pgx-examples.svg"
+                 alt="2x2 grid of pharmacogenomics worked examples. Top left CYP2D6 codeine: variants *4 LoF, *10 reduced, *1xN duplication; phenotypes poor/intermediate/normal/rapid/ultra-rapid; action alternative opioid for PM/UM. Top right warfarin VKORC1+CYP2C9: variants and dosing nomogram. Bottom left abacavir HLA-B*57:01: positive/negative; if positive avoid abacavir. Bottom right thiopurines TPMT/NUDT15: normal/intermediate/poor; dose reduce 10x for poor.">
+            <figcaption>Figure 7. Four canonical PGx pairs. Drug → gene → variants → metaboliser phenotype → clinical action. Once the table is built the runtime is one lookup.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Star-allele nomenclature</h3>
+
+          <p>PGx uses <strong>star-allele</strong> nomenclature to describe haplotypes:</p>
+          <ul>
+            <li><strong>CYP2D6*1</strong>: the reference (wild-type) allele.</li>
+            <li><strong>CYP2D6*4</strong>: a common loss-of-function haplotype (carries a splicing variant + SNPs).</li>
+            <li><strong>CYP2D6*10</strong>: a reduced-function haplotype common in East Asians.</li>
+            <li><strong>CYP2D6*17</strong>: a reduced-function haplotype common in Africans.</li>
+          </ul>
+
+          <p>Each star allele is a defined <strong>combination of variants</strong> at a gene — a haplotype. The PGx community maintains these definitions at <strong>PharmVar</strong> (<a href="https://pharmvar.org/" target="_blank" rel="noopener">pharmvar.org</a>).</p>
+
+          <p>Metaboliser phenotypes derive from star-allele combinations:</p>
+          <ul>
+            <li><strong>CYP2D6 *1/*1</strong>: normal metaboliser.</li>
+            <li><strong>*1/*4</strong>: intermediate metaboliser.</li>
+            <li><strong>*4/*4</strong>: poor metaboliser.</li>
+            <li><strong>*1/*2 ×N</strong> (gene duplication): ultra-rapid metaboliser.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box — star alleles as haplotype labels</span>
+            <p>Star alleles are "labels for common haplotypes". Just as "pathogenic / benign" is a clinical label on a variant, "*1 / *4" is a clinical label on a haplotype that combines multiple variants. For each star allele, a lookup table maps it to an activity score (typical: 0, 0.25, 0.5, 1, 2). Summing the two alleles' activity scores produces a metaboliser phenotype ("poor" = 0, "intermediate" = 0.25–1, "normal" = 1–2, "rapid" = 2–3, "ultra-rapid" = 3+). The star-allele abstraction hides the underlying variants from the clinician — they just need "which stars does this patient carry?" and the rest is lookup.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 PharmGKB and CPIC</h3>
+
+          <p><strong>PharmGKB</strong> (<a href="https://www.pharmgkb.org/" target="_blank" rel="noopener">pharmgkb.org</a>): the community-maintained PGx knowledge base. For each drug-gene pair:</p>
+          <ul>
+            <li>Known variants and their effects.</li>
+            <li>Metaboliser phenotype definitions.</li>
+            <li>Levels of evidence for clinical relevance.</li>
+            <li>Links to dosing guidelines.</li>
+          </ul>
+
+          <p><strong>CPIC</strong> (Clinical Pharmacogenetics Implementation Consortium): drafts and publishes <strong>dosing guidelines</strong> per drug-gene pair. Format: "if patient genotype is $X$, give dose $Y$" tables.</p>
+
+          <p>Typical clinical workflow:</p>
+          <ol>
+            <li>Order test → genotype the PGx panel (Illumina targeted panel, microarray, or WGS).</li>
+            <li>Software translates genotype → star alleles → metaboliser phenotype.</li>
+            <li>Clinician sees a report with dosing recommendations pulled from CPIC.</li>
+            <li>Clinician adjusts prescription.</li>
+          </ol>
+
+          <p>Several health systems (Vanderbilt PREDICT, St. Jude PG4KDS, Mayo Clinic) pre-emptively genotype patients and have the PGx results available for any future prescribing decision. The model is working; scaling is slow.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — PGx as discrete-state control policy lookup</span>
+            <p>Pharmacogenomics is a canonical <strong>rule-based control policy</strong>. Measure the patient state (genotype → star alleles → metaboliser phenotype), look up the recommended action (standard dose / reduced dose / avoid / alternative drug) in a fixed table (the CPIC guideline), apply. This is the simplest possible closed-loop control: one measurement, discrete state space, table lookup. No ML, no learning — because the evidence-generation machinery (clinical trials, mechanistic studies) has already done the optimisation; CPIC is the compiled answer. The EE analogue is a mode-based controller where each mode has pre-optimised parameters; the runtime's only job is to identify which mode applies. It's also why PGx is "easy" to productionise once the tables exist and "impossible" to productionise for drugs where the tables don't yet exist — the whole game is in building the lookup table.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 PGx is under-used</h3>
+
+          <p>Despite strong evidence, PGx is <strong>under-utilised</strong> in routine care:</p>
+          <ul>
+            <li>Reimbursement (insurance) is patchy; patients often pay out of pocket.</li>
+            <li>Electronic Health Record (EHR) integration is unevenly implemented; many physicians don't see the genotype when prescribing.</li>
+            <li>Physicians are unfamiliar with metaboliser phenotypes beyond a handful of well-known cases.</li>
+            <li>The list of actionable PGx drug-gene pairs is growing, but each addition requires reimbursement and EHR plumbing.</li>
+          </ul>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 3 — PharmGKB Star-Allele Translator.</strong> Pick gene + two star alleles + drug. The translator computes activity score → metaboliser phenotype → CPIC dose recommendation. Aha: PGx is mechanical lookup once the tables exist. Production code is the compiled answer; the science was building the table.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-17/03-pharmgkb-star-allele.html" loading="lazy" title="Artifact 3 — PharmGKB Star-Allele Translator"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 20 min</span>
+          Incidental Findings
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 The problem</h3>
+
+          <p>A patient comes in for <strong>cardiomyopathy testing</strong>. The lab sequences their exome. In addition to the indication-relevant variant, the lab finds a pathogenic <strong>BRCA1</strong> mutation — unrelated to the test indication, but with serious implications (high lifetime breast / ovarian cancer risk).</p>
+
+          <p><strong>Report it? Don't report it? Depends on the patient's consent model?</strong></p>
+
+          <p>This is the <strong>incidental finding</strong> (or "secondary finding") problem. It arises naturally whenever broad sequencing (exome, whole genome) is performed.</p>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 The ACMG SF list</h3>
+
+          <p>In 2013, ACMG published a <strong>recommended minimum list</strong> of genes for which pathogenic variants should be reported as incidental findings, if the patient consents (or under an opt-out model, unless they opt out). This has become the <strong>ACMG Secondary Findings (SF) list</strong>.</p>
+
+          <ul>
+            <li><strong>SF v1</strong> (2013): 56 genes, primarily cardiovascular + cancer predisposition.</li>
+            <li><strong>SF v2</strong> (2017): 59 genes.</li>
+            <li><strong>SF v3.0 / 3.1 / 3.2</strong> (2021–2024): ~81 genes currently.</li>
+          </ul>
+
+          <p>Categories covered:</p>
+          <ul>
+            <li><strong>Hereditary cancer syndromes</strong>: BRCA1/2, MLH1/MSH2/MSH6/PMS2/EPCAM (Lynch), TP53, APC, MUTYH, NF1/2, PTEN, RET, VHL, etc.</li>
+            <li><strong>Familial hypercholesterolemia</strong>: LDLR, APOB, PCSK9.</li>
+            <li><strong>Inherited arrhythmia syndromes</strong>: SCN5A, KCNQ1, KCNH2, RYR2.</li>
+            <li><strong>Cardiomyopathies</strong>: MYH7, MYBPC3, TNNT2, etc.</li>
+            <li><strong>Malignant hyperthermia susceptibility</strong>: RYR1, CACNA1S.</li>
+            <li><strong>Several others</strong>: Marfan, Ehlers-Danlos vascular type, Wilson disease, etc.</li>
+          </ul>
+
+          <p>Key criteria for inclusion on the SF list: <strong>actionable</strong> — there's a clear medical intervention (surveillance, prophylactic surgery, lifestyle change, drug avoidance) that changes outcome if the variant is known.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-17/08-acmg-sf.svg"
+                 alt="Left donut chart of ACMG SF v3.x ~81 genes by category: hereditary cancer syndromes 30 (largest), cardiomyopathies + channelopathies 25, familial hypercholesterolemia 3, malignant hyperthermia 2, metabolic + other 21. Right table listing top 10 SF genes with their associated diseases including BRCA1/2, MLH1/MSH2/MSH6/PMS2, TP53, APC, LDLR, MYH7/MYBPC3, RYR1, KCNQ1, NF1, VHL.">
+            <figcaption>Figure 8. The ACMG SF list at a glance. Cancer + cardiac genes dominate; the inclusion criterion is "actionable" — a known intervention that changes outcome when the variant is known.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 The right not to know</h3>
+
+          <p>Patients have a right to <strong>not know</strong> incidental findings if they prefer. The ACMG's evolving position:</p>
+          <ul>
+            <li><strong>2013</strong>: opt-out model; labs must report unless patient declines.</li>
+            <li><strong>2014</strong>: opt-in model; labs must ask.</li>
+            <li><strong>2021+</strong>: explicit patient-facing consent; specific acknowledgment of SF-list findings.</li>
+          </ul>
+
+          <p>The <strong>arguments for reporting</strong>:</p>
+          <ul>
+            <li>Actionable findings save lives.</li>
+            <li>Patients benefit from information about their own genome.</li>
+            <li>The incremental cost is near-zero once sequencing is done.</li>
+          </ul>
+
+          <p>The <strong>arguments against universal reporting</strong>:</p>
+          <ul>
+            <li>Psychological distress in the absence of clear intervention.</li>
+            <li>Downstream costs (surveillance, surgery) may not be reimbursed.</li>
+            <li>Family members may be implicated without consent.</li>
+            <li>Not all "actionable" findings clearly benefit patients; the evidence is genuinely mixed for some genes.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Discussion prompt</span>
+            <p>A 65-year-old patient consents to exome sequencing for an adult-onset movement disorder indication. The exome reveals a pathogenic BRCA1 variant (hereditary breast / ovarian cancer risk). Should the lab return the finding? What if the patient is 85? What if the patient is a 15-year-old with a rare seizure disorder? What if the patient explicitly opted out of secondary findings at consent? (Starting points: patient age, clinical actionability at that age, consent scope, family implications, state / jurisdictional law.)</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Incidental findings in practice</h3>
+
+          <p>Practical workflow when an incidental finding is suspected:</p>
+          <ol>
+            <li>Confirm the variant (re-sequence with a different chemistry, ideally).</li>
+            <li>Re-classify the variant carefully using ACMG/AMP + ClinGen gene-specific guidelines.</li>
+            <li>Only report if:
+              <ul>
+                <li>Pathogenic or LP (not VUS).</li>
+                <li>Patient consented to receive SF-list findings.</li>
+                <li>Gene is on the current ACMG SF list (or otherwise clearly actionable).</li>
+              </ul>
+            </li>
+            <li>Route the finding through the appropriate clinical workflow (usually a genetic counsellor before a physician).</li>
+            <li>Document in the clinical report under a distinct "Secondary Findings" section.</li>
+          </ol>
+
+          <p>Notable failure modes:</p>
+          <ul>
+            <li>A VUS in a cancer-predisposition gene returned as actionable → patient has unnecessary prophylactic surgery.</li>
+            <li>An SF-list variant missed because it wasn't queried → patient dies of a preventable cancer.</li>
+            <li>An SF-list variant reported without consent → consent violation with legal liability.</li>
+          </ul>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 4 — ACMG SF Incidental-Findings Checker.</strong> Pick gene + variant + classification + consent status. The artifact runs the three-gate decision (gene-on-SF-list ∧ classified P/LP ∧ patient-consented) and produces a reporting recommendation. Aha: secondary-finding return is a structured multi-gate decision; defensible in audit because every decision can be traced.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-17/04-sf-checker.html" loading="lazy" title="Artifact 4 — ACMG SF Incidental-Findings Checker"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 25 min</span>
+          Regulatory Landscape
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 FDA-cleared sequencing assays</h3>
+
+          <p>The FDA clears sequencing assays through two main pathways:</p>
+          <ul>
+            <li><strong>510(k)</strong> clearance: "substantially equivalent" to a predicate device. Faster, less rigorous.</li>
+            <li><strong>PMA</strong> (Premarket Approval): rigorous; required for high-risk Class III devices. Includes companion-diagnostic (CDx) approvals.</li>
+          </ul>
+
+          <p>Major FDA-cleared / approved genomic assays:</p>
+          <ul>
+            <li><strong>FoundationOne CDx</strong> (Foundation Medicine, Roche; 2017 FDA PMA). 324-gene tumour-profiling NGS panel. Approved as CDx for multiple targeted therapies. Heavy industry use.</li>
+            <li><strong>MSK-IMPACT</strong> (Memorial Sloan Kettering; 2017 FDA authorization). 468-gene tumour panel. Unusual: FDA "authorization" for an LDT, paving the way for the 2023 rule change.</li>
+            <li><strong>Illumina TruSight Oncology 500</strong>: large cancer panel.</li>
+            <li><strong>Oncomine Dx Target Test</strong>: ThermoFisher's NGS-based CDx for lung cancer.</li>
+          </ul>
+
+          <p>For germline (inherited) testing, FDA-cleared kits are fewer: much of the market is LDTs (see next).</p>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 The 2024 FDA LDT rule</h3>
+
+          <p>Historically, the FDA claimed regulatory authority over LDTs but exercised <strong>enforcement discretion</strong> — in effect, not regulating them. This is how most clinical genomic testing operated.</p>
+
+          <p>In <strong>April 2024</strong>, the FDA finalised a rule ending enforcement discretion. Phased implementation over 4 years (2024–2028):</p>
+          <ul>
+            <li><strong>Year 1</strong>: adverse-event reporting requirements.</li>
+            <li><strong>Year 2</strong>: quality system regulation compliance.</li>
+            <li><strong>Year 3</strong>: registration + listing requirements.</li>
+            <li><strong>Year 4</strong>: premarket review for high-risk LDTs.</li>
+          </ul>
+
+          <p>Industry response has been mixed — some large labs (Mayo Clinic, Quest, LabCorp) are preparing; smaller labs are concerned about the regulatory burden. A Congressional review of the rule is ongoing as of 2025.</p>
+
+          <p>The practical effect for bioinformatics software: clinical pipelines will need more explicit regulatory documentation. Existing validation practices (Part 1) will need to formalise further.</p>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 EU IVDR</h3>
+
+          <p>The <strong>In-Vitro Diagnostic Medical Devices Regulation (IVDR)</strong> replaced the previous IVD Directive in May 2022 (after multiple delays).</p>
+
+          <p>Classifies IVDs into A/B/C/D risk classes. Genomic tests for severe hereditary disease are typically Class C; tumour profiling may be Class C or D.</p>
+
+          <p>Requirements:</p>
+          <ul>
+            <li><strong>Notified Body</strong> certification for Class C/D devices.</li>
+            <li><strong>Clinical performance studies</strong> demonstrating accuracy on the intended population.</li>
+            <li><strong>Post-market surveillance</strong> with active follow-up.</li>
+            <li><strong>CE mark</strong> for market access.</li>
+          </ul>
+
+          <p>Transition challenges: many labs that operated under the previous IVD Directive have struggled to complete IVDR certification in time. The EU has repeatedly extended deadlines. As of 2025, IVDR certification is a significant pain point for European clinical labs.</p>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 Direct-to-consumer testing</h3>
+
+          <p>DTC genomics is regulated differently from clinical testing.</p>
+          <ul>
+            <li><strong>23andMe</strong> (founded 2007). Started returning health-related reports without FDA involvement. In <strong>November 2013</strong>, FDA issued a warning letter demanding cessation. 23andMe complied; shifted to ancestry-only reports.</li>
+            <li><strong>April 2017</strong>: FDA authorised 23andMe to return <strong>limited health-related information</strong> (e.g. BRCA variants for the three Ashkenazi-founder mutations — not general BRCA, a tight scope). The ancestry-plus-light-health model resumed.</li>
+            <li><strong>March 2018</strong>: 23andMe authorised for BRCA (three specific variants) DTC reports.</li>
+            <li><strong>2022+</strong>: 23andMe has broadened its clinical partnerships and diagnostic offerings but remains DTC-first.</li>
+          </ul>
+
+          <p><strong>Regulatory question</strong>: should a consumer directly learn they carry a BRCA variant without a physician interpreter? The 23andMe compromise (limited variants, clear disclaimers, optional genetic counselling) is the current answer, but remains controversial.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-17/09-fda-pathway.svg"
+                 alt="Flowchart starting at assay concept and branching three ways. Top branch RUO Research Use Only, grey, ending at research-only applications. Middle branch LDT Laboratory-Developed Test, amber, pre-2024 enforcement discretion and post-2024 phased FDA oversight (adverse-event reporting → quality-system compliance → registration → premarket review), ending at clinical LDT in regulated lab. Bottom branch FDA-reviewed IVD splitting into 510(k) substantially equivalent (faster) and PMA premarket approval (rigorous, used for CDx), ending at commercial IVD kit. Examples annotated per branch.">
+            <figcaption>Figure 9. The regulatory map for a sequencing assay. RUO is research-only with explicit labelling; LDTs are amber and tightening; the IVD branch splits between 510(k) and PMA, with PMA reserved for the highest-risk classes including companion diagnostics.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-5">
+          <h3>6.5 What this means for software</h3>
+
+          <p>As regulation tightens, bioinformatics software is increasingly treated as part of the medical device:</p>
+          <ul>
+            <li><strong>Software as a Medical Device (SaMD)</strong> FDA framework applies to clinical pipelines.</li>
+            <li><strong>Change-management plans</strong> required: every software update has a predetermined scope and validation requirements.</li>
+            <li><strong>Design controls</strong>: documented requirements, design decisions, testing, traceability.</li>
+            <li><strong>Cybersecurity requirements</strong>: especially if the software is cloud-deployed.</li>
+          </ul>
+
+          <p>In practice: a bioinformatician writing clinical pipelines is writing regulated software. The skills overlap with medical-device firmware engineering (ISO 62304, IEC 62366-1) more than with research scientific computing.</p>
+
+          <aside class="callout callout--warn">
+            <span class="callout-label">Warning — predictors are decision supports, not deciders</span>
+            <p>In-silico missense predictors (REVEL, AlphaMissense, etc.) are <strong>decision supports</strong>, not <strong>deciders</strong>. They produce probability-like scores with thresholds, which inform a single supporting-evidence code (PP3 or BP4). A common misuse pattern — seen in both automated variant-classification tools and hastily-reviewed pipelines — is to treat the predictor score as directly actionable: "AlphaMissense says pathogenic, report as LP." This is wrong, regulated software or not. A single supporting-level code cannot produce LP by itself under ACMG/AMP; and predictors are known to over-call pathogenic for rare benign variants. Always combine predictors with population frequency, functional evidence, and ClinVar lookups; never sign a report on a predictor score alone.</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 6 — FDA / Regulatory Pathway Picker.</strong> Describe an assay (test type, clinical intent, market, sample size). The artifact returns the recommended US + EU pathway (RUO / LDT / 510(k) / PMA / IVDR Class C–D), summary requirements, and an estimated timeline. Aha: the pathway follows the assay's intended use, not a lab's preference; choosing the wrong pathway costs years of delay.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-17/06-fda-pathway.html" loading="lazy" title="Artifact 6 — FDA / Regulatory Pathway Picker"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 25 min</span>
+          Ethics, Equity, and Data Sovereignty
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 GINA and its limits</h3>
+
+          <p>The <strong>Genetic Information Nondiscrimination Act (GINA)</strong>, US federal law signed 2008. Covers:</p>
+          <ul>
+            <li><strong>Employment</strong>: employers cannot use genetic information in hiring, firing, or promotion decisions.</li>
+            <li><strong>Health insurance</strong>: group and individual health insurers cannot use genetic information for coverage or pricing decisions.</li>
+          </ul>
+
+          <p>Does not cover:</p>
+          <ul>
+            <li><strong>Life insurance.</strong> A life insurer can ask about (and use) genetic test results.</li>
+            <li><strong>Long-term care insurance.</strong> Same.</li>
+            <li><strong>Disability insurance.</strong> Same.</li>
+            <li><strong>Small employers</strong> (&lt; 15 employees).</li>
+            <li><strong>US military</strong> (separate regulatory regime).</li>
+          </ul>
+
+          <p>The carve-outs are a significant issue. A BRCA1 carrier testing positive may be unable to obtain affordable life insurance. Some states (California, Florida) have stricter state-level protections against insurance discrimination that fill the gaps.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Historical pointer — GINA's path to passage</span>
+            <p>GINA was signed into law by President George W. Bush on May 21, 2008. It passed the Senate 95–0 and the House 414–1 — extremely rare bipartisan support. Its long legislative history (13 years from first introduction to passage) reflected active industry resistance (insurance, employer groups) that eventually yielded to patient-advocacy coalition pressure after the 2003 Human Genome Project completion made the discrimination potential concrete. The carve-outs for life, disability, and long-term-care insurance were left in as deliberate compromises; bills to close them have been introduced periodically but not passed.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-17/10-gina-coverage.svg"
+                 alt="Venn-like diagram of insurance and employment domains. Central cobalt-filled region: Covered by GINA — health insurance group and individual, employment large employers ≥15. Outer red-outlined regions: NOT Covered — life insurance, disability insurance, long-term care, small employers, US military. Small green state-level inserts over the red regions for California, Florida, Vermont indicating partial state-law fill. Bottom caption: carve-outs reflect 2008 legislative compromises; bills to close them have been introduced periodically but not passed.">
+            <figcaption>Figure 10. GINA's reach. Health insurance and large-employer hiring are protected. Life, disability, long-term care, small employers, and the military sit outside; a handful of states fill the gap partially.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 5 — GINA Coverage Explorer.</strong> Build a scenario (genetic finding × domain × state). The artifact reports federal-GINA coverage and any state-law top-up. Aha: GINA is narrower than people assume — life, disability, and long-term care are wide-open under federal law.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-17/05-gina-coverage.html" loading="lazy" title="Artifact 5 — GINA Coverage Explorer"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Ancestry bias in clinical databases</h3>
+
+          <p><strong>The problem</strong>: clinical-genomics resources are dominated by people of European ancestry. Consequences cascade:</p>
+          <ul>
+            <li><strong>ClinVar</strong>: ~70% of submissions are about variants seen in European patients.</li>
+            <li><strong>gnomAD</strong>: 56% European; African-ancestry subset is growing but remains smaller.</li>
+            <li><strong>Functional predictors</strong>: REVEL / AlphaMissense trained on datasets where European variants dominate.</li>
+            <li><strong>PRS training cohorts</strong>: overwhelmingly European (L13 §5.4).</li>
+          </ul>
+
+          <p>Consequence for non-European patients:</p>
+          <ul>
+            <li><strong>Higher VUS rates.</strong> Variants common in African populations are more often "rare and unknown" in European-dominated ClinVar — they get flagged as potential pathogens.</li>
+            <li><strong>Lower predictor accuracy.</strong> Missense predictors may underperform on populations under-represented in training.</li>
+            <li><strong>Worse clinical actionability.</strong> Fewer firm classifications → fewer actionable findings → worse care.</li>
+          </ul>
+
+          <p>Initiatives to close the gap:</p>
+          <ul>
+            <li><strong>All of Us Research Program</strong> (US): target 1M+ participants with strong minority representation.</li>
+            <li><strong>Our Future Health</strong> (UK): similar goal.</li>
+            <li><strong>H3Africa</strong>: African-focused genomic research consortium.</li>
+            <li><strong>Biobank Japan</strong>, <strong>Biobank Korea</strong>: East Asian coverage.</li>
+          </ul>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — ancestry bias as training-distribution coverage</span>
+            <p>Ancestry bias in clinical databases is the training-distribution problem from L16 in its starkest form. A classifier (ACMG/AMP rules + predictors + ClinVar lookups) trained predominantly on European data doesn't generalise to African patients. The effect is analogous to deploying a model trained on one operating condition to a new condition where distributional shift is known and measurable — but no compensatory correction is applied. Closing the gap requires <strong>diverse training data</strong>, not just "fixing the algorithm"; the algorithm is working as designed on the data it has. This is why initiatives like All of Us, H3Africa, Our Future Health are essential infrastructure — they change the input distribution that every downstream tool builds on.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-17/12-ancestry-bias.svg"
+                 alt="Three stacked horizontal bar charts. Top: ClinVar submissions by ancestry — European 70%, East Asian 10%, African 6%, South Asian 3%, Admixed American 2%, unknown/mixed 9%. Middle: gnomAD v4 composition — European non-Finnish 36%, Finnish 5%, East Asian 10%, African 20%, Admixed American 13%, South Asian 6%, Ashkenazi Jewish 3%, Other 7%. Bottom: REVEL/AlphaMissense F1 by ancestry — European 0.88, East Asian 0.84, South Asian 0.82, Admixed American 0.83, African 0.78. Bottom annotation: accuracy follows training-distribution coverage; diverse data closes the gap.">
+            <figcaption>Figure 12. Three layers of bias. ClinVar is more European than gnomAD; predictor F1 follows the same ordering. Closing the F1 gap is a data problem, not an algorithm tweak.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 7 — Ancestry Bias in Variant Predictors.</strong> Set a training-corpus ancestry mix; the artifact simulates per-ancestry F1 for REVEL or AlphaMissense and shows the disparity. Slide toward equal representation; watch the gap shrink. Aha: ancestry bias is a coverage problem with a data-side fix.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-17/07-ancestry-bias.html" loading="lazy" title="Artifact 7 — Ancestry Bias in Variant Predictors"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 Havasupai and data sovereignty</h3>
+
+          <p><strong>The Havasupai Tribe v. Arizona Board of Regents</strong> (case filed 2004, settled 2010):</p>
+          <ul>
+            <li>In 1989, Arizona State University researchers collected blood samples from the Havasupai Tribe (Grand Canyon region) for a diabetes-genetics study.</li>
+            <li>Over the following decade, the samples were used for unauthorised research on schizophrenia, inbreeding, and population migration — research the Tribe had not consented to and considered culturally harmful.</li>
+            <li>In 2004, Tribal members learned about the additional research.</li>
+            <li>The Tribe sued; settled 2010; ASU returned the blood samples (a significant symbolic act); paid $700k; built a health clinic.</li>
+          </ul>
+
+          <p>Consequences:</p>
+          <ul>
+            <li>The case became a defining precedent for <strong>indigenous data sovereignty</strong> in US research.</li>
+            <li>NIH strengthened tribal-consultation requirements.</li>
+            <li>Several large cohort studies now include explicit tribal governance provisions.</li>
+          </ul>
+        </section>
+
+        <section id="sec-7-4">
+          <h3>7.4 CARE principles and indigenous data sovereignty</h3>
+
+          <p>The <strong>CARE Principles for Indigenous Data Governance</strong> (Global Indigenous Data Alliance, 2019):</p>
+          <ul>
+            <li><strong>Collective benefit</strong>: data ecosystems facilitate positive outcomes for Indigenous Peoples.</li>
+            <li><strong>Authority to control</strong>: Indigenous Peoples' rights to determine how their data are used.</li>
+            <li><strong>Responsibility</strong>: those working with Indigenous data have a duty to share benefits and acknowledge the relationship.</li>
+            <li><strong>Ethics</strong>: Indigenous Peoples' rights and wellbeing are the primary concern.</li>
+          </ul>
+
+          <p>Complementary to the <strong>FAIR Principles</strong> (Findable, Accessible, Interoperable, Reusable) from the open-data movement; CARE adds the governance layer.</p>
+
+          <p>In practice: modern genomic studies involving Indigenous communities increasingly incorporate both FAIR + CARE, with community-level consent, data access restrictions, and benefit-sharing agreements.</p>
+        </section>
+
+        <section id="sec-7-5">
+          <h3>7.5 Diverse cohorts and the path forward</h3>
+
+          <p>Several large-scale initiatives are working to change the landscape:</p>
+          <ul>
+            <li><strong>All of Us</strong> (US, 2018+). Target 1M+ US participants with explicit mandate for 50%+ minority enrolment. Enrolment as of 2024: ~700k; data releases ongoing.</li>
+            <li><strong>Our Future Health</strong> (UK, 2020+). Target 5M UK participants.</li>
+            <li><strong>H3Africa</strong> (African Genomic Diversity Consortium, 2012+). Pan-African cohort with local infrastructure building.</li>
+            <li><strong>TOPMed</strong> (NHLBI, 2014+). Multi-ethnic WGS cohort (~150k genomes).</li>
+            <li><strong>PAGE</strong> (Population Architecture using Genomics and Epidemiology, 2008+). US minority-focused consortium.</li>
+            <li><strong>Million Veteran Program</strong> (VA, 2011+). US veterans, more diverse than UK Biobank equivalents.</li>
+          </ul>
+
+          <p>The data these cohorts generate feeds back into ClinVar, gnomAD, AlphaMissense training sets, and PRS portability models. Progress is measurable: gnomAD v4 (2024) is materially more diverse than v2 (2020). Full equity remains years away.</p>
+
+          <aside class="callout callout--warn">
+            <span class="callout-label">Warning — every clinical pipeline today has ancestry bias</span>
+            <p>Any clinical pipeline you deploy today has systematic accuracy differences by ancestry. This is not a hypothetical — it's measurable and published. When your pipeline signs out a VUS for a patient of African ancestry, the VUS rate is higher (in absolute terms) than it would be for a matched European patient. When you report ancestry bias as "known limitation" in your test's standard documentation, you are being honest. When you fail to acknowledge it, you are failing the patient.</p>
+          </aside>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box — VUS is information, not noise</span>
+            <p>The ACMG/AMP five-class framework is <strong>not</strong> two-valued "pathogenic vs benign" with a VUS tolerance band. It's a genuine five-way decision, because "we don't know" has a different clinical meaning than "probably not" or "probably yes". Clinicians act on P/LP; wait-and-watch on VUS; effectively ignore LB/B. The VUS bucket carries real information ("the lab looked and couldn't decide") that's lost if you collapse it to either extreme. When reading a clinical report, the distinction between LP (act) and VUS (don't act yet) drives the entire downstream care plan.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup">
+        <h2>Wrap-up</h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Clinical bioinformatics is regulated software.</strong> CLIA / CAP / IVDR / FDA compliance shapes every design decision; validation and version-pinning are structural, not optional.</li>
+          <li><strong>ACMG/AMP is the classification standard.</strong> Evidence codes + combinatorial rules → P/LP/VUS/LB/B. Auditable, explainable, explicitly not end-to-end ML.</li>
+          <li><strong>The evidence ecosystem is structured.</strong> gnomAD (frequency), REVEL/AlphaMissense (functional impact), SpliceAI (splicing), ClinVar (prior classifications), literature (PS3/PS4/PP1/PP4). A variant scientist synthesises across these.</li>
+          <li><strong>Pharmacogenomics is operational.</strong> CYP2D6/codeine, VKORC1+CYP2C9/warfarin, HLA-B*57:01/abacavir, TPMT/thiopurines. CPIC guidelines drive dosing. PharmGKB / PharmVar are the reference tables.</li>
+          <li><strong>Incidental findings require explicit consent + a gene list.</strong> ACMG SF v3.x (~81 genes, actionable). Right-not-to-know is real; opt-in consent is current practice.</li>
+          <li><strong>Regulation is tightening.</strong> 2024 FDA LDT rule; EU IVDR; FDA's Software as a Medical Device framework. Clinical bioinformatics is increasingly regulated software engineering.</li>
+          <li><strong>GINA protects narrowly.</strong> Health insurance + employment yes; life / disability / long-term care no. The gaps matter.</li>
+          <li><strong>Ancestry bias is systematic.</strong> ClinVar / gnomAD / predictors dominated by European data; non-European patients get higher VUS rates, lower predictor accuracy, worse care. Cohort diversity (All of Us, H3Africa, Biobank Japan, etc.) is the structural fix.</li>
+          <li><strong>Indigenous data sovereignty matters.</strong> Havasupai, CARE principles. Research consent is community-level, not just individual-level, in these contexts.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Cancer genomics — integrated capstone. Somatic vs germline; tumour heterogeneity; clonal evolution; MSK-IMPACT / FoundationOne; liquid biopsy (ctDNA); actionable mutations and targeted therapies; immunogenomics; cancer as a synthesis across L1–L17.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Read the ACMG/AMP 2015 paper (Richards et al. 2015). Pick five evidence codes and give a concrete example for each — a published variant where that code applies.</li>
+          <li>For a synthetic variant you construct (missense, e.g., BRCA1 p.Arg1443Ter), run a classification workflow: pull gnomAD frequency, query ClinVar, query REVEL / AlphaMissense, apply ACMG/AMP rules. Document your reasoning at each step.</li>
+          <li>For one PGx drug-gene pair of your choice (not from the lecture's four canonical cases), read the CPIC guideline and summarise: which variants / star alleles drive which metaboliser phenotypes; what dosing recommendation follows.</li>
+          <li>Read the All of Us Research Program overview. Summarise its target cohort composition vs UK Biobank; what gaps it's designed to close; what the first major data releases showed.</li>
+          <li>Given the tightening LDT regulatory environment (2024 FDA rule; EU IVDR), write a one-page recommendation for how a small academic clinical lab should prepare for the next 3 years. What operational changes do they need to make?</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Richards, S., Aziz, N., Bale, S., et al. (2015). Standards and guidelines for the interpretation of sequence variants: a joint consensus recommendation of the American College of Medical Genetics and Genomics and the Association for Molecular Pathology. <em>Genetics in Medicine</em> 17, 405–424.</li>
+          <li>Tavtigian, S. V., Greenblatt, M. S., Harrison, S. M., et al. (2018). Modeling the ACMG/AMP variant classification guidelines as a Bayesian classification framework. <em>Genetics in Medicine</em> 20, 1054–1060.</li>
+          <li>Nykamp, K., Anderson, M., Powers, M., et al. (2017). Sherloc: a comprehensive refinement of the ACMG-AMP variant classification criteria. <em>Genetics in Medicine</em> 19, 1105–1117.</li>
+          <li>Miller, D. T., Lee, K., Chung, W. K., et al. (2022). ACMG SF v3.1 list for reporting of secondary findings in clinical exome and genome sequencing: a policy statement of the American College of Medical Genetics and Genomics. <em>Genetics in Medicine</em> 24, 1407–1414.</li>
+          <li>Karczewski, K. J., Francioli, L. C., Tiao, G., et al. (2020). The mutational constraint spectrum quantified from variation in 141,456 humans. <em>Nature</em> 581, 434–443. (gnomAD.)</li>
+          <li>Ioannidis, N. M., Rothstein, J. H., Pejaver, V., et al. (2016). REVEL: An ensemble method for predicting the pathogenicity of rare missense variants. <em>American Journal of Human Genetics</em> 99, 877–885.</li>
+          <li>Cheng, J., Novati, G., Pan, J., et al. (2023). Accurate proteome-wide missense variant effect prediction with AlphaMissense. <em>Science</em> 381, eadg7492.</li>
+          <li>Jaganathan, K., Panagiotopoulou, S. K., McRae, J. F., et al. (2019). Predicting splicing from primary sequence with deep learning. <em>Cell</em> 176, 535–548. (SpliceAI.)</li>
+          <li>Caudle, K. E., Klein, T. E., Hoffman, J. M., et al. (2014). Incorporation of pharmacogenomics into routine clinical practice: the Clinical Pharmacogenetics Implementation Consortium (CPIC) guideline development process. <em>Current Drug Metabolism</em> 15, 209–217.</li>
+          <li>Manolio, T. A., Collins, F. S., Cox, N. J., et al. (2009). Finding the missing heritability of complex diseases. <em>Nature</em> 461, 747–753.</li>
+          <li>Havasupai Tribe v. Arizona Board of Regents: <a href="https://digitalcommons.law.yale.edu/cbio/2/" target="_blank" rel="noopener">digitalcommons.law.yale.edu/cbio/2/</a></li>
+          <li>All of Us Research Program: <a href="https://www.researchallofus.org/" target="_blank" rel="noopener">researchallofus.org</a></li>
+          <li>CARE Principles: <a href="https://www.gida-global.org/care" target="_blank" rel="noopener">gida-global.org/care</a></li>
+          <li>ClinVar: <a href="https://www.ncbi.nlm.nih.gov/clinvar/" target="_blank" rel="noopener">ncbi.nlm.nih.gov/clinvar</a></li>
+          <li>gnomAD: <a href="https://gnomad.broadinstitute.org/" target="_blank" rel="noopener">gnomad.broadinstitute.org</a></li>
+          <li>PharmGKB: <a href="https://www.pharmgkb.org/" target="_blank" rel="noopener">pharmgkb.org</a></li>
+          <li>CPIC: <a href="https://cpicpgx.org/" target="_blank" rel="noopener">cpicpgx.org</a></li>
+          <li>ClinGen: <a href="https://clinicalgenome.org/" target="_blank" rel="noopener">clinicalgenome.org</a></li>
+          <li>FDA LDT final rule (2024): <a href="https://www.federalregister.gov/documents/2024/05/06/2024-08935" target="_blank" rel="noopener">federalregister.gov 2024-08935</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — From Research to Clinic</td>             <td>20&nbsp;min</td><td>0:20</td></tr>
+            <tr><td>Part 2 — ACMG/AMP Variant Classification</td>     <td>50&nbsp;min</td><td>1:10</td></tr>
+            <tr><td>Part 3 — The Variant Evidence Ecosystem</td>      <td>30&nbsp;min</td><td>1:40</td></tr>
+            <tr><td>Part 4 — Pharmacogenomics</td>                    <td>30&nbsp;min</td><td>2:10</td></tr>
+            <tr><td>Part 5 — Incidental Findings</td>                 <td>20&nbsp;min</td><td>2:30</td></tr>
+            <tr><td>Part 6 — Regulatory Landscape</td>                <td>25&nbsp;min</td><td>2:55</td></tr>
+            <tr><td>Part 7 — Ethics, Equity, Data Sovereignty</td>    <td>25&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                      <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) f.style.height = d.height + 'px';
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

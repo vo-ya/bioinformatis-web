@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subclonal Reconstruction Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 100%; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.4rem; font-size: var(--text-sm); font-weight: 700; color: var(--fg); }
+  .results { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .summary { font-size: var(--text-sm); color: var(--fg); line-height: 1.5; }
+  .summary table { width: 100%; border-collapse: collapse; }
+  .summary th, .summary td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px dashed var(--border); }
+  .summary th { font-size: 0.78rem; letter-spacing: 0.04em; color: var(--fg-muted); text-transform: uppercase; font-weight: 600; }
+  .summary .mono { font-family: var(--font-mono); }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; margin-top: 0.75rem; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls { grid-template-columns: 1fr 1fr; } .results { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Subclonal Reconstruction Explorer</h1>
+    <p>Simulate a tumour with user-set purity, subclones, and depth. The explorer plots the VAF distribution, runs simplified PyClone-style clustering on CCF, and recovers a tree. Aha: clonal evolution can be reconstructed from bulk sequencing, but single-sample resolution has limits — multi-region or longitudinal samples sharpen the picture.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="purity">Tumour purity: <span class="v" id="purityV">0.60</span></label>
+      <input type="range" id="purity" min="0.10" max="1.0" step="0.01" value="0.60">
+    </div>
+    <div class="field">
+      <label for="depth">Depth: <span class="v" id="depthV">300×</span></label>
+      <input type="range" id="depth" min="50" max="2000" step="10" value="300">
+    </div>
+    <div class="field">
+      <label for="nsub">Subclones: <span class="v" id="nsubV">3</span></label>
+      <input type="range" id="nsub" min="1" max="5" step="1" value="3">
+    </div>
+    <div class="field">
+      <label for="topology">Branching</label>
+      <select id="topology">
+        <option value="linear">Linear (each adds to previous)</option>
+        <option value="branching" selected>Branching (Y-tree)</option>
+        <option value="parallel">Parallel (independent)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>VAF distribution + cluster recovery</h3>
+    <svg id="chart" viewBox="0 0 1040 280" width="100%" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+
+  <div class="results">
+    <div class="panel">
+      <h3>Ground-truth subclones</h3>
+      <div class="summary" id="truthTable"></div>
+    </div>
+    <div class="panel">
+      <h3>Recovered clusters</h3>
+      <div class="summary" id="recTable"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Inferred phylogenetic tree</h3>
+    <svg id="tree" viewBox="0 0 1040 200" width="100%" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. The clusterer uses 1-D kernel-density-mode finding then KMeans-style refinement on CCF; real PyClone/SciClone use Bayesian Dirichlet processes. Diploid, no copy-number adjustment. Trunk drivers shown as illustrative labels (not derived from data).</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  let seed = 42;
+  function rand() {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  }
+  function gauss(mean, sd) {
+    const u1 = Math.max(rand(), 1e-9);
+    const u2 = rand();
+    return mean + sd * Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  }
+
+  const SUB_COLORS = ['#7f1d1d', '#b45309', '#7c3aed', '#0d7377', '#1e40af'];
+  const SUB_LABELS = ['Trunk (TP53/CDKN2A)', 'C1 (KRAS G12V)', 'C2 (EGFR T790M)', 'C3 (PIK3CA)', 'C4 (NRAS)'];
+
+  function simulate() {
+    const purity = parseFloat($('purity').value);
+    const depth  = parseFloat($('depth').value);
+    const nSub   = parseInt($('nsub').value, 10);
+    const topo   = $('topology').value;
+
+    seed = Math.round(purity * 1000) + Math.round(depth) * 7 + nSub * 31;
+
+    // Build subclones with CCF
+    const subclones = [];
+    if (topo === 'linear') {
+      for (let i = 0; i < nSub; i++) {
+        const ccf = i === 0 ? 1.0 : 0.7 - 0.4 * (i / nSub);
+        subclones.push({ id: i, ccf, parent: i === 0 ? -1 : i - 1, label: SUB_LABELS[i] });
+      }
+    } else if (topo === 'branching') {
+      // Trunk + Y-shaped branches
+      subclones.push({ id: 0, ccf: 1.0, parent: -1, label: SUB_LABELS[0] });
+      for (let i = 1; i < nSub; i++) {
+        // Branches alternate from trunk
+        const ccf = 0.65 - 0.35 * ((i-1) / Math.max(1, nSub - 1));
+        subclones.push({ id: i, ccf, parent: 0, label: SUB_LABELS[i] });
+      }
+    } else {
+      // parallel: all independent CCFs
+      for (let i = 0; i < nSub; i++) {
+        const ccf = i === 0 ? 1.0 : 0.4 + 0.5 * (i / nSub);
+        subclones.push({ id: i, ccf, parent: -1, label: SUB_LABELS[i] });
+      }
+    }
+
+    // Generate variants per subclone
+    const variants = [];
+    const PER_SUB = 80;
+    subclones.forEach(s => {
+      for (let i = 0; i < PER_SUB; i++) {
+        const expVAF = (purity / 2) * s.ccf;
+        const sigma = Math.sqrt(Math.max(1e-6, expVAF * (1 - expVAF) / depth));
+        const obsVAF = Math.max(0, Math.min(1, gauss(expVAF, sigma)));
+        // CCF inferred from VAF: CCF = 2 * VAF / purity
+        const ccfInf = Math.max(0, Math.min(1.5, 2 * obsVAF / Math.max(0.01, purity)));
+        variants.push({ subclone: s.id, expVAF, obsVAF, ccfInf });
+      }
+    });
+
+    return { subclones, variants, purity, depth, topo };
+  }
+
+  function clusterCCF(variants, kEstimate) {
+    // Simple 1-D KMeans on inferred CCF
+    const ccfs = variants.map(v => v.ccfInf);
+    // Initialise centroids spread across [0, 1.2]
+    let centroids = [];
+    for (let k = 0; k < kEstimate; k++) {
+      centroids.push(0.15 + (k / kEstimate) * 1.0);
+    }
+
+    for (let iter = 0; iter < 30; iter++) {
+      // Assign
+      const assignments = ccfs.map(v => {
+        let best = 0, bestD = Infinity;
+        centroids.forEach((c, k) => {
+          const d = Math.abs(v - c);
+          if (d < bestD) { bestD = d; best = k; }
+        });
+        return best;
+      });
+      // Update
+      const newC = new Array(kEstimate).fill(0).map((_, k) => {
+        const members = ccfs.filter((_, i) => assignments[i] === k);
+        if (members.length === 0) return centroids[k];
+        return members.reduce((a, b) => a + b, 0) / members.length;
+      });
+      centroids = newC;
+    }
+    // Sort by descending CCF
+    const order = centroids.map((c, k) => ({ k, c })).sort((a, b) => b.c - a.c).map(x => x.k);
+    const sortedC = order.map(k => centroids[k]);
+    // Reassign with sorted centroids
+    const finalAssign = ccfs.map(v => {
+      let best = 0, bestD = Infinity;
+      sortedC.forEach((c, k) => {
+        const d = Math.abs(v - c);
+        if (d < bestD) { bestD = d; best = k; }
+      });
+      return best;
+    });
+    return { centroids: sortedC, assignments: finalAssign };
+  }
+
+  function render() {
+    $('purityV').textContent = parseFloat($('purity').value).toFixed(2);
+    $('depthV').textContent  = $('depth').value + '×';
+    $('nsubV').textContent   = $('nsub').value;
+
+    const sim = simulate();
+
+    // Cluster on inferred CCF — assume true K
+    const cluster = clusterCCF(sim.variants, sim.subclones.length);
+
+    drawVAF(sim, cluster);
+    drawTables(sim, cluster);
+    drawTree(sim, cluster);
+
+    // Banner
+    const minVar = Math.min(...sim.subclones.map(s => (sim.purity / 2) * s.ccf));
+    let hint;
+    if (sim.purity < 0.25) {
+      hint = 'Low purity squashes all subclones into the noise floor — recovery is hopeless without a deeper sample.';
+    } else if (sim.depth < 100) {
+      hint = 'Insufficient depth → noisy CCFs → clusters merge.';
+    } else if (sim.subclones.length === 1) {
+      hint = 'Only one cluster detected — no subclonal structure visible. Try increasing subclone count.';
+    } else if (minVar < 0.04) {
+      hint = 'Subclone with smallest CCF has VAF near sequencing noise. Multi-region biopsies would help separate.';
+    } else {
+      hint = 'Clean recovery. Multi-region or longitudinal samples sharpen the tree even further.';
+    }
+    $('banner').innerHTML = `Recovered ${cluster.centroids.length} cluster(s) from ${sim.variants.length} variants.<span class="hint">${hint}</span>`;
+  }
+
+  function drawVAF(sim, cluster) {
+    const x0 = 60, x1 = 1010, y0 = 240, y1 = 30;
+    const xPos = v => x0 + Math.max(0, Math.min(0.6, v)) / 0.6 * (x1 - x0);
+    const yPos = h => y0 - h;
+
+    let svg = '';
+    svg += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}" stroke="#a8a29e"/>`;
+    [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6].forEach(t => {
+      svg += `<line x1="${xPos(t)}" y1="${y0}" x2="${xPos(t)}" y2="${y0+5}" stroke="#a8a29e"/>`;
+      svg += `<text x="${xPos(t)}" y="${y0+18}" text-anchor="middle" font-size="10" fill="#6b7280" font-family="JetBrains Mono">${t.toFixed(2)}</text>`;
+    });
+    svg += `<text x="${(x0+x1)/2}" y="${y0+36}" text-anchor="middle" font-size="11" fill="#525252">observed VAF (bulk sequencing)</text>`;
+
+    // Histogram of observed VAFs (50 bins)
+    const bins = 60;
+    const counts = new Array(bins).fill(0);
+    sim.variants.forEach(v => {
+      const idx = Math.min(bins - 1, Math.floor(v.obsVAF / 0.6 * bins));
+      counts[idx]++;
+    });
+    const maxC = Math.max(...counts, 1);
+    const binW = (x1 - x0) / bins;
+    counts.forEach((c, i) => {
+      const h = (c / maxC) * (y0 - y1);
+      svg += `<rect x="${x0 + i * binW}" y="${y0 - h}" width="${binW - 0.5}" height="${h}" fill="#525252" fill-opacity="0.35"/>`;
+    });
+
+    // Overlay mode lines for ground-truth subclones (expected VAFs)
+    sim.subclones.forEach((s, k) => {
+      const ev = (sim.purity / 2) * s.ccf;
+      svg += `<line x1="${xPos(ev)}" y1="${y0}" x2="${xPos(ev)}" y2="${y1}" stroke="${SUB_COLORS[k]}" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+      svg += `<text x="${xPos(ev)}" y="${y1-4}" text-anchor="middle" font-size="9" font-family="JetBrains Mono" fill="${SUB_COLORS[k]}">truth · CCF ${s.ccf.toFixed(2)}</text>`;
+    });
+
+    // Overlay recovered cluster centroids (back-translated to expected VAF)
+    cluster.centroids.forEach((c, k) => {
+      const ev = (sim.purity / 2) * c;
+      svg += `<line x1="${xPos(ev)}" y1="${y0}" x2="${xPos(ev)}" y2="${y0 - 12}" stroke="#059669" stroke-width="3"/>`;
+      svg += `<text x="${xPos(ev)}" y="${y0 - 16}" text-anchor="middle" font-size="9" font-family="JetBrains Mono" fill="#065f46">rec ${(c).toFixed(2)}</text>`;
+    });
+
+    $('chart').innerHTML = svg;
+  }
+
+  function drawTables(sim, cluster) {
+    let truth = `<table><thead><tr><th>Subclone</th><th>True CCF</th><th>Variants</th><th>Driver</th></tr></thead><tbody>`;
+    sim.subclones.forEach((s, k) => {
+      const n = sim.variants.filter(v => v.subclone === s.id).length;
+      truth += `<tr><td><span class="mono" style="color:${SUB_COLORS[k]};font-weight:600">SC${k}</span></td><td class="mono">${s.ccf.toFixed(2)}</td><td class="mono">${n}</td><td>${s.label}</td></tr>`;
+    });
+    truth += '</tbody></table>';
+    $('truthTable').innerHTML = truth;
+
+    let rec = `<table><thead><tr><th>Cluster</th><th>Recovered CCF</th><th>Members</th></tr></thead><tbody>`;
+    cluster.centroids.forEach((c, k) => {
+      const n = cluster.assignments.filter(a => a === k).length;
+      rec += `<tr><td><span class="mono" style="color:${SUB_COLORS[k]};font-weight:600">R${k}</span></td><td class="mono">${c.toFixed(2)}</td><td class="mono">${n}</td></tr>`;
+    });
+    rec += '</tbody></table>';
+    $('recTable').innerHTML = rec;
+  }
+
+  function drawTree(sim, cluster) {
+    const subclones = sim.subclones;
+    const x0 = 80, x1 = 960, y0 = 30, y1 = 170;
+    const w = x1 - x0;
+
+    // Layout: trunk at top, leaves at bottom. Place each subclone by ccf (vertical) and tree-width (horizontal)
+    let svg = '';
+
+    // Place trunk at left, leaves spread right
+    if (sim.topo === 'linear') {
+      // Linear chain
+      subclones.forEach((s, i) => {
+        const cx = x0 + (i / Math.max(1, subclones.length - 1)) * w * 0.6 + 80;
+        const cy = y0 + (1 - s.ccf) * (y1 - y0) + 20;
+        svg += `<circle cx="${cx}" cy="${cy}" r="20" fill="${SUB_COLORS[i]}"/>`;
+        svg += `<text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">SC${i}</text>`;
+        svg += `<text x="${cx}" y="${cy + 38}" text-anchor="middle" font-size="9" fill="${SUB_COLORS[i]}" font-family="JetBrains Mono">CCF ${s.ccf.toFixed(2)}</text>`;
+        svg += `<text x="${cx}" y="${cy + 52}" text-anchor="middle" font-size="9" fill="#525252">${s.label.split(' ')[0]}</text>`;
+        if (s.parent >= 0) {
+          const pCx = x0 + (s.parent / Math.max(1, subclones.length - 1)) * w * 0.6 + 80;
+          const pCy = y0 + (1 - subclones[s.parent].ccf) * (y1 - y0) + 20;
+          svg += `<line x1="${pCx + 16}" y1="${pCy}" x2="${cx - 18}" y2="${cy}" stroke="#525252" stroke-width="2"/>`;
+        }
+      });
+    } else if (sim.topo === 'branching') {
+      // Trunk at left, branches fan out
+      const trunk = subclones[0];
+      const tx = x0 + 80, ty = y0 + 30;
+      svg += `<circle cx="${tx}" cy="${ty}" r="22" fill="${SUB_COLORS[0]}"/>`;
+      svg += `<text x="${tx}" y="${ty + 4}" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">SC0</text>`;
+      svg += `<text x="${tx}" y="${ty + 40}" text-anchor="middle" font-size="9" fill="${SUB_COLORS[0]}" font-family="JetBrains Mono">CCF ${trunk.ccf.toFixed(2)}</text>`;
+      svg += `<text x="${tx}" y="${ty + 54}" text-anchor="middle" font-size="9" fill="#525252">${trunk.label.split(' ')[0]}</text>`;
+      const branches = subclones.slice(1);
+      branches.forEach((s, i) => {
+        const cx = x0 + 240 + (i / Math.max(1, branches.length - 1)) * 600;
+        const cy = y0 + (1 - s.ccf) * (y1 - y0) + 20;
+        svg += `<circle cx="${cx}" cy="${cy}" r="20" fill="${SUB_COLORS[i+1]}"/>`;
+        svg += `<text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">SC${i+1}</text>`;
+        svg += `<text x="${cx}" y="${cy + 38}" text-anchor="middle" font-size="9" fill="${SUB_COLORS[i+1]}" font-family="JetBrains Mono">CCF ${s.ccf.toFixed(2)}</text>`;
+        svg += `<text x="${cx}" y="${cy + 52}" text-anchor="middle" font-size="9" fill="#525252">${s.label.split(' ')[0]}</text>`;
+        svg += `<line x1="${tx + 18}" y1="${ty}" x2="${cx - 18}" y2="${cy}" stroke="#525252" stroke-width="2"/>`;
+      });
+    } else {
+      // Parallel — independent
+      subclones.forEach((s, i) => {
+        const cx = x0 + 80 + (i / Math.max(1, subclones.length - 1)) * w * 0.7;
+        const cy = y0 + 60;
+        svg += `<circle cx="${cx}" cy="${cy}" r="20" fill="${SUB_COLORS[i]}"/>`;
+        svg += `<text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">SC${i}</text>`;
+        svg += `<text x="${cx}" y="${cy + 38}" text-anchor="middle" font-size="9" fill="${SUB_COLORS[i]}" font-family="JetBrains Mono">CCF ${s.ccf.toFixed(2)}</text>`;
+        svg += `<text x="${cx}" y="${cy + 52}" text-anchor="middle" font-size="9" fill="#525252">independent</text>`;
+      });
+      svg += `<text x="${(x0+x1)/2}" y="${y1}" text-anchor="middle" font-size="10" fill="#7f1d1d">parallel-evolution model has no shared MRCA — physically rare in single tumours</text>`;
+    }
+
+    $('tree').innerHTML = svg;
+  }
+
+  ['purity', 'depth', 'nsub', 'topology'].forEach(id => $(id).addEventListener('input', render));
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

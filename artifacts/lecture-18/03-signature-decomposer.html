@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mutational Signature Decomposer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .ctrl-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 0.5rem; align-items: end; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 100%; }
+  .field-K { display: flex; flex-direction: column; gap: 0.3rem; align-items: start; }
+  select { padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 0.8rem 1rem; margin-bottom: 0.75rem; }
+  .panel h3 { margin: 0 0 0.4rem; font-size: var(--text-sm); font-weight: 700; color: var(--fg); }
+  .results { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
+  .summary-row { display: grid; grid-template-columns: 100px 1fr 70px 70px; gap: 0.6rem; align-items: center; padding: 0.3rem 0; border-top: 1px dashed var(--border); font-size: var(--text-sm); }
+  .summary-row:first-child { border-top: none; font-weight: 600; color: var(--fg-muted); font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; }
+  .summary-row .name { font-family: var(--font-mono); font-weight: 600; }
+  .summary-row .bar { height: 14px; background: #e5e7eb; border-radius: 3px; position: relative; overflow: hidden; }
+  .summary-row .bar .fill { position: absolute; top: 0; left: 0; height: 100%; }
+  .summary-row .v { font-family: var(--font-mono); text-align: right; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .ctrl-grid { grid-template-columns: 1fr 1fr; } .results { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Mutational Signature Decomposer</h1>
+    <p>Build a synthetic 96-bin tumour mutation spectrum as a non-negative mixture of 2–4 COSMIC signatures. Run a simplified NMF decomposition (multiplicative-update rules) and compare recovered exposures vs ground truth. Aha: NMF is mathematically straightforward; the hard part is choosing $K$ — the model-order-selection problem.</p>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-grid">
+      <div class="field">
+        <label>SBS1 (clock): <span class="v" id="w1V">0.40</span></label>
+        <input type="range" id="w1" min="0" max="1" step="0.01" value="0.40">
+      </div>
+      <div class="field">
+        <label>SBS4 (smoke): <span class="v" id="w4V">0.30</span></label>
+        <input type="range" id="w4" min="0" max="1" step="0.01" value="0.30">
+      </div>
+      <div class="field">
+        <label>SBS7 (UV): <span class="v" id="w7V">0.00</span></label>
+        <input type="range" id="w7" min="0" max="1" step="0.01" value="0.00">
+      </div>
+      <div class="field">
+        <label>SBS3 (HRD): <span class="v" id="w3V">0.30</span></label>
+        <input type="range" id="w3" min="0" max="1" step="0.01" value="0.30">
+      </div>
+      <div class="field">
+        <label>K (catalogue size)</label>
+        <select id="K">
+          <option value="2">K = 2</option>
+          <option value="3">K = 3</option>
+          <option value="4" selected>K = 4 (matches truth)</option>
+          <option value="5">K = 5 (over-fit)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Synthetic spectrum (truth) and reconstruction (NMF estimate)</h3>
+    <svg id="chart" viewBox="0 0 1040 300" width="100%" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+
+  <div class="results">
+    <div class="panel">
+      <h3>True exposures (set by sliders)</h3>
+      <div id="trueRows"></div>
+    </div>
+    <div class="panel">
+      <h3>Recovered exposures (NMF result)</h3>
+      <div id="recRows"></div>
+    </div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Signatures are simplified 96-bin patterns approximating the canonical SBS1, SBS4, SBS7a, SBS3 shapes. NMF uses multiplicative-update rules (Lee &amp; Seung 1999) for ~50 iterations. Real SigProfilerExtractor uses Bayesian NMF with elaborate model-selection; this artifact is illustrative only.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  // Simplified canonical 96-bin signatures.
+  // Order: 6 substitutions × 16 trinucleotide contexts each.
+  // Substitution colours: C>A cobalt, C>G amber, C>T red, T>A grey, T>C teal, T>G violet
+  const SUB_COLORS = ['#1e40af', '#b45309', '#c4342c', '#525252', '#0d7377', '#7c3aed'];
+  const SUB_LABELS = ['C>A', 'C>G', 'C>T', 'T>A', 'T>C', 'T>G'];
+
+  // Helper to build a 96-bin signature from per-substitution patterns
+  function makeSig(specByMutType) {
+    const sig = new Array(96).fill(0);
+    let idx = 0;
+    for (let s = 0; s < 6; s++) {
+      const pattern = specByMutType[s];
+      for (let i = 0; i < 16; i++) {
+        sig[idx++] = pattern[i];
+      }
+    }
+    // Normalise
+    const sum = sig.reduce((a,b)=>a+b, 0);
+    return sig.map(v => v / sum);
+  }
+
+  // SBS1 — peaks at NCG (positions 2,6,10,14 within C>T)
+  const SIG_SBS1 = (() => {
+    const ct = [0.5, 0.6, 8.0, 0.6,  0.7, 0.6, 6.5, 0.7,  0.5, 0.7, 5.0, 0.7,  0.5, 0.7, 7.0, 0.7];
+    const lowSubs = i => Array(16).fill(0).map((_, j) => 0.3 + 0.1 * (j % 3));
+    return makeSig([lowSubs(0), lowSubs(1), ct, lowSubs(3), lowSubs(4), lowSubs(5)]);
+  })();
+
+  // SBS4 — broad C>A peaks
+  const SIG_SBS4 = (() => {
+    const ca = [3.0, 4.0, 1.5, 4.5, 5.5, 6.0, 2.5, 6.5, 4.5, 5.0, 2.0, 5.5, 3.5, 4.5, 2.0, 4.5];
+    const lowSubs = (height) => i => Array(16).fill(0).map((_, j) => height + 0.4 * (j % 4));
+    return makeSig([ca, lowSubs(0.6)(1), lowSubs(0.8)(2), lowSubs(0.6)(3), lowSubs(0.9)(4), lowSubs(0.5)(5)]);
+  })();
+
+  // SBS7a — UV: high C>T at CC and TC dimers (positions 4-7 = CCN; 12-15 = TCN within C>T panel)
+  const SIG_SBS7 = (() => {
+    const ct = [0.6, 0.5, 0.7, 0.6, 5.0, 6.5, 5.2, 4.5, 0.6, 0.7, 0.8, 0.6, 4.8, 5.8, 5.0, 4.0];
+    const lowSubs = i => Array(16).fill(0).map((_, j) => 0.3 + 0.1 * (j % 3));
+    return makeSig([lowSubs(0), lowSubs(1), ct, lowSubs(3), lowSubs(4), lowSubs(5)]);
+  })();
+
+  // SBS3 — HRD: flat / diffuse
+  const SIG_SBS3 = (() => {
+    const flat = (h) => Array(16).fill(0).map((_, j) => h + 0.2 * Math.sin(j * 0.7));
+    return makeSig([flat(1.0), flat(1.0), flat(1.4), flat(0.9), flat(1.2), flat(1.0)]);
+  })();
+
+  // Truth labels
+  const SIG_INFO = [
+    { name: 'SBS1', label: 'clock-like', sig: SIG_SBS1 },
+    { name: 'SBS4', label: 'tobacco', sig: SIG_SBS4 },
+    { name: 'SBS7', label: 'UV', sig: SIG_SBS7 },
+    { name: 'SBS3', label: 'HRD', sig: SIG_SBS3 },
+  ];
+
+  function dot(a, b) { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; }
+  function norm(a) { return Math.sqrt(dot(a, a)); }
+
+  // Build mixture spectrum + add Poisson-style noise
+  function buildSpectrum(weights) {
+    const M = 5000; // total mutations
+    const v = new Array(96).fill(0);
+    SIG_INFO.forEach((s, k) => {
+      const exposure = weights[k] * M;
+      s.sig.forEach((p, i) => { v[i] += exposure * p; });
+    });
+    // Add Poisson noise (approx Gaussian)
+    for (let i = 0; i < 96; i++) {
+      const lambda = v[i];
+      const noise = Math.sqrt(Math.max(1, lambda));
+      v[i] = Math.max(0, Math.round(v[i] + noise * (Math.random() - 0.5) * 2));
+    }
+    return v;
+  }
+
+  // Cosine similarity for matching recovered to truth
+  function cosine(a, b) {
+    const na = norm(a), nb = norm(b);
+    if (na === 0 || nb === 0) return 0;
+    return dot(a, b) / (na * nb);
+  }
+
+  // Multiplicative-update NMF (Lee & Seung). V ≈ W H. We initialise W from random, H from random, iterate.
+  function nmf(V, K, iters) {
+    const N = 96;
+    const M = 1;
+    // V (N×1), W (N×K), H (K×1)
+    let W = Array.from({length: N}, () => Array.from({length: K}, () => Math.random() * 0.5 + 0.1));
+    let H = Array.from({length: K}, () => [Math.random() * 100 + 50]);
+
+    for (let it = 0; it < iters; it++) {
+      // Update H: H = H .* (W^T V) / (W^T W H)
+      const WtV = new Array(K).fill(0);
+      for (let k = 0; k < K; k++) {
+        for (let n = 0; n < N; n++) WtV[k] += W[n][k] * V[n];
+      }
+      const WtWH = new Array(K).fill(0);
+      for (let k = 0; k < K; k++) {
+        let WtWk = 0;
+        for (let kp = 0; kp < K; kp++) {
+          let dotW = 0;
+          for (let n = 0; n < N; n++) dotW += W[n][k] * W[n][kp];
+          WtWk += dotW * H[kp][0];
+        }
+        WtWH[k] = WtWk;
+      }
+      for (let k = 0; k < K; k++) {
+        H[k][0] = H[k][0] * (WtV[k] / Math.max(1e-9, WtWH[k]));
+      }
+
+      // Update W: W = W .* (V H^T) / (W H H^T)
+      const VHt = Array.from({length: N}, () => new Array(K).fill(0));
+      for (let n = 0; n < N; n++) {
+        for (let k = 0; k < K; k++) {
+          VHt[n][k] = V[n] * H[k][0];
+        }
+      }
+      const WHHt = Array.from({length: N}, () => new Array(K).fill(0));
+      for (let n = 0; n < N; n++) {
+        for (let k = 0; k < K; k++) {
+          let s = 0;
+          for (let kp = 0; kp < K; kp++) {
+            s += W[n][kp] * H[kp][0] * H[k][0];
+          }
+          WHHt[n][k] = s;
+        }
+      }
+      for (let n = 0; n < N; n++) {
+        for (let k = 0; k < K; k++) {
+          W[n][k] = W[n][k] * (VHt[n][k] / Math.max(1e-9, WHHt[n][k]));
+        }
+      }
+    }
+
+    // Normalise W columns to sum=1, transfer mass to H
+    const Wcols = Array.from({length: K}, () => new Array(N));
+    for (let k = 0; k < K; k++) {
+      let cs = 0;
+      for (let n = 0; n < N; n++) cs += W[n][k];
+      cs = Math.max(1e-9, cs);
+      for (let n = 0; n < N; n++) Wcols[k][n] = W[n][k] / cs;
+      H[k][0] = H[k][0] * cs;
+    }
+
+    return { W: Wcols, H: H.map(h => h[0]) };
+  }
+
+  function getWeights() {
+    let w = [
+      parseFloat($('w1').value),
+      parseFloat($('w4').value),
+      parseFloat($('w7').value),
+      parseFloat($('w3').value)
+    ];
+    const s = w.reduce((a,b) => a + b, 0);
+    if (s === 0) { w = [1, 0, 0, 0]; return w; }
+    return w.map(v => v / s);
+  }
+
+  function render() {
+    const w = getWeights();
+    $('w1V').textContent = w[0].toFixed(2);
+    $('w4V').textContent = w[1].toFixed(2);
+    $('w7V').textContent = w[2].toFixed(2);
+    $('w3V').textContent = w[3].toFixed(2);
+
+    const V = buildSpectrum(w);
+
+    // Run NMF
+    const K = parseInt($('K').value, 10);
+    const result = nmf(V, K, 60);
+
+    // Match recovered components to truth signatures via cosine similarity
+    const recovered = result.W.map((sig, k) => {
+      // Find best-matching SBS
+      let bestSim = -1, bestIdx = -1;
+      SIG_INFO.forEach((s, i) => {
+        const sim = cosine(sig, s.sig);
+        if (sim > bestSim) { bestSim = sim; bestIdx = i; }
+      });
+      return { k, sig, exposure: result.H[k], match: bestIdx, sim: bestSim };
+    });
+
+    // Compute total mutations represented
+    const totalH = recovered.reduce((a, r) => a + r.exposure, 0);
+    const recExposures = recovered.map(r => ({ ...r, frac: r.exposure / Math.max(1e-9, totalH) }));
+
+    // Aggregate recovered exposures by best-match SBS
+    const aggrec = SIG_INFO.map((s, i) => {
+      const total = recExposures.filter(r => r.match === i).reduce((a, r) => a + r.frac, 0);
+      return { ...s, frac: total };
+    });
+
+    // Render summary rows
+    function row(name, label, frac) {
+      const pct = (frac * 100).toFixed(1);
+      const w = Math.max(0, Math.min(100, frac * 100));
+      const colour = name === 'SBS1' ? '#c4342c' : name === 'SBS4' ? '#1e40af' : name === 'SBS7' ? '#b45309' : '#0d7377';
+      return `<div class="summary-row">
+        <span class="name" style="color:${colour}">${name}</span>
+        <div class="bar"><div class="fill" style="width:${w}%; background:${colour}"></div></div>
+        <span class="v">${pct}%</span>
+        <span class="v" style="color: var(--fg-subtle);">${label}</span>
+      </div>`;
+    }
+
+    let trueHtml = `<div class="summary-row"><span class="name">Signature</span><span>contribution</span><span class="v">%</span><span>etiology</span></div>`;
+    let recHtml  = trueHtml;
+    SIG_INFO.forEach((s, i) => {
+      trueHtml += row(s.name, s.label, w[i]);
+      recHtml  += row(s.name, s.label, aggrec[i].frac);
+    });
+    $('trueRows').innerHTML = trueHtml;
+    $('recRows').innerHTML  = recHtml;
+
+    // Render spectrum chart
+    drawSpectrum(V, result, w);
+
+    // Banner
+    const error = w.map((wt, i) => Math.abs(wt - aggrec[i].frac)).reduce((a, b) => a + b, 0) / 4;
+    const truthK = w.filter(x => x > 0.05).length;
+    let hint;
+    if (K < truthK) {
+      hint = `Under-fit: K=${K} < truth K=${truthK}. Recovered components will mix multiple signatures.`;
+    } else if (K > truthK) {
+      hint = `Over-fit: K=${K} > truth K=${truthK}. Recovered components include noise / split-signature components.`;
+    } else {
+      hint = error < 0.05 ? 'Excellent recovery. NMF works well when K matches truth.' : 'Reasonable recovery. Run again for stochastic stability.';
+    }
+    $('banner').innerHTML = `Decomposed into K=${K} components. Mean per-signature error: ${(error*100).toFixed(1)} pp.<span class="hint">${hint}</span>`;
+  }
+
+  function drawSpectrum(V, result, trueW) {
+    // Reconstruct V_hat = W * H
+    const N = 96, K = result.H.length;
+    const Vhat = new Array(N).fill(0);
+    for (let n = 0; n < N; n++) {
+      for (let k = 0; k < K; k++) {
+        Vhat[n] += result.W[k][n] * result.H[k];
+      }
+    }
+
+    const maxV = Math.max(1, ...V, ...Vhat);
+
+    // Plot 96 bars (truth in colour, reconstruction overlay as outline)
+    const x0 = 30, x1 = 1010;
+    const y0 = 260, y1 = 50;
+    const barW = (x1 - x0) / 96 - 1;
+
+    let svg = '';
+    // Substitution-coloured backgrounds
+    for (let s = 0; s < 6; s++) {
+      const sx0 = x0 + s * 16 * (barW + 1);
+      const sw  = 16 * (barW + 1) - 1;
+      svg += `<rect x="${sx0}" y="${y1-18}" width="${sw}" height="14" fill="${SUB_COLORS[s]}"/>`;
+      svg += `<text x="${sx0 + sw/2}" y="${y1-7}" text-anchor="middle" font-size="10" fill="#fff" font-weight="600">${SUB_LABELS[s]}</text>`;
+    }
+
+    // Bars
+    for (let i = 0; i < 96; i++) {
+      const sub = Math.floor(i / 16);
+      const x = x0 + i * (barW + 1);
+      const hT = (V[i] / maxV) * (y0 - y1);
+      svg += `<rect x="${x}" y="${y0 - hT}" width="${barW}" height="${hT}" fill="${SUB_COLORS[sub]}" fill-opacity="0.7"/>`;
+      // Reconstruction overlay (outline)
+      const hR = (Vhat[i] / maxV) * (y0 - y1);
+      svg += `<line x1="${x}" y1="${y0 - hR}" x2="${x + barW}" y2="${y0 - hR}" stroke="#111827" stroke-width="1.2"/>`;
+    }
+
+    // Axis
+    svg += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}" stroke="#a8a29e"/>`;
+    svg += `<text x="${(x0+x1)/2}" y="${y0 + 22}" text-anchor="middle" font-size="11" fill="#525252">96 trinucleotide contexts</text>`;
+
+    // Legend
+    svg += `<g transform="translate(${x1-260},${y1+6})" font-size="10">
+      <rect x="0" y="0" width="14" height="10" fill="#525252" fill-opacity="0.7"/>
+      <text x="20" y="9" fill="#374151">truth (synthetic mixture)</text>
+      <line x1="0" y1="22" x2="14" y2="22" stroke="#111827" stroke-width="1.5"/>
+      <text x="20" y="26" fill="#374151">NMF reconstruction</text>
+    </g>`;
+
+    $('chart').innerHTML = svg;
+  }
+
+  ['w1','w4','w7','w3','K'].forEach(id => $(id).addEventListener('input', render));
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

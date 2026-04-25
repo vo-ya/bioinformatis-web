@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Targeted Therapy Matcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .top-row { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; margin-bottom: 0.75rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; background: #fff; min-width: 280px; }
+  .variants-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+  .vchk { display: flex; gap: 0.4rem; align-items: center; padding: 0.32rem 0.5rem; background: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: var(--font-mono); font-size: 0.8rem; cursor: pointer; }
+  .vchk:hover { border-color: var(--accent); }
+  .vchk.on { background: #fef2f2; border-color: #c4342c; color: #7f1d1d; font-weight: 600; }
+  .vchk input { margin: 0; }
+  .biomarker-row { display: flex; gap: 1rem; align-items: center; margin-top: 0.6rem; flex-wrap: wrap; }
+  .biomarker { display: flex; gap: 0.4rem; align-items: center; font-size: var(--text-sm); }
+  .biomarker input[type=checkbox] { margin: 0; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .therapy { padding: 0.75rem; border-top: 1px solid var(--border); display: grid; grid-template-columns: 60px 1fr; gap: 0.8rem; align-items: start; }
+  .therapy:first-child { border-top: none; }
+  .therapy .priority { font-family: var(--font-mono); font-weight: 700; padding: 0.3rem 0.6rem; border-radius: 4px; text-align: center; }
+  .therapy .priority.tier1 { background: #dcfce7; color: #065f46; }
+  .therapy .priority.tier2 { background: #fef3c7; color: #92400e; }
+  .therapy .priority.bio   { background: #dbeafe; color: #1e3a8a; }
+  .therapy .name { font-size: var(--text-sm); font-weight: 700; color: var(--fg); }
+  .therapy .reason { font-size: var(--text-sm); color: var(--fg-muted); margin-top: 0.2rem; }
+  .therapy .ctx { font-family: var(--font-mono); font-size: 0.78rem; color: var(--fg-subtle); margin-top: 0.3rem; }
+  .empty { color: var(--fg-muted); font-style: italic; padding: 1rem; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .variants-grid { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Targeted Therapy Matcher</h1>
+    <p>Pick a tumour panel result (variants + biomarkers + cancer type). The matcher maps each finding to candidate therapies (FDA-approved / trial / no match) and returns a ranked treatment plan. Aha: variant-to-therapy mapping is deterministic given the knowledge bases; the human judgment is in ordering by evidence + line of therapy + patient factors.</p>
+  </div>
+
+  <div class="controls">
+    <div class="top-row">
+      <div class="field">
+        <label for="cancer">Cancer type</label>
+        <select id="cancer">
+          <option value="nsclc">NSCLC (lung adenocarcinoma)</option>
+          <option value="melanoma">Melanoma</option>
+          <option value="crc">Colorectal</option>
+          <option value="breast">Breast</option>
+          <option value="ovarian">Ovarian</option>
+          <option value="prostate">Prostate</option>
+          <option value="cml">CML (leukaemia)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Detected somatic variants</label>
+      <div class="variants-grid" id="variants"></div>
+    </div>
+
+    <div class="biomarker-row">
+      <span style="font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase;">Biomarkers</span>
+      <label class="biomarker"><input type="checkbox" id="bTMB"> TMB-high (≥ 10 mut/Mb)</label>
+      <label class="biomarker"><input type="checkbox" id="bMSI"> MSI-H / dMMR</label>
+      <label class="biomarker"><input type="checkbox" id="bHRD"> HRD-positive</label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3 style="margin: 0 0 0.5rem; font-size: var(--text-sm); font-weight: 700;">Recommended therapy plan (ranked)</h3>
+    <div id="therapies"></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool: a curated subset of (variant × cancer) drug matches plus TMB / MSI / HRD gates. Actual treatment plans depend on stage, prior therapy, comorbidities, payer, and tumour-board judgment. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const VARIANTS = [
+    { id: 'EGFR_L858R', label: 'EGFR L858R' },
+    { id: 'EGFR_T790M', label: 'EGFR T790M' },
+    { id: 'EGFR_ex19',  label: 'EGFR exon-19 del' },
+    { id: 'BRAF_V600E', label: 'BRAF V600E' },
+    { id: 'KRAS_G12C',  label: 'KRAS G12C' },
+    { id: 'KRAS_G12D',  label: 'KRAS G12D' },
+    { id: 'BRCA1_LoF',  label: 'BRCA1 LoF' },
+    { id: 'BRCA2_LoF',  label: 'BRCA2 LoF' },
+    { id: 'PIK3CA_E545K', label: 'PIK3CA E545K' },
+    { id: 'EML4_ALK',   label: 'EML4-ALK fusion' },
+    { id: 'BCR_ABL1',   label: 'BCR-ABL1 fusion' },
+    { id: 'HER2_amp',   label: 'HER2 amplification' },
+    { id: 'NTRK_fusion',label: 'NTRK fusion' },
+    { id: 'TP53_R175H', label: 'TP53 R175H' },
+    { id: 'TMPRSS2_ERG',label: 'TMPRSS2-ERG fusion' },
+  ];
+
+  // (variant × cancer) → matched therapy
+  const RULES = {
+    'EGFR_L858R|nsclc': { tier: 'I-A', drug: 'osimertinib (1st line)', reason: 'EGFR-TKI for L858R mutation in NSCLC' },
+    'EGFR_T790M|nsclc': { tier: 'I-A', drug: 'osimertinib', reason: 'overcomes T790M-mediated 1st-gen TKI resistance' },
+    'EGFR_ex19|nsclc':  { tier: 'I-A', drug: 'osimertinib', reason: 'exon-19 deletion is a classical EGFR-TKI sensitiser' },
+    'BRAF_V600E|melanoma': { tier: 'I-A', drug: 'dabrafenib + trametinib', reason: 'BRAF + MEK combination for melanoma' },
+    'BRAF_V600E|crc':      { tier: 'II-C', drug: 'encorafenib + cetuximab', reason: 'CRC requires combo (vs melanoma)' },
+    'BRAF_V600E|nsclc':    { tier: 'II-C', drug: 'dabrafenib + trametinib', reason: 'tumour-agnostic FDA approval' },
+    'KRAS_G12C|nsclc': { tier: 'I-A', drug: 'sotorasib · adagrasib', reason: 'KRAS G12C-specific inhibitor (2021+)' },
+    'KRAS_G12C|crc':   { tier: 'II-D', drug: 'sotorasib + cetuximab (trial)', reason: 'monotherapy fails in CRC; combo in trials' },
+    'BRCA1_LoF|ovarian': { tier: 'I-A', drug: 'olaparib · niraparib', reason: 'PARP inhibitor for HRD-positive OvCa' },
+    'BRCA1_LoF|breast':  { tier: 'I-A', drug: 'olaparib · talazoparib', reason: 'gBRCA+ breast cancer indication' },
+    'BRCA1_LoF|prostate':{ tier: 'I-A', drug: 'olaparib · rucaparib', reason: 'mCRPC with HRR mutation' },
+    'BRCA2_LoF|ovarian': { tier: 'I-A', drug: 'olaparib · niraparib', reason: 'PARP inhibitor for HRD-positive OvCa' },
+    'BRCA2_LoF|breast':  { tier: 'I-A', drug: 'olaparib · talazoparib', reason: 'gBRCA+ breast cancer indication' },
+    'BRCA2_LoF|prostate':{ tier: 'I-A', drug: 'olaparib · rucaparib', reason: 'mCRPC with HRR mutation' },
+    'PIK3CA_E545K|breast': { tier: 'I-A', drug: 'alpelisib + fulvestrant', reason: 'PIK3CA-mutant HR+/HER2- mBC' },
+    'EML4_ALK|nsclc': { tier: 'I-A', drug: 'alectinib · lorlatinib', reason: 'ALK-rearrangement NSCLC; alectinib is 1st-line' },
+    'BCR_ABL1|cml':   { tier: 'I-A', drug: 'imatinib · dasatinib · ponatinib', reason: 'BCR-ABL1 TKI for CML — paradigm of targeted therapy' },
+    'HER2_amp|breast': { tier: 'I-A', drug: 'trastuzumab + pertuzumab · T-DXd', reason: 'HER2-positive breast cancer' },
+    'NTRK_fusion|nsclc':    { tier: 'I-A', drug: 'larotrectinib · entrectinib', reason: 'NTRK-fusion FDA tumour-agnostic' },
+    'NTRK_fusion|breast':   { tier: 'I-A', drug: 'larotrectinib · entrectinib', reason: 'NTRK-fusion FDA tumour-agnostic' },
+    'NTRK_fusion|crc':      { tier: 'I-A', drug: 'larotrectinib · entrectinib', reason: 'NTRK-fusion FDA tumour-agnostic' },
+    'NTRK_fusion|melanoma': { tier: 'I-A', drug: 'larotrectinib · entrectinib', reason: 'NTRK-fusion FDA tumour-agnostic' },
+    'NTRK_fusion|prostate': { tier: 'I-A', drug: 'larotrectinib · entrectinib', reason: 'NTRK-fusion FDA tumour-agnostic' },
+    'NTRK_fusion|ovarian':  { tier: 'I-A', drug: 'larotrectinib · entrectinib', reason: 'NTRK-fusion FDA tumour-agnostic' },
+    'NTRK_fusion|cml':      { tier: 'I-A', drug: 'larotrectinib · entrectinib', reason: 'NTRK-fusion FDA tumour-agnostic' },
+    'TMPRSS2_ERG|prostate': { tier: 'III', drug: '— biomarker only', reason: 'driver but not directly druggable' },
+  };
+
+  function populate() {
+    $('variants').innerHTML = VARIANTS.map(v =>
+      `<label class="vchk"><input type="checkbox" data-v="${v.id}"> ${v.label}</label>`
+    ).join('');
+    document.querySelectorAll('.vchk input').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const lbl = inp.closest('.vchk');
+        if (inp.checked) lbl.classList.add('on'); else lbl.classList.remove('on');
+        update();
+      });
+    });
+  }
+
+  function update() {
+    const cancer = $('cancer').value;
+    const selected = Array.from(document.querySelectorAll('.vchk input:checked')).map(i => i.getAttribute('data-v'));
+    const bTMB = $('bTMB').checked;
+    const bMSI = $('bMSI').checked;
+    const bHRD = $('bHRD').checked;
+
+    const therapies = [];
+
+    // Variant-driven matches
+    selected.forEach(vId => {
+      const key = `${vId}|${cancer}`;
+      const rule = RULES[key];
+      if (rule) {
+        therapies.push({
+          priority: rule.tier === 'I-A' ? 'tier1' : rule.tier === 'III' ? 'bio' : 'tier2',
+          tier: rule.tier,
+          name: rule.drug,
+          reason: rule.reason,
+          ctx: VARIANTS.find(v => v.id === vId).label + ' · ' + cancer
+        });
+      } else {
+        therapies.push({
+          priority: 'bio',
+          tier: 'III',
+          name: '— no matched targeted therapy',
+          reason: `${VARIANTS.find(v => v.id === vId).label} has no FDA-approved match for ${cancer}; consider basket trial.`,
+          ctx: VARIANTS.find(v => v.id === vId).label + ' · ' + cancer
+        });
+      }
+    });
+
+    // Biomarker-driven matches
+    if (bMSI) {
+      therapies.push({ priority: 'tier1', tier: 'I-A (biomarker)', name: 'pembrolizumab',
+        reason: 'MSI-H / dMMR → tumour-agnostic ICI indication (2017)', ctx: 'biomarker · any cancer' });
+    }
+    if (bTMB) {
+      therapies.push({ priority: 'tier1', tier: 'I-A (biomarker)', name: 'pembrolizumab',
+        reason: 'TMB ≥ 10 mut/Mb → tumour-agnostic ICI (2020)', ctx: 'biomarker · any cancer' });
+    }
+    if (bHRD && (cancer === 'ovarian' || cancer === 'breast' || cancer === 'prostate' || cancer === 'pancreatic')) {
+      therapies.push({ priority: 'tier1', tier: 'I-A (biomarker)', name: 'olaparib · niraparib · rucaparib',
+        reason: 'HRD-positive — PARP inhibitor sensitivity', ctx: 'biomarker · ' + cancer });
+    }
+
+    // Sort: tier1 first, then tier2, then bio
+    therapies.sort((a, b) => {
+      const order = { tier1: 0, tier2: 1, bio: 2 };
+      return order[a.priority] - order[b.priority];
+    });
+
+    if (therapies.length === 0) {
+      $('therapies').innerHTML = '<div class="empty">No variants or biomarkers selected. Pick at least one to see a treatment plan.</div>';
+    } else {
+      $('therapies').innerHTML = therapies.map((t, i) => `
+        <div class="therapy">
+          <div class="priority ${t.priority}">${t.tier}</div>
+          <div>
+            <div class="name">${i+1}. ${t.name}</div>
+            <div class="reason">${t.reason}</div>
+            <div class="ctx">${t.ctx}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Banner
+    let hint;
+    const tier1Count = therapies.filter(t => t.priority === 'tier1').length;
+    if (tier1Count >= 2) {
+      hint = 'Multiple Tier I matches → tumour board prioritises by line-of-therapy + patient state.';
+    } else if (tier1Count === 1) {
+      hint = 'One Tier I match → likely first-line therapy.';
+    } else if (therapies.length > 0) {
+      hint = 'No Tier I match → trial enrolment or standard-of-care chemo.';
+    } else {
+      hint = 'Try EGFR L858R + NSCLC for the canonical Tier I-A → osimertinib match.';
+    }
+    $('banner').innerHTML = `${therapies.length} candidate therapies for ${cancer}.<span class="hint">${hint}</span>`;
+  }
+
+  populate();
+  // Default scenario: NSCLC + EGFR L858R
+  $('cancer').value = 'nsclc';
+  document.querySelector('.vchk input[data-v="EGFR_L858R"]').checked = true;
+  document.querySelector('.vchk input[data-v="EGFR_L858R"]').closest('.vchk').classList.add('on');
+
+  $('cancer').addEventListener('change', update);
+  ['bTMB', 'bMSI', 'bHRD'].forEach(id => $(id).addEventListener('change', update));
+
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

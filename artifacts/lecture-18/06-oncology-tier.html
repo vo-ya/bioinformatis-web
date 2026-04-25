@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMP/ASCO/CAP Oncology Tier Classifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1000px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; background: #fff; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 1.25rem 1.4rem; margin-bottom: 0.75rem; }
+  .verdict.tierI   { border-color: #059669; background: #f0fdf4; }
+  .verdict.tierII  { border-color: #b45309; background: #fef3c7; }
+  .verdict.tierIII { border-color: #525252; background: #fafaf9; }
+  .verdict.tierIV  { border-color: #d4d4d8; background: #fafaf9; }
+  .verdict .label { font-size: var(--text-xs); letter-spacing: 0.14em; color: var(--fg-subtle); text-transform: uppercase; }
+  .verdict .head { font-family: var(--font-serif); font-size: 1.6rem; font-weight: 700; margin: 0.2rem 0 0.4rem; }
+  .verdict.tierI   .head { color: #065f46; }
+  .verdict.tierII  .head { color: #92400e; }
+  .verdict.tierIII .head { color: #525252; }
+  .verdict.tierIV  .head { color: #a8a29e; }
+  .verdict .body { font-size: var(--text-sm); color: var(--fg); line-height: 1.55; }
+  .verdict .body p { margin: 0 0 0.4rem; }
+  .verdict .citation { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg-muted); margin-top: 0.4rem; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>AMP/ASCO/CAP Oncology Tier Classifier</h1>
+    <p>Pick a somatic variant + cancer type. The classifier looks up the variant-cancer-drug evidence in a curated mini-database (a slice of OncoKB / CIViC) and returns the AMP/ASCO/CAP tier + recommended action. Aha: oncology tiering is a deterministic lookup keyed by (variant × cancer × drug evidence) — different in shape from ACMG/AMP germline aggregation.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="variant">Somatic variant</label>
+      <select id="variant"></select>
+    </div>
+    <div class="field">
+      <label for="cancer">Cancer type</label>
+      <select id="cancer"></select>
+    </div>
+    <div class="field">
+      <label for="evidence">Evidence available</label>
+      <select id="evidence">
+        <option value="fda-this">FDA-approved · this cancer</option>
+        <option value="fda-other">FDA-approved · different cancer</option>
+        <option value="trial">Active clinical trials</option>
+        <option value="preclinical">Preclinical-only</option>
+        <option value="none">No specific evidence</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <div class="label">Classification</div>
+    <div class="head" id="vHead">—</div>
+    <div class="body" id="vBody"></div>
+    <div class="citation" id="vCite"></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool: a curated subset of (variant × cancer × drug) combinations. Real clinical reports also factor in NCCN guidelines, line-of-therapy considerations, and ClinGen somatic curation. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const VARIANTS = [
+    { id: 'EGFR_L858R', label: 'EGFR p.Leu858Arg', gene: 'EGFR' },
+    { id: 'EGFR_T790M', label: 'EGFR p.Thr790Met (resistance)', gene: 'EGFR' },
+    { id: 'BRAF_V600E', label: 'BRAF p.Val600Glu', gene: 'BRAF' },
+    { id: 'KRAS_G12C',  label: 'KRAS p.Gly12Cys', gene: 'KRAS' },
+    { id: 'KRAS_G12D',  label: 'KRAS p.Gly12Asp', gene: 'KRAS' },
+    { id: 'BRCA1_LoF',  label: 'BRCA1 LoF (germline-or-somatic)', gene: 'BRCA1' },
+    { id: 'PIK3CA_E545K', label: 'PIK3CA p.Glu545Lys', gene: 'PIK3CA' },
+    { id: 'EML4_ALK',   label: 'EML4-ALK fusion', gene: 'ALK' },
+    { id: 'BCR_ABL1',   label: 'BCR-ABL1 fusion', gene: 'ABL1' },
+    { id: 'HER2_amp',   label: 'ERBB2 (HER2) amplification', gene: 'ERBB2' },
+    { id: 'TP53_R175H', label: 'TP53 p.Arg175His (hotspot)', gene: 'TP53' },
+    { id: 'TMPRSS2_ERG',label: 'TMPRSS2-ERG fusion', gene: 'ERG' },
+  ];
+  const CANCERS = [
+    'NSCLC (lung adenocarcinoma)',
+    'Melanoma',
+    'Colorectal',
+    'Breast',
+    'Ovarian',
+    'Pancreatic',
+    'Prostate',
+    'CML (leukaemia)',
+    'Cholangiocarcinoma',
+  ];
+
+  // (variantId × cancer) → predefined evidence-availability + drug recommendation
+  const KB = {
+    'EGFR_L858R|NSCLC (lung adenocarcinoma)': { auto: 'fda-this', drug: 'osimertinib (1st line) · erlotinib · gefitinib', cite: 'NCCN NSCLC guidelines · OncoKB Level 1' },
+    'EGFR_T790M|NSCLC (lung adenocarcinoma)': { auto: 'fda-this', drug: 'osimertinib — overcomes T790M-mediated resistance', cite: 'OncoKB Level 1 (resistance)' },
+    'BRAF_V600E|Melanoma': { auto: 'fda-this', drug: 'vemurafenib + cobimetinib · dabrafenib + trametinib · encorafenib + binimetinib', cite: 'NCCN Melanoma · OncoKB Level 1' },
+    'BRAF_V600E|Colorectal': { auto: 'fda-other', drug: 'encorafenib + cetuximab (BEACON-CRC). FDA-approved in CRC; combo essential vs monotherapy', cite: 'OncoKB Level 1 in CRC' },
+    'KRAS_G12C|NSCLC (lung adenocarcinoma)': { auto: 'fda-this', drug: 'sotorasib (2021 FDA · first KRAS G12C inhibitor) · adagrasib', cite: 'OncoKB Level 1 · CodeBreaK trials' },
+    'KRAS_G12C|Colorectal': { auto: 'trial', drug: 'sotorasib + cetuximab in trials; not yet FDA-approved in CRC', cite: 'OncoKB Level 3A · KRYSTAL trial' },
+    'KRAS_G12D|NSCLC (lung adenocarcinoma)': { auto: 'preclinical', drug: 'MRTX1133 (preclinical KRAS G12D inhibitor). No FDA approval yet.', cite: 'preclinical only' },
+    'BRCA1_LoF|Ovarian': { auto: 'fda-this', drug: 'olaparib · niraparib · rucaparib (PARP inhibitors)', cite: 'OncoKB Level 1 · SOLO trials' },
+    'BRCA1_LoF|Breast': { auto: 'fda-this', drug: 'olaparib · talazoparib (gBRCA+)', cite: 'OncoKB Level 1 · OlympiA' },
+    'BRCA1_LoF|Pancreatic': { auto: 'fda-this', drug: 'olaparib (gBRCA+ maintenance after platinum)', cite: 'OncoKB Level 1 · POLO' },
+    'BRCA1_LoF|Prostate': { auto: 'fda-this', drug: 'olaparib · rucaparib (mCRPC HRR+)', cite: 'OncoKB Level 1' },
+    'PIK3CA_E545K|Breast': { auto: 'fda-this', drug: 'alpelisib + fulvestrant (PIK3CA+ HR+/HER2- mBC)', cite: 'OncoKB Level 1 · SOLAR-1' },
+    'EML4_ALK|NSCLC (lung adenocarcinoma)': { auto: 'fda-this', drug: 'alectinib (1st line) · lorlatinib · brigatinib · crizotinib', cite: 'OncoKB Level 1' },
+    'BCR_ABL1|CML (leukaemia)': { auto: 'fda-this', drug: 'imatinib · dasatinib · nilotinib · ponatinib', cite: 'OncoKB Level 1 · gold standard since 2001' },
+    'HER2_amp|Breast': { auto: 'fda-this', drug: 'trastuzumab + pertuzumab · trastuzumab-deruxtecan (T-DXd)', cite: 'OncoKB Level 1 · DESTINY trials' },
+    'TMPRSS2_ERG|Prostate': { auto: 'none', drug: 'no matched targeted therapy; biomarker for diagnostic stratification', cite: 'OncoKB Level 4 (compelling biology, no drug)' },
+  };
+
+  // Populate dropdowns
+  $('variant').innerHTML = VARIANTS.map(v => `<option value="${v.id}">${v.label}</option>`).join('');
+  $('cancer').innerHTML  = CANCERS.map(c => `<option>${c}</option>`).join('');
+
+  function classify() {
+    const vId = $('variant').value;
+    const cancer = $('cancer').value;
+    const userEvidence = $('evidence').value;
+
+    const key = `${vId}|${cancer}`;
+    const kb = KB[key];
+
+    // Determine effective evidence: KB auto or user override (whichever is more specific)
+    const evidence = kb ? kb.auto : userEvidence;
+
+    let tier, head, body, cite;
+    const v = $('verdict');
+
+    if (evidence === 'fda-this') {
+      tier = 'tierI';
+      head = 'Tier I-A — Strong clinical significance';
+      body = `<p><strong>Action:</strong> Treat with the matched FDA-approved targeted therapy now.</p>` +
+             `<p><strong>Drug:</strong> ${kb ? kb.drug : 'matched targeted therapy'}.</p>` +
+             `<p>This variant is on-label for the patient's cancer type. Discuss in molecular tumour board to confirm line-of-therapy.</p>`;
+      cite = kb ? kb.cite : '—';
+    } else if (evidence === 'fda-other') {
+      tier = 'tierII';
+      head = 'Tier II-C — Potential clinical significance';
+      body = `<p><strong>Action:</strong> Off-label or trial enrolment; cross-tumour evidence exists.</p>` +
+             `<p><strong>Drug:</strong> ${kb ? kb.drug : 'considered off-label'}.</p>` +
+             `<p>FDA-approved in a different cancer type for this variant. Expanded-access or basket-trial route.</p>`;
+      cite = kb ? kb.cite : '—';
+    } else if (evidence === 'trial') {
+      tier = 'tierII';
+      head = 'Tier II-D — Trial-supported';
+      body = `<p><strong>Action:</strong> Consider clinical trial enrolment.</p>` +
+             `<p><strong>Trials:</strong> ${kb ? kb.drug : 'active investigational agents'}.</p>` +
+             `<p>No FDA approval yet; emerging evidence supports trial use.</p>`;
+      cite = kb ? kb.cite : '—';
+    } else if (evidence === 'preclinical') {
+      tier = 'tierII';
+      head = 'Tier II-D — Preclinical evidence only';
+      body = `<p><strong>Action:</strong> Discuss in tumour board; consider research/trial participation.</p>` +
+             `<p>${kb ? kb.drug : 'No clinical-grade therapy available; mechanism is studied in preclinical models.'}</p>`;
+      cite = kb ? kb.cite : '—';
+    } else if (evidence === 'none' && kb && kb.drug) {
+      tier = 'tierIII';
+      head = 'Tier III — Variant of unknown clinical significance';
+      body = `<p><strong>Action:</strong> Report; no immediate therapeutic implication.</p>` +
+             `<p>${kb.drug}</p>`;
+      cite = kb.cite;
+    } else {
+      tier = 'tierIII';
+      head = 'Tier III — Variant of unknown clinical significance';
+      body = `<p><strong>Action:</strong> Report; no specific therapeutic match.</p>` +
+             `<p>This variant is in a cancer-relevant gene but no curated drug-cancer match exists in this knowledge base.</p>`;
+      cite = '—';
+    }
+
+    v.className = 'verdict ' + tier;
+    $('vHead').textContent = head;
+    $('vBody').innerHTML = body;
+    $('vCite').textContent = `Source: ${cite}`;
+
+    // Banner
+    let hint;
+    if (tier === 'tierI') {
+      hint = 'Try a different cancer type with the same variant — see how the tier shifts to II-C off-label.';
+    } else if (tier === 'tierII') {
+      hint = 'Try the matched cancer — Tier I-A unlocks immediate FDA-approved therapy.';
+    } else {
+      hint = 'TMPRSS2-ERG (prostate) is a textbook strong-biomarker, no-drug case → Tier III.';
+    }
+    $('banner').innerHTML = `<strong>${VARIANTS.find(x => x.id === vId).label}</strong> in <strong>${cancer}</strong> → ${head.split(' — ')[0]}.<span class="hint">${hint}</span>`;
+  }
+
+  ['variant', 'cancer', 'evidence'].forEach(id => $(id).addEventListener('change', classify));
+  classify();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

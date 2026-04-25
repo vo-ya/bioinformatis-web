@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gene Fusion Visualiser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; background: #fff; min-width: 280px; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .info { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .info-grid { display: grid; grid-template-columns: 140px 1fr; gap: 0.4rem 0.8rem; font-size: var(--text-sm); }
+  .info-grid .key { font-weight: 600; color: var(--fg-muted); }
+  .info-grid .val { color: var(--fg); }
+  .info-grid .val.mono { font-family: var(--font-mono); font-size: 0.85rem; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Gene Fusion Visualiser</h1>
+    <p>Pick a canonical cancer gene fusion. The visualiser shows the parent genes, the breakpoint, the fusion transcript, and the fusion-protein domain architecture. Aha: oncogenic fusions are modular — pair an oligomerisation domain (or active promoter) with a kinase domain and you get a constitutively-active driver.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="fusion">Cancer fusion</label>
+      <select id="fusion">
+        <option value="bcr-abl">BCR-ABL1 — chronic myeloid leukaemia (CML)</option>
+        <option value="eml4-alk">EML4-ALK — lung adenocarcinoma</option>
+        <option value="ntrk">ETV6-NTRK3 — multiple cancers</option>
+        <option value="tmprss2-erg">TMPRSS2-ERG — prostate cancer</option>
+        <option value="fgfr2">FGFR2 fusions — cholangiocarcinoma</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="panel">
+    <svg id="chart" viewBox="0 0 1040 480" width="100%" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+
+  <div class="info">
+    <div class="info-grid" id="info"></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational visualisation. Domain boundaries simplified; clinically validated tools (Arriba, STAR-Fusion, FusionCatcher) plus DNA-side SV callers (GRIDSS, Manta) drive real fusion calling.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const FUSIONS = {
+    'bcr-abl': {
+      name: 'BCR-ABL1',
+      cancer: 'Chronic myeloid leukaemia (CML)',
+      mechanism: 'Philadelphia chromosome translocation t(9;22). BCR oligomerisation domain forces ABL1 kinase into constitutive activation.',
+      therapy: 'imatinib (2001 FDA — first targeted cancer therapy) → dasatinib · nilotinib · ponatinib',
+      tier: 'Tier I-A',
+      partnerA: { name: 'BCR', chrom: 'chr22', color: '#1e3a8a', exons: 14, domains: [
+        { x: 0,   w: 100, label: 'oligo · CC',  fill: '#1e3a8a', textColor: '#fff' },
+        { x: 105, w: 130, label: 'BCR coiled-coil dimerisation', fill: '#bfdbfe', textColor: '#1e3a8a' },
+        { x: 240, w: 80,  label: 'serine kinase', fill: '#1e3a8a', textColor: '#fff' }
+      ]},
+      partnerB: { name: 'ABL1', chrom: 'chr9', color: '#7c3aed', exons: 11, domains: [
+        { x: 0,   w: 60,  label: 'SH3', fill: '#7c3aed', textColor: '#fff' },
+        { x: 65,  w: 60,  label: 'SH2', fill: '#7c3aed', textColor: '#fff' },
+        { x: 130, w: 240, label: 'ABL1 kinase domain (tyrosine)', fill: '#7c3aed', textColor: '#fff' },
+        { x: 375, w: 100, label: 'C-term', fill: '#a78bfa', textColor: '#fff' }
+      ]},
+      junctionExon: 7,  // BCR exon 13 / ABL1 exon 2 — simplified
+    },
+    'eml4-alk': {
+      name: 'EML4-ALK',
+      cancer: 'Lung adenocarcinoma (~5%)',
+      mechanism: 'Inversion on chr2 brings EML4 oligomerisation in front of the ALK kinase domain. Constitutive ALK activation.',
+      therapy: 'crizotinib (2011) → alectinib · lorlatinib · brigatinib',
+      tier: 'Tier I-A',
+      partnerA: { name: 'EML4', chrom: 'chr2 (inv)', color: '#1e3a8a', exons: 13, domains: [
+        { x: 0,   w: 80,  label: 'N · TM', fill: '#1e3a8a', textColor: '#fff' },
+        { x: 85,  w: 160, label: 'EML4 coiled-coil', fill: '#bfdbfe', textColor: '#1e3a8a' },
+        { x: 250, w: 70,  label: 'WD40', fill: '#1e3a8a', textColor: '#fff' }
+      ]},
+      partnerB: { name: 'ALK', chrom: 'chr2', color: '#7c3aed', exons: 10, domains: [
+        { x: 0,   w: 280, label: 'ALK kinase domain (constitutively active when oligomerised)', fill: '#7c3aed', textColor: '#fff' },
+        { x: 285, w: 70,  label: 'C-term', fill: '#a78bfa', textColor: '#fff' }
+      ]},
+      junctionExon: 7,
+    },
+    'ntrk': {
+      name: 'ETV6-NTRK3',
+      cancer: 'Salivary, infantile fibrosarcoma, secretory breast carcinoma — pan-cancer',
+      mechanism: 'ETV6 SAM domain (oligomerisation) drives NTRK3 kinase into constitutive activity.',
+      therapy: 'larotrectinib (2018, FDA tumour-agnostic) · entrectinib',
+      tier: 'Tier I-A (any NTRK fusion-positive solid tumour)',
+      partnerA: { name: 'ETV6', chrom: 'chr12', color: '#1e3a8a', exons: 5, domains: [
+        { x: 0,   w: 80,  label: 'N', fill: '#1e3a8a', textColor: '#fff' },
+        { x: 85,  w: 130, label: 'ETV6 SAM oligo. domain', fill: '#bfdbfe', textColor: '#1e3a8a' }
+      ]},
+      partnerB: { name: 'NTRK3', chrom: 'chr15', color: '#7c3aed', exons: 8, domains: [
+        { x: 0,   w: 280, label: 'NTRK3 kinase domain', fill: '#7c3aed', textColor: '#fff' },
+        { x: 285, w: 70,  label: 'C-term', fill: '#a78bfa', textColor: '#fff' }
+      ]},
+      junctionExon: 5,
+    },
+    'tmprss2-erg': {
+      name: 'TMPRSS2-ERG',
+      cancer: 'Prostate cancer (~50% of cases)',
+      mechanism: 'Androgen-responsive TMPRSS2 promoter drives ETS-family TF ERG expression. Driver but not directly druggable.',
+      therapy: 'No matched targeted therapy; biomarker for diagnostics. Indirect targeting via PARP inhibitors in HRD+ subset.',
+      tier: 'Tier III (no actionable therapy match)',
+      partnerA: { name: 'TMPRSS2', chrom: 'chr21', color: '#b45309', exons: 14, domains: [
+        { x: 0,   w: 80, label: '5\' UTR', fill: '#b45309', textColor: '#fff' },
+        { x: 85,  w: 80, label: 'androgen-responsive promoter', fill: '#fde68a', textColor: '#92400e' }
+      ]},
+      partnerB: { name: 'ERG', chrom: 'chr21', color: '#7c3aed', exons: 11, domains: [
+        { x: 0,   w: 80,  label: 'PNT', fill: '#7c3aed', textColor: '#fff' },
+        { x: 85,  w: 200, label: 'ERG ETS DNA-binding TF domain', fill: '#7c3aed', textColor: '#fff' },
+        { x: 290, w: 60,  label: 'C-term', fill: '#a78bfa', textColor: '#fff' }
+      ]},
+      junctionExon: 4,
+    },
+    'fgfr2': {
+      name: 'FGFR2-BICC1 (representative)',
+      cancer: 'Cholangiocarcinoma (~15% of intrahepatic cases)',
+      mechanism: 'BICC1 dimerisation domain → FGFR2 kinase autoactivation.',
+      therapy: 'pemigatinib (2020 FDA) · futibatinib · infigratinib',
+      tier: 'Tier I-A',
+      partnerA: { name: 'FGFR2', chrom: 'chr10', color: '#1e3a8a', exons: 18, domains: [
+        { x: 0,   w: 80,  label: 'IgI–III ECD', fill: '#1e3a8a', textColor: '#fff' },
+        { x: 85,  w: 60,  label: 'TM', fill: '#1e3a8a', textColor: '#fff' },
+        { x: 150, w: 220, label: 'FGFR2 kinase domain', fill: '#bfdbfe', textColor: '#1e3a8a' }
+      ]},
+      partnerB: { name: 'BICC1', chrom: 'chr10', color: '#7c3aed', exons: 21, domains: [
+        { x: 0,   w: 200, label: 'BICC1 KH RNA-binding + dimerisation', fill: '#7c3aed', textColor: '#fff' },
+        { x: 205, w: 80,  label: 'C-term', fill: '#a78bfa', textColor: '#fff' }
+      ]},
+      junctionExon: 17,
+    }
+  };
+
+  function drawDomains(domains, x0, y0) {
+    return domains.map(d => `
+      <rect x="${x0 + d.x}" y="${y0}" width="${d.w}" height="34" fill="${d.fill}" rx="2"/>
+      <text x="${x0 + d.x + d.w / 2}" y="${y0 + 21}" text-anchor="middle" font-size="${d.label.length > 22 ? 9 : 11}" font-weight="600" fill="${d.textColor}">${d.label}</text>
+    `).join('');
+  }
+
+  function drawExons(exons, x0, y0, color) {
+    let s = '';
+    const w = 380;
+    const exonW = 0.65 * w / exons;
+    const gap = 0.35 * w / exons;
+    for (let i = 0; i < exons; i++) {
+      s += `<rect x="${x0 + i * (exonW + gap)}" y="${y0}" width="${exonW}" height="14" fill="${color}"/>`;
+    }
+    // Intron line
+    s += `<line x1="${x0}" y1="${y0 + 7}" x2="${x0 + w}" y2="${y0 + 7}" stroke="${color}" stroke-width="1" stroke-dasharray="2 2" stroke-opacity="0.5"/>`;
+    return s;
+  }
+
+  function render() {
+    const f = FUSIONS[$('fusion').value];
+
+    let svg = '';
+
+    // Title
+    svg += `<text x="520" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#111827">${f.name} — ${f.cancer}</text>`;
+
+    // Section 1: parent genes (exon-level)
+    svg += `<text x="20" y="60" font-size="11" font-weight="600" fill="#525252">PARENT GENES</text>`;
+
+    // Gene A
+    svg += `<text x="20" y="84" font-size="10" font-weight="600" fill="${f.partnerA.color}" font-family="JetBrains Mono">${f.partnerA.name} · ${f.partnerA.chrom}</text>`;
+    svg += drawExons(f.partnerA.exons, 20, 90, f.partnerA.color);
+    // Breakpoint marker on A
+    const bxA = 20 + (f.junctionExon / f.partnerA.exons) * 380;
+    svg += `<line x1="${bxA}" y1="86" x2="${bxA}" y2="110" stroke="#c4342c" stroke-width="2"/>`;
+    svg += `<text x="${bxA}" y="124" text-anchor="middle" font-size="9" font-weight="600" fill="#7f1d1d" font-family="JetBrains Mono">break</text>`;
+
+    // Gene B
+    svg += `<text x="500" y="84" font-size="10" font-weight="600" fill="${f.partnerB.color}" font-family="JetBrains Mono">${f.partnerB.name} · ${f.partnerB.chrom}</text>`;
+    svg += drawExons(f.partnerB.exons, 500, 90, f.partnerB.color);
+    const bxB = 500 + (1 / f.partnerB.exons) * 380; // Break at start of B
+    svg += `<line x1="${bxB}" y1="86" x2="${bxB}" y2="110" stroke="#c4342c" stroke-width="2"/>`;
+    svg += `<text x="${bxB}" y="124" text-anchor="middle" font-size="9" font-weight="600" fill="#7f1d1d" font-family="JetBrains Mono">break</text>`;
+
+    // Section 2: fusion transcript
+    svg += `<text x="20" y="170" font-size="11" font-weight="600" fill="#525252">FUSION TRANSCRIPT (mRNA)</text>`;
+    // First half of A's exons + last half of B's exons
+    const halfA = Math.round(f.partnerA.exons * (f.junctionExon / f.partnerA.exons));
+    const remB  = f.partnerB.exons - 1;
+    const totalE = halfA + remB;
+    const fW = 800;
+    const exonWf = 0.65 * fW / totalE;
+    const gapF   = 0.35 * fW / totalE;
+
+    let cursor = 110;
+    for (let i = 0; i < halfA; i++) {
+      svg += `<rect x="${cursor}" y="180" width="${exonWf}" height="20" fill="${f.partnerA.color}"/>`;
+      cursor += exonWf + gapF;
+    }
+    // Junction marker
+    svg += `<line x1="${cursor - gapF/2}" y1="174" x2="${cursor - gapF/2}" y2="206" stroke="#c4342c" stroke-width="2.5"/>`;
+    svg += `<text x="${cursor - gapF/2}" y="222" text-anchor="middle" font-size="10" font-weight="600" fill="#7f1d1d" font-family="JetBrains Mono">junction</text>`;
+    for (let i = 0; i < remB; i++) {
+      svg += `<rect x="${cursor}" y="180" width="${exonWf}" height="20" fill="${f.partnerB.color}"/>`;
+      cursor += exonWf + gapF;
+    }
+
+    // Section 3: fusion protein
+    svg += `<text x="20" y="270" font-size="11" font-weight="600" fill="#525252">FUSION PROTEIN (domain architecture)</text>`;
+
+    // Place A domains then B domains, each segment shifted
+    const leftWidth = f.partnerA.domains.reduce((m, d) => Math.max(m, d.x + d.w), 0);
+    const baseX = 110;
+    svg += drawDomains(f.partnerA.domains, baseX, 290);
+    // Junction line between A and B
+    const breakX = baseX + leftWidth + 6;
+    svg += `<line x1="${breakX}" y1="284" x2="${breakX}" y2="332" stroke="#c4342c" stroke-width="2.5"/>`;
+    svg += drawDomains(f.partnerB.domains, breakX + 8, 290);
+
+    // Annotation
+    svg += `<text x="20" y="380" font-size="11" font-weight="600" fill="#525252">MECHANISM</text>`;
+    svg += `<text x="20" y="402" font-size="11" fill="#374151">${f.mechanism}</text>`;
+
+    // Therapy badge
+    svg += `<rect x="20" y="420" width="1000" height="48" fill="#dcfce7" stroke="#059669" rx="4"/>`;
+    svg += `<text x="34" y="440" font-size="11" font-weight="700" fill="#065f46">${f.tier}</text>`;
+    svg += `<text x="34" y="458" font-size="11" fill="#065f46">${f.therapy}</text>`;
+
+    $('chart').innerHTML = svg;
+
+    // Info panel
+    $('info').innerHTML = `
+      <div class="key">Cancer type</div><div class="val">${f.cancer}</div>
+      <div class="key">Mechanism</div><div class="val">${f.mechanism}</div>
+      <div class="key">Therapy</div><div class="val mono">${f.therapy}</div>
+      <div class="key">AMP/ASCO/CAP</div><div class="val mono">${f.tier}</div>
+    `;
+
+    let hint;
+    if ($('fusion').value === 'tmprss2-erg') {
+      hint = 'TMPRSS2-ERG is a major prostate-cancer driver but not directly druggable — Tier III. Selected fusions are biomarkers without matched drugs.';
+    } else if ($('fusion').value === 'ntrk') {
+      hint = 'NTRK fusions are tumour-agnostic — larotrectinib treats any NTRK-fusion+ solid tumour regardless of origin.';
+    } else {
+      hint = 'Try TMPRSS2-ERG to see a fusion that\'s a strong biomarker but not directly druggable.';
+    }
+    $('banner').innerHTML = `<strong>${f.name}</strong> — ${f.cancer.split('(')[0]}.<span class="hint">${hint}</span>`;
+  }
+
+  $('fusion').addEventListener('change', render);
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

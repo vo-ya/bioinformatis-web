@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 15 — Protein Structure Prediction (AlphaFold-era) · Bioinformatics for EE</title>
+  <meta name="description" content="Protein structure prediction in the AlphaFold era — primary to quaternary structure, classical homology and threading, MSA coevolution and DCA, AlphaFold2's Evoformer + structure module, AlphaFold3 diffusion, ESMFold, ProteinMPNN inverse folding, and RFDiffusion design.">
+
+  <meta property="og:title" content="Lecture 15 — Protein Structure Prediction (AlphaFold-era)">
+  <meta property="og:description" content="From CASP plateau to AlphaFold2: MSA covariation as inverse covariance, axial attention on the pair representation, SE(3)-equivariant IPA, and the inverse problem of protein design.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — Protein Structure Basics</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Why structure matters</a></li>
+          <li><a href="#sec-1-2">1.2 Primary → quaternary</a></li>
+          <li><a href="#sec-1-3">1.3 The Anfinsen experiment</a></li>
+          <li><a href="#sec-1-4">1.4 Domains and folds</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — The Classical Era</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 Homology modelling</a></li>
+          <li><a href="#sec-2-2">2.2 Threading and ab initio</a></li>
+          <li><a href="#sec-2-3">2.3 CASP</a></li>
+          <li><a href="#sec-2-4">2.4 The plateau</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — MSA Coevolution</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Why coevolution = contacts</a></li>
+          <li><a href="#sec-3-2">3.2 Mutual information's flaws</a></li>
+          <li><a href="#sec-3-3">3.3 DCA and inverse covariance</a></li>
+          <li><a href="#sec-3-4">3.4 MSA depth matters</a></li>
+          <li><a href="#sec-3-5">3.5 Contacts → 3D</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — AlphaFold2 Architecture</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Input representation</a></li>
+          <li><a href="#sec-4-2">4.2 Overall architecture</a></li>
+          <li><a href="#sec-4-3">4.3 The Evoformer</a></li>
+          <li><a href="#sec-4-4">4.4 Why it works</a></li>
+          <li><a href="#sec-4-5">4.5 Structure module + IPA</a></li>
+          <li><a href="#sec-4-6">4.6 Recycling + confidence</a></li>
+          <li><a href="#sec-4-7">4.7 Training</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — AlphaFold3 and Successors</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 AlphaFold3</a></li>
+          <li><a href="#sec-5-2">5.2 RoseTTAFold &amp; OpenFold</a></li>
+          <li><a href="#sec-5-3">5.3 ESMFold (single-sequence)</a></li>
+          <li><a href="#sec-5-4">5.4 The current state</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Inverse Folding and Design</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 The inverse problem</a></li>
+          <li><a href="#sec-6-2">6.2 ProteinMPNN</a></li>
+          <li><a href="#sec-6-3">6.3 RFDiffusion + design loop</a></li>
+          <li><a href="#sec-6-4">6.4 Safety and ethics</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — What This Changes</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 The AlphaFold Database</a></li>
+          <li><a href="#sec-7-2">7.2 Drug discovery</a></li>
+          <li><a href="#sec-7-3">7.3 What's still hard</a></li>
+          <li><a href="#sec-7-4">7.4 Multi-modal extensions</a></li>
+          <li><a href="#sec-7-5">7.5 Biosecurity landscape</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 15</div>
+      <h1 class="lecture-title">Protein Structure Prediction in the AlphaFold Era</h1>
+      <p class="lecture-subtitle">Fifty years from Anfinsen's refolding experiment to a 90 GDT_TS at CASP14: MSA coevolution as inverse-covariance estimation, axial attention on a learned pair representation, $\text{SE}(3)$-equivariant invariant point attention, and the inverse problem of protein design as a sculptor / scriptwriter / critic relay.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — Protein structure basics</a></li>
+        <li><a href="#part-2">Part 2 — The classical era</a></li>
+        <li><a href="#part-3">Part 3 — MSA coevolution</a></li>
+        <li><a href="#part-4">Part 4 — AlphaFold2 architecture</a></li>
+        <li><a href="#part-5">Part 5 — AlphaFold3 and successors</a></li>
+        <li><a href="#part-6">Part 6 — Inverse folding and design</a></li>
+        <li><a href="#part-7">Part 7 — What this changes</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Seven moves:</em>
+        <span class="lecture-tagline-beat">read coevolution from the MSA</span>,
+        <span class="lecture-tagline-beat">refine a pair representation</span>,
+        <span class="lecture-tagline-beat">decode coordinates with $\text{SE}(3)$ attention</span>,
+        <span class="lecture-tagline-beat">recycle</span>,
+        <span class="lecture-tagline-beat">trust pLDDT and PAE</span>,
+        <span class="lecture-tagline-beat">invert the map for design</span>,
+        <span class="lecture-tagline-beat">validate with AlphaFold itself</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Describe the four levels of protein structure (primary, secondary, tertiary, quaternary) and explain why the tertiary fold is the principal predictive target.</li>
+          <li>Summarise the classical era (homology modelling, threading, CASP) and explain why it plateaued before 2018.</li>
+          <li>Explain how multiple-sequence alignment covariation encodes 3D contact information; describe DCA / EVfold as inverse-covariance estimators.</li>
+          <li>Walk through the AlphaFold2 architecture: Evoformer (axial attention on MSA + pair), structure module (invariant point attention), recycling.</li>
+          <li>Interpret AlphaFold's confidence metrics (pLDDT, PAE) and describe failure modes (orphan proteins, disorder, multi-state conformations).</li>
+          <li>Describe AlphaFold3's diffusion-based generation, multi-chain / ligand / nucleic-acid handling, and how single-sequence methods (ESMFold, ESM-3) differ.</li>
+          <li>Explain inverse folding (ProteinMPNN) and diffusion-based protein design (RFDiffusion) as inverse problems with structural priors.</li>
+          <li>Describe the AlphaFold Database (~200M predicted structures) and the field's practical post-2021 workflow.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 25 min</span>
+          Protein Structure Basics
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Why structure matters</h3>
+
+          <p>Lectures 1–14 have been about <em>sequence</em>: DNA, RNA, reads, variants, populations. Proteins are the functional molecules encoded by genes, and for almost every question about protein function — what does this enzyme do, how does this drug bind, why does this mutation cause disease — <strong>3D structure</strong> is the relevant representation, not sequence.</p>
+
+          <p>Proteins are polymers of amino acids. Twenty standard amino acids (plus a few rare exceptions) make up the chemical alphabet. A typical protein is 50–2000 residues long. The functional behaviour — catalysis, binding, signalling, transport — emerges from the three-dimensional arrangement of those residues in space. A single residue by itself is inert. The chain folds, residues come into contact, those contacts form binding pockets, active sites, and interfaces. <strong>Structure determines function.</strong> Without structure, sequence is a flat book — readable but not interpretable.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-15/01-structure-hierarchy.svg"
+                 alt="Four-panel stack of protein structure levels. Panel 1 primary: a linear chain of one-letter amino-acid codes. Panel 2 secondary: the same chain with alpha-helix spirals and beta-strand arrows highlighted. Panel 3 tertiary: the same chain folded into a compact 3D globule. Panel 4 quaternary: four subunits of haemoglobin assembled with haem groups bound.">
+            <figcaption>Figure 1. The four structural levels. Primary is sequence; secondary is local hydrogen-bond patterns; tertiary is the global 3D fold; quaternary is multi-chain assembly. "Solving a structure" almost always means tertiary.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 Primary, secondary, tertiary, quaternary</h3>
+
+          <p><strong>Primary structure</strong>: the linear amino-acid sequence, N-terminus to C-terminus. A string in a 20-letter alphabet (plus two rare: selenocysteine U, pyrrolysine O). Encoded directly by the gene: codon → amino acid (§Lecture 1).</p>
+
+          <p><strong>Secondary structure</strong>: local backbone conformation, driven by hydrogen bonds between backbone carbonyl (C=O) and amide (N-H) groups. Two dominant motifs:</p>
+
+          <ul>
+            <li><strong>α-helix</strong>: right-handed spiral, 3.6 residues per turn. Backbone H-bonds within the helix. Stable, compact, common.</li>
+            <li><strong>β-strand</strong>: extended conformation; H-bonds to another strand (parallel or antiparallel) to form a <strong>β-sheet</strong>.</li>
+          </ul>
+
+          <p>A typical globular protein is 30–50% helix + strand, the rest loops and turns. Secondary structure is predictable from primary sequence at ~85% accuracy with classical tools (PSIPRED) and essentially perfectly from AlphaFold's internal representations.</p>
+
+          <p><strong>Tertiary structure</strong>: the full 3D arrangement of a single chain. This is what "solving a structure" usually means. Parameterised by the backbone torsion angles ($\phi$, $\psi$, $\omega$) plus side-chain torsions ($\chi_1$, $\chi_2$, …). Given these, atomic coordinates are fully determined.</p>
+
+          <p>Three representations dominate:</p>
+
+          <ul>
+            <li><strong>Cartesian coordinates</strong> — $(x, y, z)$ per atom. ~8 atoms per residue. Standard PDB format.</li>
+            <li><strong>Internal coordinates</strong> — torsions + bond lengths + angles. More compact; AlphaFold outputs these and converts to Cartesian.</li>
+            <li><strong>Contact map</strong> — a binary or continuous $N \times N$ matrix where entry $(i, j)$ encodes the distance between residues $i$ and $j$. The dominant representation for contact-prediction methods.</li>
+          </ul>
+
+          <p><strong>Quaternary structure</strong>: assembly of multiple chains (subunits). Haemoglobin is 4 chains; the ribosome is ~80 chains plus RNA. Predicting quaternary requires predicting both individual chain structures and their interfaces — addressed by AlphaFold-Multimer and AlphaFold3.</p>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 The Anfinsen experiment</h3>
+
+          <p><strong>Christian Anfinsen (1961, Nobel Prize 1972)</strong> showed that a small protein (RNase A, 124 residues) could be completely denatured (unfolded), then refolded <em>in vitro</em> back to its native, fully-active structure, without any help. The instructions for folding are entirely in the sequence.</p>
+
+          <p>The implication: <strong>the folded structure is a minimum of a free-energy landscape over conformational space</strong>, and sequence uniquely determines that minimum. Computationally, this says the structure-prediction problem is well-defined: given a sequence, find the energy-minimising 3D arrangement.</p>
+
+          <p>In practice, finding that minimum is vastly harder than the Anfinsen formulation suggests. The conformational space is combinatorially enormous (Levinthal's paradox: if a protein sampled conformations randomly, it would take longer than the age of the universe to find the native state). Real proteins fold on millisecond-to-second timescales because the landscape is funnelled toward the native state — not sampled randomly.</p>
+
+          <aside class="callout callout--note">
+            <span class="callout-label">Historical pointer</span>
+            <p>Anfinsen's RNase A experiment used chemical denaturation with urea and reduction of disulfide bonds with β-mercaptoethanol. After removing both the denaturant and the reducing agent, the enzyme refolded spontaneously, with full catalytic activity restored. The Nobel-winning paper was Anfinsen (1973) <em>Science</em> 181: 223–230, "Principles that govern the folding of protein chains". The result established that sequence → structure is a well-defined computational problem; the 50 years from that paper until AlphaFold2 were essentially an attempt to find the algorithm.</p>
+          </aside>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 Domains, folds, and the fold-space universe</h3>
+
+          <p>Most proteins are built from <strong>domains</strong> — semi-independent structural units that can appear in different proteins as mix-and-match modules. A domain is typically 50–250 residues and folds independently.</p>
+
+          <p><strong>Folds</strong> are repeated architectural patterns: specific arrangements of secondary-structure elements. Classical fold classifications:</p>
+
+          <ul>
+            <li><strong>SCOP / SCOPe</strong> (Structural Classification Of Proteins). Hierarchical: Class → Fold → Superfamily → Family.</li>
+            <li><strong>CATH</strong> (Class, Architecture, Topology, Homology). Similar hierarchy, different methodology.</li>
+          </ul>
+
+          <p>Estimated number of distinct folds in nature: ~1,000–2,000. Before AlphaFold, most had been observed experimentally; new folds were rare. After AlphaFold applied to metagenomic sequences, a modest number of new folds have been identified.</p>
+
+          <p><strong>Domain composition is modular</strong>: eukaryotic proteins frequently have 2–6 domains, each contributing an independently-foldable piece. A typical kinase has a catalytic domain + regulatory domain + targeting domain. Predicting the whole protein = predicting each domain + predicting their spatial relationship.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>Think of proteins like Lego structures assembled from standard brick shapes (folds) connected by flexible joints (linkers). The fold universe is the catalogue of standard brick shapes nature has evolved; there aren't infinitely many, because backbone physics + residue chemistry constrain what can stably fold. Domain architecture = which bricks this protein uses, in what order. AlphaFold's job is first to predict each brick's shape from its sequence, then to predict how the bricks sit relative to each other. The first sub-problem is what makes prediction feasible; the second is where most remaining error lives.</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 7 — Protein Structure Level Explorer.</strong> Toggle through primary → secondary → tertiary → quaternary on a small protein. Rotate the 3D view; click residues to see them light up across all four representations. Aha: a protein isn't "a string of letters" or "a blob" — it's a hierarchy, and each level supports different analyses.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-15/07-structure-levels.html" loading="lazy" title="Artifact 7 — Structure Level Explorer"></iframe>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 20 min</span>
+          The Classical Era
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 Homology modelling</h3>
+
+          <p>For proteins with a sequence-similar experimental structure ("template") in the PDB, <strong>homology modelling</strong> is straightforward:</p>
+
+          <ol>
+            <li><strong>Find a template</strong>: BLAST / HMMER search against PDB sequences.</li>
+            <li><strong>Align</strong>: compute the sequence alignment between query and template.</li>
+            <li><strong>Copy backbone</strong>: for aligned residues, copy the template's backbone coordinates.</li>
+            <li><strong>Model side chains</strong>: place query side chains using a rotamer library (SCWRL, Rosetta side-chain packer).</li>
+            <li><strong>Refine</strong>: energy-minimise the result.</li>
+          </ol>
+
+          <p>Tools: <strong>Modeller</strong> (Sali 1993+), <strong>SWISS-MODEL</strong> (Schwede et al. 2003+). SWISS-MODEL runs the full pipeline as a web server.</p>
+
+          <p>Quality depends on sequence identity to template:</p>
+
+          <ul>
+            <li><strong>&gt; 50%</strong>: model is "close" (backbone RMSD ~1 Å), usable for most purposes.</li>
+            <li><strong>30–50%</strong>: "twilight zone"; structural errors, but functional inference often still works.</li>
+            <li><strong>&lt; 30%</strong>: unreliable; structural details can be completely wrong.</li>
+          </ul>
+
+          <p>Classical limit: for proteins without a close PDB homologue (~25–30% identity), homology modelling fails. For orphan proteins (found only in a single species), it's unusable.</p>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 Threading and ab initio</h3>
+
+          <p><strong>Threading</strong> (Bowie, Lüthy &amp; Eisenberg 1991; <strong>I-TASSER</strong> = Zhang 2008+) generalises homology modelling: for each known fold in the PDB, score how well the query sequence "fits" that fold using sequence-structure compatibility metrics. Pick the best-scoring fold, build the model. Good when the query shares a fold with a known protein but diverges at the sequence level.</p>
+
+          <p><strong>Ab initio</strong> ("from the beginning"): predict structure without any template. Classical approaches:</p>
+
+          <ul>
+            <li><strong>Fragment assembly</strong> (<strong>Rosetta</strong>, Baker 1997+). Represent short (9-residue) local fragments from the PDB as structural building blocks. Assemble with Monte Carlo sampling; score with a learned energy function.</li>
+            <li><strong>Molecular dynamics</strong> (Duan &amp; Kollman 1998). Simulate the folding trajectory atom-by-atom with a physics-based force field. In 1998 this worked only for very small proteins (villin headpiece, 35 residues) after months of compute.</li>
+          </ul>
+
+          <p>Both approaches produced moderate success for small proteins but plateaued on anything non-trivial.</p>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 CASP — the community benchmark</h3>
+
+          <p><strong>CASP</strong> (Critical Assessment of Structure Prediction) is the biennial blind-prediction experiment, run since 1994 by Moult et al. Participants receive sequences of soon-to-be-released experimental structures; they submit predictions; after the experimental structures are released, predictions are scored.</p>
+
+          <p>CASP tracks template-based modelling (TBM), free modelling (FM, no homologue), quaternary multimers, refinement, contact prediction, and more. Primary metric: <strong>GDT_TS</strong> (Global Distance Test, Total Score). 0–100; ~50 = "recognisable fold", ~70 = "good prediction", ~90+ = "experimental quality".</p>
+
+          <p>History, abbreviated:</p>
+
+          <ul>
+            <li><strong>CASP1 (1994) – CASP8 (2008)</strong>: slow, incremental progress. Homology models gradually improve; FM plateau.</li>
+            <li><strong>CASP9 – CASP12 (2010–2016)</strong>: Rosetta dominates FM; Zhang-lab's I-TASSER leads TBM. FM best scores ~30–40 GDT_TS.</li>
+            <li><strong>CASP13 (2018)</strong>: DeepMind's <strong>AlphaFold1</strong> enters. FM jumps to ~60 GDT_TS — an unprecedented single-edition leap.</li>
+            <li><strong>CASP14 (2020)</strong>: <strong>AlphaFold2</strong> reaches ~90 GDT_TS on FM targets — effectively experimental quality.</li>
+            <li><strong>CASP15 – CASP16 (2022–2024)</strong>: AlphaFold2 and successors dominate; methods compete in a narrower band. New targets: protein-protein complexes, protein-ligand docking, disorder.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-15/02-casp-progression.svg"
+                 alt="Timeline plot of CASP editions from CASP1 in 1994 to CASP16 in 2024 along the x axis; median best GDT_TS on Free-Modelling targets along the y axis. Dots and a line show slow incremental progress through CASP12, a jump at CASP13 attributed to AlphaFold1, a step change at CASP14 to about 90 GDT_TS, and the high plateau in subsequent editions.">
+            <figcaption>Figure 2. CASP free-modelling GDT_TS over time. Decades of incremental progress, then two step changes — CASP13 (AlphaFold1's contact prediction) and CASP14 (AlphaFold2 to experimental quality).</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Why the classical era plateaued</h3>
+
+          <p>Two structural reasons the classical era couldn't break through:</p>
+
+          <ul>
+            <li><strong>Template-dependence</strong>: without a PDB homologue, there was no structural signal to transfer.</li>
+            <li><strong>Energy functions were imperfect</strong>: Rosetta's energy function is an approximation to the real physics; its minimum doesn't always correspond to the native state. Improving the energy function incrementally didn't close the gap.</li>
+          </ul>
+
+          <p>The breakthrough came from elsewhere: <strong>the information was already in the sequences</strong>, if you knew how to read it across many sequences at once.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 30 min</span>
+          MSA-Based Methods and Coevolution
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 Why coevolving residues are spatially close</h3>
+
+          <p>Given a protein family (hundreds of homologues from different species), align them into a <strong>multiple sequence alignment (MSA)</strong>. Each column is one residue position; each row is one sequence.</p>
+
+          <p>Observation: some pairs of columns vary together. If column $i$ mutates from L to V, column $j$ frequently also mutates (in the same sequences). These residues are <strong>coevolving</strong>.</p>
+
+          <p>Why? The physical explanation: residues $i$ and $j$ are in 3D <strong>contact</strong> in the folded structure. A mutation at one changes the local chemistry; the contacting residue must co-mutate to maintain stability. Evolution across many species sweeps many such double-mutations across the family. Reading that imprint — which column pairs co-mutate — recovers the contact map.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-15/03-coevolution.svg"
+                 alt="Top: schematic multiple-sequence alignment with about 15 sequence rows and 40 columns; two columns at positions 12 and 34 highlighted. In rows where column 12 is L, column 34 is V; in rows where 12 is I, 34 is T. Dashed line connects the two columns labelled coevolving pair. Middle: folded 3D structure with residues 12 and 34 highlighted as neighbours. Bottom: arrow labelled co-mutation pattern in MSA implies 3D contact.">
+            <figcaption>Figure 3. Coevolution as the imprint of contact. Pairs of residues in 3D contact are forced to co-mutate to maintain the fold; the MSA records that constraint.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Pairwise mutual information and its flaws</h3>
+
+          <p>Naive approach: for each column pair $(i, j)$, compute <strong>mutual information (MI)</strong> between the two columns treated as categorical distributions. High MI means the columns carry information about each other.</p>
+
+          <div class="equation-block">
+            $$ \text{MI}(i, j) = \sum_{a, b} P(a, b) \log \frac{P(a, b)}{P(a) P(b)} $$
+          </div>
+
+          <p>where $P(a)$ is the marginal probability of amino acid $a$ at position $i$, and $P(a, b)$ is the joint probability.</p>
+
+          <p>Problem: <strong>indirect correlations</strong>. If columns $i$–$j$ and $j$–$k$ are both in contact, then columns $i$–$k$ will also have high MI even if they aren't in direct contact. The signal is spread along the chain of correlations. Mutual information alone produces spurious "contacts" between residues that are merely both correlated with a common third residue.</p>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Direct Coupling Analysis (DCA)</h3>
+
+          <p>The insight that unlocked classical coevolution methods: <strong>inverse covariance</strong>. The partial correlation between two variables, controlling for all others, isolates direct statistical dependencies.</p>
+
+          <p>Define a Potts-model-like probability distribution over MSA sequences:</p>
+
+          <div class="equation-block">
+            $$ P(\sigma) \propto \exp\left( \sum_i h_i(\sigma_i) + \sum_{i < j} J_{ij}(\sigma_i, \sigma_j) \right) $$
+          </div>
+
+          <p>where $\sigma = (\sigma_1, \ldots, \sigma_L)$ is a sequence, $h_i$ are per-position biases (conservation), and $J_{ij}$ are pairwise couplings. Pairs with large $|J_{ij}|$ are <strong>directly</strong> coupled — indirect correlations have been "explained away" by the model.</p>
+
+          <p>Two classical algorithms to estimate $J_{ij}$:</p>
+
+          <ul>
+            <li><strong>mfDCA</strong> (mean-field DCA; Morcos et al. 2011). Closed-form approximation. Fast.</li>
+            <li><strong>plmDCA</strong> (pseudolikelihood; Ekeberg et al. 2013). More accurate; the standard until the deep-learning era.</li>
+          </ul>
+
+          <p>Given estimated $J_{ij}$, the <strong>contact score</strong> for pair $(i, j)$ is the Frobenius norm over the 20 × 20 coupling matrix:</p>
+
+          <div class="equation-block">
+            $$ C_{ij} = \| J_{ij} \|_F = \sqrt{\sum_{a, b} J_{ij}(a, b)^2} $$
+          </div>
+
+          <p>Large $C_{ij}$ = predicted contact. <strong>EVfold</strong> (Marks et al. 2011) was the first well-known DCA-based contact predictor. On proteins with deep MSAs (&gt; 1000 diverse sequences), EVfold's top-scored contacts were ~80% correct — far better than MI-based methods and enough to seed ab-initio folding.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — MSA covariation as inverse covariance estimation</span>
+            <p>Reading co-mutations from an MSA is exactly the <strong>graphical-model / inverse-covariance-estimation</strong> problem. The MSA is a matrix of categorical samples from a joint distribution; the true contact graph is the inverse-covariance sparsity pattern. Naive MI = covariance (direct + indirect). DCA = inverse covariance (direct only). Graphical lasso (Friedman et al. 2008) is the Gaussian version of the same problem; plmDCA is the discrete-variable version. The DCA papers cite statistical-physics literature (Ising models, inverse statistical mechanics) rather than ML statistics, but the mathematical structure is identical.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-15/04-dca-contacts.svg"
+                 alt="Three-panel workflow. Left: raw mutual-information matrix from an MSA — noisy with many off-diagonal blobs. Middle: DCA / plmDCA inverse-covariance matrix — most of the noise suppressed, sharp isolated contacts visible. Right: native contact map from the experimental PDB structure — binary, true contacts only.">
+            <figcaption>Figure 4. DCA recovers sparse true contacts by inverting covariance. MI alone tangles direct and indirect correlations; the inverse-covariance estimator separates them.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 1 — MSA Coevolution and Contact Prediction.</strong> Build a toy protein family with a contact topology of your choice; simulate an MSA from a Potts model; compute MI and DCA contact scores against the ground-truth contacts. Aha: DCA recovers the true contacts where MI is hopelessly tangled.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-15/01-coevolution-contacts.html" loading="lazy" title="Artifact 1 — Coevolution and Contacts"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 MSA depth matters</h3>
+
+          <p>DCA's accuracy depends critically on <strong>MSA depth</strong> — how many diverse sequences are in the family.</p>
+
+          <ul>
+            <li><strong>&lt; 50 sequences</strong>: DCA unreliable; estimation variance too high.</li>
+            <li><strong>100–1,000 sequences</strong>: moderate accuracy.</li>
+            <li><strong>&gt; 1,000 sequences</strong>: excellent; top-100 contacts ~80% correct.</li>
+            <li><strong>&gt; 10,000 sequences</strong> (metagenomic MSAs): near-perfect.</li>
+          </ul>
+
+          <p>Orphan proteins — those with no detectable homologues — are invisible to DCA. About 20% of human proteins are in this category or close to it, and DCA + Rosetta was uselessly bad on them. AlphaFold2 partially overcomes this: shallower MSAs (10–50 sequences) still produce usable predictions via deep-learning-based contact refinement.</p>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 From contacts to full structures</h3>
+
+          <p>A predicted contact map doesn't give you coordinates directly. To go from contacts to 3D structure:</p>
+
+          <ol>
+            <li>Treat predicted contacts as soft constraints: $d_{ij} &lt; 8$ Å.</li>
+            <li>Run fragment assembly (Rosetta) or distance-geometry embedding (CNS) subject to these constraints.</li>
+            <li>Pick the best-scoring resulting model.</li>
+          </ol>
+
+          <p>DCA + Rosetta was the CASP12 state-of-the-art. It worked well for proteins with deep MSAs; it failed on shallow MSAs or complex topologies. AlphaFold1 (CASP13) replaced the Rosetta step with a neural-network-based distance-distribution predictor plus a gradient-descent folder. AlphaFold2 (CASP14) threw out the two-step architecture entirely in favour of end-to-end learning.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 60 min</span>
+          The AlphaFold2 Architecture
+        </h2>
+
+        <aside class="callout callout--note">
+          <p><strong>This is the single largest content block in the lecture.</strong> AlphaFold2 transformed structure prediction; its architecture is also an EE-readable tour of modern ML engineering applied to biological data.</p>
+        </aside>
+
+        <section id="sec-4-1">
+          <h3>4.1 The input representation</h3>
+
+          <p>AlphaFold2 (Jumper et al. 2021, <em>Nature</em>) takes a protein sequence and produces a 3D structure plus per-residue confidence. Its input is not just the sequence; it's the sequence plus <strong>its MSA</strong> (computed via search against large sequence databases: UniRef, MGnify, BFD).</p>
+
+          <p>Two data objects are maintained throughout the network:</p>
+
+          <ul>
+            <li><strong>MSA representation</strong> $\mathbf{M} \in \mathbb{R}^{s \times r \times c}$ — $s$ sequences in the MSA × $r$ residues × $c$ channels (initially 256, later expanded).</li>
+            <li><strong>Pair representation</strong> $\mathbf{Z} \in \mathbb{R}^{r \times r \times c}$ — $r \times r$ residue-pair matrix × $c$ channels. Think of this as a "learned contact map with rich features per pair".</li>
+          </ul>
+
+          <p>The network's job is to iteratively refine both representations, with each updating the other, until they encode enough geometric information for the structure module to produce coordinates.</p>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 Overall architecture</h3>
+
+          <p>Three major components:</p>
+
+          <ol>
+            <li><strong>Evoformer</strong> — ~48 blocks of axial attention and triangle updates that refine $(\mathbf{M}, \mathbf{Z})$ jointly. Most of the compute. §4.3.</li>
+            <li><strong>Structure module</strong> — 8 iterations of invariant point attention (IPA) plus a parameterised geometry updater that produces 3D coordinates. §4.5.</li>
+            <li><strong>Recycling</strong> — the output (updated pair representation + structure) is fed back to Evoformer as input; repeat 3–4 times. §4.6.</li>
+          </ol>
+
+          <p>Plus: confidence heads (pLDDT, PAE, pTM) computed from the final representations; template embeddings if PDB templates exist.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-15/05-af2-overview.svg"
+                 alt="Top-to-bottom architectural flow. Input: protein sequence plus multiple-sequence alignment plus optional templates. Box 1: Evoformer with 48 blocks, maintaining MSA and pair representations. Box 2: Structure module with 8 iterations, consuming the final pair representation and a single representation, producing 3D coordinates. Feedback arrow labelled recycling from structure plus pair back to Evoformer input. Output: 3D structure with per-residue pLDDT and N-by-N PAE matrix. Annotation noting about 93 million trainable parameters.">
+            <figcaption>Figure 5. AlphaFold2 end-to-end. Sequence + MSA in; coordinates + confidence out. The Evoformer–structure-module pair refines (MSA, pair) and decodes 3D; recycling feeds the result back for another pass.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 The Evoformer</h3>
+
+          <p>The Evoformer is 48 repeated blocks, each updating the MSA and pair representations. Each block has six sub-operations:</p>
+
+          <ol>
+            <li><strong>Row-wise MSA attention with pair bias</strong>: each row (one MSA sequence) attended to itself with residue-position as the sequence axis. The pair representation $\mathbf{Z}$ biases the attention map. This is how pair information propagates into the MSA.</li>
+            <li><strong>Column-wise MSA attention</strong>: each column (one residue position across species) attended to itself along the species axis. Informs each residue about its homologous versions.</li>
+            <li><strong>MSA transition</strong> (feedforward).</li>
+            <li><strong>Outer product mean → pair update</strong>: the MSA is summarised into an outer-product-mean statistic over species and fed into the pair representation. Propagates MSA-derived information into the pair.</li>
+            <li><strong>Triangle multiplicative update</strong>: the pair representation updates itself using triangle geometry — if $i$–$k$ and $j$–$k$ are both "contact-like", then $i$–$j$ should be "contact-like" too.</li>
+            <li><strong>Triangle attention</strong>: attention-based version of the above. Each pair $(i, j)$ attends over all pairs sharing a residue $(i, k)$ or $(k, j)$.</li>
+          </ol>
+
+          <p><strong>Axial attention</strong>: rather than full $O(N^2)$ attention over the MSA — which would be $O(s^2 r^2)$ and infeasible at $s = 512$, $r = 512$ — row attention operates over one axis (residues, fixed sequence), column attention over the other (species, fixed residue). Each is $O(s \cdot r^2)$ or $O(r \cdot s^2)$; the combination is quadratic in one axis at a time, not their product. The "axial attention" pattern was popularised in image transformers (Ho et al. 2019) and adapted here.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — Evoformer as axial attention on MSA + pair</span>
+            <p>The Evoformer is a two-axis transformer. One axis is residues (tokens along the chain); the other is species (tokens down the MSA). Full 2-D attention would be prohibitive for large MSA × long sequence. Axial attention alternates row-attention and column-attention to approximate full 2-D attention at quadratic cost in one axis. The triangle updates in the pair representation are analogous to a <strong>graph neural network</strong> layer where edges update themselves based on two-step neighbours — imposing the geometric prior that pair features should respect the triangle inequality.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-15/06-evoformer-block.svg"
+                 alt="A single Evoformer block as a directed acyclic graph of operations. Nodes: MSA representation top-left, pair representation top-right. Arrows: row-wise MSA attention with pair bias, column-wise MSA attention, outer-product mean from MSA into pair, triangle multiplicative update, triangle self-attention. Each operation labelled with its cost. Output: updated MSA plus updated pair. Annotation at right: block repeats 48 times.">
+            <figcaption>Figure 6. The Evoformer block as a DAG. Six operations refine MSA and pair jointly; the block stacks 48 deep.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 2 — Evoformer Axial-Attention Visualiser.</strong> Step through one Evoformer block on a small MSA (10 × 30) and pair (30 × 30). Watch row-attention, column-attention, outer-product mean, and triangle update each transform the matrices. Aha: axial attention + triangle updates iteratively distill a clean pair map from the raw MSA.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-15/02-evoformer-attention.html" loading="lazy" title="Artifact 2 — Evoformer Attention"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Why does the Evoformer work?</h3>
+
+          <p>An intuitive reading: the Evoformer's main job is to build a high-quality pair representation whose learned attention patterns encode not just "who contacts whom" but <strong>distances and orientations</strong> — enough geometric information for a downstream 3D embedder.</p>
+
+          <p>The MSA is the input signal: millions of evolutionary examples of which mutations co-occur. The pair representation is the output signal: a learned, richly-featured $N \times N$ matrix where pair $(i, j)$ encodes "what's the 3D relationship between residues $i$ and $j$". The Evoformer's 48 blocks iteratively refine this. Why 48? Empirical. Fewer → worse. More → diminishing returns, higher memory.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>The MSA is a field of evolutionary gossip about which residue pairs are in contact. Raw MSA = all the gossip mixed together. The Evoformer's job is to distill that gossip into a clean pair representation where each $(i, j)$ entry has a well-defined answer to "are you two residues in contact, at what distance, in what orientation?". The structure module then reads off 3D coordinates from the pair representation's answer. Each Evoformer block is a round of cross-referencing — MSA informs pair, pair informs MSA, triangles update pairs. After 48 rounds the answer is clean enough to fold.</p>
+          </aside>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 The structure module + IPA</h3>
+
+          <p>After the Evoformer produces a final $(\mathbf{M}, \mathbf{Z})$, the <strong>structure module</strong> converts them into 3D coordinates. Architecture: 8 iterations of the same block. At each iteration:</p>
+
+          <ol>
+            <li>Take current backbone frames $\mathbf{T}_i \in \text{SE}(3)$ for each residue (an $\text{SE}(3)$ frame = 3D position + orientation).</li>
+            <li>Run <strong>Invariant Point Attention (IPA)</strong> — attention where keys / queries / values live in 3D space relative to each residue's frame.</li>
+            <li>Update frames: each residue gets translated and rotated based on the IPA output.</li>
+            <li>Compute per-residue points (α-carbon and side-chain torsions).</li>
+          </ol>
+
+          <p>The structure is <strong>iteratively refined</strong>: at each iteration every residue knows its current 3D position and the 3D positions of all others (via IPA); it then updates its position based on local geometry signals.</p>
+
+          <p><strong>Invariant Point Attention</strong>:</p>
+
+          <ul>
+            <li>Attention keys and values are <strong>points</strong> expressed in each residue's own 3D frame.</li>
+            <li>The attention weight between residue $i$ and residue $j$ depends on the distance between $i$'s query points (in its frame) and $j$'s key points (in $j$'s frame).</li>
+            <li>Both points are re-expressed in a common frame for the distance — the attention is <strong>equivariant</strong> to global rotations and translations of the entire structure.</li>
+          </ul>
+
+          <p>Equivariance means: if you rotate the input by any $R \in \text{SO}(3)$, IPA's outputs rotate by the same $R$. This respects the physics — the protein's energy, stability, and contacts don't depend on its orientation in the lab.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — IPA as $\text{SE}(3)$-equivariant networks</span>
+            <p>The structure module's IPA is an <strong>$\text{SE}(3)$-equivariant operation</strong> — it commutes with the group of 3D rotations and translations applied to the input. Same approach as e3nn / NequIP (Geiger et al. 2022) and SE(3)-Transformers (Fuchs et al. 2020): treat per-residue features as tensors with well-defined rotation behaviour (scalars, vectors, higher-order), and construct operations that preserve the rotation class. Without equivariance, training would need to learn rotational invariance from data — expensive and incomplete.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-15/07-structure-module.svg"
+                 alt="Cartoon of the structure module's iterative refinement. Left: initial residue positions roughly stacked at origin with random orientations. Middle: after IPA iteration 1, residues have moved to approximate positions. Right: after 8 IPA iterations, the structure is fully folded. Below: detail of IPA showing query points in residue i's frame, key points in residue j's frame, both mapped to a common reference for distance computation, and the resulting attention weight. Annotation: SE(3)-equivariant by construction.">
+            <figcaption>Figure 7. The structure module folds 8 IPA iterations deep. Each step every residue moves based on $\text{SE}(3)$-equivariant attention to all others; rotation of the input rotates the output the same way.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 3 — IPA / Structure Module Walkthrough.</strong> Watch a residue's $\text{SE}(3)$ frame update through IPA. See query points in its frame, key points in a neighbour's frame, distance computation, attention weight; step through 8 iterations until residues converge to their folded positions. Aha: IPA is attention in 3D, equivariant by construction.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-15/03-ipa-walkthrough.html" loading="lazy" title="Artifact 3 — IPA Walkthrough"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-4-6">
+          <h3>4.6 Recycling and confidence</h3>
+
+          <p><strong>Recycling</strong>: after the structure module produces coordinates, feed the final pair representation <em>and</em> the current predicted structure back into the Evoformer as an input, then rerun. Typically 3–4 recycling iterations. Why: the Evoformer can be too aggressive in an early pass, reaching a weird intermediate state. Recycling lets the network iteratively correct, with each recycling cycle benefiting from the structure information produced previously.</p>
+
+          <p><strong>Confidence heads</strong>:</p>
+
+          <ul>
+            <li><strong>pLDDT</strong> (predicted local distance difference test). Per-residue, 0–100. pLDDT = 100 means "very confident this residue is correct within 1 Å"; 50 = "disordered or uncertain"; below 50 = probably wrong / disordered.</li>
+            <li><strong>PAE</strong> (Predicted Aligned Error). Per-pair, in Angstroms. $\text{PAE}_{ij}$ = expected error in residue $j$'s position if the structure were aligned to residue $i$'s frame. Low PAE = "$j$'s position is well-defined relative to $i$"; large PAE = "I don't know where $j$ is relative to $i$".</li>
+            <li><strong>pTM</strong> (predicted TM-score). A scalar, 0–1, summarising overall predicted correctness.</li>
+          </ul>
+
+          <p>PAE is particularly useful for interpreting multi-domain proteins: residues within a domain have low inter-PAE (domain structure confident); residues across domains often have high inter-PAE (domain orientations uncertain).</p>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>pLDDT is calibrated in the sense that "pLDDT = 80" means "on average, these residues are correct within a few Å." But it measures <strong>local</strong> accuracy only. A protein where every residue has pLDDT = 90 can still have its two halves flipped if the inter-domain PAE is high. Always look at both. AlphaFold is not overconfident in local structure; it can be overconfident in domain arrangement.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-15/08-plddt-pae.svg"
+                 alt="Three-panel figure. Left: cartoon of a two-domain protein rainbow-coloured by pLDDT, with most residues blue (high pLDDT) and a flexible linker red/orange. Middle: PAE matrix for the same protein with two dark blocks on the diagonal (low intra-domain PAE) and bright off-diagonal regions (high inter-domain PAE). Right: interpretation text — individual domains well-folded, inter-domain orientation uncertain, use PAE for functional inference.">
+            <figcaption>Figure 8. pLDDT colours the structure (per-residue local confidence); PAE shows the matrix (per-pair relative confidence). Both are non-negotiable when reading any AlphaFold prediction.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 4 — pLDDT and PAE Confidence Interpreter.</strong> Pick from preset AlphaFold outputs (well-folded single domain / multi-domain with uncertain linker / disordered region / orphan with shallow MSA). See the structure coloured by pLDDT, the PAE matrix, and a natural-language interpretation. Aha: confidence metrics tell you which parts to trust and which to ignore.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-15/04-plddt-pae.html" loading="lazy" title="Artifact 4 — pLDDT/PAE"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-4-7">
+          <h3>4.7 Training regime</h3>
+
+          <p>AlphaFold2 was trained on:</p>
+
+          <ul>
+            <li><strong>PDB</strong> (~170k experimental structures at training time).</li>
+            <li><strong>UniRef90 + BFD</strong> (hundreds of millions of sequences for MSA generation).</li>
+            <li><strong>Self-distillation</strong>: predict structures for UniRef sequences, use high-confidence predictions as additional training data. This dramatically expanded the effective training set.</li>
+          </ul>
+
+          <p>Training ran for ~11 days on 128 TPUv3 cores. Inference on a single protein takes ~1–5 minutes on a single GPU (depending on sequence length).</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 20 min</span>
+          AlphaFold3 and Successors
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 AlphaFold3 architecture</h3>
+
+          <p><strong>AlphaFold3</strong> (Abramson et al. 2024, <em>Nature</em>). Same basic goal, different architecture. Key changes:</p>
+
+          <ol>
+            <li><strong>Diffusion-based structure module</strong>. Replaces IPA / iterative frame updates with a diffusion model: generate coordinates from Gaussian noise by iteratively denoising, conditioned on the Evoformer-like pair representation. More flexible; handles multi-chain and ligand positioning natively.</li>
+            <li><strong>Multi-chain + ligand + nucleic-acid support</strong>. Input can be a mixture: protein chains, nucleic-acid chains, small-molecule ligands, ions. Output includes all components in their predicted bound state.</li>
+            <li><strong>Simpler Evoformer-like backbone (the "Pairformer")</strong>. Still uses axial attention on pair + single representation, but drops the MSA axis once early representations are formed. Faster.</li>
+          </ol>
+
+          <p>Use cases AlphaFold3 opens up: protein-drug docking, RNA-binding proteins with their bound RNA, antibody-antigen complexes, multi-subunit enzymes. Accuracy on the released benchmarks: ~60–80% of multi-chain / nucleic-acid tasks at experimental quality, depending on the sub-task.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-15/12-af3-diffusion.svg"
+                 alt="Top: forward diffusion process — start with a clean folded structure on the left, add Gaussian noise across T timesteps until coordinates are pure noise on the right. Bottom: learned reverse process — start from noise on the right, iteratively denoise using a network conditioned on the Pairformer's pair representation, end with clean coordinates on the left. Right inset: multi-component input — protein chain plus DNA plus small-molecule ligand — being denoised together in one pass.">
+            <figcaption>Figure 12. AlphaFold3's diffusion structure module. Forward process noises the coordinates over $T$ steps; the network learns the reverse, conditioned on the pair representation. Multi-component inputs (protein + DNA + ligand) denoise together in a single pass.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — diffusion as iterative denoising</span>
+            <p>The AF3 structure module is a <strong>denoising diffusion probabilistic model (DDPM)</strong> applied to 3D coordinates. Forward process: add Gaussian noise to true coordinates over $T$ timesteps until coordinates are pure noise. Learned reverse process: a neural network predicts the noise (or the clean signal) at each timestep, trained across many proteins and noise levels. Inference: start from Gaussian noise, denoise iteratively conditioned on the pair representation, end with clean coordinates. Same framework as image diffusion (Ho et al. 2020), score-matching (Song et al. 2021), and molecular conformation generation (DiffDock 2022). Advantage over IPA: handles variable-size outputs (add or remove a ligand), multi-modal distributions (multiple conformations), and conditioning on heterogeneous inputs.</p>
+          </aside>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 RoseTTAFold and the open-source landscape</h3>
+
+          <p><strong>RoseTTAFold</strong> (Baek et al. 2021). Baker-lab implementation, open-source. Three-track architecture: sequence, pair, and 3D tracks updating each other. Slightly below AlphaFold2 on accuracy but fully available with weights. The workhorse for labs that couldn't run AlphaFold2 (which was weights-only for non-commercial use until 2022). <strong>RoseTTAFold2</strong> (2023) and <strong>RoseTTAFold-All-Atom</strong> (2024) add multi-chain and ligand support.</p>
+
+          <p><strong>OpenFold</strong> (Ahdritz et al. 2022). Open-source PyTorch reimplementation of AlphaFold2. Identical architecture, re-trained from scratch. Released with full training code and weights. Powers a great deal of downstream research.</p>
+
+          <p><strong>ColabFold</strong> (Mirdita et al. 2022). A usability wrapper around AlphaFold2 and RoseTTAFold with fast MSA generation (replaces AF2's slow search with MMseqs2-based search). Runs in a Colab notebook in minutes. For most labs, ColabFold is what "running AlphaFold" actually means.</p>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Single-sequence methods (ESMFold)</h3>
+
+          <p><strong>ESMFold</strong> (Lin et al. 2023). Uses a large <strong>protein language model</strong> (ESM-2, a transformer trained on 65M sequences via masked-residue prediction) as the feature extractor, replacing AlphaFold2's Evoformer + MSA search. Takes a single protein sequence, passes it through ESM-2 → projects to pair representation → structure module → coordinates.</p>
+
+          <p><strong>Crucial property</strong>: no MSA needed. Runs ~60× faster than AlphaFold2 on the same hardware because the expensive MSA search is replaced by a single-sequence pass through ESM-2. Accuracy: lower than AlphaFold2 when MSAs are deep; <strong>comparable or better</strong> when MSAs are shallow or absent (orphan proteins, metagenomic proteins, synthetic / designed proteins). ESMFold has been used to predict ~600M metagenomic proteins in the ESM Metagenomic Atlas.</p>
+
+          <p><strong>ESM-3</strong> (2024). The latest in the ESM line. Handles proteins, structures, and function annotations in a single transformer. Can condition on partial input (e.g. "design a sequence that has this active site"). The frontier of protein foundation models.</p>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 The field's current state</h3>
+
+          <p>As of 2025 the practical workflow is:</p>
+
+          <ul>
+            <li><strong>Default</strong>: ColabFold (AlphaFold2 variant) for most proteins.</li>
+            <li><strong>Fast / orphan proteins</strong>: ESMFold.</li>
+            <li><strong>Multi-chain / ligand</strong>: AlphaFold3 (via the EMBL-EBI webserver) or RoseTTAFold-All-Atom.</li>
+            <li><strong>Custom / research</strong>: OpenFold with fine-tuning or feature probing.</li>
+          </ul>
+
+          <p>Three years after AlphaFold2's CASP14 debut, the field is broadly saturated at ~90 GDT_TS for single-domain fold prediction. Remaining open problems are multi-chain, multi-state (conformational ensembles), and disorder.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 25 min</span>
+          Inverse Folding and Protein Design
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 The inverse problem</h3>
+
+          <p>Structure prediction: <strong>sequence → structure</strong>. Forward direction. <strong>Inverse folding</strong>: <strong>structure → sequence</strong>. Given a desired 3D fold, what amino-acid sequence would produce it?</p>
+
+          <p>The inverse problem is ill-posed in a specific sense: many sequences can produce the same structure (the sequence-to-structure map is many-to-one). The interesting direction is to produce sequences that fold <em>stably and at high accuracy</em> into the target structure.</p>
+
+          <p>Applications:</p>
+
+          <ul>
+            <li><strong>Stabilisation</strong>: given a natural protein, find a sequence with the same fold but higher melting temperature or lower aggregation.</li>
+            <li><strong>Functional engineering</strong>: given a de-novo designed structure, find a sequence that folds to it.</li>
+            <li><strong>Redesign</strong>: given a protein with a defect, find a near-native sequence that fixes it.</li>
+          </ul>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 ProteinMPNN</h3>
+
+          <p><strong>ProteinMPNN</strong> (Dauparas et al. 2022, <em>Science</em>). Baker-lab inverse-folding network:</p>
+
+          <ul>
+            <li>Input: <strong>backbone-only</strong> 3D structure (N, Cα, C, O atoms per residue; no side chains, no sequence).</li>
+            <li>Output: a probability distribution over 20 amino acids per residue; sampled sequences.</li>
+          </ul>
+
+          <p>Architecture: message-passing graph neural network. Nodes = residues with their backbone coordinates. Edges = $k$-nearest-neighbours in 3D. Message-passing iterations exchange geometric information between neighbours. Final per-residue softmax over 20 amino acids. Autoregressive decoder: fill in residues one by one, conditioning on already-decoded ones.</p>
+
+          <p>Performance: sequences designed by ProteinMPNN fold to their target structure with much higher success rate than Rosetta-designed sequences. In experimental tests in the Baker lab, ~50% of ProteinMPNN designs express solubly and fold correctly, vs ~10% for Rosetta designs.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-15/09-proteinmpnn.svg"
+                 alt="Left: target 3D backbone structure showing N, Cα, C, O atoms per residue with no side chains. Middle: ProteinMPNN GNN — nodes are residues with backbone frames, edges to k-nearest neighbours, message-passing arrows. Right: per-residue amino-acid probability distributions and a sampled sequence.">
+            <figcaption>Figure 9. ProteinMPNN as a backbone-conditioned amino-acid GNN. Backbone in, sequence out — sampled sequences fold back to the target ~50% of the time, far above Rosetta baselines.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — inverse folding as ill-posed inverse with structural prior</span>
+            <p>Inverse folding is a classical ill-posed inverse problem — the forward map (sequence → structure) is many-to-one, so the inverse has infinite solutions. ProteinMPNN regularises by incorporating <strong>strong structural priors</strong>: trained on millions of known backbone-sequence pairs, it learns which sequences are consistent with which backbones. The autoregressive decoder provides <strong>compositional regularisation</strong> — residue types are not sampled independently; each depends on its neighbours. Analogous to image super-resolution (ill-posed; prior = natural-image statistics, learned by CNN) or compressed sensing (ill-posed; prior = sparsity).</p>
+          </aside>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 5 — ProteinMPNN Inverse-Folding Demo.</strong> Pick a target backbone (4-helix bundle, β-barrel, native fragment); run a simplified ProteinMPNN; sample 5 sequences; check sequence diversity and a toy self-consistency score. Aha: many sequences fold to the same backbone, and ProteinMPNN finds the manifold quickly.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-15/05-proteinmpnn.html" loading="lazy" title="Artifact 5 — ProteinMPNN"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 De novo protein design with RFDiffusion</h3>
+
+          <p>The dream: design proteins from scratch — with structures and functions <strong>never seen in nature</strong>.</p>
+
+          <p><strong>Rosetta-era design</strong> (Baker lab 2000+): start with an idealised topology (4-helix bundle, β-barrel), build a backbone matching the topology, use Rosetta's sequence-design module to pack amino acids that stabilise it, express in <em>E. coli</em>, test folding, iterate. Key results: fully de-novo miniproteins with novel folds (Koga et al. 2012); de-novo enzymes (some catalytic); de-novo binders.</p>
+
+          <p><strong>RFDiffusion</strong> (Watson et al. 2023, <em>Nature</em>). Uses a diffusion model trained on the PDB to generate novel protein backbones. Input: specifications like "a 4-helix bundle", "binds this ligand here", "matches this active site". Output: a backbone structure satisfying the constraints.</p>
+
+          <p>Workflow:</p>
+
+          <ol>
+            <li><strong>RFDiffusion</strong>: specify constraints, sample a backbone.</li>
+            <li><strong>ProteinMPNN</strong>: generate amino-acid sequence for that backbone.</li>
+            <li><strong>AlphaFold2 / ESMFold validation</strong>: check that the designed sequence folds back to the target backbone (self-consistency).</li>
+            <li><strong>Experimental validation</strong>: synthesise, express, characterise.</li>
+          </ol>
+
+          <p>Success rate: in the 2023 Baker-lab paper, ~10–40% of RFDiffusion + ProteinMPNN designs expressed, folded, and exhibited the desired function (e.g. binding a small-molecule target). Without AlphaFold / ProteinMPNN, equivalent success rates were &lt; 1%.</p>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">Intuition box</span>
+            <p>The design loop is a two-player relay. RFDiffusion is the sculptor — it hallucinates a plausible 3D shape meeting your constraints, ignoring whether any sequence can fold to it. ProteinMPNN is the scriptwriter — given that shape, it writes a sequence that should fold to it. AlphaFold plays the critic — it folds the sequence and checks whether the result matches the sculptor's shape. If the three agree, you have a candidate to synthesise. The critic's role is crucial: before AlphaFold, there was no fast way to check whether a designed sequence actually folded as intended, so designs mostly failed at the wet-lab step. Adding a reliable folding critic inside the loop is what flipped success rates from &lt; 1% to 10–40%.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-15/10-rfdiffusion.svg"
+                 alt="Horizontal workflow with five panels. Panel 1: constraint specification, e.g. binds zinc ion at a specific position. Panel 2: RFDiffusion-generated backbone showing a novel fold. Panel 3: ProteinMPNN sequence design. Panel 4: AlphaFold2 validation checking whether the designed sequence folds to the target backbone. Panel 5: experimental validation. Annotation: 10–40% of designed proteins express + fold + function; previously under 1% with Rosetta alone.">
+            <figcaption>Figure 10. The design pipeline as sculptor → scriptwriter → critic → wet lab. RFDiffusion hallucinates the backbone; ProteinMPNN writes a sequence; AlphaFold validates self-consistency; experiment confirms.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 Safety and ethics</h3>
+
+          <p>Protein design is a <strong>dual-use</strong> technology:</p>
+
+          <ul>
+            <li><strong>Beneficial uses</strong>: therapeutic binders, novel enzymes for green chemistry, malaria vaccines, COVID-era receptor-binding-domain mimics, plastic-degrading enzymes.</li>
+            <li><strong>Concerning uses</strong>: designed toxins, designed pathogen proteins.</li>
+          </ul>
+
+          <p>The field has started grappling with biosecurity. The Baker lab has adopted a screening policy (don't design certain classes of proteins); Anthropic's ASL-3 and similar thresholds explicitly reference bioweapon-uplift capabilities. Sharing model weights is now a deliberate policy decision, not an automatic open-source default.</p>
+
+          <p>As EE students with ML backgrounds, you may find yourself building these models. Know the dual-use issues.</p>
+
+          <aside class="callout callout--discussion">
+            <span class="callout-label">Discussion prompt</span>
+            <p>You've just trained a new RFDiffusion-like model that can design proteins with better binding affinity than the 2023 state-of-the-art. Before releasing weights + code, what questions should you ask? (Starting points: biosecurity risk assessment — what known bioweapon-adjacent proteins can your model improve vs baseline? Responsible release — weights public, restricted, or private? Dataset provenance — did training data contain curated dual-use sequences? Monitoring — can you detect misuse post-release?) No right answer; the goal is to learn to ask.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 20 min</span>
+          What This Changes
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 The AlphaFold Database</h3>
+
+          <p><strong>AlphaFold Database</strong> (Varadi et al. 2022, EMBL-EBI hosted). Predicted structures for ~200M proteins covering almost all of UniProt. Public, freely accessible. Each structure is tagged with pLDDT colouring and PAE matrix.</p>
+
+          <p>Before 2021 the PDB had ~180k experimentally-determined structures. After the AlphaFold DB, the ratio of "available structural information" to "unexplored sequence" flipped — from &lt; 0.1% of proteins having any structure to &gt; 99%.</p>
+
+          <p>Users:</p>
+
+          <ul>
+            <li><strong>Drug discovery</strong>. Every protein target now has a predicted structure to inspect. Druggability / pocket prediction, structure-based virtual screening on targets that previously had no structure.</li>
+            <li><strong>Functional annotation</strong>. Structure → function inference (fold similarity to known proteins of known function).</li>
+            <li><strong>Evolutionary studies</strong>. Comparing predicted structures across species reveals structural conservation invisible from sequence.</li>
+            <li><strong>Enzyme engineering</strong>. Given a predicted structure with a specific pocket, design mutations to alter substrate specificity.</li>
+          </ul>
+
+          <p>The DB is updated regularly; v2 (2024) adds cryptic-pocket predictions and ligand-binding probability scores.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-15/11-af-database.svg"
+                 alt="Comparison bar chart on log scale. Left bar: PDB experimental structures as of 2021, about 180,000. Right bar: AlphaFold DB predicted structures, about 200 million. Below the bars: small grid of pLDDT-quality buckets — over 90 is very high (40%), 70–90 is confident (30%), 50–70 is low (20%), under 50 is disordered/orphan (10%). Annotation: 1000× more protein structural information than the combined history of X-ray crystallography.">
+            <figcaption>Figure 11. The AlphaFold DB vs the PDB. ~1,000× more predicted structures than experimental ones; ~70% are at confident-or-better pLDDT.</figcaption>
+          </figure>
+
+          <figure class="artifact-embed artifact-embed--wide">
+            <figcaption class="artifact-caption">
+              <strong>Artifact 6 — AlphaFold Database Explorer.</strong> Browse a curated catalogue of ~20 proteins (well-folded single-domain, multi-domain, orphan, disordered, engineered de-novo). Each shows the structure coloured by pLDDT, the PAE matrix, and metadata. Filter by pLDDT, length, or disorder fraction. Aha: the database is searchable by confidence — focus on the high-quality regions and ignore uncertain ones.
+            </figcaption>
+            <iframe class="artifact-frame" src="../artifacts/lecture-15/06-afdb-explorer.html" loading="lazy" title="Artifact 6 — AFDB Explorer"></iframe>
+          </figure>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Drug discovery</h3>
+
+          <p>Pre-AlphaFold, <strong>structure-based drug design</strong> required an experimentally-determined target structure. X-ray crystallography or cryo-EM, years of work, many failed targets. Most drug targets had no structure.</p>
+
+          <p>Post-AlphaFold: every human protein has a predicted structure. Drug discovery pipelines now include AlphaFold predictions as a routine input step. Caveats:</p>
+
+          <ul>
+            <li>AlphaFold predicts the <strong>apo</strong> (unbound) structure. The drug-bound (holo) structure can differ. For kinases, AlphaFold predicts the active conformation; many drugs bind the inactive conformation.</li>
+            <li><strong>Conformational ensembles</strong>: proteins fluctuate. Drug binding often exploits transient states AlphaFold doesn't capture.</li>
+            <li><strong>Allosteric sites</strong>: pockets that only form in specific conformational states are poorly predicted.</li>
+          </ul>
+
+          <p>Nonetheless, the pharmaceutical industry has absorbed AlphaFold deeply. Every major pharma now has an AlphaFold-based workflow for target validation.</p>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 What's still hard</h3>
+
+          <p>Three open frontiers:</p>
+
+          <ul>
+            <li><strong>Conformational dynamics</strong>. A protein isn't one structure; it's an ensemble. AlphaFold predicts a dominant state but not the distribution. Recent work (AF2-multimer with MSA subsampling, AlphaFlow, Distributional Graphormer) addresses this partially.</li>
+            <li><strong>Intrinsically disordered regions</strong>. ~30% of eukaryotic proteins have significant disordered content. AlphaFold predicts these as low pLDDT — it knows they're uncertain but doesn't give you a distribution over their states. These are often functional (transcription factors, signalling motifs).</li>
+            <li><strong>Multi-state proteins</strong>. Kinases, transporters, ribosomes cycle through distinct functional states. AlphaFold predicts one state (usually the most abundant in training data). For multi-state function, predicting all states is required.</li>
+          </ul>
+
+          <aside class="callout callout--warning">
+            <span class="callout-label">Warning box</span>
+            <p>AlphaFold predictions are <strong>not experimental structures</strong>. For publication, regulatory, or clinical work that requires real structural data — drug binding modes, mutagenesis experiments targeting specific atoms, structure-function causation claims — the prediction is a starting hypothesis, not a definitive answer. Always cross-check with experiment when the stakes are real.</p>
+          </aside>
+        </section>
+
+        <section id="sec-7-4">
+          <h3>7.4 Single-cell / multi-modal extensions</h3>
+
+          <p>Emerging work extends structure prediction to:</p>
+
+          <ul>
+            <li><strong>Protein-RNA complexes</strong>: RoseTTAFold-Nucleic, AlphaFold3.</li>
+            <li><strong>Protein-DNA complexes</strong>: AlphaFold3, RoseTTAFold2.</li>
+            <li><strong>Large assemblies</strong>: the ribosome, the nuclear pore complex (hundreds of chains). AlphaFold3 handles 5–10 chains well; 100+ is still research.</li>
+            <li><strong>Membrane proteins</strong>: AlphaFold was trained on soluble proteins; membrane-protein prediction is strong but benefits from membrane-aware fine-tuning.</li>
+          </ul>
+        </section>
+
+        <section id="sec-7-5">
+          <h3>7.5 AI safety and the regulatory landscape</h3>
+
+          <p>As of 2024–2025, <strong>biosecurity screening</strong> is becoming a norm for major model releases. Meta's ESM-3 underwent biosecurity review before release; Anthropic's ASL-3 explicitly references bioweapon-uplift risks; the US Executive Order on AI (2023) requires major model developers to notify the government of frontier capabilities.</p>
+
+          <p>The field is at an interesting moment where the open-science norm (§Lecture 14, Part 7) collides with dual-use concerns. How this resolves affects the pace of future progress.</p>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ─────────────────────────────────────── -->
+      <section id="wrapup" class="lecture-wrapup">
+        <h2>
+          <span class="part-kicker">Wrap-up · 10 min</span>
+          Takeaways, homework, and next lecture
+        </h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Protein structure is four levels.</strong> Primary = sequence; secondary = local H-bond patterns; tertiary = 3D fold; quaternary = multi-chain assembly. Tertiary is what "structure prediction" usually means.</li>
+          <li><strong>Anfinsen established that sequence → structure is a well-defined problem.</strong> The 50-year journey to AlphaFold2 was finding the algorithm.</li>
+          <li><strong>The classical era plateaued</strong> because it lacked a way to exploit the rich evolutionary information in MSA coevolution.</li>
+          <li><strong>DCA unlocked coevolution-based contact prediction</strong> by computing inverse covariances of amino-acid co-occurrence. EE framing: graphical-model estimation on categorical data.</li>
+          <li><strong>AlphaFold2's Evoformer + structure module</strong> is the breakthrough architecture. Evoformer refines (MSA, pair) iteratively via axial attention + triangle updates; structure module converts to 3D via $\text{SE}(3)$-equivariant Invariant Point Attention.</li>
+          <li><strong>pLDDT and PAE are calibrated confidence metrics.</strong> Use them — a structure without reading its confidence is dangerous.</li>
+          <li><strong>AlphaFold3, ESMFold, RoseTTAFold</strong> extend the toolbox: multi-chain + ligand (AF3), single-sequence / speed (ESMFold), open-source + multi-modal (RFAA).</li>
+          <li><strong>ProteinMPNN and RFDiffusion</strong> enable de-novo design. Inverse folding = inverse problem with strong structural prior. Design loop = RFDiffusion (backbone) → ProteinMPNN (sequence) → AlphaFold (validation) → experiment.</li>
+          <li><strong>The AlphaFold Database (~200M predicted structures)</strong> has flipped the field. Drug discovery, functional annotation, and evolutionary studies now assume a predicted structure.</li>
+          <li><strong>What's still hard</strong>: dynamics, disorder, multi-state function, large assemblies, dual-use / biosecurity.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>ML in genomics: architectures, pitfalls, frontiers. A synthesis across previous lectures — pileups → CNN (DeepVariant); long-range sequence regulation → dilated conv + transformer (Enformer, Borzoi); count matrices → VAE (scVI); protein 3D → equivariant transformer (AlphaFold); molecular graphs → GNN. Plus the shared pitfalls: out-of-distribution generalisation, calibrated confidence, data leakage at biological scale.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Install ColabFold locally (or use the web notebook). Predict structures for three of your favourite proteins: one with a close PDB homologue, one with a moderate MSA, one orphan. Compare pLDDT distributions. Which does best and why?</li>
+          <li>From the AlphaFold Database, fetch predicted structures for ten human "dark proteins" (uncharacterised, lacking PDB homologues). What fraction have high-confidence (&gt; 70 pLDDT) predictions? Pick one and use foldseek or Dali to find structural homologues; does it suggest a function?</li>
+          <li>Use ProteinMPNN (via ColabDesign or Baker-lab GitHub) to generate 10 sequences for a given backbone. Evaluate sequence recovery rate (fraction of positions matching the original native) and AlphaFold's self-consistency score (does AF2 fold the new sequence back to the same backbone?).</li>
+          <li>Read the AlphaFold2 Methods section (Jumper et al. 2021). For one Evoformer sub-operation, write a one-page explanation in your own words, including tensor shapes at input and output.</li>
+          <li>Pick an AlphaFold-predicted structure with a large low-pLDDT region. Is it disordered (check DisProt or IUPred) or genuinely uncertain? How would you distinguish these experimentally?</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Anfinsen, C. B. (1973). Principles that govern the folding of protein chains. <em>Science</em> 181, 223–230.</li>
+          <li>Jumper, J., Evans, R., Pritzel, A., et al. (2021). Highly accurate protein structure prediction with AlphaFold. <em>Nature</em> 596, 583–589.</li>
+          <li>Abramson, J., Adler, J., Dunger, J., et al. (2024). Accurate structure prediction of biomolecular interactions with AlphaFold 3. <em>Nature</em> 630, 493–500.</li>
+          <li>Baek, M., DiMaio, F., Anishchenko, I., et al. (2021). Accurate prediction of protein structures and interactions using a three-track neural network. <em>Science</em> 373, 871–876. (RoseTTAFold.)</li>
+          <li>Lin, Z., Akin, H., Rao, R., et al. (2023). Evolutionary-scale prediction of atomic-level protein structure. <em>Science</em> 379, 1123–1130. (ESMFold.)</li>
+          <li>Dauparas, J., Anishchenko, I., Bennett, N., et al. (2022). Robust deep-learning-based protein sequence design using ProteinMPNN. <em>Science</em> 378, 49–56.</li>
+          <li>Watson, J. L., Juergens, D., Bennett, N. R., et al. (2023). De novo design of protein structure and function with RFdiffusion. <em>Nature</em> 620, 1089–1100.</li>
+          <li>Marks, D. S., Colwell, L. J., Sheridan, R., et al. (2011). Protein 3D structure computed from evolutionary sequence variation. <em>PLoS ONE</em> 6, e28766. (EVfold.)</li>
+          <li>Morcos, F., Pagnani, A., Lunt, B., et al. (2011). Direct-coupling analysis of residue coevolution captures native contacts across many protein families. <em>PNAS</em> 108, E1293–E1301. (DCA.)</li>
+          <li>Varadi, M., Anyango, S., Deshpande, M., et al. (2022). AlphaFold Protein Structure Database. <em>Nucleic Acids Research</em> 50, D439–D444.</li>
+          <li>Mirdita, M., Schütze, K., Moriwaki, Y., et al. (2022). ColabFold: making protein folding accessible to all. <em>Nature Methods</em> 19, 679–682.</li>
+          <li>AlphaFold database: <a href="https://alphafold.ebi.ac.uk/" target="_blank" rel="noopener">alphafold.ebi.ac.uk</a></li>
+          <li>ESM Metagenomic Atlas: <a href="https://esmatlas.com/" target="_blank" rel="noopener">esmatlas.com</a></li>
+          <li>Foldseek: <a href="https://search.foldseek.com/" target="_blank" rel="noopener">search.foldseek.com</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — Protein Structure Basics</td>           <td>25&nbsp;min</td><td>0:25</td></tr>
+            <tr><td>Part 2 — The Classical Era</td>                  <td>20&nbsp;min</td><td>0:45</td></tr>
+            <tr><td>Part 3 — MSA-Based Methods and Coevolution</td>  <td>30&nbsp;min</td><td>1:15</td></tr>
+            <tr><td>Part 4 — AlphaFold2 Architecture</td>             <td>60&nbsp;min</td><td>2:15</td></tr>
+            <tr><td>Part 5 — AlphaFold3 and Successors</td>           <td>20&nbsp;min</td><td>2:35</td></tr>
+            <tr><td>Part 6 — Inverse Folding and Protein Design</td>  <td>25&nbsp;min</td><td>3:00</td></tr>
+            <tr><td>Part 7 — What This Changes</td>                   <td>20&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                      <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) f.style.height = d.height + 'px';
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

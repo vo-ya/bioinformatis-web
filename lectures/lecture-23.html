@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 23 — Metagenomics and the Microbiome · Bioinformatics for EE</title>
+  <meta name="description" content="From 16S amplicons to shotgun metagenomics. DADA2 ASVs, Kraken2 k-mer classification, MetaPhlAn marker genes, HUMAnN functional profiling, MAG recovery, alpha/beta diversity, compositional data analysis (ANCOM-BC), host-microbiome connections.">
+
+  <meta property="og:title" content="Lecture 23 — Metagenomics and the Microbiome">
+  <meta property="og:description" content="16S vs shotgun · DADA2 ASVs · Kraken2 k-mer LCA · diversity as information-theoretic divergence · compositional bias · ANCOM-BC · gut microbiome and immunotherapy response.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — Why Microbes</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 The microbial scale</a></li>
+          <li><a href="#sec-1-2">1.2 What we want to know</a></li>
+          <li><a href="#sec-1-3">1.3 The two main assays</a></li>
+          <li><a href="#sec-1-4">1.4 Microbial population analogy</a></li>
+          <li><a href="#sec-1-5">1.5 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — 16S Amplicon Workflow</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 The 16S rRNA gene</a></li>
+          <li><a href="#sec-2-2">2.2 The DADA2 pipeline</a></li>
+          <li><a href="#sec-2-3">2.3 QIIME2</a></li>
+          <li><a href="#sec-2-4">2.4 Reference databases</a></li>
+          <li><a href="#sec-2-5">2.5 Outputs and downstream</a></li>
+          <li><a href="#sec-2-6">2.6 The 2024 frontier</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Shotgun Metagenomics</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 The shotgun design</a></li>
+          <li><a href="#sec-3-2">3.2 Kraken2</a></li>
+          <li><a href="#sec-3-3">3.3 MetaPhlAn</a></li>
+          <li><a href="#sec-3-4">3.4 HUMAnN functional profiling</a></li>
+          <li><a href="#sec-3-5">3.5 MAG recovery</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Diversity Metrics</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Alpha diversity</a></li>
+          <li><a href="#sec-4-2">4.2 Beta diversity</a></li>
+          <li><a href="#sec-4-3">4.3 Compositional data</a></li>
+          <li><a href="#sec-4-4">4.4 ANCOM-BC</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Host-Microbiome Connections</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 Gut microbiome and IBD</a></li>
+          <li><a href="#sec-5-2">5.2 Immunotherapy response</a></li>
+          <li><a href="#sec-5-3">5.3 Other clinical connections</a></li>
+          <li><a href="#sec-5-4">5.4 Cohort-scale studies</a></li>
+          <li><a href="#sec-5-5">5.5 Hippocrates 2.0</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Tools, Pitfalls, Practice</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 Standard 2024 stack</a></li>
+          <li><a href="#sec-6-2">6.2 Pitfalls</a></li>
+          <li><a href="#sec-6-3">6.3 Reproducibility</a></li>
+          <li><a href="#sec-6-4">6.4 The 2024 frontier</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — Frontier Topics</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 Antibiotic resistance tracking</a></li>
+          <li><a href="#sec-7-2">7.2 Phylogenetic placement</a></li>
+          <li><a href="#sec-7-3">7.3 Strain-level dynamics</a></li>
+          <li><a href="#sec-7-4">7.4 Microbiome-host genetics</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 23</div>
+      <h1 class="lecture-title">Metagenomics and the Microbiome</h1>
+      <p class="lecture-subtitle">A microbiome is a population assayed by sequencing. 16S amplicon sequencing is cheap and bacteria-only; shotgun metagenomics is expensive and multi-kingdom. DADA2 and QIIME2 turn 16S reads into ASVs, taxonomy, and diversity. Kraken2 + MetaPhlAn + HUMAnN turn shotgun reads into species abundances and pathway profiles. Diversity metrics generalise from population genetics. Compositional bias is everywhere. The gut microbiome predicts immunotherapy response. The whole field is community signal demixing.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">210 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — Why microbes</a></li>
+        <li><a href="#part-2">Part 2 — 16S workflow</a></li>
+        <li><a href="#part-3">Part 3 — Shotgun</a></li>
+        <li><a href="#part-4">Part 4 — Diversity</a></li>
+        <li><a href="#part-5">Part 5 — Host-microbiome</a></li>
+        <li><a href="#part-6">Part 6 — Tools and pitfalls</a></li>
+        <li><a href="#part-7">Part 7 — Frontier</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Five moves:</em>
+        <span class="lecture-tagline-beat">pick the assay</span>,
+        <span class="lecture-tagline-beat">denoise to ASVs or k-mer-classify reads</span>,
+        <span class="lecture-tagline-beat">measure diversity</span>,
+        <span class="lecture-tagline-beat">test under compositional constraint</span>,
+        <span class="lecture-tagline-beat">connect to the host</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Distinguish 16S rRNA amplicon sequencing from shotgun metagenomics; describe the data each produces and when each is appropriate.</li>
+          <li>Run a 16S workflow with DADA2 / QIIME2: from FASTQ → ASVs (amplicon sequence variants) → taxonomy → diversity statistics.</li>
+          <li>Run a shotgun metagenomics workflow: read QC → taxonomic classification (Kraken2, MetaPhlAn) → functional profiling (HUMAnN) → MAG recovery.</li>
+          <li>Compute and interpret alpha diversity (within-sample) and beta diversity (between-sample) metrics; explain Shannon, Simpson, Bray-Curtis, UniFrac as information-theoretic / phylogenetic measures.</li>
+          <li>Apply differential-abundance testing (ANCOM-BC, MaAsLin2, songbird) with appropriate compositional data corrections.</li>
+          <li>Describe the major host-microbiome connections: gut microbiome and IBD, immunotherapy response, metabolomics, oral microbiome and cancer.</li>
+          <li>Frame metagenomics as detection-and-classification under compositional constraint: amplicon analysis as fingerprint-matched filter, taxonomic classification as approximate-nearest-neighbour search, diversity as information-theoretic divergence.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 25 min</span>
+          Why Microbes
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 The microbial scale</h3>
+          <p>The human body harbours ~10¹³ microbial cells (about as many as human cells), encoding ~3 million microbial genes (vs ~25,000 human genes). 99% of these microbes are bacteria; the rest are archaea, fungi, viruses, and protozoans.</p>
+          <p>Most microbiome research focuses on:</p>
+          <ul>
+            <li><strong>Gut</strong> — largest community (~10¹⁴ cells/g feces), most clinical impact.</li>
+            <li><strong>Oral</strong> — second-largest, links to cardiovascular and pancreatic cancer.</li>
+            <li><strong>Skin</strong> — niche-specific (sebaceous, moist, dry).</li>
+            <li><strong>Vaginal</strong> — dominated by <em>Lactobacillus</em>; clinical relevance for preterm birth.</li>
+            <li><strong>Respiratory</strong> — small but important in asthma and COPD.</li>
+          </ul>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 What we want to know</h3>
+          <p>Three core questions:</p>
+          <ol>
+            <li><strong>Who's there?</strong> — taxonomic composition (which species, at what abundance).</li>
+            <li><strong>What can they do?</strong> — functional potential (which metabolic pathways, virulence factors, antibiotic resistance).</li>
+            <li><strong>What does that mean for the host?</strong> — phenotype association (disease, drug response, diet effect).</li>
+          </ol>
+          <p>Each maps to a different sequencing strategy + analysis pipeline.</p>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 The two main assays</h3>
+          <p><strong>16S rRNA amplicon sequencing</strong>:</p>
+          <ul>
+            <li>PCR-amplify a hypervariable region of the bacterial 16S rRNA gene (V3–V4 typical).</li>
+            <li>Sequence the amplicon (~250 bp paired-end Illumina, ~$30/sample).</li>
+            <li>Cluster reads to taxonomic units (ASVs); assign taxonomy via reference DB (SILVA, GTDB, Greengenes).</li>
+            <li><strong>Advantages</strong>: cheap, well-validated.</li>
+            <li><strong>Limitations</strong>: bacteria only (not archaea/fungi/viruses); genus-level resolution typically; primer biases.</li>
+          </ul>
+          <p><strong>Shotgun metagenomics</strong>:</p>
+          <ul>
+            <li>Random sequencing of all DNA in the sample (~5 Gb/sample, ~$300).</li>
+            <li>No PCR amplification of marker genes.</li>
+            <li>Direct taxonomic classification of reads (Kraken2, MetaPhlAn) + functional profiling (HUMAnN).</li>
+            <li><strong>Advantages</strong>: species- to strain-level resolution; covers all kingdoms; functional content; viable for MAG assembly.</li>
+            <li><strong>Limitations</strong>: 10× cost; bioinformatics-heavy; host-DNA contamination in low-biomass samples.</li>
+          </ul>
+          <p>A common hybrid: 16S for screening hundreds of samples, shotgun on a selected subset for deep characterisation.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-23/01-16s-vs-shotgun.svg"
+                 alt="Two side-by-side decision panels: 16S in amber and shotgun in cobalt. Each lists cost ($30 vs $300/sample), resolution (genus vs species/strain), taxa covered (bacteria-only vs all kingdoms), functional content (no vs yes), and bioinformatics complexity (simple vs complex). Bottom decision tree: 'Is functional content needed?' → yes → shotgun. 'Is budget tight?' → yes → 16S. 'Is biomass low?' → yes → 16S to avoid host contamination.">
+            <figcaption>Figure 1. 16S vs shotgun metagenomics decision. The choice is constraint-driven: cost, biomass, resolution, and whether functional content matters.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-23/01-design-chooser.html" loading="lazy" title="Artifact 1 — 16S vs Shotgun Design Chooser"></iframe>
+            <figcaption>
+              <strong>Artifact 1 — 16S vs Shotgun Design Chooser.</strong> Pick study constraints; the artifact recommends 16S or shotgun and explains why. Aha: design choice is driven by question + constraints; no universally-best assay.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 The microbial population analogy</h3>
+          <p>Treat a microbiome like a population:</p>
+          <ul>
+            <li><strong>Allele frequency</strong> ↔ taxon relative abundance.</li>
+            <li><strong>Effective population size</strong> ↔ community richness.</li>
+            <li><strong>Drift</strong> ↔ stochastic abundance fluctuations.</li>
+            <li><strong>Selection</strong> ↔ host or environmental selection (diet, antibiotics).</li>
+            <li><strong>Migration</strong> ↔ external inoculation (FMT, diet, contact).</li>
+          </ul>
+          <p>Population-genetics metrics ($F_{\text{st}}$, Nei's distance) generalise to microbial-community comparison via UniFrac and Bray-Curtis.</p>
+        </section>
+
+        <section id="sec-1-5">
+          <h3>1.5 The deep dive</h3>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — metagenomics as community signal demixing</span>
+            <p>A metagenomic sample is a <strong>mixture</strong> of DNA from hundreds of organisms. Recovering taxon abundances is a <strong>demixing problem</strong> — the same family as ICA / NMF / source separation that has come up repeatedly in this course (mutational signatures, scRNA-seq deconvolution). The reference-genome database is the <strong>dictionary</strong>; reads are the <strong>mixture</strong>; abundances are the <strong>mixing coefficients</strong>. Modern classifiers (Kraken2, Bracken) solve this approximately via k-mer matching; statistical methods (Salmon-meta) solve it via expectation-maximisation on read assignments. The pattern is identical.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 40 min</span>
+          16S Amplicon Workflow
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 The 16S rRNA gene</h3>
+          <p>Bacterial 16S rRNA is a ~1500 bp ribosomal-RNA gene with <strong>alternating conserved and variable regions</strong> (V1 through V9). PCR primers anneal to conserved regions; the variable region between is amplified.</p>
+          <p>V3–V4 (~460 bp) is the most-used region — long enough for genus-level resolution, fits Illumina 2×250 bp paired-end.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-23/07-16s-structure.svg"
+                 alt="Linear 16S gene drawn as a horizontal bar showing 9 alternating regions: V1 (variable, blue), C1 (conserved, grey), V2, C2, V3, C3, V4, C4, V5, C5, V6, C6, V7, C7, V8, C8, V9. Total length ~1500 bp. Common primer pairs annotated below: V3-V4 (~460 bp), V4 (~250 bp), full-length 1500 bp on PacBio. Annotation: 'primers anneal to conserved regions, amplify variable region in between.'">
+            <figcaption>Figure 7. 16S rRNA gene structure. Conserved regions anchor primers; variable regions resolve taxonomy. V3–V4 is the short-read default; full-length on PacBio gives strain-level resolution.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 The DADA2 pipeline</h3>
+          <p><strong>DADA2</strong> (Callahan et al. 2016) is the modern 16S workflow:</p>
+          <ol>
+            <li>Quality-filter and trim reads.</li>
+            <li><strong>Learn error rates</strong> — model per-sample sequencing error using the Illumina error profile.</li>
+            <li><strong>Denoise</strong> — cluster reads into <strong>Amplicon Sequence Variants (ASVs)</strong>: exact sequences distinguishable from sequencing error. ASVs replace OTUs (Operational Taxonomic Units), which clustered at 97% identity.</li>
+            <li><strong>Merge</strong> paired-end reads.</li>
+            <li><strong>Remove chimeras</strong> (PCR artefacts that combine two parent sequences).</li>
+            <li><strong>Assign taxonomy</strong> via naive Bayes classifier against SILVA/GTDB/Greengenes.</li>
+          </ol>
+          <p>ASVs are exact sequences, not 97%-clusters — DADA2 resolves single-base differences that legacy OTU methods missed.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-23/02-dada2.svg"
+                 alt="Top-to-bottom DADA2 flowchart: 1. Raw paired-end FASTQ reads. 2. Quality-trim and primer-remove. 3. Learn per-sample error rates. 4. Denoise to ASVs. 5. Merge paired ends. 6. Remove chimeras. 7. ASV table (samples × ASVs). 8. Taxonomy assignment (SILVA / GTDB). 9. Phylogenetic tree (FastTree). 10. Diversity and downstream analysis. Side panel showing the error model — Illumina error PMF and how DADA2 distinguishes single-base sequencer error from biological variant.">
+            <figcaption>Figure 2. DADA2 16S workflow. Each stage transforms raw reads into a denoised ASV table; the error model is what makes single-base resolution possible.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-23/02-dada2-stepper.html" loading="lazy" title="Artifact 2 — DADA2 ASV Denoising Stepper"></iframe>
+            <figcaption>
+              <strong>Artifact 2 — DADA2 ASV Denoising Stepper.</strong> Walk through DADA2 on a small toy read set with intentional 1% per-base errors. Toggle 97% OTU clustering for comparison. Aha: ASVs are exact sequences, not 97% clusters; DADA2's error model distinguishes biology from sequencer noise.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 QIIME2</h3>
+          <p><strong>QIIME2</strong> is the dominant umbrella platform: end-to-end pipeline with DADA2 as the default denoiser, plus diversity, differential-abundance, and visualisation modules. Integrates with the Galaxy web interface for non-bioinformaticians.</p>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Reference databases</h3>
+          <ul>
+            <li><strong>SILVA</strong> — most comprehensive, regularly updated.</li>
+            <li><strong>GTDB</strong> — phylogenetically-coherent taxonomy (no paraphyletic groups).</li>
+            <li><strong>Greengenes 13_8</strong> — legacy default, frozen at 2013.</li>
+          </ul>
+          <p>For new analyses use SILVA (default) or GTDB (for phylogenetic rigour).</p>
+        </section>
+
+        <section id="sec-2-5">
+          <h3>2.5 Outputs and downstream analysis</h3>
+          <p>DADA2/QIIME2 produces:</p>
+          <ul>
+            <li><strong>ASV table</strong>: rows = samples, columns = ASVs, cells = read counts.</li>
+            <li><strong>Taxonomy table</strong>: ASV → kingdom/phylum/class/order/family/genus/species assignment.</li>
+            <li><strong>Phylogenetic tree</strong> of ASVs (built via FastTree).</li>
+            <li><strong>Sample metadata</strong> linkage.</li>
+          </ul>
+          <p>This is the equivalent of a count matrix + annotation in scRNA-seq — the same downstream tools (PCA, clustering, differential abundance) apply with appropriate statistical adjustments.</p>
+        </section>
+
+        <section id="sec-2-6">
+          <h3>2.6 The 2024 frontier</h3>
+          <ul>
+            <li><strong>Long-read 16S</strong>: full-length 16S via PacBio HiFi gives strain-level resolution (vs genus-level from short-read V3–V4).</li>
+            <li><strong>Multi-region 16S</strong>: V1V9 amplicons covering all variable regions improve taxonomic resolution.</li>
+            <li><strong>DADA2 + AlphaFold-derived priors</strong>: emerging, marginal improvement.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 40 min</span>
+          Shotgun Metagenomics
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 The shotgun design</h3>
+          <p>Shotgun metagenomics: extract total DNA, fragment it, sequence randomly. No PCR step. Reads come from any organism in the sample, plus host contamination if present.</p>
+          <p>Workflow:</p>
+          <ol>
+            <li>Read QC (fastp, BBDuk).</li>
+            <li>Host-DNA removal (map to human reference, discard mappers).</li>
+            <li>Taxonomic classification.</li>
+            <li>Functional profiling.</li>
+            <li>Optional: MAG assembly.</li>
+          </ol>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-23/03-shotgun-pipeline.svg"
+                 alt="Top-to-bottom shotgun metagenomics pipeline. 1. Raw shotgun FASTQ reads (~5 Gb). 2. QC + adapter trimming (fastp). 3. Host-DNA removal (KneadData, BBDuk). 4. Three branches: (a) Taxonomic classification — Kraken2 or MetaPhlAn → relative abundance; (b) Functional profiling — HUMAnN → pathway abundance; (c) Assembly — megahit or SPAdes → contigs → binning → MAGs. Each stage labelled with runtime and tool. Side panel: MAG quality criteria (CheckM completeness > 90%, contamination < 5%).">
+            <figcaption>Figure 3. Shotgun metagenomics pipeline. Three parallel analysis branches from one set of reads: who's there, what they can do, and which genomes can be reconstructed.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Taxonomic classification: Kraken2</h3>
+          <p><strong>Kraken2</strong> (Wood, Lu, Langmead 2019) is a k-mer-based exact classifier:</p>
+          <ul>
+            <li>Build a database of k-mers (k = 35 default) from all reference genomes (NCBI RefSeq + GenBank).</li>
+            <li>For each read, find all matching k-mers in the database.</li>
+            <li>Assign read to the <strong>lowest common ancestor (LCA)</strong> of all matched k-mers' taxonomic origins.</li>
+            <li>Run time: ~minutes per sample on a typical compute node.</li>
+          </ul>
+          <p><strong>Bracken</strong> post-processing converts Kraken2 read counts to Bayesian-corrected abundance estimates.</p>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-23/03-kraken-demo.html" loading="lazy" title="Artifact 3 — Kraken2 k-mer Classifier Demo"></iframe>
+            <figcaption>
+              <strong>Artifact 3 — Kraken2 k-mer Classifier Demo.</strong> Classify simulated reads against a tiny reference DB via k-mer matching + LCA aggregation. Slide $k$ to see the precision/sensitivity trade-off. Aha: $k$ controls precision vs sensitivity; LCA gracefully handles ambiguous reads.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Taxonomic classification: MetaPhlAn</h3>
+          <p><strong>MetaPhlAn</strong> (Beghini et al. 2021) is a marker-gene-based classifier:</p>
+          <ul>
+            <li>Pre-computed database of clade-specific marker genes (~5 markers per species).</li>
+            <li>Reads aligned (Bowtie2) to markers; relative abundance inferred from marker coverage.</li>
+            <li>More accurate than Kraken2 at species level for well-characterised organisms.</li>
+            <li>Slower (Bowtie2 alignment) but more interpretable.</li>
+          </ul>
+          <p>Typical workflow: Kraken2 for breadth (catch everything), MetaPhlAn for clinical-grade species calls.</p>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Functional profiling: HUMAnN</h3>
+          <p><strong>HUMAnN</strong> (HMP Unified Metabolic Analysis Network, Franzosa 2018) maps reads to UniRef90 + ChocoPhlAn (per-species pangenome) → quantifies pathway abundance.</p>
+          <p>Output:</p>
+          <ul>
+            <li>Per-species, per-gene-family abundances.</li>
+            <li>Pathway-level abundances (MetaCyc).</li>
+            <li>Stratified output: each pathway abundance broken down by contributing species.</li>
+          </ul>
+          <p>This is the <strong>functional analog of expression analysis</strong> — instead of "which genes are expressed?", it's "which microbial functions are present?"</p>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 MAG recovery</h3>
+          <p>A <strong>Metagenome-Assembled Genome (MAG)</strong> is a near-complete bacterial genome assembled directly from metagenomic reads — no isolation required.</p>
+          <p>Pipeline:</p>
+          <ol>
+            <li>Assemble reads (megahit, SPAdes-meta).</li>
+            <li><strong>Binning</strong>: cluster contigs by composition (k-mer spectra) + coverage (depth across samples) using MetaBAT2, MaxBin, CONCOCT.</li>
+            <li>Quality assessment (CheckM): completeness + contamination.</li>
+            <li>Taxonomy (GTDB-Tk).</li>
+          </ol>
+          <p>A "high-quality MAG" has &gt; 90% completeness and &lt; 5% contamination. The <strong>Genomes from Earth's Microbiomes (GEM)</strong> catalogue (Nayfach et al. 2021) contains ~50,000 MAGs from ~10,000 environmental samples.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-23/09-mag-recovery.svg"
+                 alt="Left panel: scatter of ~1000 assembled metagenomic contigs. X-axis: tetranucleotide composition (PCA coordinate 1). Y-axis: read coverage depth. Three clusters visible — three distinct genomes binned by composition + coverage. Right panel: each cluster's CheckM quality. MAG 1: 95% complete, 1% contamination — high quality. MAG 2: 75% / 3% — medium. MAG 3: 50% / 8% — low (needs more data).">
+            <figcaption>Figure 9. MAG recovery from contigs. Composition + coverage cluster contigs into bins; CheckM assesses each bin's quality before downstream use.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-23/07-mag-quality.html" loading="lazy" title="Artifact 7 — MAG Quality Assessment"></iframe>
+            <figcaption>
+              <strong>Artifact 7 — MAG Quality Assessment.</strong> Score 5 simulated MAGs by completeness + contamination using single-copy marker genes. Aha: MAG quality gates downstream usefulness; CheckM-style assessment is the standard.
+            </figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — taxonomic classification as approximate-nearest-neighbour search</span>
+            <p>Kraken2's k-mer LCA is approximate-nearest-neighbour search in $4^k$-dimensional Hamming space. The reference database is the indexed dictionary; query reads are decomposed into k-mers; the nearest neighbour gives taxonomic identity. This is hashing-based exact ANN — the same family as locality-sensitive hashing in EE / signal processing. The LCA aggregation handles ambiguity gracefully: when k-mers match multiple genomes, fall back to common ancestor rather than picking arbitrarily.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 25 min</span>
+          Diversity Metrics
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 Alpha diversity</h3>
+          <p><strong>Alpha diversity</strong> = within-sample diversity. Three flavours:</p>
+          <ul>
+            <li><strong>Richness</strong>: number of distinct taxa observed. Easy to compute, sensitive to sequencing depth.</li>
+            <li><strong>Shannon entropy</strong>: $H = -\sum_i p_i \log p_i$. Information-theoretic. Combines richness and evenness.</li>
+            <li><strong>Simpson's index</strong>: $1 - \sum_i p_i^2$. Probability that two reads from the sample are different taxa.</li>
+          </ul>
+          <p>For statistical inference, normalise depth by rarefaction (subsample all samples to same depth) or use depth-adjusted metrics (Faith's PD).</p>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 Beta diversity</h3>
+          <p><strong>Beta diversity</strong> = between-sample diversity:</p>
+          <ul>
+            <li><strong>Bray-Curtis dissimilarity</strong>: $\frac{\sum_i |a_i - b_i|}{\sum_i (a_i + b_i)}$. Compositional difference.</li>
+            <li><strong>Jaccard</strong>: presence/absence-based.</li>
+            <li><strong>UniFrac (unweighted / weighted)</strong>: phylogenetic — accounts for tree distance between observed taxa.</li>
+          </ul>
+          <p>Beta-diversity matrices feed PCoA / PCA visualisations and PERMANOVA hypothesis testing.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-23/04-diversity.svg"
+                 alt="Two-panel diversity figure. Top panel — alpha diversity: two pie charts. Rich sample: 10 species evenly distributed (Shannon = 2.30, Simpson = 0.90, richness = 10). Poor sample: 2 species at 80%/20% (Shannon = 0.50, Simpson = 0.32, richness = 2). Bottom panel — beta diversity: 5×5 distance matrix heat map; PCoA scatter showing two clusters (case in red, control in cobalt). PERMANOVA p &lt; 0.001 between groups. Side annotations: Shannon = -∑ p_i log p_i; Bray-Curtis = compositional difference.">
+            <figcaption>Figure 4. Diversity metrics. Alpha measures within-sample; beta measures between samples. Shannon is information-theoretic richness; UniFrac is phylogenetic; Bray-Curtis is compositional.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-23/10-unifrac.svg"
+                 alt="Phylogenetic tree of 8 ASVs from 2 samples (A, B). Branches coloured red if only sample A has descendants; cobalt if only B; black if both. Unweighted UniFrac = ratio of single-colour branch length to total branch length. Weighted UniFrac additionally factors in abundance per branch. Side panel: comparison example showing same Bray-Curtis but different UniFrac when shared taxa are phylogenetically close vs far.">
+            <figcaption>Figure 10. UniFrac phylogenetic distance. Bray-Curtis is composition-only; UniFrac adds phylogenetic distance — shared taxa contribute less when they're close cousins.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-23/04-diversity-calc.html" loading="lazy" title="Artifact 4 — Alpha + Beta Diversity Calculator"></iframe>
+            <figcaption>
+              <strong>Artifact 4 — Alpha + Beta Diversity Calculator.</strong> Compute Shannon, Simpson, richness, Bray-Curtis on user-defined community compositions; compare across 5 samples. Aha: diversity metrics capture different aspects — richness, evenness, phylogenetic depth.
+            </figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-23/06-unifrac-vs-bc.html" loading="lazy" title="Artifact 6 — UniFrac vs Bray-Curtis Comparator"></iframe>
+            <figcaption>
+              <strong>Artifact 6 — UniFrac vs Bray-Curtis Comparator.</strong> Show two example sample-pairs where Bray-Curtis is identical but UniFrac differs — phylogenetically close vs distant shared taxa. Aha: choice of metric encodes biology assumption.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 The compositional data problem</h3>
+          <p><strong>Critical</strong>: microbial abundances are <strong>relative</strong>, not absolute. The total DNA in a sample is normalised by sequencing depth. If species A doubles in absolute abundance but species B triples, A's relative abundance <em>decreases</em> even though A is "growing".</p>
+          <p><strong>Compositional data analysis (CoDa)</strong>:</p>
+          <ul>
+            <li>Aitchison transforms (ALR, CLR, ILR).</li>
+            <li>Constraint: components sum to a constant.</li>
+            <li>Many "differential abundance" results in the early literature were artefacts of compositional bias.</li>
+          </ul>
+          <p>Modern tools (ANCOM-BC, songbird) explicitly account for compositionality.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-23/08-compositional.svg"
+                 alt="Two side-by-side scenarios. Scenario 1 (true growth): species A doubles in absolute count from 100 to 200; species B stays at 100. Scenario 2 (technical artefact): both species' absolute counts unchanged at 100 each, but sequencing depth halved for sample 2 making A appear at 50 and B at 50. Both produce the same relative-abundance pattern (A:B ratio shifts from 1:1 toward 2:1). Annotation: 'Relative abundance can change without absolute change. Compositional analysis (Aitchison transforms, ANCOM-BC) handles this; naive t-tests do not.'">
+            <figcaption>Figure 8. The compositional data problem. Two very different biological scenarios produce identical relative-abundance patterns; only compositional-aware tests can distinguish them.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Differential abundance: ANCOM-BC</h3>
+          <p><strong>ANCOM-BC</strong> (Lin &amp; Peddada 2020) is a differential-abundance test under compositional constraint:</p>
+          <ul>
+            <li>Models log-transformed abundances with sample-specific bias.</li>
+            <li>Multiple-testing-corrected via Benjamini-Hochberg.</li>
+            <li>Recommended over t-test, DESeq2, edgeR for microbiome data.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 30 min</span>
+          Host-Microbiome Connections
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 Gut microbiome and IBD</h3>
+          <p>Inflammatory Bowel Disease (Crohn's, ulcerative colitis) shows reproducible gut-microbiome signatures:</p>
+          <ul>
+            <li>Reduced diversity (Shannon ~1.5 lower than healthy).</li>
+            <li>Loss of obligate anaerobes (e.g., <em>Faecalibacterium prausnitzii</em>).</li>
+            <li>Increase of pathobionts (<em>Escherichia</em>, <em>Klebsiella</em>).</li>
+          </ul>
+          <p>Diagnostic biomarker development is active; the <strong>MetaCardis</strong> and <strong>iHMP-IBD</strong> consortia have produced ~5,000-sample datasets that enable machine-learning classifiers (~85% accuracy IBD vs control).</p>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Immunotherapy response</h3>
+          <p>Cancer-immunotherapy response (anti-PD-1) correlates with gut microbiome composition. Key findings:</p>
+          <ul>
+            <li><em>Akkermansia muciniphila</em> abundance predicts response in multiple solid tumours (Routy et al. 2018).</li>
+            <li><em>Bacteroides fragilis</em> enrichment in non-responders.</li>
+            <li>Antibiotics shortly before checkpoint blockade reduce response rate.</li>
+          </ul>
+          <p>Several Phase I/II trials are testing <strong>fecal microbiota transplantation (FMT)</strong> as adjuvant to immunotherapy. ~10 small studies show response improvement in previously refractory patients.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-23/05-microbiome-disease.svg"
+                 alt="Three-panel case study (immunotherapy response). Panel 1: PCoA of pre-treatment microbiomes; responders (red) and non-responders (grey) cluster differently. Panel 2: Differential abundance of Akkermansia muciniphila — significantly higher in responders, shown as a volcano plot. Panel 3: Kaplan-Meier survival curves split by A. muciniphila abundance — high vs low; high abundance has substantially better survival. Bottom annotation: 'Routy et al. 2018 — gut microbiome predicts anti-PD-1 response in NSCLC + RCC patients.'">
+            <figcaption>Figure 5. Microbiome-disease association case study. Three perspectives on the same finding: ordination, differential abundance, and survival outcome.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-23/05-diff-abundance.html" loading="lazy" title="Artifact 5 — Microbiome Differential Abundance Explorer"></iframe>
+            <figcaption>
+              <strong>Artifact 5 — Microbiome Differential Abundance Explorer.</strong> Run differential-abundance test on case vs control with three methods (t-test, DESeq2, ANCOM-BC). Aha: compositional bias inflates naive test significance; ANCOM-BC gives the right answer.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Other clinical connections</h3>
+          <ul>
+            <li><strong>Oral microbiome → pancreatic cancer</strong>: <em>Porphyromonas gingivalis</em> abundance is elevated in PDAC patients.</li>
+            <li><strong>Colorectal cancer</strong>: <em>Fusobacterium nucleatum</em> enrichment in tumour tissue (Castellarin 2012).</li>
+            <li><strong>Type 2 diabetes</strong>: gut microbiome shifts predict response to metformin.</li>
+            <li><strong>Drug metabolism</strong>: bacterial enzymes activate / deactivate ~30% of orally-administered drugs (Spanogiannopoulos 2016).</li>
+          </ul>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Cohort-scale population studies</h3>
+          <p>Major resources:</p>
+          <ul>
+            <li><strong>HMP / iHMP</strong> (Human Microbiome Project): 300 + 1,700 individuals, multi-site.</li>
+            <li><strong>MetaCardis</strong>: 2,000 individuals, cardiometabolic disease focus.</li>
+            <li><strong>TwinsUK Microbiome</strong>: heritability estimation.</li>
+            <li><strong>Fragile Microbiome Atlas</strong>: longitudinal sampling in pregnancy.</li>
+          </ul>
+          <p>Statistical scale: ~200,000 microbiome samples publicly available.</p>
+        </section>
+
+        <section id="sec-5-5">
+          <h3>5.5 The Hippocrates 2.0 question</h3>
+          <p>Treating disease via microbiome modulation:</p>
+          <ul>
+            <li>Direct: FMT, probiotics, prebiotics.</li>
+            <li>Indirect: dietary intervention, drug repurposing.</li>
+            <li>Engineered: synthetic microbes (live biotherapeutics) currently in Phase II–III for <em>C. difficile</em>, IBD, allergy.</li>
+          </ul>
+          <p>The 2030s answer to "what does the microbiome do" is "it's a manipulable disease-modifying organ".</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 25 min</span>
+          Tools, Pitfalls, and Practice
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 The standard 2024 stack</h3>
+          <p>For 16S workflows:</p>
+          <ul>
+            <li><strong>QIIME2</strong> (full pipeline) or <strong>DADA2 in R</strong>.</li>
+            <li>Diversity + ordinations via QIIME2 or <code>phyloseq</code> (R) or <code>scikit-bio</code> (Python).</li>
+            <li>Differential abundance: ANCOM-BC, MaAsLin2, songbird.</li>
+          </ul>
+          <p>For shotgun:</p>
+          <ul>
+            <li><strong>bioBakery 4</strong> stack: KneadData (host removal) → MetaPhlAn4 → HUMAnN3.</li>
+            <li>Or <strong>Sunbeam</strong> / <strong>nf-core/mag</strong> for Nextflow-based reproducible workflows.</li>
+            <li>MAG recovery: nf-core/mag, Atlas, ATLAS.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-23/06-workflow.svg"
+                 alt="Horizontal-banded flowchart showing full microbiome analysis from sample to publication. Bands: 1. Sample collection, storage, extraction. 2. Sequencing (16S Illumina or shotgun). 3. DADA2 / shotgun pipeline. 4. Diversity + ordination. 5. Differential abundance (ANCOM-BC). 6. Functional profiling (HUMAnN). 7. Visualisation + interpretation. Each band annotated with reproducibility-critical steps: DB version pinning, primer specification, FDR control, compositional adjustment.">
+            <figcaption>Figure 6. Microbiome analysis workflow. Each band has reproducibility hazards; explicit version pinning and method choice should be in every paper's methods section.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 Pitfalls</h3>
+          <p><strong>Sample collection</strong>:</p>
+          <ul>
+            <li>Storage temperature matters: -80°C ideal; lyophilisation acceptable.</li>
+            <li>Stabilising buffers (RNAlater, OMNIgene) for ambient shipping.</li>
+            <li>Cross-contamination from sample handling.</li>
+          </ul>
+          <p><strong>Sequencing</strong>:</p>
+          <ul>
+            <li>Low-biomass samples (skin, low-density gut) → high host-DNA contamination.</li>
+            <li>PCR amplification bias for 16S — primers preferentially amplify some taxa.</li>
+            <li>Sequencing depth: 16S requires 10k reads/sample; shotgun ideally 5 Gb/sample.</li>
+          </ul>
+          <p><strong>Bioinformatics</strong>:</p>
+          <ul>
+            <li>ASV vs OTU debate: ASVs are objectively better; legacy data uses OTUs.</li>
+            <li>Reference DB updates change taxonomic assignments — pin DB versions.</li>
+            <li>Compositional bias as discussed.</li>
+          </ul>
+          <p><strong>Statistical</strong>:</p>
+          <ul>
+            <li>Sample-size requirements: for typical effect sizes, 30+ per group.</li>
+            <li>Multiple-testing across thousands of taxa requires FDR control.</li>
+            <li>Subject-level confounders (age, diet, antibiotics) often dominate the signal.</li>
+          </ul>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 Reproducibility</h3>
+          <p>Microbiome reproducibility is famously poor (~30% of associations replicate across cohorts). Drivers:</p>
+          <ul>
+            <li>Cohort effects (geography, diet, ethnicity).</li>
+            <li>Technical variation (DNA extraction, primer choice, sequencer).</li>
+            <li>Statistical methodology (compositional vs non-compositional).</li>
+          </ul>
+          <p>The <strong>Strain Resolved Microbiome Wiki</strong> and standardised pipeline efforts (cwl-microbiome) aim to improve reproducibility. Until 2030, expect signature replication around 50%.</p>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 The 2024 frontier</h3>
+          <ul>
+            <li><strong>Strain-level resolution</strong>: PacBio HiFi for full-length 16S; long-read shotgun.</li>
+            <li><strong>Multi-omics integration</strong>: 16S + metagenomics + metabolomics + host transcriptomics.</li>
+            <li><strong>Engineered microbiome</strong>: live biotherapeutic products entering clinical trials.</li>
+            <li><strong>Foundation models for microbiome</strong>: protein-language-model-style embeddings for microbial proteins (ESM-2 has microbial sub-sets).</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 15 min</span>
+          Frontier Topics
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 Antibiotic resistance gene tracking</h3>
+          <p>Shotgun metagenomics can map antibiotic resistance genes (ARGs) in clinical samples and environmental reservoirs. Tools: <strong>CARD-RGI</strong>, <strong>AMRFinderPlus</strong>. Critical for tracking resistance spread between species (horizontal gene transfer in real time).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-23/12-arg-tracking.svg"
+                 alt="A timeline of ARG abundance in a hospital sewage metagenome over 2 years. Y-axis: log abundance of ARG class. X-axis: time in months. Five ARG classes plotted as line traces: tetracycline (red), beta-lactam (cobalt), fluoroquinolone (amber), vancomycin (green), carbapenem (violet). A vertical line at month 8 marks an institutional antibiotic policy change; visible inflection in fluoroquinolone and carbapenem traces. Side annotation: 'shotgun metagenomics tracks horizontal gene transfer in real time across hospital ecosystems.'">
+            <figcaption>Figure 12. Antibiotic resistance gene tracking. Hospital sewage metagenomics monitors ARG dynamics in real time; policy changes leave detectable signatures.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Phylogenetic placement</h3>
+          <p>For low-resolution amplicon data, <strong>phylogenetic placement</strong> (EPA-ng, pplacer) inserts queries into a reference tree without rebuilding it — useful for stable taxonomic comparison across studies.</p>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 Strain-level dynamics</h3>
+          <p>Within-species strain variation matters: different <em>E. coli</em> strains range from commensal to pathogen. <strong>StrainPhlAn</strong>, <strong>MIDAS</strong>, <strong>inStrain</strong> infer strain composition from shotgun data.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-23/11-strain-resolution.svg"
+                 alt="Two-column comparison. Left: short-read 16S V3-V4. The same sample is assembled to ~genus level; multiple closely-related species merge together due to incomplete sequence info — shown as 3 ASVs collapsing into 1 genus call. Right: long-read 16S (PacBio HiFi, full 1500 bp). Same sample, but species-level resolution — the 3 ASVs resolve to 3 distinct species. Annotation: 'long reads resolve closely-related species that V3-V4 fragments cannot.'">
+            <figcaption>Figure 11. Short vs long-read 16S resolution. Genus-level becomes species- and strain-level when the full 1500 bp gene is sequenced.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-7-4">
+          <h3>7.4 Microbiome-host genetic interaction</h3>
+          <p>GWAS for microbiome composition: <strong>microbiome-GWAS (mGWAS)</strong> identifies host genetic variants associated with microbial abundance. Examples: lactose-tolerance variants → <em>Bifidobacterium</em>; ABO blood group → <em>Bacteroides</em> abundance.</p>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ──────────────────────────────────────── -->
+      <section id="wrapup">
+        <h2>Wrap-up</h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Two main assays</strong>: 16S (cheap, genus-level, bacteria-only); shotgun (expensive, species-strain-level, multi-kingdom).</li>
+          <li><strong>DADA2 + QIIME2</strong> is the 16S standard; <strong>bioBakery + Kraken2/MetaPhlAn/HUMAnN</strong> is the shotgun standard.</li>
+          <li><strong>Diversity metrics</strong> generalise from population genetics: Shannon entropy = information-theoretic richness; UniFrac = phylogenetic distance; Bray-Curtis = compositional dissimilarity.</li>
+          <li><strong>Compositional bias is critical</strong>: relative abundances are constrained; modern differential-abundance tools (ANCOM-BC) account for this.</li>
+          <li><strong>Host-microbiome connections</strong> are real but small; replication rates ~50%; gut-immunotherapy-response is the most clinically validated.</li>
+          <li><strong>EE framings</strong>: metagenomics as community signal demixing; taxonomic classification as approximate-nearest-neighbour search; diversity as information-theoretic divergence.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>GWAS + Mendelian randomisation. The microbiome population framework here connects to the host-genetics population framework there.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Download a 16S amplicon dataset from MGnify or the SRA (any IBD or healthy-control cohort). Run DADA2; report ASV count, taxonomic assignments, alpha-diversity Shannon. ~3h compute.</li>
+          <li>From the same dataset, compute beta-diversity Bray-Curtis matrix. PCoA visualisation. Interpret the first two principal coordinates.</li>
+          <li>Run ANCOM-BC for differential-abundance testing case vs control. Report taxa significant at FDR &lt; 0.05.</li>
+          <li>From a public shotgun dataset (e.g., HMP), run Kraken2 and Bracken; compare species call vs the published MetaPhlAn results. Where do they disagree?</li>
+          <li>For one MAG of interest, run CheckM. Report completeness + contamination. Annotate with GTDB-Tk; identify the closest reference.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Callahan, B. J., McMurdie, P. J., Rosen, M. J., et al. (2016). DADA2: high-resolution sample inference from Illumina amplicon data. <em>Nature Methods</em> 13, 581–583.</li>
+          <li>Wood, D. E., Lu, J., &amp; Langmead, B. (2019). Improved metagenomic analysis with Kraken 2. <em>Genome Biology</em> 20, 257.</li>
+          <li>Beghini, F., McIver, L. J., Blanco-Míguez, A., et al. (2021). Integrating taxonomic, functional, and strain-level profiling of diverse microbial communities with bioBakery 3. <em>eLife</em> 10, e65088.</li>
+          <li>Nayfach, S., Roux, S., Seshadri, R., et al. (2021). A genomic catalog of Earth's microbiomes. <em>Nature Biotechnology</em> 39, 499–509.</li>
+          <li>Routy, B., Le Chatelier, E., Derosa, L., et al. (2018). Gut microbiome influences efficacy of PD-1-based immunotherapy against epithelial tumors. <em>Science</em> 359, 91–97.</li>
+          <li>Lin, H., &amp; Peddada, S. D. (2020). Analysis of compositions of microbiomes with bias correction. <em>Nature Communications</em> 11, 3514.</li>
+          <li>Spanogiannopoulos, P., et al. (2016). The microbial pharmacists within us. <em>Nature Reviews Microbiology</em> 14, 273–287.</li>
+          <li>QIIME2: <a href="https://qiime2.org/" target="_blank" rel="noopener">qiime2.org</a></li>
+          <li>bioBakery: <a href="https://huttenhower.sph.harvard.edu/biobakery" target="_blank" rel="noopener">huttenhower.sph.harvard.edu/biobakery</a></li>
+          <li>MGnify: <a href="https://www.ebi.ac.uk/metagenomics/" target="_blank" rel="noopener">ebi.ac.uk/metagenomics</a></li>
+          <li>HMP / iHMP: <a href="https://www.ihmpdcc.org/" target="_blank" rel="noopener">ihmpdcc.org</a></li>
+          <li>GTDB: <a href="https://gtdb.ecogenomic.org/" target="_blank" rel="noopener">gtdb.ecogenomic.org</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — Why Microbes</td>                                  <td>25&nbsp;min</td><td>0:25</td></tr>
+            <tr><td>Part 2 — 16S Amplicon Workflow</td>                         <td>40&nbsp;min</td><td>1:05</td></tr>
+            <tr><td>Part 3 — Shotgun Metagenomics</td>                           <td>40&nbsp;min</td><td>1:45</td></tr>
+            <tr><td>Part 4 — Diversity Metrics</td>                              <td>25&nbsp;min</td><td>2:10</td></tr>
+            <tr><td>Part 5 — Host-Microbiome Connections</td>                    <td>30&nbsp;min</td><td>2:40</td></tr>
+            <tr><td>Part 6 — Tools, Pitfalls, and Practice</td>                  <td>25&nbsp;min</td><td>3:05</td></tr>
+            <tr><td>Part 7 — Frontier Topics</td>                                <td>15&nbsp;min</td><td>3:20</td></tr>
+            <tr><td>Wrap-up</td>                                                  <td>10&nbsp;min</td><td>3:30</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 30min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) f.style.height = d.height + 'px';
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

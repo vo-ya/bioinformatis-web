@@ -19,21 +19,12 @@ Open <http://localhost:8000/>. Alternatives: `npx serve .` if you have Node, or 
 .
 ├── index.html                            # Landing page
 ├── lectures/
-│   ├── lecture-01.html                   # Long-form lecture pages
-│   ├── lecture-02.html
-│   ├── lecture-03.html
-│   └── lecture-04.html
+│   ├── lecture-01.html ... lecture-24.html   # Long-form lecture pages (24 shipped)
 ├── artifacts/
 │   ├── _shared/                          # Shared design tokens + postMessage resizer
-│   ├── lecture-01/                       # 6 interactive HTML artifacts per lecture
-│   ├── lecture-02/
-│   ├── lecture-03/
-│   └── lecture-04/
+│   ├── lecture-01/ ... lecture-24/       # 6–8 interactive HTML artifacts per lecture
 ├── diagrams/
-│   ├── lecture-01/                       # Static SVG figures (10–12 per lecture)
-│   ├── lecture-02/
-│   ├── lecture-03/
-│   └── lecture-04/
+│   ├── lecture-01/ ... lecture-24/       # Static SVG figures (10–13 per lecture)
 ├── assets/
 │   ├── styles.css                        # Site-wide tokens + homepage
 │   ├── lecture.css                       # Lecture-page layout, callouts, figures
@@ -41,17 +32,11 @@ Open <http://localhost:8000/>. Alternatives: `npx serve .` if you have Node, or 
 ├── scripts/
 │   └── phase-a-check.py                  # Automated Phase A exit-check runner
 ├── markdown_resources/                   # Specs + source-of-truth content
-│   ├── website-spec.md  homepage-spec.md  logo-spec.md        # Course-wide specs
+│   ├── website-spec.md  homepage-spec.md  logo-spec.md         # Course-wide specs
 │   ├── lecture-style-guide.md  diagram-style-guide.md
-│   ├── generate_new_lesson_flow.md                            # Phase A/B/C recipe
-│   ├── lesson1_md_files/                                      # Lecture 1 sources
-│   │   ├── artifacts-spec.md  figures-spec.md  lecture-01.md
-│   ├── lesson2_md_files/                                      # Lecture 2 sources
-│   │   ├── artifacts-spec.md  figures-spec.md  lecture-02.md
-│   ├── lesson3_md_files/                                      # Lecture 3 sources
-│   │   ├── artifacts-spec.md  figures-spec.md  lecture-03.md
-│   └── lesson4_md_files/                                      # Lecture 4 sources
-│       ├── artifacts-spec.md  figures-spec.md  lecture-04.md
+│   ├── generate_new_lesson_flow.md                              # Phase A/B/C recipe
+│   └── lessonN_md_files/                                        # Per-lecture sources (lesson1 ... lesson27)
+│       ├── artifacts-spec.md  figures-spec.md  lecture-NN.md
 └── proof_html_resources/                 # Standalone-viewable design references
     ├── fastq-anatomy-proof.html
     └── logo-proof-v2.html
@@ -66,16 +51,13 @@ These are the sources of truth when adding content. Read the relevant one before
 | File | Use for |
 |---|---|
 | `markdown_resources/website-spec.md` | Site architecture, folder layout, design tokens, embedding contracts |
-| `markdown_resources/homepage-spec.md` | Landing page layout and 16-card lecture list |
+| `markdown_resources/homepage-spec.md` | Landing page layout and lecture-card list |
 | `markdown_resources/logo-spec.md` | Course mark and wordmark |
-| `markdown_resources/lecture-style-guide.md` | Voice, structure, callout types, and formatting for lecture prose |
+| `markdown_resources/lecture-style-guide.md` | Voice, structure, callout types, formatting for lecture prose |
 | `markdown_resources/diagram-style-guide.md` | House style for SVG diagrams (colour, stroke, typography, arrows) |
 | `markdown_resources/generate_new_lesson_flow.md` | End-to-end recipe for generating a new lecture (phases, steps, validations) |
-| `scripts/phase-a-check.py` | Automated runner for the 8-item Phase A exit check — run before every Phase B |
-| `markdown_resources/lesson1_md_files/` | Lecture 1 — behaviour specs and source content |
-| `markdown_resources/lesson2_md_files/` | Lecture 2 — behaviour specs and source content |
-| `markdown_resources/lesson3_md_files/` | Lecture 3 — behaviour specs and source content |
-| `markdown_resources/lesson4_md_files/` | Lecture 4 — behaviour specs and source content |
+| `scripts/phase-a-check.py` | Automated runner for the Phase A exit check — run before every Phase B |
+| `markdown_resources/lessonN_md_files/` | Per-lecture sources (lesson1 through lesson27) |
 | `proof_html_resources/fastq-anatomy-proof.html` | Canonical SVG reference — copy arrow markers and typography patterns from here |
 | `proof_html_resources/logo-proof-v2.html` | Logo visual reference; course mark is locked to Variant A3 |
 
@@ -89,21 +71,46 @@ These are the sources of truth when adding content. Read the relevant one before
 
 ## Current status
 
-- **Lecture 1 — Foundations: From Cells to Sequences to FASTQ.** 3h 35min · 12 figures · 6 interactive tools. Shipped.
-- **Lecture 2 — Read Alignment: From Brute Force to FM Index and Back.** 3h 50min · 10 figures · 6 interactive tools. Shipped.
-- **Lecture 3 — DNA Sequence Assembly: From Reads to Reconstructed Genomes.** 3h 25min · 11 figures · 6 interactive tools. Shipped.
-- **Lecture 4 — Variant Calling: From Aligned Reads to Called Differences.** 3h 30min · 11 figures · 6 interactive tools. Shipped.
-- **Lectures 5–16** — placeholders on the homepage; not yet started.
+**Shipped: 24 of 27 planned lectures · 165 interactive tools · 283 figures · ~86 contact hours.**
 
-Lectures shipped so far: **4 of 16.** Interactive tools: **24.** Figures: **44.**
+| # | Lecture | Time | Figures | Tools |
+|---|---|---|---|---|
+| 01 | Foundations: From Cells to Sequences to FASTQ | 3h 35m | 12 | 6 |
+| 02 | Read Alignment: From Brute Force to FM Index and Back | 3h 50m | 10 | 6 |
+| 03 | DNA Sequence Assembly: From Reads to Reconstructed Genomes | 3h 25m | 11 | 6 |
+| 04 | Variant Calling: From Aligned Reads to Called Differences | 3h 30m | 11 | 6 |
+| 05 | Bulk RNA-seq: Quantification + Differential Expression | 3h 30m | 12 | 7 |
+| 06 | Single-cell RNA-seq Fundamentals | 3h 30m | 12 | 7 |
+| 07 | Single-cell Trajectories and Cell Communication | 3h 25m | 12 | 7 |
+| 08 | ChIP-seq, ATAC-seq, and the Regulatory Genome | 3h 30m | 13 | 7 |
+| 09 | Long Reads, Pangenomes, and Telomere-to-Telomere Assembly | 3h 35m | 12 | 7 |
+| 10 | DNA Methylation and the Epigenome | 3h 25m | 12 | 7 |
+| 11 | Spatial Transcriptomics and Spatial Omics | 3h 30m | 12 | 7 |
+| 12 | Population Genetics: Drift, Selection, Admixture | 3h 25m | 12 | 7 |
+| 13 | GWAS and Polygenic Risk Scores | 3h 35m | 12 | 7 |
+| 14 | Data Engineering for Bioinformatics | 3h 25m | 12 | 7 |
+| 15 | Deep Learning Foundations for Genomics | 3h 30m | 12 | 7 |
+| 16 | Genomic Foundation Models and AI Pipelines | 3h 30m | 12 | 7 |
+| 17 | Clinical Genomics: Variant Interpretation in Practice | 3h 30m | 12 | 7 |
+| 18 | Cancer Genomics: Mutational Signatures and Tumour Evolution | 3h 30m | 12 | 7 |
+| 19 | BLAST and Sequence Search Statistics | 3h 30m | 12 | 7 |
+| 20 | Multiple Sequence Alignment, Phylogenetics, Comparative Genomics | 3h 55m | 13 | 8 |
+| 21 | HMMs, Profile HMMs, and Gene Finding | 3h 45m | 12 | 7 |
+| 22 | Network Biology and Pathway Analysis | 3h 15m | 12 | 7 |
+| 23 | Metagenomics and the Microbiome | 3h 30m | 12 | 7 |
+| 24 | CRISPR Functional Screens and DepMap | 3h 20m | 12 | 7 |
+
+**In the spec'd queue (Phase A complete, Phase B pending):** L25 Causal Inference and Mendelian Randomisation · L26 Proteomics and Protein Structure · L27 Imaging-omics and Pathology AI.
 
 ## Adding a new lecture
 
-The full recipe is in `markdown_resources/generate_new_lesson_flow.md` (v1.2). Short version:
+The full recipe is in `markdown_resources/generate_new_lesson_flow.md`. Short version:
 
-1. **Phase A — specs.** Author or generate `lecture-NN.md`, `figures-spec.md`, `artifacts-spec.md` under `markdown_resources/lessonN_md_files/`. Run `python3 scripts/phase-a-check.py markdown_resources/lessonN_md_files/` — it must exit 0 before Phase B starts.
+1. **Phase A — specs.** Author `lecture-NN.md`, `figures-spec.md`, `artifacts-spec.md` under `markdown_resources/lessonN_md_files/`. Run `python3 scripts/phase-a-check.py markdown_resources/lessonN_md_files/` — it must exit 0 before Phase B starts.
 2. **Phase B — build.** B2 lecture HTML · B3 SVG figures · B4 interactive artifacts (parallelise with background agents for 5+ artifacts) · B5 homepage card + stats strip. One commit per step.
-3. **Phase C — quality.** C6 smoke test (local server, asset-link walk, JS `node --check`, SVG XML parse) · C7 review pass (within-part redundancy scan, "every section earns its seat", callouts, responsive, equations) · C8 push.
+3. **Phase C — quality.** C6 smoke test (local server, asset-link walk, JS `node --check`, SVG XML parse) · C7 review pass (within-part redundancy, "every section earns its seat", callouts, responsive, equations) · C8 push.
+
+The `audit-lecture` skill (`.claude/skills/audit-lecture`) automates the structural checks: SVG XML validity, JS syntax, exactly-one resize.js per artifact, theme CSS reference, disclaimer + outcome banner per artifact, figure references resolving, lecture meta vs disk count parity.
 
 ## License
 

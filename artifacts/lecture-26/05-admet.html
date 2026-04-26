@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADMET Profile Predictor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  .field select { font-family: var(--font-mono); font-size: 0.85rem; padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; }
+  .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .endpoint { display: grid; grid-template-columns: 130px 1fr 80px 56px; gap: 0.6rem; align-items: center; padding: 0.35rem 0; font-size: 0.82rem; border-bottom: 1px solid var(--border); }
+  .endpoint .lab { font-family: var(--font-mono); }
+  .endpoint .track { height: 12px; background: #f1f5f9; border-radius: 2px; position: relative; }
+  .endpoint .fill { height: 100%; border-radius: 2px; }
+  .endpoint .num { font-family: var(--font-mono); text-align: right; font-weight: 600; }
+  .endpoint .flag { font-size: 0.7rem; font-weight: 700; text-align: right; padding: 2px 4px; border-radius: 3px; }
+  .flag.ok { color: #065f46; background: #d1fae5; }
+  .flag.warn { color: #92400e; background: #fef3c7; }
+  .flag.bad { color: #991b1b; background: #fee2e2; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>ADMET Profile Predictor</h1>
+    <p>Tweak physicochemical properties of a candidate molecule and see how 8 ADMET endpoints (absorption, distribution, metabolism, hERG, AMES, CYP3A4, BBB, hepatotox) shift. <strong>Aha</strong>: most ADMET endpoints are <em>correlated</em> — fixing one (e.g. lowering logP for solubility) often breaks another (permeability).</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="preset">Preset</label>
+      <select id="preset">
+        <option value="custom">— custom —</option>
+        <option value="350,3.0,3,5,75,4">drug-like</option>
+        <option value="450,5.5,2,4,60,6">lipophilic</option>
+        <option value="280,1.0,2,4,90,3">polar / soluble</option>
+        <option value="520,4.5,3,7,140,9">large + flexible</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="mw">MW: <span class="v" id="mwV">350</span> Da</label>
+      <input type="range" id="mw" min="150" max="650" step="10" value="350">
+    </div>
+    <div class="field">
+      <label for="logp">logP: <span class="v" id="logpV">3.0</span></label>
+      <input type="range" id="logp" min="-2" max="8" step="0.1" value="3.0">
+    </div>
+    <div class="field">
+      <label for="hbd">HBD: <span class="v" id="hbdV">3</span></label>
+      <input type="range" id="hbd" min="0" max="8" value="3">
+    </div>
+    <div class="field">
+      <label for="hba">HBA: <span class="v" id="hbaV">5</span></label>
+      <input type="range" id="hba" min="0" max="12" value="5">
+    </div>
+    <div class="field">
+      <label for="tpsa">TPSA: <span class="v" id="tpsaV">75</span> Å²</label>
+      <input type="range" id="tpsa" min="20" max="200" step="2" value="75">
+    </div>
+    <div class="field">
+      <label for="rotb">Rotatable bonds: <span class="v" id="rotbV">4</span></label>
+      <input type="range" id="rotb" min="0" max="15" value="4">
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <h3>ADMET radar</h3>
+      <svg id="radar" viewBox="0 0 480 400" width="100%" height="400"></svg>
+    </div>
+    <div class="panel">
+      <h3>Endpoint scores (probability of pass)</h3>
+      <div id="endpoints"></div>
+    </div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational predictor. Uses synthetic logistic functions over physicochemical inputs to mimic the <em>direction</em> of effect for each endpoint — actual predictors (ADMETlab, SwissADME, pkCSM) train models on tens of thousands of measurements and produce more accurate but still imperfect predictions. Not a substitute for in vitro / in vivo experiments. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const sliders = ['mw', 'logp', 'hbd', 'hba', 'tpsa', 'rotb'];
+  function sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
+
+  const endpoints = [
+    { name: 'Caco-2 (perm)',  axis: 'A', f: v => sigmoid(2.0 - 0.6 * Math.abs(v.logp - 2.5) - 0.02 * (v.tpsa - 60)) },
+    { name: 'HIA',            axis: 'A', f: v => sigmoid(3.5 - 0.025 * (v.tpsa - 80) - 0.005 * (v.mw - 400)) },
+    { name: 'BBB',            axis: 'D', f: v => sigmoid(2.5 + 0.6 * (v.logp - 2) - 0.04 * (v.tpsa - 60) - 0.4 * v.hbd) },
+    { name: 'CYP3A4 inhib',   axis: 'M', f: v => sigmoid(0.3 + 0.5 * (v.logp - 3) + 0.005 * (v.mw - 350)) },
+    { name: 'hERG inhib',     axis: 'T', f: v => sigmoid(-0.8 + 0.55 * (v.logp - 3) + 0.004 * (v.mw - 400) + 0.03 * v.rotb) },
+    { name: 'AMES mut',       axis: 'T', f: v => sigmoid(-2.0 + 0.4 * (v.logp - 4) + 0.5 * (v.hba - 6)) },
+    { name: 'Hepatotox (DILI)', axis: 'T', f: v => sigmoid(-1.5 + 0.45 * (v.logp - 3) + 0.005 * (v.mw - 400)) },
+    { name: 'Half-life ≥ 6h', axis: 'E', f: v => sigmoid(0.2 + 0.3 * (v.logp - 2) - 0.02 * (v.tpsa - 80) - 0.05 * v.rotb) },
+  ];
+  // For some, "high" means BAD (toxicity, CYP inhib, AMES, DILI, hERG): pass = 1 - prob
+  const flipBad = new Set(['CYP3A4 inhib', 'hERG inhib', 'AMES mut', 'Hepatotox (DILI)']);
+
+  function readVals() {
+    return {
+      mw: parseFloat($('mw').value),
+      logp: parseFloat($('logp').value),
+      hbd: parseFloat($('hbd').value),
+      hba: parseFloat($('hba').value),
+      tpsa: parseFloat($('tpsa').value),
+      rotb: parseFloat($('rotb').value),
+    };
+  }
+
+  function update() {
+    const v = readVals();
+    $('mwV').textContent = v.mw.toFixed(0);
+    $('logpV').textContent = v.logp.toFixed(1);
+    $('hbdV').textContent = v.hbd.toFixed(0);
+    $('hbaV').textContent = v.hba.toFixed(0);
+    $('tpsaV').textContent = v.tpsa.toFixed(0);
+    $('rotbV').textContent = v.rotb.toFixed(0);
+
+    const scores = endpoints.map(e => {
+      let p = e.f(v);
+      const passProb = flipBad.has(e.name) ? 1 - p : p;
+      return { name: e.name, axis: e.axis, p: passProb, isLiability: flipBad.has(e.name), rawProb: p };
+    });
+
+    // endpoints panel
+    const box = $('endpoints');
+    box.innerHTML = '';
+    let nFail = 0;
+    for (const s of scores) {
+      const div = document.createElement('div');
+      div.className = 'endpoint';
+      const flag = s.p >= 0.7 ? 'ok' : s.p >= 0.4 ? 'warn' : 'bad';
+      const flagText = s.p >= 0.7 ? 'PASS' : s.p >= 0.4 ? 'BORDERLINE' : 'FAIL';
+      const color = s.p >= 0.7 ? '#065f46' : s.p >= 0.4 ? '#b45309' : '#dc2626';
+      if (s.p < 0.4) nFail++;
+      div.innerHTML = `<div class="lab">${s.name}</div><div class="track"><div class="fill" style="width:${(s.p * 100).toFixed(0)}%;background:${color}"></div></div><div class="num">${(s.p * 100).toFixed(0)}%</div><div class="flag ${flag}">${flagText}</div>`;
+      box.appendChild(div);
+    }
+
+    drawRadar(scores);
+
+    let msg;
+    if (nFail === 0) msg = 'All endpoints in green — clean profile, progress to lead optimization.';
+    else if (nFail === 1) msg = `<strong>1 endpoint failing</strong> — single liability; prioritize fixing it.`;
+    else if (nFail <= 3) msg = `<strong>${nFail} endpoints failing</strong> — likely re-design candidate.`;
+    else msg = `<strong>${nFail} endpoints failing</strong> — kill or major redesign.`;
+    $('banner').innerHTML = msg + ' Note: most ADMET endpoints are correlated — fixing one often shifts others.';
+  }
+
+  function drawRadar(scores) {
+    const svg = $('radar');
+    svg.innerHTML = '';
+    const ns = 'http://www.w3.org/2000/svg';
+    const cx = 240, cy = 200, R = 130;
+    const N = scores.length;
+    // grid rings
+    for (const f of [0.25, 0.5, 0.75, 1.0]) {
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', R * f);
+      c.setAttribute('fill', 'none'); c.setAttribute('stroke', '#e5e7eb');
+      c.setAttribute('stroke-dasharray', '2 2');
+      svg.appendChild(c);
+    }
+    // axes
+    for (let i = 0; i < N; i++) {
+      const a = -Math.PI / 2 + (2 * Math.PI * i) / N;
+      const x = cx + R * Math.cos(a), y = cy + R * Math.sin(a);
+      const l = document.createElementNS(ns, 'line');
+      l.setAttribute('x1', cx); l.setAttribute('y1', cy); l.setAttribute('x2', x); l.setAttribute('y2', y);
+      l.setAttribute('stroke', '#9ca3af'); l.setAttribute('stroke-width', 0.5);
+      svg.appendChild(l);
+      const t = document.createElementNS(ns, 'text');
+      const lx = cx + (R + 22) * Math.cos(a), ly = cy + (R + 22) * Math.sin(a);
+      t.setAttribute('x', lx); t.setAttribute('y', ly); t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-size', 9); t.setAttribute('fill', '#374151');
+      t.textContent = scores[i].name;
+      svg.appendChild(t);
+    }
+    // good zone polygon
+    let goodPts = '';
+    for (let i = 0; i < N; i++) {
+      const a = -Math.PI / 2 + (2 * Math.PI * i) / N;
+      const r = R * 0.7;
+      goodPts += `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)} `;
+    }
+    const good = document.createElementNS(ns, 'polygon');
+    good.setAttribute('points', goodPts.trim());
+    good.setAttribute('fill', '#d1fae5');
+    good.setAttribute('fill-opacity', 0.4);
+    good.setAttribute('stroke', '#065f46');
+    good.setAttribute('stroke-dasharray', '3 3');
+    svg.appendChild(good);
+
+    // data polygon
+    let pts = '';
+    for (let i = 0; i < N; i++) {
+      const a = -Math.PI / 2 + (2 * Math.PI * i) / N;
+      const r = R * scores[i].p;
+      pts += `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)} `;
+    }
+    const poly = document.createElementNS(ns, 'polygon');
+    poly.setAttribute('points', pts.trim());
+    poly.setAttribute('fill', '#1e3a8a');
+    poly.setAttribute('fill-opacity', 0.3);
+    poly.setAttribute('stroke', '#1e3a8a');
+    poly.setAttribute('stroke-width', 2);
+    svg.appendChild(poly);
+
+    // dots
+    for (let i = 0; i < N; i++) {
+      const a = -Math.PI / 2 + (2 * Math.PI * i) / N;
+      const r = R * scores[i].p;
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', cx + r * Math.cos(a));
+      c.setAttribute('cy', cy + r * Math.sin(a));
+      c.setAttribute('r', 4);
+      c.setAttribute('fill', scores[i].p >= 0.7 ? '#065f46' : scores[i].p >= 0.4 ? '#b45309' : '#dc2626');
+      svg.appendChild(c);
+    }
+  }
+
+  sliders.forEach(id => $(id).addEventListener('input', () => { $('preset').value = 'custom'; update(); }));
+  $('preset').addEventListener('change', () => {
+    if ($('preset').value === 'custom') return;
+    const [mw, logp, hbd, hba, tpsa, rotb] = $('preset').value.split(',').map(Number);
+    $('mw').value = mw; $('logp').value = logp; $('hbd').value = hbd; $('hba').value = hba; $('tpsa').value = tpsa; $('rotb').value = rotb;
+    update();
+  });
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

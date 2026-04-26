@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lipinski + QED Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  .field select { font-family: var(--font-mono); font-size: 0.85rem; padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; }
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.7rem; }
+  .stat.viol { background: #fee2e2; border-color: #dc2626; }
+  .stat.ok { background: #d1fae5; border-color: #065f46; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.66rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .qedbar { display: grid; grid-template-columns: 110px 1fr 60px; gap: 0.6rem; align-items: center; margin-bottom: 0.4rem; font-size: 0.82rem; }
+  .qedbar .lab { font-family: var(--font-mono); }
+  .qedbar .track { height: 14px; background: #f1f5f9; border-radius: 2px; position: relative; overflow: hidden; }
+  .qedbar .fill { height: 100%; background: linear-gradient(90deg, #1e3a8a, #065f46); }
+  .qedbar .num { font-family: var(--font-mono); text-align: right; font-weight: 700; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Lipinski + QED Drug-likeness Calculator</h1>
+    <p>Adjust molecular properties (or pick a known drug), and watch Lipinski Ro5 violations and QED score update live. <strong>Aha</strong>: ~30% of approved drugs violate at least one Ro5 — these rules are guidance, not gates.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="preset">Preset</label>
+      <select id="preset">
+        <option value="custom">— custom —</option>
+        <option value="180,1.2,1,3,63.6,3">aspirin</option>
+        <option value="194,-0.1,0,3,58.4,0">caffeine</option>
+        <option value="206,3.5,1,2,37.3,4">ibuprofen</option>
+        <option value="493,3.5,2,7,86.3,7">imatinib</option>
+        <option value="559,5.0,2,5,112,12">atorvastatin</option>
+        <option value="1203,3.0,5,12,279,15">cyclosporin A</option>
+        <option value="914,6.0,3,13,195,6">rapamycin</option>
+        <option value="780,4.5,5,10,180,8">PROTAC-like</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="mw">MW: <span class="v" id="mwV">300</span> Da</label>
+      <input type="range" id="mw" min="100" max="1300" step="10" value="300">
+    </div>
+    <div class="field">
+      <label for="logp">logP: <span class="v" id="logpV">2.5</span></label>
+      <input type="range" id="logp" min="-4" max="10" step="0.1" value="2.5">
+    </div>
+    <div class="field">
+      <label for="hbd">H-bond donors: <span class="v" id="hbdV">2</span></label>
+      <input type="range" id="hbd" min="0" max="15" value="2">
+    </div>
+    <div class="field">
+      <label for="hba">H-bond acceptors: <span class="v" id="hbaV">5</span></label>
+      <input type="range" id="hba" min="0" max="20" value="5">
+    </div>
+    <div class="field">
+      <label for="tpsa">TPSA: <span class="v" id="tpsaV">80</span> Å²</label>
+      <input type="range" id="tpsa" min="0" max="300" step="2" value="80">
+    </div>
+    <div class="field">
+      <label for="rotb">Rotatable bonds: <span class="v" id="rotbV">5</span></label>
+      <input type="range" id="rotb" min="0" max="20" value="5">
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat" id="card-mw"><div class="v" id="cMW">—</div><div class="l">MW ≤ 500</div></div>
+    <div class="stat" id="card-logp"><div class="v" id="cLogP">—</div><div class="l">logP ≤ 5</div></div>
+    <div class="stat" id="card-hbd"><div class="v" id="cHBD">—</div><div class="l">HBD ≤ 5</div></div>
+    <div class="stat" id="card-hba"><div class="v" id="cHBA">—</div><div class="l">HBA ≤ 10</div></div>
+    <div class="stat" id="card-veber"><div class="v" id="cVeber">—</div><div class="l">Veber pass</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>QED desirability components (geometric mean)</h3>
+    <div id="qedBars"></div>
+    <div class="qedbar" style="margin-top:0.6rem;border-top:1px solid var(--border);padding-top:0.5rem;">
+      <div class="lab" style="font-weight:700">QED total</div>
+      <div class="track"><div class="fill" id="qedFill" style="width:0%;background:#dc2626"></div></div>
+      <div class="num" id="qedNum">—</div>
+    </div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational calculator. Uses Bickerton-style desirability functions over six features (MW, logP, HBA, HBD, TPSA, rotatable bonds); production QED also includes aromatic-ring and structural-alert terms. Numerical values approximate for illustration. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const fields = {
+    mw: { input: $('mw'), val: $('mwV'), card: $('cMW'), cardEl: $('card-mw'), max: 500 },
+    logp: { input: $('logp'), val: $('logpV'), card: $('cLogP'), cardEl: $('card-logp'), max: 5 },
+    hbd: { input: $('hbd'), val: $('hbdV'), card: $('cHBD'), cardEl: $('card-hbd'), max: 5 },
+    hba: { input: $('hba'), val: $('hbaV'), card: $('cHBA'), cardEl: $('card-hba'), max: 10 },
+    tpsa: { input: $('tpsa'), val: $('tpsaV') },
+    rotb: { input: $('rotb'), val: $('rotbV') },
+  };
+
+  function gauss(x, mu, sigma) {
+    return Math.exp(-((x - mu) ** 2) / (2 * sigma * sigma));
+  }
+  function plateau(x, lo, hi, sigma) {
+    if (x < lo) return Math.exp(-((lo - x) ** 2) / (2 * sigma * sigma));
+    if (x > hi) return Math.exp(-((x - hi) ** 2) / (2 * sigma * sigma));
+    return 1;
+  }
+
+  function qedComponents(v) {
+    return {
+      MW:   plateau(v.mw, 200, 450, 100),
+      logP: plateau(v.logp, 1, 4, 1.2),
+      HBA:  plateau(v.hba, 1, 8, 3),
+      HBD:  plateau(v.hbd, 0, 3, 1.5),
+      TPSA: plateau(v.tpsa, 40, 130, 50),
+      RotB: plateau(v.rotb, 0, 7, 3),
+    };
+  }
+
+  function readVals() {
+    const v = {};
+    for (const k in fields) v[k] = parseFloat(fields[k].input.value);
+    return v;
+  }
+
+  function update() {
+    const v = readVals();
+    fields.mw.val.textContent = v.mw.toFixed(0);
+    fields.logp.val.textContent = v.logp.toFixed(1);
+    fields.hbd.val.textContent = v.hbd.toFixed(0);
+    fields.hba.val.textContent = v.hba.toFixed(0);
+    fields.tpsa.val.textContent = v.tpsa.toFixed(0);
+    fields.rotb.val.textContent = v.rotb.toFixed(0);
+
+    const checks = [
+      { k: 'mw',   pass: v.mw <= 500,  txt: v.mw.toFixed(0) },
+      { k: 'logp', pass: v.logp <= 5,  txt: v.logp.toFixed(1) },
+      { k: 'hbd',  pass: v.hbd <= 5,   txt: v.hbd.toFixed(0) },
+      { k: 'hba',  pass: v.hba <= 10,  txt: v.hba.toFixed(0) },
+    ];
+    let viol = 0;
+    for (const c of checks) {
+      const f = fields[c.k];
+      f.card.textContent = c.txt;
+      f.cardEl.classList.toggle('ok', c.pass);
+      f.cardEl.classList.toggle('viol', !c.pass);
+      if (!c.pass) viol++;
+    }
+    const veberPass = v.rotb <= 10 && v.tpsa <= 140;
+    $('cVeber').textContent = veberPass ? 'PASS' : 'FAIL';
+    $('card-veber').classList.toggle('ok', veberPass);
+    $('card-veber').classList.toggle('viol', !veberPass);
+
+    const comps = qedComponents(v);
+    const bars = $('qedBars');
+    bars.innerHTML = '';
+    let prod = 1, n = 0;
+    for (const [name, val] of Object.entries(comps)) {
+      const div = document.createElement('div');
+      div.className = 'qedbar';
+      div.innerHTML = `<div class="lab">${name}</div><div class="track"><div class="fill" style="width:${(val * 100).toFixed(1)}%"></div></div><div class="num">${val.toFixed(2)}</div>`;
+      bars.appendChild(div);
+      prod *= val;
+      n++;
+    }
+    const qed = Math.pow(prod, 1 / n);
+    $('qedNum').textContent = qed.toFixed(3);
+    const fill = $('qedFill');
+    fill.style.width = (qed * 100).toFixed(1) + '%';
+    fill.style.background = qed >= 0.6 ? '#065f46' : qed >= 0.4 ? '#b45309' : '#dc2626';
+
+    let label;
+    if (qed >= 0.8) label = 'highly drug-like (top decile)';
+    else if (qed >= 0.6) label = 'drug-like — typical for approved oral drugs';
+    else if (qed >= 0.4) label = 'borderline — often viable for non-oral routes';
+    else label = 'unlikely to be a typical small-molecule oral drug';
+
+    let violMsg;
+    if (viol === 0) violMsg = '0 Lipinski violations';
+    else if (viol === 1) violMsg = '1 Lipinski violation (still acceptable)';
+    else violMsg = `<strong>${viol} Lipinski violations</strong> — Ro5 says oral bioavailability is unlikely`;
+
+    $('banner').innerHTML = `${violMsg}; QED = <strong>${qed.toFixed(3)}</strong> → ${label}. Veber: ${veberPass ? 'pass' : 'fail (rotors or TPSA out of range)'}.`;
+  }
+
+  for (const k in fields) {
+    if (fields[k].input) fields[k].input.addEventListener('input', () => { $('preset').value = 'custom'; update(); });
+  }
+  $('preset').addEventListener('change', () => {
+    if ($('preset').value === 'custom') return;
+    const [mw, logp, hbd, hba, tpsa, rotb] = $('preset').value.split(',').map(Number);
+    $('mw').value = mw;
+    $('logp').value = logp;
+    $('hbd').value = hbd;
+    $('hba').value = hba;
+    $('tpsa').value = tpsa;
+    $('rotb').value = rotb;
+    update();
+  });
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

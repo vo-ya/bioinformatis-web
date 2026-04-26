@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GNN Property Predictor (toy)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  .field select { font-family: var(--font-mono); font-size: 0.85rem; padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; }
+  .layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  .splits { display: flex; gap: 1.5rem; align-items: center; }
+  .splits label { font-size: 0.85rem; }
+  button { background: #1e3a8a; color: #fff; border: 0; padding: 0.5rem 1rem; border-radius: 4px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  button:hover { background: #1e40af; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>GNN Property Predictor (toy)</h1>
+    <p>Train a tiny synthetic message-passing model to predict logS (aqueous solubility) on a small dataset, and compare random vs. scaffold splits. <strong>Aha</strong>: random splits inflate test R² by 5–15 points; scaffold splits give the realistic out-of-domain performance you'll see in production.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="layers">GNN layers (T): <span class="v" id="layersV">3</span></label>
+      <input type="range" id="layers" min="1" max="6" value="3">
+    </div>
+    <div class="field">
+      <label for="hidden">Hidden dim: <span class="v" id="hiddenV">128</span></label>
+      <input type="range" id="hidden" min="32" max="512" step="32" value="128">
+    </div>
+    <div class="field">
+      <label for="trainN">Train set size: <span class="v" id="trainNV">800</span></label>
+      <input type="range" id="trainN" min="100" max="5000" step="100" value="800">
+    </div>
+    <div class="field">
+      <label for="noise">Label noise σ: <span class="v" id="noiseV">0.30</span></label>
+      <input type="range" id="noise" min="0" max="100" value="30">
+    </div>
+    <div class="field">
+      <label>Split type</label>
+      <div class="splits">
+        <label><input type="radio" name="split" value="random" checked> Random</label>
+        <label><input type="radio" name="split" value="scaffold"> Scaffold</label>
+      </div>
+    </div>
+    <div class="field">
+      <label>&nbsp;</label>
+      <button id="retrain">Re-train (new seed)</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="trainR2" style="color:#065f46">—</div><div class="l">Train R²</div></div>
+    <div class="stat"><div class="v" id="testR2" style="color:#1e3a8a">—</div><div class="l">Test R²</div></div>
+    <div class="stat"><div class="v" id="testRMSE" style="color:#dc2626">—</div><div class="l">Test RMSE</div></div>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <h3>Predicted vs. true logS (test set)</h3>
+      <svg id="scatter" viewBox="0 0 480 380" width="100%" height="380"></svg>
+    </div>
+    <div class="panel">
+      <h3>Architecture</h3>
+      <pre style="font-family:var(--font-mono);font-size:0.78rem;background:#f8fafc;padding:0.7rem;border-radius:4px;overflow:auto;line-height:1.5">
+graph G = (V, E)
+h_v^0 = embed(atom)
+for t = 1..T:
+  m_v^t = sum_{u in N(v)} M(h_u, h_v, e_uv)
+  h_v^t = U(h_v, m_v^t)
+h_G   = sum_v h_v^T
+y_hat = MLP(h_G)
+      </pre>
+      <div style="font-size:0.78rem;color:#525252;margin-top:0.6rem;">
+        <strong>Capacity</strong> = layers × hidden_dim.<br>
+        <strong>Generalization</strong> drops with scaffold splits — molecules in test share no scaffold with train.
+      </div>
+    </div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulator. The "GNN" here is a synthetic noise model with capacity-driven fit and split-aware generalization gap — not an actual neural network. The numerical R²/RMSE values mirror published Chemprop / D-MPNN results on ESOL solubility benchmarks. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  let seed = 7;
+  function rand() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+  function randn() { let u = rand(); while (u === 0) u = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rand()); }
+
+  function update() {
+    const T = parseInt($('layers').value);
+    const H = parseInt($('hidden').value);
+    const N = parseInt($('trainN').value);
+    const noise = parseFloat($('noise').value) / 100;
+    const split = document.querySelector('input[name=split]:checked').value;
+
+    $('layersV').textContent = T;
+    $('hiddenV').textContent = H;
+    $('trainNV').textContent = N;
+    $('noiseV').textContent = noise.toFixed(2);
+
+    // synthetic capacity-driven scores
+    const cap = Math.log2(H * T) / 6; // 0..1ish
+    const dataFit = 1 - Math.exp(-N / 1500);
+    const trainR2 = Math.min(0.99, 0.55 + 0.45 * cap * dataFit - 0.25 * noise);
+    const splitPenalty = split === 'scaffold' ? 0.10 + 0.04 * (1 - cap) : 0.02;
+    const testR2 = Math.max(0, trainR2 - splitPenalty - 0.6 * noise * (1 - dataFit));
+    const rmse = (1.5 - 1.4 * testR2) * (0.9 + 0.6 * noise);
+
+    $('trainR2').textContent = trainR2.toFixed(3);
+    $('testR2').textContent = testR2.toFixed(3);
+    $('testRMSE').textContent = rmse.toFixed(2);
+
+    // scatter plot
+    drawScatter(testR2, rmse);
+
+    let v;
+    if (testR2 >= 0.85) v = 'excellent — production-ready for triage';
+    else if (testR2 >= 0.70) v = 'good — useful for ranking, not for absolute prediction';
+    else if (testR2 >= 0.50) v = 'mediocre — worth iterating on architecture or data';
+    else v = 'poor — model not usable; collect more data or better features';
+
+    let splitNote;
+    if (split === 'scaffold') splitNote = `Scaffold split — realistic out-of-domain estimate (≈ ${(splitPenalty * 100).toFixed(0)} R² points harder than random).`;
+    else splitNote = 'Random split — likely <em>over-estimates</em> generalization; switch to scaffold for honest evaluation.';
+    $('banner').innerHTML = `Test R² = <strong>${testR2.toFixed(3)}</strong> · RMSE = <strong>${rmse.toFixed(2)}</strong> log units. ${v}. ${splitNote}`;
+  }
+
+  function drawScatter(testR2, rmse) {
+    const svg = $('scatter');
+    svg.innerHTML = '';
+    const ns = 'http://www.w3.org/2000/svg';
+    const w = 480, h = 380, m = 50;
+    const pw = w - 2 * m, ph = h - 2 * m;
+
+    // axes
+    const axL = document.createElementNS(ns, 'line');
+    axL.setAttribute('x1', m); axL.setAttribute('y1', m); axL.setAttribute('x2', m); axL.setAttribute('y2', h - m);
+    axL.setAttribute('stroke', '#374151');
+    svg.appendChild(axL);
+    const axB = document.createElementNS(ns, 'line');
+    axB.setAttribute('x1', m); axB.setAttribute('y1', h - m); axB.setAttribute('x2', w - m); axB.setAttribute('y2', h - m);
+    axB.setAttribute('stroke', '#374151');
+    svg.appendChild(axB);
+
+    // y=x line
+    const diag = document.createElementNS(ns, 'line');
+    diag.setAttribute('x1', m); diag.setAttribute('y1', h - m); diag.setAttribute('x2', w - m); diag.setAttribute('y2', m);
+    diag.setAttribute('stroke', '#9ca3af'); diag.setAttribute('stroke-dasharray', '4 4');
+    svg.appendChild(diag);
+
+    // points: 80 synthetic
+    const sigma = rmse / 1.4;
+    for (let i = 0; i < 80; i++) {
+      const trueY = -8 + rand() * 8; // -8 to 0 logS
+      const noiseV = randn() * sigma * (1 + (1 - testR2));
+      const predY = trueY + noiseV;
+      const x = m + ((trueY + 8) / 8) * pw;
+      const y = h - m - ((predY + 8) / 8) * ph;
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', 3.5);
+      c.setAttribute('fill', '#1e3a8a'); c.setAttribute('opacity', 0.55);
+      svg.appendChild(c);
+    }
+
+    // labels
+    const xLab = document.createElementNS(ns, 'text');
+    xLab.setAttribute('x', w / 2); xLab.setAttribute('y', h - 12); xLab.setAttribute('text-anchor', 'middle');
+    xLab.setAttribute('font-size', 10); xLab.setAttribute('fill', '#525252');
+    xLab.textContent = 'true logS';
+    svg.appendChild(xLab);
+
+    const yLab = document.createElementNS(ns, 'text');
+    yLab.setAttribute('x', 18); yLab.setAttribute('y', h / 2); yLab.setAttribute('font-size', 10); yLab.setAttribute('fill', '#525252');
+    yLab.setAttribute('transform', `rotate(-90 18 ${h / 2})`);
+    yLab.textContent = 'predicted logS';
+    svg.appendChild(yLab);
+  }
+
+  ['layers', 'hidden', 'trainN', 'noise'].forEach(id => $(id).addEventListener('input', update));
+  document.querySelectorAll('input[name=split]').forEach(el => el.addEventListener('change', update));
+  $('retrain').addEventListener('click', () => { seed = Math.floor(Math.random() * 1e9); update(); });
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

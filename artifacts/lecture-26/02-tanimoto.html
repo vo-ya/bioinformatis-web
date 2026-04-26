@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tanimoto Similarity Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1.1rem; }
+  .panel h3 { margin: 0 0 0.5rem; font-size: var(--text-sm); font-weight: 700; }
+  .panel select { width: 100%; font-family: var(--font-mono); font-size: 0.85rem; padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.5rem; }
+  .smi { font-family: var(--font-mono); font-size: 0.78rem; color: var(--fg-muted); margin-bottom: 0.4rem; word-break: break-all; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .bits { display: flex; flex-wrap: wrap; gap: 1px; padding: 0.4rem; background: var(--border); border-radius: 4px; margin-top: 0.4rem; }
+  .b { width: 11px; height: 11px; background: #fff; }
+  .b.A { background: #1e3a8a; }
+  .b.B { background: #7c3aed; }
+  .b.AB { background: #065f46; }
+  .legend { font-size: 0.78rem; color: var(--fg-muted); margin-top: 0.4rem; display: flex; gap: 1rem; }
+  .legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
+  .legend .sw { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Tanimoto Similarity Explorer</h1>
+    <p>Pick two molecules, compute Tanimoto similarity from a simplified token-based fingerprint, and see set overlap visualized bit-by-bit. <strong>Aha</strong>: closely related drugs (caffeine vs theobromine) are 0.7+; unrelated ones are below 0.3.</p>
+  </div>
+
+  <div class="pair">
+    <div class="panel">
+      <h3>Molecule A</h3>
+      <select id="selA">
+        <option value="CN1C=NC2=C1C(=O)N(C(=O)N2C)C|caffeine">caffeine</option>
+        <option value="CN1C=NC2=C1C(=O)NC(=O)N2C|theobromine">theobromine</option>
+        <option value="CN1CCC[C@H]1C2=CN=CC=C2|nicotine">nicotine</option>
+        <option value="CC(=O)OC1=CC=CC=C1C(=O)O|aspirin">aspirin</option>
+        <option value="CC(C)CC1=CC=C(C=C1)C(C)C(=O)O|ibuprofen">ibuprofen</option>
+        <option value="CN(C)CCC1=CNC2=C1C=C(C=C2)CCN|tryptamine-deriv">tryptamine derivative</option>
+        <option value="C1=CC=C2C(=C1)C=CC=C2|naphthalene">naphthalene</option>
+        <option value="OC1=CC=CC=C1|phenol">phenol</option>
+      </select>
+      <div class="smi" id="smiA">—</div>
+    </div>
+    <div class="panel">
+      <h3>Molecule B</h3>
+      <select id="selB">
+        <option value="CN1C=NC2=C1C(=O)NC(=O)N2C|theobromine">theobromine</option>
+        <option value="CN1C=NC2=C1C(=O)N(C(=O)N2C)C|caffeine">caffeine</option>
+        <option value="CN1CCC[C@H]1C2=CN=CC=C2|nicotine">nicotine</option>
+        <option value="CC(=O)OC1=CC=CC=C1C(=O)O|aspirin">aspirin</option>
+        <option value="CC(C)CC1=CC=C(C=C1)C(C)C(=O)O|ibuprofen">ibuprofen</option>
+        <option value="CN(C)CCC1=CNC2=C1C=C(C=C2)CCN|tryptamine-deriv">tryptamine derivative</option>
+        <option value="C1=CC=C2C(=C1)C=CC=C2|naphthalene">naphthalene</option>
+        <option value="OC1=CC=CC=C1|phenol">phenol</option>
+      </select>
+      <div class="smi" id="smiB">—</div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="aOnly">—</div><div class="l">|A ∖ B|</div></div>
+    <div class="stat"><div class="v" id="ab" style="color:#065f46">—</div><div class="l">|A ∩ B|</div></div>
+    <div class="stat"><div class="v" id="bOnly" style="color:#7c3aed">—</div><div class="l">|B ∖ A|</div></div>
+    <div class="stat"><div class="v" id="tani" style="color:#dc2626">—</div><div class="l">Tanimoto</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Bit-vector overlay (256-bit fingerprint)</h3>
+    <div class="bits" id="bitMap"></div>
+    <div class="legend">
+      <span><i class="sw" style="background:#fff;border:1px solid #ccc"></i> empty</span>
+      <span><i class="sw" style="background:#1e3a8a"></i> A only</span>
+      <span><i class="sw" style="background:#7c3aed"></i> B only</span>
+      <span><i class="sw" style="background:#065f46"></i> shared</span>
+    </div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. Uses a simplified token-window hash, not RDKit's Morgan algorithm; rank-orderings on this dataset are illustrative. Real similarity searches use ECFP4 at 1024–2048 bits and produce slightly different absolute values. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const N_BITS = 256;
+
+  function djb2(s) {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) & 0xffffffff;
+    return h >>> 0;
+  }
+
+  function tokenize(smi) {
+    const re = /Cl|Br|@@|@|\[[^\]]+\]|[A-Za-z]|[0-9]|[=#\-+()\/\\\.]/g;
+    return smi.match(re) || [];
+  }
+
+  function fingerprint(smi) {
+    const toks = tokenize(smi);
+    const bits = new Set();
+    for (let i = 0; i < toks.length; i++) {
+      for (let w = 1; w <= 3; w++) {
+        if (i + w <= toks.length) bits.add(djb2(toks.slice(i, i + w).join('')) % N_BITS);
+      }
+    }
+    return bits;
+  }
+
+  function update() {
+    const a = $('selA').value.split('|');
+    const b = $('selB').value.split('|');
+    $('smiA').textContent = a[0];
+    $('smiB').textContent = b[0];
+
+    const fpA = fingerprint(a[0]);
+    const fpB = fingerprint(b[0]);
+    const inter = new Set([...fpA].filter(x => fpB.has(x)));
+    const union = new Set([...fpA, ...fpB]);
+    const aOnly = fpA.size - inter.size;
+    const bOnly = fpB.size - inter.size;
+    const tani = inter.size / union.size;
+
+    $('aOnly').textContent = aOnly;
+    $('ab').textContent = inter.size;
+    $('bOnly').textContent = bOnly;
+    $('tani').textContent = tani.toFixed(3);
+
+    const map = $('bitMap');
+    map.innerHTML = '';
+    for (let i = 0; i < N_BITS; i++) {
+      const d = document.createElement('div');
+      d.className = 'b';
+      const inA = fpA.has(i), inB = fpB.has(i);
+      if (inA && inB) d.classList.add('AB');
+      else if (inA) d.classList.add('A');
+      else if (inB) d.classList.add('B');
+      d.title = `bit ${i}`;
+      map.appendChild(d);
+    }
+
+    let band;
+    if (tani >= 0.7) band = '<strong>analogue / SAR-series</strong> — same chemotype, structural variations only.';
+    else if (tani >= 0.5) band = '<strong>related</strong> — similar functional groups; same target plausible.';
+    else if (tani >= 0.3) band = '<strong>weak overlap</strong> — share scaffold or motif, but distinct.';
+    else band = '<strong>essentially unrelated</strong> — different chemistries.';
+    $('banner').innerHTML = `Tanimoto = <strong>${tani.toFixed(3)}</strong>. ${band} Reminder: high T does not guarantee similar bioactivity (activity cliffs).`;
+  }
+
+  $('selA').addEventListener('change', update);
+  $('selB').addEventListener('change', update);
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

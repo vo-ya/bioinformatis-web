@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mock Vina Docking Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  .layout { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .scoretable { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .scoretable th, .scoretable td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border); }
+  .scoretable th { font-size: 0.72rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .scoretable .num { font-family: var(--font-mono); text-align: right; }
+  .scoretable .best { background: #d1fae5; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; margin-top: 1rem; }
+  button { background: #1e3a8a; color: #fff; border: 0; padding: 0.5rem 1rem; border-radius: 4px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  button:hover { background: #1e40af; }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Mock Vina Docking Simulator</h1>
+    <p>Generate 9 candidate poses inside a synthetic pocket, score them with a simplified Vina-style energy function (vdW + H-bond + hydrophobic + rotor penalty), and rank. <strong>Aha</strong>: best Vina pose is usually within ±2 kcal/mol of the true binding mode — but rank #1 vs #3 is essentially noise.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="ligSize">Ligand heavy atoms: <span class="v" id="ligSizeV">25</span></label>
+      <input type="range" id="ligSize" min="8" max="50" value="25">
+    </div>
+    <div class="field">
+      <label for="rotors">Rotatable bonds: <span class="v" id="rotorsV">4</span></label>
+      <input type="range" id="rotors" min="0" max="15" value="4">
+    </div>
+    <div class="field">
+      <label for="hbond">H-bond donors/acceptors: <span class="v" id="hbondV">3</span></label>
+      <input type="range" id="hbond" min="0" max="8" value="3">
+    </div>
+    <div class="field">
+      <label for="hydro">Hydrophobic groups: <span class="v" id="hydroV">3</span></label>
+      <input type="range" id="hydro" min="0" max="8" value="3">
+    </div>
+    <div class="field">
+      <label for="exh">Exhaustiveness: <span class="v" id="exhV">8</span></label>
+      <input type="range" id="exh" min="1" max="32" value="8">
+    </div>
+    <div class="field">
+      <label>&nbsp;</label>
+      <button id="rerun">Re-run docking (new seed)</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <h3>Pocket + best pose</h3>
+      <svg id="pocket" viewBox="0 0 540 400" width="100%" height="400"></svg>
+    </div>
+
+    <div class="panel">
+      <h3>Top 9 poses (sorted by ΔG)</h3>
+      <table class="scoretable">
+        <thead><tr><th>Pose</th><th class="num">ΔG (kcal/mol)</th><th class="num">RMSD vs #1</th></tr></thead>
+        <tbody id="poseTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulator. Replicates the <em>shape</em> of Vina output (clustered poses, ΔG in kcal/mol, RMSD between poses) using a synthetic energy function — does not run an actual Vina computation. Real Vina is open source: github.com/ccsb-scripps/AutoDock-Vina. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  let seed = 42;
+  function rand() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+
+  function dock() {
+    const ligSize = parseFloat($('ligSize').value);
+    const rotors = parseFloat($('rotors').value);
+    const hb = parseFloat($('hbond').value);
+    const hy = parseFloat($('hydro').value);
+    const exh = parseFloat($('exh').value);
+    $('ligSizeV').textContent = ligSize;
+    $('rotorsV').textContent = rotors;
+    $('hbondV').textContent = hb;
+    $('hydroV').textContent = hy;
+    $('exhV').textContent = exh;
+
+    const baseScore = -0.1 * ligSize - 0.7 * hb - 0.4 * hy + 0.06 * rotors;
+    const noiseScale = 1.6 / Math.sqrt(exh);
+    const poses = [];
+    for (let i = 0; i < 9; i++) {
+      const dG = baseScore + (rand() - 0.5) * noiseScale * 4;
+      poses.push({ idx: i + 1, dG, x: 100 + rand() * 340, y: 80 + rand() * 240, rot: rand() * 40 - 20 });
+    }
+    poses.sort((a, b) => a.dG - b.dG);
+    poses.forEach((p, i) => p.rank = i + 1);
+
+    const tbody = $('poseTbody');
+    tbody.innerHTML = '';
+    poses.forEach((p, i) => {
+      const rmsd = i === 0 ? 0 : 0.6 + rand() * 4;
+      const tr = document.createElement('tr');
+      if (i === 0) tr.className = 'best';
+      tr.innerHTML = `<td>${p.rank}</td><td class="num">${p.dG.toFixed(2)}</td><td class="num">${i === 0 ? '—' : rmsd.toFixed(2) + ' Å'}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    drawPocket(poses);
+
+    const best = poses[0].dG;
+    const second = poses[1].dG;
+    const gap = second - best;
+    let verdict;
+    if (best > -5) verdict = '<strong>likely non-binder</strong> — ΔG too high';
+    else if (best > -7) verdict = '<strong>weak/possible binder</strong> — worth follow-up';
+    else if (best > -9) verdict = '<strong>moderate binder</strong> — proceed to FEP / MM-GBSA';
+    else verdict = '<strong>strong predicted binder</strong> — but rank ordering is noisy';
+
+    let ranking;
+    if (gap < 0.5) ranking = 'Top poses are within 0.5 kcal/mol — rank ordering is essentially noise.';
+    else if (gap < 1.5) ranking = `Top pose is ${gap.toFixed(1)} kcal/mol better than #2 — modest preference.`;
+    else ranking = `Top pose is ${gap.toFixed(1)} kcal/mol better — clear preference.`;
+
+    $('banner').innerHTML = `Best ΔG = <strong>${best.toFixed(2)} kcal/mol</strong>. ${verdict}. ${ranking}`;
+  }
+
+  function drawPocket(poses) {
+    const svg = $('pocket');
+    svg.innerHTML = '';
+    const ns = 'http://www.w3.org/2000/svg';
+    // pocket shell
+    const blob = document.createElementNS(ns, 'path');
+    blob.setAttribute('d', 'M 60 200 Q 40 60 200 50 Q 380 40 480 130 Q 520 220 470 320 Q 380 400 240 390 Q 80 380 60 280 Z');
+    blob.setAttribute('fill', '#dbeafe');
+    blob.setAttribute('stroke', '#1e3a8a');
+    blob.setAttribute('stroke-width', '2');
+    svg.appendChild(blob);
+
+    const pocket = document.createElementNS(ns, 'ellipse');
+    pocket.setAttribute('cx', '270');
+    pocket.setAttribute('cy', '210');
+    pocket.setAttribute('rx', '160');
+    pocket.setAttribute('ry', '100');
+    pocket.setAttribute('fill', '#fff');
+    pocket.setAttribute('stroke', '#7c3aed');
+    pocket.setAttribute('stroke-dasharray', '4 4');
+    pocket.setAttribute('stroke-width', '2');
+    svg.appendChild(pocket);
+
+    // residue dots
+    const residues = [
+      { x: 160, y: 170, label: 'D' },
+      { x: 380, y: 170, label: 'H' },
+      { x: 380, y: 270, label: 'F' },
+      { x: 200, y: 280, label: 'L' },
+    ];
+    for (const r of residues) {
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', r.x); c.setAttribute('cy', r.y); c.setAttribute('r', 12); c.setAttribute('fill', '#fde68a'); c.setAttribute('stroke', '#b45309');
+      svg.appendChild(c);
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', r.x); t.setAttribute('y', r.y + 3); t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-size', '11'); t.setAttribute('font-weight', '700'); t.setAttribute('fill', '#92400e');
+      t.textContent = r.label;
+      svg.appendChild(t);
+    }
+
+    // poses (only top 5)
+    const colors = ['#dc2626', '#7c3aed', '#1e3a8a', '#065f46', '#525252'];
+    for (let i = 4; i >= 0; i--) {
+      const p = poses[i];
+      const g = document.createElementNS(ns, 'g');
+      g.setAttribute('transform', `translate(${p.x},${p.y}) rotate(${p.rot})`);
+      g.setAttribute('opacity', i === 0 ? 1 : 0.4);
+      const path = document.createElementNS(ns, 'path');
+      path.setAttribute('d', 'M -30 0 L -15 -10 L 0 0 L 15 -10 L 30 0 L 0 12 Z');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', colors[i]);
+      path.setAttribute('stroke-width', i === 0 ? 2.5 : 1.5);
+      g.appendChild(path);
+      // 4 atoms
+      for (const [dx, dy] of [[-30, 0], [-15, -10], [0, 0], [15, -10], [30, 0]]) {
+        const c = document.createElementNS(ns, 'circle');
+        c.setAttribute('cx', dx); c.setAttribute('cy', dy); c.setAttribute('r', 4);
+        c.setAttribute('fill', colors[i]);
+        g.appendChild(c);
+      }
+      svg.appendChild(g);
+    }
+
+    const lab = document.createElementNS(ns, 'text');
+    lab.setAttribute('x', '270'); lab.setAttribute('y', '380'); lab.setAttribute('text-anchor', 'middle');
+    lab.setAttribute('font-size', '10'); lab.setAttribute('fill', '#525252');
+    lab.textContent = 'Top 5 poses; pose #1 in red, others faded';
+    svg.appendChild(lab);
+  }
+
+  ['ligSize', 'rotors', 'hbond', 'hydro', 'exh'].forEach(id => $(id).addEventListener('input', dock));
+  $('rerun').addEventListener('click', () => { seed = Math.floor(Math.random() * 1e9); dock(); });
+  dock();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

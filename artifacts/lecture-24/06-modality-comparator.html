@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRISPRko vs CRISPRi Comparator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .agreement-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.85rem; }
+  .agreement-table th, .agreement-table td { padding: 0.5rem 0.7rem; border-bottom: 1px solid #e7e5e4; text-align: left; }
+  .agreement-table th { background: #f5f5f4; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); }
+  .agreement-table .both { background: #dcfce7; }
+  .agreement-table .ko-only { background: #fee2e2; }
+  .agreement-table .i-only { background: #ede9fe; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>CRISPRko vs CRISPRi Comparator</h1>
+    <p>Run the same 50-gene set with both modalities; compare LFC distributions and which modality detects which gene class. Aha: modality choice depends on whether you can tolerate cell death; CRISPRi for essentials.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="screenType">Screen scenario</label>
+      <select id="screenType">
+        <option value="dropout" selected>Dropout (essential genes)</option>
+        <option value="resistance">Drug resistance</option>
+        <option value="both">Both (mixed library)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="duration">Selection duration</label>
+      <select id="duration">
+        <option value="14">14 days (short)</option>
+        <option value="21" selected>21 days (standard)</option>
+        <option value="28">28 days (long)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="koHits">—</div><div class="l">CRISPRko hits</div></div>
+    <div class="stat"><div class="v" id="iHits">—</div><div class="l">CRISPRi hits</div></div>
+    <div class="stat"><div class="v" id="agreeBoth">—</div><div class="l">Detected by both</div></div>
+    <div class="stat"><div class="v" id="koOnly">—</div><div class="l">CRISPRko-only</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>LFC distributions — same gene set, two modalities</h3>
+    <svg id="lfcDist" viewBox="0 0 1000 280" width="100%" height="280"></svg>
+  </div>
+
+  <div class="panel">
+    <h3>Per-gene agreement (top 20)</h3>
+    <table class="agreement-table">
+      <thead><tr><th>Gene</th><th>Class</th><th>CRISPRko LFC</th><th>CRISPRi LFC</th><th>Agreement</th></tr></thead>
+      <tbody id="agreementBody"></tbody>
+    </table>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Hand-crafted comparison: 50 toy genes (essential, cell-fatal-essential, resistance, neutral) with realistic LFC profiles for both modalities. Real CRISPRko and CRISPRi screens (e.g., Replogle 2022) show ~70% concordance for non-fatal essentials with the patterns simulated here. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  function rng(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+
+  function generateGenes(scenario, duration) {
+    const r = rng(scenario.length(0) + duration);
+    const genes = [];
+    const dur = duration === '14' ? 0.7 : duration === '21' ? 1 : 1.2;
+    if (scenario === 'dropout' || scenario === 'both') {
+      // 5 cell-fatal essentials (KO kills cell → no signal; CRISPRi shows dropout)
+      for (let i = 1; i <= 5; i++) {
+        genes.push({
+          name: `RIBO${i}`, class: 'cell-fatal essential',
+          ko: -0.5 + (r() - 0.5) * 0.3,  // cell died too fast for KO to read out
+          i: -2.5 - r() * 0.5
+        });
+      }
+      // 10 strong essentials (both detect)
+      for (let i = 1; i <= 10; i++) {
+        genes.push({
+          name: `ESS${i}`, class: 'essential',
+          ko: -2.5 - r() * 0.7,
+          i: -2.0 - r() * 0.6
+        });
+      }
+      // 5 weak essentials (only KO)
+      for (let i = 1; i <= 5; i++) {
+        genes.push({
+          name: `WEAK${i}`, class: 'weak essential',
+          ko: -1.5 - r() * 0.5,
+          i: -0.4 - r() * 0.3
+        });
+      }
+    }
+    if (scenario === 'resistance' || scenario === 'both') {
+      for (let i = 1; i <= 5; i++) {
+        genes.push({
+          name: `RES${i}`, class: 'resistance',
+          ko: 1.5 + r() * 0.5,
+          i: 1.2 + r() * 0.4
+        });
+      }
+    }
+    // 25 neutrals
+    for (let i = 1; i <= 25; i++) {
+      genes.push({
+        name: `NEU${i}`, class: 'neutral',
+        ko: (r() - 0.5) * 0.4,
+        i: (r() - 0.5) * 0.4
+      });
+    }
+    genes.forEach(g => { g.ko *= dur; g.i *= dur; });
+    return genes;
+  }
+
+  function update() {
+    const scenario = $('screenType').value;
+    const duration = $('duration').value;
+    const genes = generateGenes(scenario, duration);
+
+    const threshold = 1.5;
+    const koHits = genes.filter(g => Math.abs(g.ko) >= threshold);
+    const iHits = genes.filter(g => Math.abs(g.i) >= threshold);
+    const both = genes.filter(g => Math.abs(g.ko) >= threshold && Math.abs(g.i) >= threshold);
+    const koOnly = genes.filter(g => Math.abs(g.ko) >= threshold && Math.abs(g.i) < threshold);
+    const iOnly = genes.filter(g => Math.abs(g.ko) < threshold && Math.abs(g.i) >= threshold);
+
+    $('koHits').textContent = koHits.length;
+    $('iHits').textContent = iHits.length;
+    $('agreeBoth').textContent = both.length;
+    $('koOnly').textContent = koOnly.length;
+
+    drawLFC(genes);
+
+    // Top 20 agreement table
+    const sorted = [...genes].sort((a, b) => Math.abs(a.ko + a.i) - Math.abs(b.ko + b.i));
+    const top20 = sorted.reverse().slice(0, 20);
+    let html = '';
+    top20.forEach(g => {
+      const koH = Math.abs(g.ko) >= threshold;
+      const iH = Math.abs(g.i) >= threshold;
+      let cls = '', agreement;
+      if (koH && iH) { cls = 'both'; agreement = '✓ both'; }
+      else if (koH) { cls = 'ko-only'; agreement = 'KO only'; }
+      else if (iH) { cls = 'i-only'; agreement = 'CRISPRi only'; }
+      else agreement = '—';
+      html += `<tr class="${cls}">
+        <td>${g.name}</td>
+        <td>${g.class}</td>
+        <td>${g.ko.toFixed(2)}</td>
+        <td>${g.i.toFixed(2)}</td>
+        <td>${agreement}</td>
+      </tr>`;
+    });
+    $('agreementBody').innerHTML = html;
+
+    let hint;
+    if (koOnly.filter(g => g.class === 'cell-fatal essential').length > 0) hint = '"Cell-fatal essentials" (RIBO* genes) miss CRISPRko detection because KO cells die too fast to read out — this is exactly what CRISPRi solves with reversible knockdown.';
+    else if (iOnly.length > 0) hint = 'CRISPRi-only hits often reflect partial-knockdown sensitivity that complete KO masks (apoptosis-pathway buffering).';
+    else if (scenario === 'resistance') hint = 'Resistance hits agree well between modalities — selection acts on the loss-of-function phenotype either way.';
+    else hint = 'Both modalities cover most essential genes. CRISPRi adds visibility into cell-fatal essentials at the cost of weaker effect sizes.';
+    $('banner').innerHTML = `<strong>${both.length}</strong> hits in both · <strong>${koOnly.length}</strong> KO-only · <strong>${iOnly.length}</strong> CRISPRi-only.<span class="hint">${hint}</span>`;
+  }
+
+  function drawLFC(genes) {
+    const svg = $('lfcDist');
+    svg.innerHTML = '';
+    const fr = document.createElementNS(ns, 'rect');
+    fr.setAttribute('x', 60); fr.setAttribute('y', 30); fr.setAttribute('width', 880); fr.setAttribute('height', 220);
+    fr.setAttribute('fill', '#fff'); fr.setAttribute('stroke', '#d6d3d1');
+    svg.appendChild(fr);
+    function xAt(lfc) { return 60 + (lfc + 4) / 8 * 880; }
+    // Zero line
+    const zero = document.createElementNS(ns, 'line');
+    zero.setAttribute('x1', xAt(0)); zero.setAttribute('y1', 30); zero.setAttribute('x2', xAt(0)); zero.setAttribute('y2', 250);
+    zero.setAttribute('stroke', '#9ca3af'); zero.setAttribute('stroke-dasharray', '3 3');
+    svg.appendChild(zero);
+    // KO row
+    genes.forEach(g => {
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', xAt(g.ko)); c.setAttribute('cy', 90); c.setAttribute('r', 5);
+      const fill = g.class === 'cell-fatal essential' ? '#fdba74' : g.class === 'essential' ? '#dc2626' : g.class === 'weak essential' ? '#dc2626' : g.class === 'resistance' ? '#065f46' : '#9ca3af';
+      c.setAttribute('fill', fill); c.setAttribute('opacity', g.class === 'neutral' ? 0.3 : 0.85);
+      svg.appendChild(c);
+    });
+    // CRISPRi row
+    genes.forEach(g => {
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', xAt(g.i)); c.setAttribute('cy', 190); c.setAttribute('r', 5);
+      const fill = g.class === 'cell-fatal essential' ? '#fdba74' : g.class === 'essential' ? '#dc2626' : g.class === 'weak essential' ? '#dc2626' : g.class === 'resistance' ? '#065f46' : '#9ca3af';
+      c.setAttribute('fill', fill); c.setAttribute('opacity', g.class === 'neutral' ? 0.3 : 0.85);
+      svg.appendChild(c);
+    });
+    // Row labels
+    function lbl(x, y, txt) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', x); t.setAttribute('y', y);
+      t.setAttribute('font-size', 11); t.setAttribute('font-weight', 700);
+      t.setAttribute('font-family', 'JetBrains Mono, monospace'); t.setAttribute('fill', '#374151');
+      t.textContent = txt;
+      svg.appendChild(t);
+    }
+    lbl(20, 94, 'CRISPRko');
+    lbl(20, 194, 'CRISPRi');
+    // Axis
+    [-4, -2, 0, 2, 4].forEach(v => {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', xAt(v)); t.setAttribute('y', 270); t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-size', 10); t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.setAttribute('fill', '#525252'); t.textContent = v.toString();
+      svg.appendChild(t);
+    });
+  }
+
+  ['screenType', 'duration'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

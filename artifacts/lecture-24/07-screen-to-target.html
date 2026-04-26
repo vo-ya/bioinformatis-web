@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From Screen to Drug-Target Picker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 100%; }
+  .filters { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .filter-row { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+  .filter-row .lbl { font-size: 0.78rem; font-weight: 600; color: #374151; }
+  .filter-row .num { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700; color: #1e3a8a; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .target-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.85rem; }
+  .target-table th, .target-table td { padding: 0.5rem 0.7rem; border-bottom: 1px solid #e7e5e4; text-align: left; }
+  .target-table th { background: #f5f5f4; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); }
+  .target-table .pass { background: #dcfce7; }
+  .target-table .fail { color: #9ca3af; }
+  .target-table .clinical { font-weight: 700; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>From Screen to Drug-Target Picker</h1>
+    <p>Triage 50 simulated CRISPR-screen hits through druggability + safety + clinical-stage filters. Aha: screen → drug requires more than essentiality; druggability + safety filter dominates downstream.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="druggability">Min druggability score: <span class="v" id="drugV">0.5</span></label>
+      <input type="range" id="druggability" min="0" max="100" step="5" value="50">
+    </div>
+    <div class="field">
+      <label for="safety">Max normal-tissue dependency: <span class="v" id="safeV">0.3</span></label>
+      <input type="range" id="safety" min="0" max="100" step="5" value="30">
+    </div>
+  </div>
+
+  <div class="filters">
+    <div class="filter-row"><span class="lbl">Total screen hits</span><span class="num" id="cntTotal">50</span></div>
+    <div class="filter-row"><span class="lbl">Pass druggability</span><span class="num" id="cntDrug">—</span></div>
+    <div class="filter-row"><span class="lbl">Pass safety</span><span class="num" id="cntSafe">—</span></div>
+    <div class="filter-row"><span class="lbl">In clinical development</span><span class="num" id="cntClin">—</span></div>
+  </div>
+
+  <div class="panel">
+    <h3>Triage results — top 20 candidates</h3>
+    <table class="target-table">
+      <thead><tr><th>Rank</th><th>Gene</th><th>LFC</th><th>Druggability</th><th>Normal-tissue dep</th><th>Patent</th><th>Clinical stage</th><th>Pass?</th></tr></thead>
+      <tbody id="triageBody"></tbody>
+    </table>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational triage tool. 50 simulated screen hits with druggability scores (Hopkins / Bickerton druggability scoring), normal-tissue Chronos values, patent landscape, and clinical-stage status. Real drug-target triage uses commercial databases (DrugBank, OpenTargets, Reaxys) + structural-biology + medicinal-chemistry assessment. Not a procurement tool.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  function rng(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+
+  const HITS = [];
+  const r = rng(99);
+  // Hand-craft 50 hits with realistic distributions
+  const known = [
+    { gene: 'PRMT5', lfc: -2.4, drug: 0.85, normal: 0.15, patent: 'crowded', stage: 'Phase II' },
+    { gene: 'WRN', lfc: -2.2, drug: 0.78, normal: 0.10, patent: 'open', stage: 'Phase I' },
+    { gene: 'MAT2A', lfc: -2.1, drug: 0.72, normal: 0.18, patent: 'crowded', stage: 'Phase I' },
+    { gene: 'MENIN', lfc: -2.0, drug: 0.80, normal: 0.20, patent: 'crowded', stage: 'Phase II' },
+    { gene: 'EZH2', lfc: -1.9, drug: 0.82, normal: 0.25, patent: 'crowded', stage: 'FDA approved' },
+    { gene: 'MCL1', lfc: -1.8, drug: 0.65, normal: 0.45, patent: 'crowded', stage: 'Phase I' },
+    { gene: 'DDR1', lfc: -1.6, drug: 0.70, normal: 0.30, patent: 'open', stage: 'Phase II' },
+    { gene: 'KAT6A', lfc: -1.7, drug: 0.60, normal: 0.20, patent: 'open', stage: 'Phase I' }
+  ];
+  known.forEach((h, i) => HITS.push({ rank: i + 1, ...h }));
+  // Add 42 more hits with varying druggability
+  const families = ['kinase', 'transcription factor', 'metabolic', 'epigenetic', 'membrane', 'cytoskeletal', 'unknown'];
+  for (let i = 1; i <= 42; i++) {
+    const drug = r();
+    const normal = r() * 0.6;
+    const stages = ['—', 'preclinical', 'Phase I', '—', '—', '—', '—'];
+    HITS.push({
+      rank: 8 + i,
+      gene: `GENE_${(800 + i).toString()}`,
+      lfc: -(1.0 + r() * 1.5),
+      drug,
+      normal,
+      patent: r() > 0.7 ? 'crowded' : 'open',
+      stage: stages[Math.floor(r() * stages.length)]
+    });
+  }
+
+  function update() {
+    const drugThresh = parseFloat($('druggability').value) / 100;
+    const safeThresh = parseFloat($('safety').value) / 100;
+    $('drugV').textContent = drugThresh.toFixed(2);
+    $('safeV').textContent = safeThresh.toFixed(2);
+
+    let passDrug = 0, passSafe = 0, passClin = 0, passAll = 0;
+    HITS.forEach(h => {
+      h.passDrug = h.drug >= drugThresh;
+      h.passSafe = h.normal <= safeThresh;
+      h.passAll = h.passDrug && h.passSafe;
+      h.isClinical = /(approved|phase|preclinical)/i.test(h.stage);
+      if (h.passDrug) passDrug++;
+      if (h.passSafe) passSafe++;
+      if (h.passAll && h.isClinical) passClin++;
+      if (h.passAll) passAll++;
+    });
+
+    $('cntDrug').textContent = passDrug;
+    $('cntSafe').textContent = passSafe;
+    $('cntClin').textContent = passClin;
+
+    const sorted = [...HITS].sort((a, b) => {
+      // Sort: passing first, then by (drug score - normal dep) desc
+      if (a.passAll !== b.passAll) return a.passAll ? -1 : 1;
+      return (b.drug - b.normal) - (a.drug - a.normal);
+    });
+    let html = '';
+    sorted.slice(0, 20).forEach((h, i) => {
+      let cls = '';
+      if (h.passAll && h.isClinical) cls = 'pass clinical';
+      else if (h.passAll) cls = 'pass';
+      else if (!h.passDrug && !h.passSafe) cls = 'fail';
+      html += `<tr class="${cls}">
+        <td>${i + 1}</td>
+        <td>${h.gene}</td>
+        <td>${h.lfc.toFixed(2)}</td>
+        <td>${h.drug.toFixed(2)}${h.passDrug ? ' ✓' : ''}</td>
+        <td>${h.normal.toFixed(2)}${h.passSafe ? ' ✓' : ''}</td>
+        <td>${h.patent}</td>
+        <td>${h.stage}</td>
+        <td>${h.passAll ? '✓' : '—'}</td>
+      </tr>`;
+    });
+    $('triageBody').innerHTML = html;
+
+    let hint;
+    if (passAll < 5) hint = 'Filters too strict — only ' + passAll + ' candidates pass. Most screen hits fail druggability assessment.';
+    else if (passAll > 30) hint = 'Filters too loose — most hits trivially pass. Tighten druggability threshold to focus on small-molecule-tractable targets.';
+    else hint = `From ${HITS.length} hits → ${passAll} druggable + safe candidates → ${passClin} with active clinical programs. Typical funnel ratio.`;
+    $('banner').innerHTML = `From <strong>${HITS.length}</strong> screen hits: <strong>${passDrug}</strong> druggable, <strong>${passSafe}</strong> safe, <strong>${passAll}</strong> both, <strong>${passClin}</strong> in clinic.<span class="hint">${hint}</span>`;
+  }
+
+  ['druggability', 'safety'].forEach(id => $(id).addEventListener('input', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

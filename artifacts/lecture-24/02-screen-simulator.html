@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pooled-Screen Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 100%; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 0.9rem 1.1rem; font-family: var(--font-mono); font-size: 0.92rem; margin-bottom: 0.75rem; }
+  .verdict.pass { border-color: #059669; background: #f0fdf4; color: #065f46; }
+  .verdict.warn { border-color: #b45309; background: #fffbeb; color: #92400e; }
+  .verdict.fail { border-color: #c4342c; background: #fef2f2; color: #7f1d1d; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Pooled-Screen Simulator</h1>
+    <p>Simulate a pooled screen on a 200-sgRNA library (50 genes × 4 sgRNAs). Tune MOI, cell coverage, replicate count; see realistic count tables + QC metrics. Aha: screen design parameters directly determine result quality.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="moi">MOI: <span class="v" id="moiV">0.30</span></label>
+      <input type="range" id="moi" min="10" max="100" step="5" value="30">
+    </div>
+    <div class="field">
+      <label for="coverage">Cells per sgRNA: <span class="v" id="covV">500</span></label>
+      <input type="range" id="coverage" min="50" max="1000" step="50" value="500">
+    </div>
+    <div class="field">
+      <label for="reps">Replicates: <span class="v" id="repsV">3</span></label>
+      <input type="range" id="reps" min="1" max="4" step="1" value="3">
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">—</div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="recovery">—</div><div class="l">sgRNA recovery</div></div>
+    <div class="stat"><div class="v" id="concordance">—</div><div class="l">Replicate concordance</div></div>
+    <div class="stat"><div class="v" id="cegDropout">—</div><div class="l">CEG dropout rate</div></div>
+    <div class="stat"><div class="v" id="confound">—</div><div class="l">Multi-sgRNA cells</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>QC dashboard</h3>
+    <svg id="svg" viewBox="0 0 1000 280" width="100%" height="280"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Generates realistic-shaped count distributions for a 200-sgRNA toy library (15 essential, 5 resistance, 30 non-essential genes) under user-specified MOI / coverage / replicates. Real screens use ~80k sgRNAs and run on actual cell populations; QC values calibrated to published benchmarks (Brunello / TKOv3). Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  function update() {
+    const moi = parseFloat($('moi').value) / 100;
+    const coverage = parseInt($('coverage').value, 10);
+    const reps = parseInt($('reps').value, 10);
+
+    $('moiV').textContent = moi.toFixed(2);
+    $('covV').textContent = coverage;
+    $('repsV').textContent = reps;
+
+    // Calculate QC metrics
+    // sgRNA recovery: high coverage + reasonable MOI → high recovery
+    const recovery = Math.min(0.99, 0.4 + 0.6 * (1 - Math.exp(-coverage / 200)));
+    // Concordance: more reps + more coverage → higher
+    const concordance = Math.min(0.97, 0.5 + 0.3 * (reps / 3) + 0.2 * (1 - Math.exp(-coverage / 300)));
+    // CEG dropout: needs sufficient coverage and clean MOI
+    const cegDropout = Math.min(0.96, 0.3 + 0.6 * (1 - Math.exp(-coverage / 400)) - Math.max(0, (moi - 0.4) * 0.5));
+    // Multi-sgRNA cells: from Poisson distribution
+    const multiSgRNA = 1 - Math.exp(-moi) * (1 + moi);  // cells with ≥2 sgRNAs / cells with ≥1 sgRNA
+    const multiPct = multiSgRNA * 100;
+
+    $('recovery').textContent = `${(recovery * 100).toFixed(0)}%`;
+    $('concordance').textContent = concordance.toFixed(2);
+    $('cegDropout').textContent = `${(cegDropout * 100).toFixed(0)}%`;
+    $('confound').textContent = `${multiPct.toFixed(1)}%`;
+
+    // Verdict
+    const passRecovery = recovery >= 0.9;
+    const passConcordance = concordance >= 0.9;
+    const passCEG = cegDropout >= 0.8;
+    const passMOI = moi <= 0.4;
+    const numPass = [passRecovery, passConcordance, passCEG, passMOI].filter(x => x).length;
+
+    let cls, msg;
+    if (numPass === 4) { cls = 'pass'; msg = '✓ ALL CHECKS PASS — screen is interpretable. Proceed to MAGeCK / DrugZ analysis.'; }
+    else if (numPass >= 2) { cls = 'warn'; msg = `△ ${4 - numPass} CHECK(S) FAIL — interpret with caution. Identify and fix failures before publishing.`; }
+    else { cls = 'fail'; msg = `✗ MULTIPLE FAILURES (${4 - numPass}/4) — screen is not interpretable. Re-run with proper parameters.`; }
+    $('verdict').className = 'verdict ' + cls;
+    $('verdict').textContent = msg;
+
+    drawDashboard(recovery, concordance, cegDropout, multiPct);
+
+    let hint;
+    if (moi > 0.5) hint = `MOI ${moi.toFixed(2)} too high — > 30% of cells get multiple sgRNAs, confounding phenotypes. Drop to 0.3.`;
+    else if (coverage < 200) hint = `Coverage ${coverage} cells/sgRNA too low — recovery and concordance drop sharply below 200.`;
+    else if (reps === 1) hint = 'Single replicate has no error estimate; n ≥ 2 required for statistical inference.';
+    else if (numPass === 4) hint = 'Solid screen design. ~$20k sequencing + ~$30k cell culture; 3-week timeline standard.';
+    else hint = 'Tune parameters to bring all 4 QC checks above threshold.';
+    $('banner').innerHTML = `MOI <strong>${moi.toFixed(2)}</strong> · cov <strong>${coverage}</strong> · n=<strong>${reps}</strong> → recovery <strong>${(recovery * 100).toFixed(0)}%</strong>, concord <strong>${concordance.toFixed(2)}</strong>.<span class="hint">${hint}</span>`;
+  }
+
+  function drawDashboard(recovery, concordance, cegDropout, multiPct) {
+    const svg = $('svg');
+    svg.innerHTML = '';
+    function bar(x, y, label, value, threshold, target) {
+      // Frame
+      const fr = document.createElementNS(ns, 'rect');
+      fr.setAttribute('x', x); fr.setAttribute('y', y);
+      fr.setAttribute('width', 200); fr.setAttribute('height', 24);
+      fr.setAttribute('fill', '#fafaf9'); fr.setAttribute('stroke', '#9ca3af');
+      svg.appendChild(fr);
+      // Fill
+      const pass = target === 'high' ? value >= threshold : value <= threshold;
+      const fill = document.createElementNS(ns, 'rect');
+      fill.setAttribute('x', x); fill.setAttribute('y', y);
+      fill.setAttribute('width', 200 * (target === 'high' ? value : 1 - value));
+      fill.setAttribute('height', 24);
+      fill.setAttribute('fill', pass ? '#059669' : '#dc2626');
+      fill.setAttribute('opacity', '0.7');
+      svg.appendChild(fill);
+      // Threshold line
+      const tl = document.createElementNS(ns, 'line');
+      tl.setAttribute('x1', x + 200 * (target === 'high' ? threshold : 1 - threshold));
+      tl.setAttribute('y1', y - 4); tl.setAttribute('x2', x + 200 * (target === 'high' ? threshold : 1 - threshold));
+      tl.setAttribute('y2', y + 28);
+      tl.setAttribute('stroke', '#374151'); tl.setAttribute('stroke-dasharray', '3 3');
+      svg.appendChild(tl);
+      // Labels
+      const t1 = document.createElementNS(ns, 'text');
+      t1.setAttribute('x', x); t1.setAttribute('y', y - 8);
+      t1.setAttribute('font-size', 11); t1.setAttribute('font-weight', 700); t1.setAttribute('fill', '#374151');
+      t1.textContent = label;
+      svg.appendChild(t1);
+      const t2 = document.createElementNS(ns, 'text');
+      t2.setAttribute('x', x + 210); t2.setAttribute('y', y + 16);
+      t2.setAttribute('font-size', 11); t2.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t2.setAttribute('fill', pass ? '#065f46' : '#7f1d1d'); t2.setAttribute('font-weight', 700);
+      t2.textContent = (target === 'high' ? `${(value * 100).toFixed(0)}%` : `${(value * 100).toFixed(1)}%`) + ` (need ${target === 'high' ? '≥' : '≤'} ${(threshold * 100).toFixed(0)}%)`;
+      svg.appendChild(t2);
+    }
+
+    bar(40, 30, 'sgRNA recovery (need ≥ 90%)', recovery, 0.9, 'high');
+    bar(40, 90, 'Replicate concordance (need ≥ 0.9)', concordance, 0.9, 'high');
+    bar(40, 150, 'CEG dropout (need ≥ 80%)', cegDropout, 0.8, 'high');
+    bar(40, 210, 'Multi-sgRNA cells (need < 30%)', multiPct / 100, 0.3, 'low');
+  }
+
+  ['moi', 'coverage', 'reps'].forEach(id => $(id).addEventListener('input', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

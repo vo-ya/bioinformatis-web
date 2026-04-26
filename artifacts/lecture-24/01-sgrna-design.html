@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sgRNA Library Design + Scoring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .sgrna-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.85rem; }
+  .sgrna-table th, .sgrna-table td { padding: 0.5rem 0.7rem; border-bottom: 1px solid #e7e5e4; text-align: left; }
+  .sgrna-table th { background: #f5f5f4; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); }
+  .sgrna-table .selected { background: #dcfce7; font-weight: 700; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>sgRNA Library Design + Scoring</h1>
+    <p>Pick a target gene; the artifact returns 4 best sgRNAs by Doench Rule Set 2 (on-target activity) + CFD off-target score. Aha: sgRNA quality matters for screen performance; scoring algorithms quantify the trade-offs.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="gene">Target gene</label>
+      <select id="gene">
+        <option value="TP53" selected>TP53 (tumour suppressor — many isoforms)</option>
+        <option value="MYC">MYC (oncogene — short, simple)</option>
+        <option value="BRCA1">BRCA1 (large, repetitive regions)</option>
+        <option value="EGFR">EGFR (kinase domain conserved)</option>
+        <option value="KRAS">KRAS (small GTPase)</option>
+        <option value="MTAP">MTAP (metabolic enzyme)</option>
+        <option value="PRMT5">PRMT5 (methyltransferase)</option>
+        <option value="MCL1">MCL1 (apoptosis)</option>
+        <option value="WRN">WRN (helicase)</option>
+        <option value="EZH2">EZH2 (chromatin modifier)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="library">Library</label>
+      <select id="library">
+        <option value="brunello" selected>Brunello (4 sgRNAs/gene)</option>
+        <option value="tkov3">TKOv3 (5 sgRNAs/gene)</option>
+        <option value="custom">Custom CRISPick (top 10 candidates)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="numCandidates">—</div><div class="l">Candidates</div></div>
+    <div class="stat"><div class="v" id="topSelected">—</div><div class="l">Top sgRNAs picked</div></div>
+    <div class="stat"><div class="v" id="meanOnTarget">—</div><div class="l">Mean on-target</div></div>
+    <div class="stat"><div class="v" id="meanOffTarget">—</div><div class="l">Mean off-target hits</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Candidate sgRNAs (top 10 sorted by combined score)</h3>
+    <table class="sgrna-table">
+      <thead><tr><th>#</th><th>sgRNA sequence</th><th>Position</th><th>Doench score</th><th>CFD off-target</th><th>Combined</th><th>Pick</th></tr></thead>
+      <tbody id="sgrnaBody"></tbody>
+    </table>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. sgRNA scores are simulated Doench Rule Set 2 / CFD outputs for 10 example human genes; real sgRNA design uses CRISPick (broadinstitute.org/gpp), CRISPOR, or CHOPCHOP against an actual genome. Not for laboratory use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  function rng(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+
+  const GENES = {
+    TP53: { length: 393, exons: 11, profile: 'good' },
+    MYC: { length: 439, exons: 3, profile: 'good' },
+    BRCA1: { length: 1863, exons: 24, profile: 'mixed' },
+    EGFR: { length: 1210, exons: 28, profile: 'good' },
+    KRAS: { length: 188, exons: 6, profile: 'compact' },
+    MTAP: { length: 283, exons: 8, profile: 'good' },
+    PRMT5: { length: 637, exons: 17, profile: 'good' },
+    MCL1: { length: 350, exons: 3, profile: 'mixed' },
+    WRN: { length: 1432, exons: 35, profile: 'mixed' },
+    EZH2: { length: 746, exons: 20, profile: 'good' }
+  };
+
+  function generateCandidates(gene, library) {
+    const r = rng(gene.length(0) + library.length(0));
+    const numCand = library === 'custom' ? 10 : (library === 'brunello' ? 8 : 10);
+    const cands = [];
+    const profile = GENES[gene].profile;
+    for (let i = 0; i < numCand; i++) {
+      // Generate sequence
+      let seq = '';
+      for (let k = 0; k < 20; k++) seq += 'ACGT'[Math.floor(r() * 4)];
+      seq += 'NGG';
+      const pos = Math.floor(r() * GENES[gene].length);
+      // On-target score: depends on gene profile
+      let baseOn = profile === 'good' ? 0.65 : profile === 'mixed' ? 0.55 : 0.50;
+      const onTarget = Math.max(0.1, Math.min(0.95, baseOn + (r() - 0.5) * 0.4));
+      // Off-target: count of predicted off-target hits
+      const offBase = profile === 'good' ? 1 : profile === 'mixed' ? 3 : 2;
+      const offTarget = Math.max(0, Math.round(offBase + (r() - 0.5) * 4));
+      // Combined: weight on-target up, off-target down
+      const combined = onTarget - 0.05 * offTarget;
+      cands.push({ seq, pos, onTarget, offTarget, combined });
+    }
+    return cands.sort((a, b) => b.combined - a.combined);
+  }
+
+  function update() {
+    const gene = $('gene').value;
+    const library = $('library').value;
+    const cands = generateCandidates(gene, library);
+    const numToPick = library === 'brunello' ? 4 : library === 'tkov3' ? 5 : 4;
+    const top = cands.slice(0, 10);
+    const picked = cands.slice(0, numToPick);
+
+    $('numCandidates').textContent = cands.length;
+    $('topSelected').textContent = numToPick;
+    $('meanOnTarget').textContent = (picked.reduce((s, c) => s + c.onTarget, 0) / picked.length).toFixed(2);
+    $('meanOffTarget').textContent = (picked.reduce((s, c) => s + c.offTarget, 0) / picked.length).toFixed(1);
+
+    let html = '';
+    top.forEach((c, i) => {
+      const isSelected = i < numToPick;
+      html += `<tr class="${isSelected ? 'selected' : ''}">
+        <td>${i + 1}</td>
+        <td>${c.seq.slice(0, 20)}<strong>${c.seq.slice(20)}</strong></td>
+        <td>aa ${c.pos}</td>
+        <td>${c.onTarget.toFixed(2)}</td>
+        <td>${c.offTarget}</td>
+        <td>${c.combined.toFixed(3)}</td>
+        <td>${isSelected ? '✓' : ''}</td>
+      </tr>`;
+    });
+    $('sgrnaBody').innerHTML = html;
+
+    let hint;
+    const meanOn = picked.reduce((s, c) => s + c.onTarget, 0) / picked.length;
+    if (meanOn > 0.7) hint = 'Excellent: mean on-target > 0.70 — sgRNAs will cut efficiently. Library should perform well in screens.';
+    else if (meanOn > 0.55) hint = 'Acceptable: mean on-target around 0.55-0.65. Standard for a Brunello-style library.';
+    else hint = `Marginal: mean on-target < 0.55. Gene ${gene} may have repetitive/conserved regions — consider increasing sgRNAs/gene to compensate.`;
+    if (GENES[gene].profile === 'mixed') hint += ' Note: this gene has structural complexity (multiple isoforms / repetitive regions); off-target burden is higher.';
+    $('banner').innerHTML = `Selected <strong>${numToPick}</strong> sgRNAs from ${cands.length} candidates · mean on-target <strong>${meanOn.toFixed(2)}</strong>.<span class="hint">${hint}</span>`;
+  }
+
+  ['gene', 'library'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

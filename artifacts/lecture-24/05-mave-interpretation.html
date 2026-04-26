@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAVE → Variant Interpretation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 1rem 1.2rem; margin-bottom: 0.75rem; font-family: var(--font-mono); }
+  .verdict.path { border-color: #c4342c; background: #fef2f2; color: #7f1d1d; }
+  .verdict.likelypath { border-color: #b45309; background: #fffbeb; color: #92400e; }
+  .verdict.vus { border-color: #525252; background: #fafaf9; color: #525252; }
+  .verdict.benign { border-color: #059669; background: #f0fdf4; color: #065f46; }
+  .verdict .v { font-size: 1.4rem; font-weight: 800; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .acmg-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.85rem; }
+  .acmg-table td { padding: 0.4rem 0.6rem; border-bottom: 1px solid #e7e5e4; }
+  .acmg-table .applied { background: #fef3c7; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>MAVE → Variant Interpretation</h1>
+    <p>Pick a BRCA1 variant from the Findlay 2018 saturation mutagenesis MAVE; see fitness score, ClinVar status, and ACMG/AMP code triggered. Aha: MAVEs provide the functional evidence for clinical variant interpretation; the bridge to clinical genomics.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="variant">BRCA1 variant</label>
+      <select id="variant">
+        <option value="r1443x" selected>R1443* (premature stop codon)</option>
+        <option value="c61g">C61G (RING domain, zinc-binding cysteine)</option>
+        <option value="m1775r">M1775R (BRCT domain, structurally critical)</option>
+        <option value="g1788v">G1788V (BRCT, intermediate)</option>
+        <option value="r1699q">R1699Q (BRCT, conflicting reports)</option>
+        <option value="p1812a">P1812A (BRCT, disease-associated)</option>
+        <option value="d1739g">D1739G (BRCT, neutral)</option>
+        <option value="s1613g">S1613G (linker region, common SNP)</option>
+        <option value="r1751q">R1751Q (BRCT, mild)</option>
+        <option value="i26v">I26V (RING, polymorphism)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">—</div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="maveScore">—</div><div class="l">MAVE fitness score</div></div>
+    <div class="stat"><div class="v" id="domainPos">—</div><div class="l">Domain / position</div></div>
+    <div class="stat"><div class="v" id="clinvarStatus">—</div><div class="l">ClinVar status</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>ACMG/AMP evidence (codes triggered for this variant)</h3>
+    <table class="acmg-table" id="acmgBody"></table>
+  </div>
+
+  <div class="panel">
+    <h3>How MAVE supports PS3</h3>
+    <div style="font-size: 0.92rem; color: #374151; line-height: 1.6;" id="explanation">—</div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. Variant data is calibrated against published BRCA1 saturation-mutagenesis MAVE (Findlay 2018) and ClinVar entries; ACMG/AMP code application is simplified for teaching. Clinical variant classification requires the full ACMG/AMP framework + multiple lines of evidence — never use this tool for patient decisions.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const VARIANTS = {
+    r1443x: {
+      name: 'R1443* (premature stop codon)',
+      mave: -2.8, domain: 'BRCT (truncates protein)', clinvar: 'Pathogenic',
+      verdict: 'path', verdictText: 'PATHOGENIC',
+      codes: [
+        { code: 'PVS1', name: 'Null variant in disease gene', applied: true, weight: 'very strong' },
+        { code: 'PS3', name: 'Functional study damaging (MAVE)', applied: true, weight: 'strong' },
+        { code: 'PM2', name: 'Absent in population databases (gnomAD)', applied: true, weight: 'moderate' },
+        { code: 'PP3', name: 'Computational evidence damaging', applied: true, weight: 'supporting' }
+      ],
+      explanation: 'R1443* introduces a premature stop codon truncating the BRCT domain → essentially a null allele (PVS1). MAVE confirms loss of HDR function (fitness score −2.8 vs −0.1 for synonymous controls) → PS3. Combined: 1 PVS1 + 1 PS3 + 1 PM2 → Pathogenic per ACMG/AMP.'
+    },
+    c61g: {
+      name: 'C61G (zinc-binding cysteine in RING domain)',
+      mave: -2.5, domain: 'RING (Zn-binding)', clinvar: 'Pathogenic',
+      verdict: 'path', verdictText: 'PATHOGENIC',
+      codes: [
+        { code: 'PS3', name: 'MAVE shows damaging effect', applied: true, weight: 'strong' },
+        { code: 'PS1', name: 'Same AA change as known pathogenic', applied: true, weight: 'strong' },
+        { code: 'PM1', name: 'Located in functional domain (RING Zn-finger)', applied: true, weight: 'moderate' },
+        { code: 'PM2', name: 'Absent in gnomAD', applied: true, weight: 'moderate' }
+      ],
+      explanation: 'C61G abolishes zinc coordination in the RING domain (PM1). MAVE confirms functional damage (fitness −2.5) → PS3. Identical to known pathogenic variant → PS1. Multiple strong + moderate evidence → Pathogenic.'
+    },
+    m1775r: {
+      name: 'M1775R (BRCT domain, structurally critical)',
+      mave: -2.2, domain: 'BRCT', clinvar: 'Pathogenic',
+      verdict: 'path', verdictText: 'PATHOGENIC',
+      codes: [
+        { code: 'PS3', name: 'MAVE shows damaging effect', applied: true, weight: 'strong' },
+        { code: 'PM1', name: 'Located in functional BRCT domain', applied: true, weight: 'moderate' },
+        { code: 'PM2', name: 'Absent in population', applied: true, weight: 'moderate' },
+        { code: 'PP3', name: 'Multiple in silico predictors damaging', applied: true, weight: 'supporting' }
+      ],
+      explanation: 'M1775R disrupts hydrophobic packing in the BRCT phospho-peptide-binding cleft. MAVE shows complete loss of function (−2.2). PS3 + PM1 + PM2 + PP3 → Pathogenic.'
+    },
+    g1788v: {
+      name: 'G1788V (BRCT, intermediate)',
+      mave: -1.4, domain: 'BRCT', clinvar: 'Likely Pathogenic',
+      verdict: 'likelypath', verdictText: 'LIKELY PATHOGENIC',
+      codes: [
+        { code: 'PS3', name: 'MAVE shows damaging effect (intermediate)', applied: true, weight: 'strong' },
+        { code: 'PM2', name: 'Rare in gnomAD (1 / 250,000)', applied: true, weight: 'moderate' },
+        { code: 'PP3', name: 'In silico damaging', applied: true, weight: 'supporting' }
+      ],
+      explanation: 'G1788V shows partial loss of function (−1.4). PS3 + PM2 + PP3 supporting evidence → Likely Pathogenic per ACMG/AMP combinatorial rules.'
+    },
+    r1699q: {
+      name: 'R1699Q (BRCT, conflicting reports)',
+      mave: -1.0, domain: 'BRCT', clinvar: 'Conflicting interpretations',
+      verdict: 'vus', verdictText: 'VUS (variant of uncertain significance)',
+      codes: [
+        { code: 'PS3', name: 'MAVE: borderline damaging', applied: false, weight: 'strong (not met)' },
+        { code: 'PM2', name: 'Rare in gnomAD', applied: true, weight: 'moderate' },
+        { code: 'PP3', name: 'Mixed in silico predictions', applied: false, weight: 'supporting (not met)' },
+        { code: 'BS1', name: 'Frequency higher than expected for severe disease', applied: false, weight: 'strong (not met)' }
+      ],
+      explanation: 'R1699Q sits at the MAVE damage threshold (−1.0). Insufficient evidence for either direction → VUS. Re-classify as more data accumulates.'
+    },
+    p1812a: {
+      name: 'P1812A (BRCT, disease-associated)',
+      mave: -2.0, domain: 'BRCT', clinvar: 'Likely Pathogenic',
+      verdict: 'likelypath', verdictText: 'LIKELY PATHOGENIC',
+      codes: [
+        { code: 'PS3', name: 'MAVE damaging', applied: true, weight: 'strong' },
+        { code: 'PM2', name: 'Rare in gnomAD', applied: true, weight: 'moderate' },
+        { code: 'PP1', name: 'Co-segregates with disease (small family)', applied: true, weight: 'supporting' }
+      ],
+      explanation: 'P1812A disrupts loop conformation in BRCT. MAVE confirms (−2.0). Modest co-segregation (PP1) plus PS3/PM2 → Likely Pathogenic.'
+    },
+    d1739g: {
+      name: 'D1739G (BRCT, neutral)',
+      mave: -0.2, domain: 'BRCT', clinvar: 'Likely Benign',
+      verdict: 'benign', verdictText: 'LIKELY BENIGN',
+      codes: [
+        { code: 'BS3', name: 'MAVE: no functional effect', applied: true, weight: 'strong (benign)' },
+        { code: 'BP1', name: 'Missense in gene where truncating is mechanism', applied: true, weight: 'supporting' }
+      ],
+      explanation: 'D1739G has near-neutral MAVE score (−0.2). BS3 (functional study shows no damaging effect) + BP1 → Likely Benign.'
+    },
+    s1613g: {
+      name: 'S1613G (linker, common SNP)',
+      mave: 0.0, domain: 'linker (no domain)', clinvar: 'Benign',
+      verdict: 'benign', verdictText: 'BENIGN',
+      codes: [
+        { code: 'BA1', name: 'Allele frequency > 5% in gnomAD', applied: true, weight: 'stand-alone benign' },
+        { code: 'BS3', name: 'MAVE: neutral', applied: true, weight: 'strong' }
+      ],
+      explanation: 'S1613G is a common SNP (~10% MAF in gnomAD). BA1 alone establishes Benign — population frequency too high for severe disease.'
+    },
+    r1751q: {
+      name: 'R1751Q (BRCT, mild)',
+      mave: -0.7, domain: 'BRCT', clinvar: 'VUS',
+      verdict: 'vus', verdictText: 'VUS',
+      codes: [
+        { code: 'PS3', name: 'MAVE: marginal effect', applied: false, weight: 'strong (not met)' },
+        { code: 'PM2', name: 'Rare in gnomAD', applied: true, weight: 'moderate' }
+      ],
+      explanation: 'R1751Q has subtle MAVE effect (−0.7). PM2 alone is insufficient → VUS pending more evidence.'
+    },
+    i26v: {
+      name: 'I26V (RING, polymorphism)',
+      mave: 0.1, domain: 'RING', clinvar: 'Benign',
+      verdict: 'benign', verdictText: 'BENIGN',
+      codes: [
+        { code: 'BS3', name: 'MAVE: neutral / slightly tolerant', applied: true, weight: 'strong' },
+        { code: 'BS1', name: 'Frequency 0.5% in gnomAD (high for severe)', applied: true, weight: 'strong (benign)' }
+      ],
+      explanation: 'I26V is functionally neutral in MAVE (+0.1) and present at 0.5% MAF (BS1 — too common for high-penetrance disease). BS3 + BS1 → Benign.'
+    }
+  };
+
+  function update() {
+    const v = VARIANTS[$('variant').value];
+    $('maveScore').textContent = (v.mave >= 0 ? '+' : '') + v.mave.toFixed(1);
+    $('domainPos').textContent = v.domain;
+    $('clinvarStatus').textContent = v.clinvar;
+    $('verdict').className = 'verdict ' + v.verdict;
+    $('verdict').innerHTML = `<div style="font-size:0.7rem; letter-spacing:0.14em; color:#6b7280; text-transform:uppercase;">ACMG/AMP classification</div><div class="v">${v.verdictText}</div>`;
+
+    let html = '<thead><tr style="background:#f5f5f4;"><th style="text-align:left;padding:0.4rem 0.6rem;font-size:0.7rem;text-transform:uppercase;color:#6b7280;">Code</th><th style="text-align:left;padding:0.4rem 0.6rem;font-size:0.7rem;text-transform:uppercase;color:#6b7280;">Description</th><th style="text-align:left;padding:0.4rem 0.6rem;font-size:0.7rem;text-transform:uppercase;color:#6b7280;">Weight</th><th style="text-align:left;padding:0.4rem 0.6rem;font-size:0.7rem;text-transform:uppercase;color:#6b7280;">Applied?</th></tr></thead><tbody>';
+    v.codes.forEach(c => {
+      html += `<tr class="${c.applied ? 'applied' : ''}">
+        <td><strong>${c.code}</strong></td>
+        <td>${c.name}</td>
+        <td>${c.weight}</td>
+        <td>${c.applied ? '✓' : '—'}</td>
+      </tr>`;
+    });
+    html += '</tbody>';
+    $('acmgBody').innerHTML = html;
+
+    $('explanation').textContent = v.explanation;
+
+    $('banner').innerHTML = `<strong>${v.name}</strong> · MAVE = <strong>${v.mave.toFixed(1)}</strong> · ClinVar: <strong>${v.clinvar}</strong> → <strong>${v.verdictText}</strong>.<span class="hint">MAVE provides PS3 / BS3 functional evidence — the strongest experimental input to clinical variant classification.</span>`;
+  }
+
+  $('variant').addEventListener('change', update);
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

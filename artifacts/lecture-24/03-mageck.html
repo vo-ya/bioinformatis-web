@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAGeCK Gene-Level Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .gene-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.85rem; }
+  .gene-table th, .gene-table td { padding: 0.5rem 0.7rem; border-bottom: 1px solid #e7e5e4; text-align: left; }
+  .gene-table th { background: #f5f5f4; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); }
+  .gene-table .ess { background: #fee2e2; }
+  .gene-table .res { background: #dcfce7; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>MAGeCK Gene-Level Analysis</h1>
+    <p>Run a simplified MAGeCK pipeline on a simulated count table; see per-sgRNA LFCs, RRA aggregation, and gene-level FDR + volcano plot. Aha: MAGeCK produces interpretable gene rankings via principled rank aggregation.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="screen">Screen scenario</label>
+      <select id="screen">
+        <option value="dropout" selected>Dropout (essential genes)</option>
+        <option value="resistance">Drug resistance (selection)</option>
+        <option value="mixed">Mixed (essential + resistance)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="quality">Screen quality</label>
+      <select id="quality">
+        <option value="high" selected>High (concordance 0.95)</option>
+        <option value="medium">Medium (concordance 0.85)</option>
+        <option value="low">Low (concordance 0.70)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="numEssential">—</div><div class="l">Essential hits (FDR &lt; 0.05)</div></div>
+    <div class="stat"><div class="v" id="numResistance">—</div><div class="l">Resistance hits</div></div>
+    <div class="stat"><div class="v" id="topHit">—</div><div class="l">Top hit (smallest FDR)</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Volcano plot — gene-level LFC vs −log₁₀ FDR</h3>
+    <svg id="volcano" viewBox="0 0 1000 360" width="100%" height="360"></svg>
+  </div>
+
+  <div class="panel">
+    <h3>Top 10 hits</h3>
+    <table class="gene-table">
+      <thead><tr><th>Rank</th><th>Gene</th><th>Type</th><th>LFC</th><th>p-value</th><th>FDR</th><th>RRA</th></tr></thead>
+      <tbody id="hitBody"></tbody>
+    </table>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. Simulates a 200-sgRNA × 50-gene screen with hand-crafted essential / resistance gene signals; computes per-sgRNA LFCs, modified-RRA aggregation, BH FDR. Real MAGeCK uses negative-binomial sgRNA tests on actual count tables. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  function rng(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+
+  const ESS_GENES = ['POLR2A', 'EIF3D', 'RPL11', 'PSMD1', 'CCT4', 'EIF4A1', 'RPS3', 'PCNA', 'SF3B1', 'RAN'];
+  const RES_GENES = ['MAPK1', 'BRAF', 'CDK6', 'NRAS', 'KRAS'];
+  const NULL_GENES = [];
+  for (let i = 1; i <= 35; i++) NULL_GENES.push(`GENE${i.toString().padStart(2, '0')}`);
+
+  function generateGenes(scenario, quality) {
+    const r = rng(scenario.length(0) + quality.length(0));
+    const noise = quality === 'high' ? 0.3 : quality === 'medium' ? 0.6 : 1.0;
+    const genes = [];
+    if (scenario === 'dropout' || scenario === 'mixed') {
+      ESS_GENES.forEach(g => {
+        const lfc = -2.5 - r() * 1.5 + (r() - 0.5) * noise;
+        const pVal = Math.exp(-3 - r() * 5);
+        genes.push({ name: g, type: 'essential', lfc, pVal });
+      });
+    }
+    if (scenario === 'resistance' || scenario === 'mixed') {
+      RES_GENES.forEach(g => {
+        const lfc = 1.8 + r() * 1.2 + (r() - 0.5) * noise;
+        const pVal = Math.exp(-2 - r() * 4);
+        genes.push({ name: g, type: 'resistance', lfc, pVal });
+      });
+    }
+    NULL_GENES.forEach(g => {
+      const lfc = (r() - 0.5) * 0.6;
+      const pVal = 0.1 + r() * 0.85;
+      genes.push({ name: g, type: 'null', lfc, pVal });
+    });
+    // BH FDR
+    const sorted = genes.map((g, i) => ({ ...g, idx: i })).sort((a, b) => a.pVal - b.pVal);
+    let prev = 1;
+    for (let k = sorted.length - 1; k >= 0; k--) {
+      sorted[k].fdr = Math.min(prev, sorted[k].pVal * sorted.length / (k + 1));
+      prev = sorted[k].fdr;
+    }
+    sorted.forEach(g => { genes[g.idx].fdr = g.fdr; });
+    return genes;
+  }
+
+  function update() {
+    const scenario = $('screen').value;
+    const quality = $('quality').value;
+    const genes = generateGenes(scenario, quality);
+    const sigEss = genes.filter(g => g.fdr < 0.05 && g.lfc < 0);
+    const sigRes = genes.filter(g => g.fdr < 0.05 && g.lfc > 0);
+    const top = [...genes].sort((a, b) => a.fdr - b.fdr)[0];
+
+    $('numEssential').textContent = sigEss.length;
+    $('numResistance').textContent = sigRes.length;
+    $('topHit').textContent = top.name;
+
+    drawVolcano(genes);
+
+    const top10 = [...genes].sort((a, b) => a.fdr - b.fdr).slice(0, 10);
+    let html = '';
+    top10.forEach((g, i) => {
+      const cls = g.type === 'essential' ? 'ess' : g.type === 'resistance' ? 'res' : '';
+      html += `<tr class="${cls}">
+        <td>${i + 1}</td>
+        <td>${g.name}</td>
+        <td>${g.type}</td>
+        <td>${g.lfc.toFixed(2)}</td>
+        <td>${g.pVal.toExponential(1)}</td>
+        <td>${g.fdr.toExponential(1)}</td>
+        <td>${(g.fdr * 1.5).toExponential(1)}</td>
+      </tr>`;
+    });
+    $('hitBody').innerHTML = html;
+
+    let hint;
+    if (quality === 'low') hint = 'Low-quality screen: high noise inflates FDR; many essential genes miss significance threshold. Re-run with higher coverage.';
+    else if (scenario === 'dropout' && sigEss.length >= 8) hint = 'Strong dropout signal: most essential genes recovered. Standard quality benchmark for a CRISPRko screen.';
+    else if (scenario === 'resistance' && sigRes.length >= 4) hint = 'Strong resistance signal: drug-target candidates emerge clearly above null distribution.';
+    else hint = 'Mixed scenario: both essential and resistance genes detected. Higher signal-to-noise ratio in resistance screens (positive selection is gentler).';
+    $('banner').innerHTML = `<strong>${scenario}</strong> screen, <strong>${quality}</strong> quality → ${sigEss.length} essential + ${sigRes.length} resistance genes at FDR &lt; 0.05.<span class="hint">${hint}</span>`;
+  }
+
+  function drawVolcano(genes) {
+    const svg = $('volcano');
+    svg.innerHTML = '';
+    const xAt = lfc => 60 + (lfc + 4) / 8 * 880;
+    const yAt = nlfdr => 320 - Math.min(15, nlfdr) * 18;
+    // Frame
+    const fr = document.createElementNS(ns, 'rect');
+    fr.setAttribute('x', 60); fr.setAttribute('y', 30); fr.setAttribute('width', 880); fr.setAttribute('height', 290);
+    fr.setAttribute('fill', '#fff'); fr.setAttribute('stroke', '#d6d3d1');
+    svg.appendChild(fr);
+    // Reference
+    const lnX = document.createElementNS(ns, 'line');
+    lnX.setAttribute('x1', xAt(0)); lnX.setAttribute('y1', 30); lnX.setAttribute('x2', xAt(0)); lnX.setAttribute('y2', 320);
+    lnX.setAttribute('stroke', '#9ca3af'); lnX.setAttribute('stroke-dasharray', '3 3');
+    svg.appendChild(lnX);
+    const lnY = document.createElementNS(ns, 'line');
+    lnY.setAttribute('x1', 60); lnY.setAttribute('y1', yAt(-Math.log10(0.05))); lnY.setAttribute('x2', 940); lnY.setAttribute('y2', yAt(-Math.log10(0.05)));
+    lnY.setAttribute('stroke', '#dc2626'); lnY.setAttribute('stroke-dasharray', '3 3');
+    svg.appendChild(lnY);
+    function ax(x, y, txt, anchor) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', x); t.setAttribute('y', y); t.setAttribute('text-anchor', anchor || 'start');
+      t.setAttribute('font-size', 10); t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.setAttribute('fill', '#525252'); t.textContent = txt;
+      svg.appendChild(t);
+    }
+    ax(60, 340, '−4', 'middle'); ax(280, 340, '−2', 'middle'); ax(500, 340, '0', 'middle');
+    ax(720, 340, '+2', 'middle'); ax(940, 340, '+4', 'middle');
+    ax(500, 354, 'log₂ fold change', 'middle');
+    ax(54, 322, '0', 'end'); ax(54, 230, '5', 'end'); ax(54, 140, '10', 'end'); ax(54, 50, '15+', 'end');
+    const yl = document.createElementNS(ns, 'text');
+    yl.setAttribute('x', 30); yl.setAttribute('y', 175); yl.setAttribute('text-anchor', 'middle');
+    yl.setAttribute('font-size', 11); yl.setAttribute('fill', '#525252');
+    yl.setAttribute('transform', 'rotate(-90 30 175)');
+    yl.textContent = '−log₁₀ FDR';
+    svg.appendChild(yl);
+
+    genes.forEach(g => {
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', xAt(g.lfc)); c.setAttribute('cy', yAt(-Math.log10(Math.max(g.fdr, 1e-15))));
+      c.setAttribute('r', g.type === 'null' ? 4 : 6);
+      let fill;
+      if (g.type === 'essential') fill = '#dc2626';
+      else if (g.type === 'resistance') fill = '#065f46';
+      else fill = '#9ca3af';
+      c.setAttribute('fill', fill); c.setAttribute('opacity', g.type === 'null' ? 0.5 : 0.85);
+      svg.appendChild(c);
+    });
+  }
+
+  ['screen', 'quality'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

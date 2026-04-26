@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HMM Playground — CpG Island Segmentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 100%; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .seqtrack { font-family: var(--font-mono); font-size: 11px; line-height: 1.5; padding: 0.6rem 0.8rem; background: #fafaf9; border-radius: 4px; border: 1px solid #e7e5e4; overflow-x: auto; white-space: nowrap; }
+  .seqtrack .island { background: #fef3c7; color: #92400e; font-weight: 700; padding: 0 1px; }
+  .seqtrack .bg { color: #525252; padding: 0 1px; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>HMM Playground — CpG Island Segmentation</h1>
+    <p>A 2-state HMM (island vs background) on a 1 kb sequence. Tune the transition stickiness and the per-state emission contrast; Viterbi-decoded segmentation updates live. Aha: the segmentation depends on the transition rate (how sticky the states are) and the emission contrast (how strongly each state prefers different letters).</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="preset">Sequence preset</label>
+      <select id="preset">
+        <option value="three" selected>3 islands embedded in background</option>
+        <option value="dense">5 short islands (dense)</option>
+        <option value="sparse">1 long island (sparse)</option>
+        <option value="none">No islands (negative control)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="trans">Transition stickiness: <span class="v" id="transV">0.97</span></label>
+      <input type="range" id="trans" min="80" max="999" value="970">
+    </div>
+    <div class="field">
+      <label for="contrast">Emission contrast (island vs bg): <span class="v" id="contrastV">3.0×</span></label>
+      <input type="range" id="contrast" min="100" max="500" value="300">
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="numIslands">—</div><div class="l">Islands called</div></div>
+    <div class="stat"><div class="v" id="meanLen">—</div><div class="l">Mean island length</div></div>
+    <div class="stat"><div class="v" id="frac">—</div><div class="l">Fraction in island state</div></div>
+    <div class="stat"><div class="v" id="logL">—</div><div class="l">log P(X | θ)</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Sequence with Viterbi decoding (amber = predicted island)</h3>
+    <div class="seqtrack" id="seqView"></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. The 2-state HMM uses simplified single-nucleotide emissions instead of the full 16-bin dinucleotide model that real CpG-island callers use. Ground-truth island regions are coloured if you scroll the sequence. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const SEQ_LEN = 1000;
+  const ISLAND_FREQ = { A: 0.18, C: 0.32, G: 0.32, T: 0.18 };
+  const BG_FREQ = { A: 0.30, C: 0.20, G: 0.20, T: 0.30 };
+
+  function rng(seed) {
+    let s = seed >>> 0;
+    return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  }
+
+  function generateSequence(preset) {
+    const r = rng(42);
+    let truth = new Array(SEQ_LEN).fill(0);
+    let regions = [];
+    if (preset === 'three') regions = [[150, 230], [400, 510], [700, 800]];
+    else if (preset === 'dense') regions = [[80, 130], [220, 280], [400, 460], [580, 640], [780, 850]];
+    else if (preset === 'sparse') regions = [[300, 700]];
+    else regions = [];
+    regions.forEach(([a, b]) => { for (let i = a; i < b; i++) truth[i] = 1; });
+
+    const seq = [];
+    const letters = ['A', 'C', 'G', 'T'];
+    for (let i = 0; i < SEQ_LEN; i++) {
+      const freq = truth[i] ? ISLAND_FREQ : BG_FREQ;
+      const u = r();
+      let cum = 0, picked = 'A';
+      for (const L of letters) {
+        cum += freq[L];
+        if (u < cum) { picked = L; break; }
+      }
+      seq.push(picked);
+    }
+    return { seq, truth };
+  }
+
+  function viterbi(seq, stick, contrast) {
+    const n = seq.length;
+    // Two states: 0 = bg, 1 = island
+    // a_ij self-loop = stick; cross = 1-stick
+    const a00 = Math.log(stick);
+    const a01 = Math.log(1 - stick);
+    const a11 = Math.log(stick);
+    const a10 = Math.log(1 - stick);
+
+    // Emission: use contrast scaling
+    const c = contrast;
+    function bg(letter) {
+      const p = BG_FREQ[letter];
+      return Math.log(p);
+    }
+    function isl(letter) {
+      // Sharper preference for C/G as contrast goes up
+      const baseFreq = { A: 0.25, C: 0.25, G: 0.25, T: 0.25 };
+      const islFreq = ISLAND_FREQ;
+      const adj = {};
+      let total = 0;
+      for (const L of ['A', 'C', 'G', 'T']) {
+        adj[L] = Math.pow(islFreq[L] / baseFreq[L], c) * baseFreq[L];
+        total += adj[L];
+      }
+      return Math.log(adj[letter] / total);
+    }
+
+    const delta = [new Array(n), new Array(n)];
+    const psi = [new Array(n), new Array(n)];
+    delta[0][0] = Math.log(0.95) + bg(seq[0]);
+    delta[1][0] = Math.log(0.05) + isl(seq[0]);
+    psi[0][0] = -1; psi[1][0] = -1;
+    for (let t = 1; t < n; t++) {
+      // To bg (state 0)
+      const v00 = delta[0][t - 1] + a00;
+      const v10 = delta[1][t - 1] + a10;
+      if (v00 > v10) { delta[0][t] = v00 + bg(seq[t]); psi[0][t] = 0; }
+      else { delta[0][t] = v10 + bg(seq[t]); psi[0][t] = 1; }
+      // To island (state 1)
+      const v01 = delta[0][t - 1] + a01;
+      const v11 = delta[1][t - 1] + a11;
+      if (v01 > v11) { delta[1][t] = v01 + isl(seq[t]); psi[1][t] = 0; }
+      else { delta[1][t] = v11 + isl(seq[t]); psi[1][t] = 1; }
+    }
+    // Backtrack
+    const path = new Array(n);
+    path[n - 1] = delta[1][n - 1] > delta[0][n - 1] ? 1 : 0;
+    for (let t = n - 2; t >= 0; t--) path[t] = psi[path[t + 1]][t + 1];
+    const logL = Math.max(delta[0][n - 1], delta[1][n - 1]);
+    return { path, logL };
+  }
+
+  function callIslands(path) {
+    const islands = [];
+    let inIsland = false, start = 0;
+    for (let i = 0; i < path.length; i++) {
+      if (path[i] === 1 && !inIsland) { start = i; inIsland = true; }
+      else if (path[i] === 0 && inIsland) { islands.push([start, i]); inIsland = false; }
+    }
+    if (inIsland) islands.push([start, path.length]);
+    return islands;
+  }
+
+  function update() {
+    const preset = $('preset').value;
+    const stickRaw = parseFloat($('trans').value);
+    const stick = stickRaw / 1000;
+    const contrastRaw = parseFloat($('contrast').value);
+    const contrast = contrastRaw / 100;
+    $('transV').textContent = stick.toFixed(3);
+    $('contrastV').textContent = `${contrast.toFixed(1)}×`;
+
+    const { seq, truth } = generateSequence(preset);
+    const { path, logL } = viterbi(seq, stick, contrast);
+    const islands = callIslands(path);
+
+    $('numIslands').textContent = islands.length;
+    $('meanLen').textContent = islands.length ? Math.round(islands.reduce((s, [a, b]) => s + (b - a), 0) / islands.length) + ' bp' : '—';
+    const frac = path.filter(x => x === 1).length / path.length;
+    $('frac').textContent = `${(frac * 100).toFixed(1)}%`;
+    $('logL').textContent = logL.toFixed(1);
+
+    let html = '';
+    let prev = path[0];
+    let buf = '';
+    for (let i = 0; i < seq.length; i++) {
+      if (path[i] !== prev) {
+        html += `<span class="${prev === 1 ? 'island' : 'bg'}">${buf}</span>`;
+        buf = ''; prev = path[i];
+      }
+      buf += seq[i];
+    }
+    html += `<span class="${prev === 1 ? 'island' : 'bg'}">${buf}</span>`;
+    $('seqView').innerHTML = html;
+
+    let hint;
+    if (preset === 'none' && islands.length > 2) hint = `False positives! With no real islands, you should call ≤ 2. Lower stickiness or contrast to reduce.`;
+    else if (preset !== 'none' && islands.length === 0) hint = `No islands called. Increase stickiness or contrast.`;
+    else if (stick < 0.85) hint = `Low stickiness → many short calls (over-segmentation).`;
+    else if (stick > 0.99) hint = `High stickiness → few long calls; may merge adjacent true islands.`;
+    else if (contrast < 1.5) hint = `Low contrast → background letters can score higher than islands; signal lost.`;
+    else hint = `Reasonable parameters. Real CpG callers use 16-bin dinucleotide emissions for sharper detection.`;
+    $('banner').innerHTML = `Preset <strong>${preset}</strong> · stickiness <strong>${stick.toFixed(2)}</strong> · contrast <strong>${contrast.toFixed(1)}×</strong> → <strong>${islands.length}</strong> islands called.<span class="hint">${hint}</span>`;
+  }
+
+  ['preset', 'trans', 'contrast'].forEach(id => $(id).addEventListener('input', update));
+  $('preset').addEventListener('change', update);
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

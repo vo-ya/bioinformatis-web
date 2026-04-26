@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gene Finder Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 100%; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .legend { display: flex; gap: 0.8rem; flex-wrap: wrap; font-size: 0.75rem; color: #525252; margin-bottom: 0.5rem; }
+  .legend-key { display: inline-flex; align-items: center; gap: 0.3rem; }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 2px; border: 1px solid #d6d3d1; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Gene Finder Simulator</h1>
+    <p>A simplified GENSCAN-style HMM on a 10 kb genomic region. Toggle "with hints" / "without hints"; slide the intron length-distribution mean. Aha: eukaryotic gene finding is multi-state HMM segmentation; length distributions and emission patterns drive the result.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="region">Genomic region</label>
+      <select id="region">
+        <option value="standard" selected>Standard (3 genes embedded)</option>
+        <option value="dense">Gene-dense region</option>
+        <option value="intronic">Long-intron region</option>
+        <option value="poor">Repetitive / hard region</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="intronMean">Intron mean length: <span class="v" id="intronMeanV">2000 bp</span></label>
+      <input type="range" id="intronMean" min="100" max="5000" value="2000">
+    </div>
+    <div class="field">
+      <label for="hints">RNA-seq hints</label>
+      <select id="hints">
+        <option value="off" selected>Off (de novo)</option>
+        <option value="on">On (BRAKER-style)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="numGenes">—</div><div class="l">Genes called</div></div>
+    <div class="stat"><div class="v" id="totalCDS">—</div><div class="l">Total CDS length</div></div>
+    <div class="stat"><div class="v" id="meanExon">—</div><div class="l">Mean exon length</div></div>
+    <div class="stat"><div class="v" id="precision">—</div><div class="l">Boundary precision</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Viterbi gene-structure track (10 kb region)</h3>
+    <div class="legend">
+      <span class="legend-key"><span class="legend-swatch" style="background:#f5f5f4"></span>intergenic</span>
+      <span class="legend-key"><span class="legend-swatch" style="background:#dbeafe"></span>5'/3' UTR</span>
+      <span class="legend-key"><span class="legend-swatch" style="background:#dcfce7"></span>exon (CDS)</span>
+      <span class="legend-key"><span class="legend-swatch" style="background:#fef3c7"></span>intron</span>
+      <span class="legend-key"><span class="legend-swatch" style="background:#dc2626"></span>splice site</span>
+    </div>
+    <svg id="track" viewBox="0 0 1040 160" width="100%" height="160"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. The gene structures are precomputed for four region presets; the HMM "decoding" displayed reflects ground truth +/- hint-modulated noise. Real GENSCAN/AUGUSTUS run Viterbi over O(10⁹)-state lattices; their accuracy depends on training data quality, intron-length priors, and external evidence. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  // Each region preset has a "ground truth" gene structure (segments at 10kb / 1000 px scale)
+  const REGIONS = {
+    standard: {
+      truth: [
+        { type: 'intergenic', start: 0, end: 800 },
+        { type: 'utr5', start: 800, end: 1100 },
+        { type: 'exon', start: 1100, end: 1400 },
+        { type: 'intron', start: 1400, end: 1900 },
+        { type: 'exon', start: 1900, end: 2200 },
+        { type: 'intron', start: 2200, end: 2700 },
+        { type: 'exon', start: 2700, end: 3000 },
+        { type: 'utr3', start: 3000, end: 3300 },
+        { type: 'intergenic', start: 3300, end: 4400 },
+        { type: 'utr5', start: 4400, end: 4700 },
+        { type: 'exon', start: 4700, end: 5400 },
+        { type: 'utr3', start: 5400, end: 5700 },
+        { type: 'intergenic', start: 5700, end: 6800 },
+        { type: 'utr5', start: 6800, end: 7000 },
+        { type: 'exon', start: 7000, end: 7400 },
+        { type: 'intron', start: 7400, end: 8000 },
+        { type: 'exon', start: 8000, end: 8400 },
+        { type: 'utr3', start: 8400, end: 8700 },
+        { type: 'intergenic', start: 8700, end: 10000 }
+      ],
+      genes: 3, label: '3 genes (standard)'
+    },
+    dense: {
+      truth: [
+        { type: 'intergenic', start: 0, end: 300 },
+        { type: 'utr5', start: 300, end: 500 }, { type: 'exon', start: 500, end: 1000 }, { type: 'utr3', start: 1000, end: 1200 },
+        { type: 'intergenic', start: 1200, end: 1500 },
+        { type: 'utr5', start: 1500, end: 1700 }, { type: 'exon', start: 1700, end: 2200 }, { type: 'utr3', start: 2200, end: 2400 },
+        { type: 'intergenic', start: 2400, end: 2700 },
+        { type: 'utr5', start: 2700, end: 2900 }, { type: 'exon', start: 2900, end: 3400 }, { type: 'utr3', start: 3400, end: 3600 },
+        { type: 'intergenic', start: 3600, end: 4000 },
+        { type: 'utr5', start: 4000, end: 4200 }, { type: 'exon', start: 4200, end: 4700 }, { type: 'utr3', start: 4700, end: 4900 },
+        { type: 'intergenic', start: 4900, end: 5200 },
+        { type: 'utr5', start: 5200, end: 5400 }, { type: 'exon', start: 5400, end: 5900 }, { type: 'utr3', start: 5900, end: 6100 },
+        { type: 'intergenic', start: 6100, end: 6500 },
+        { type: 'utr5', start: 6500, end: 6700 }, { type: 'exon', start: 6700, end: 7300 }, { type: 'utr3', start: 7300, end: 7500 },
+        { type: 'intergenic', start: 7500, end: 7900 },
+        { type: 'utr5', start: 7900, end: 8100 }, { type: 'exon', start: 8100, end: 8800 }, { type: 'utr3', start: 8800, end: 9000 },
+        { type: 'intergenic', start: 9000, end: 10000 }
+      ],
+      genes: 7, label: '7 genes (dense)'
+    },
+    intronic: {
+      truth: [
+        { type: 'intergenic', start: 0, end: 1000 },
+        { type: 'utr5', start: 1000, end: 1200 },
+        { type: 'exon', start: 1200, end: 1400 },
+        { type: 'intron', start: 1400, end: 4000 },
+        { type: 'exon', start: 4000, end: 4200 },
+        { type: 'intron', start: 4200, end: 7000 },
+        { type: 'exon', start: 7000, end: 7300 },
+        { type: 'utr3', start: 7300, end: 7500 },
+        { type: 'intergenic', start: 7500, end: 10000 }
+      ],
+      genes: 1, label: '1 gene (long introns)'
+    },
+    poor: {
+      truth: [
+        { type: 'intergenic', start: 0, end: 1500 },
+        { type: 'utr5', start: 1500, end: 1700 },
+        { type: 'exon', start: 1700, end: 1900 },
+        { type: 'intron', start: 1900, end: 3500 },
+        { type: 'exon', start: 3500, end: 3700 },
+        { type: 'utr3', start: 3700, end: 3900 },
+        { type: 'intergenic', start: 3900, end: 6000 },
+        { type: 'utr5', start: 6000, end: 6200 },
+        { type: 'exon', start: 6200, end: 6500 },
+        { type: 'utr3', start: 6500, end: 6700 },
+        { type: 'intergenic', start: 6700, end: 10000 }
+      ],
+      genes: 2, label: '2 genes (repetitive bg)'
+    }
+  };
+
+  const COLORS = {
+    intergenic: '#f5f5f4', utr5: '#dbeafe', utr3: '#dbeafe', exon: '#dcfce7', intron: '#fef3c7'
+  };
+  const STROKES = {
+    intergenic: '#525252', utr5: '#1e3a8a', utr3: '#1e3a8a', exon: '#065f46', intron: '#b45309'
+  };
+
+  function update() {
+    const r = $('region').value;
+    const intronMean = parseFloat($('intronMean').value);
+    const hints = $('hints').value;
+    $('intronMeanV').textContent = `${intronMean} bp`;
+
+    const region = REGIONS[r];
+    const truth = region.truth;
+
+    // Inferred segmentation: deterministic copy of truth, with noise based on hints and intron mean
+    const inferred = truth.map(s => ({ ...s }));
+
+    // If hints off, perturb boundaries by up to 50 bp; if intron-mean far from default, drop short introns
+    if (hints === 'off') {
+      inferred.forEach(s => {
+        s.start = Math.max(0, s.start + Math.round((Math.random() - 0.5) * 80));
+        s.end = Math.min(10000, s.end + Math.round((Math.random() - 0.5) * 80));
+      });
+    }
+
+    // Filter introns shorter than half intronMean
+    const filtered = inferred.filter(s => !(s.type === 'intron' && (s.end - s.start) < intronMean / 4));
+
+    // Draw track
+    const svg = $('track');
+    svg.innerHTML = '';
+    // Truth row
+    const tt = document.createElementNS(ns, 'text');
+    tt.setAttribute('x', 4); tt.setAttribute('y', 24);
+    tt.setAttribute('font-size', 11); tt.setAttribute('font-weight', 700);
+    tt.setAttribute('fill', '#374151');
+    tt.textContent = 'Ground truth';
+    svg.appendChild(tt);
+    drawSegments(svg, truth, 36, 30);
+    // Inferred row
+    const it = document.createElementNS(ns, 'text');
+    it.setAttribute('x', 4); it.setAttribute('y', 92);
+    it.setAttribute('font-size', 11); it.setAttribute('font-weight', 700);
+    it.setAttribute('fill', '#374151');
+    it.textContent = `Inferred (hints ${hints})`;
+    svg.appendChild(it);
+    drawSegments(svg, filtered, 104, 30);
+
+    // Position labels
+    [0, 2500, 5000, 7500, 10000].forEach(p => {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', p / 10); t.setAttribute('y', 156);
+      t.setAttribute('font-size', 9); t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.setAttribute('fill', '#525252'); t.setAttribute('text-anchor', p === 0 ? 'start' : (p === 10000 ? 'end' : 'middle'));
+      t.textContent = `${(p / 1000).toFixed(1)} kb`;
+      svg.appendChild(t);
+    });
+
+    // Stats
+    const exons = filtered.filter(s => s.type === 'exon');
+    const totalCDS = exons.reduce((s, e) => s + (e.end - e.start), 0);
+    const meanExon = exons.length ? Math.round(totalCDS / exons.length) : 0;
+    // Count distinct gene = blocks separated by intergenic
+    let geneCount = 0;
+    let inGene = false;
+    filtered.forEach(s => {
+      if (s.type === 'intergenic') inGene = false;
+      else if (!inGene) { geneCount++; inGene = true; }
+    });
+    const precision = hints === 'on' ? 0.95 : 0.78;
+    $('numGenes').textContent = geneCount;
+    $('totalCDS').textContent = `${totalCDS} bp`;
+    $('meanExon').textContent = `${meanExon} bp`;
+    $('precision').textContent = `${(precision * 100).toFixed(0)}%`;
+
+    let hint;
+    if (hints === 'off' && r === 'poor') hint = 'Repetitive background + de novo prediction → boundary errors and possible false-positive predictions.';
+    else if (hints === 'off' && r === 'intronic') hint = 'Long introns are easy to miscall as multiple short genes without RNA-seq hints. Bias toward calling boundaries.';
+    else if (hints === 'on') hint = 'RNA-seq hints (BRAKER-style) anchor exon boundaries; precision climbs above 90%. The standard for new mammalian genome annotation.';
+    else if (intronMean < 500) hint = 'Very short intron prior → long introns get split into multiple short genes (common gene-finder failure mode).';
+    else if (intronMean > 4000) hint = 'Very long intron prior → exons can be merged across true intergenic gaps.';
+    else hint = 'Default intron prior + RNA-seq hints is the safest production setup.';
+    $('banner').innerHTML = `<strong>${region.label}</strong>, intron mean <strong>${intronMean} bp</strong>, hints <strong>${hints}</strong> → ${geneCount} genes called.<span class="hint">${hint}</span>`;
+  }
+
+  function drawSegments(svg, segs, y, h) {
+    segs.forEach(s => {
+      const x1 = s.start / 10;
+      const w = (s.end - s.start) / 10;
+      const r = document.createElementNS(ns, 'rect');
+      r.setAttribute('x', x1); r.setAttribute('y', y); r.setAttribute('width', w); r.setAttribute('height', h);
+      r.setAttribute('fill', COLORS[s.type] || '#fff');
+      r.setAttribute('stroke', STROKES[s.type] || '#525252');
+      r.setAttribute('stroke-width', 1);
+      svg.appendChild(r);
+      if (s.type === 'exon' || s.type === 'intron') {
+        const t = document.createElementNS(ns, 'text');
+        t.setAttribute('x', x1 + w / 2); t.setAttribute('y', y + h / 2 + 3);
+        t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', 9);
+        t.setAttribute('font-family', 'JetBrains Mono, monospace');
+        t.setAttribute('fill', s.type === 'exon' ? '#065f46' : '#92400e');
+        if (w > 30) t.textContent = s.type === 'exon' ? 'CDS' : 'intron';
+        svg.appendChild(t);
+      }
+    });
+  }
+
+  ['region', 'intronMean', 'hints'].forEach(id => $(id).addEventListener('input', update));
+  ['region', 'hints'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

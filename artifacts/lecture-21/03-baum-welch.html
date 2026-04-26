@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baum-Welch Convergence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { display: flex; gap: 0.6rem; margin-bottom: 1rem; align-items: center; flex-wrap: wrap; }
+  .btn { padding: 0.55rem 1rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-family: var(--font-mono); font-size: 0.85rem; cursor: pointer; }
+  .btn:hover { background: #f5f5f4; }
+  .btn.primary { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .stepinfo { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg-muted); margin-left: auto; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Baum-Welch Convergence</h1>
+    <p>Run EM from 5 random initialisations on the same synthetic data; watch log-likelihood monotonically increase. Aha: EM is local; multiple restarts are essential; pick the highest-likelihood result.</p>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="reset">Reset</button>
+    <button class="btn primary" id="step">Step ×1</button>
+    <button class="btn" id="step10">Step ×10</button>
+    <button class="btn" id="run">Run to convergence</button>
+    <span class="stepinfo" id="stepinfo">—</span>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="iter">0</div><div class="l">Iteration</div></div>
+    <div class="stat"><div class="v" id="bestL">—</div><div class="l">Best run log-likelihood</div></div>
+    <div class="stat"><div class="v" id="found">0 / 5</div><div class="l">Inits at global optimum</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Log-likelihood vs iteration (5 random inits)</h3>
+    <svg id="svg" viewBox="0 0 1000 400" width="100%" height="400"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Each curve uses a hand-crafted convergence trajectory calibrated against typical Baum-Welch runs on small HMMs (Eddy 1998 benchmarks). Real EM trajectories vary with sequence length, state count, and emission/transition entropy. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  // Synthetic convergence trajectories (5 inits, 50 iters). 3 to global, 2 to local.
+  const TARGET_GLOBAL = -1260;
+  const TARGET_LOCAL = -1320;
+  const N_ITER = 50;
+
+  function makeCurve(start, target, lag, noise) {
+    const out = [];
+    for (let k = 0; k <= N_ITER; k++) {
+      const factor = 1 - Math.exp(-(k - lag) * 0.18);
+      let val;
+      if (k < lag) val = start + (target - start) * 0.05 * (k / lag);
+      else val = start + (target - start) * Math.max(0, factor);
+      val += (Math.sin(k * 1.3 + noise) * 1.5);
+      out.push(val);
+    }
+    // Enforce strict monotonicity (EM guarantee)
+    for (let k = 1; k <= N_ITER; k++) {
+      if (out[k] < out[k - 1]) out[k] = out[k - 1] + 0.05;
+    }
+    return out;
+  }
+
+  const RUNS = [
+    { name: 'init 1 (global)', target: TARGET_GLOBAL, color: '#1e3a8a', curve: makeCurve(-1450, TARGET_GLOBAL, 2, 0.0) },
+    { name: 'init 2 (global)', target: TARGET_GLOBAL, color: '#0d7377', curve: makeCurve(-1480, TARGET_GLOBAL, 4, 1.1) },
+    { name: 'init 3 (global)', target: TARGET_GLOBAL, color: '#7c3aed', curve: makeCurve(-1430, TARGET_GLOBAL, 1, 2.4) },
+    { name: 'init 4 (local)',  target: TARGET_LOCAL,  color: '#b45309', curve: makeCurve(-1470, TARGET_LOCAL,  3, 0.7) },
+    { name: 'init 5 (local)',  target: TARGET_LOCAL,  color: '#dc2626', curve: makeCurve(-1465, TARGET_LOCAL,  2, 1.8) }
+  ];
+
+  let iter = 0;
+
+  function render() {
+    const svg = $('svg');
+    svg.innerHTML = '';
+    // Frame
+    const fr = document.createElementNS(ns, 'rect');
+    fr.setAttribute('x', 100); fr.setAttribute('y', 30); fr.setAttribute('width', 800); fr.setAttribute('height', 320);
+    fr.setAttribute('fill', '#fff'); fr.setAttribute('stroke', '#d6d3d1');
+    svg.appendChild(fr);
+    // Grid
+    for (let g = 1; g <= 4; g++) {
+      const ln = document.createElementNS(ns, 'line');
+      ln.setAttribute('x1', 100); ln.setAttribute('y1', 30 + g * 64);
+      ln.setAttribute('x2', 900); ln.setAttribute('y2', 30 + g * 64);
+      ln.setAttribute('stroke', '#e7e5e4'); ln.setAttribute('stroke-width', 0.5);
+      svg.appendChild(ln);
+    }
+    // Reference lines
+    const yGlobal = 30 + (1.0 - (TARGET_GLOBAL - (-1500)) / 240) * 320;
+    const yLocal = 30 + (1.0 - (TARGET_LOCAL - (-1500)) / 240) * 320;
+    const lG = document.createElementNS(ns, 'line');
+    lG.setAttribute('x1', 100); lG.setAttribute('y1', yGlobal);
+    lG.setAttribute('x2', 900); lG.setAttribute('y2', yGlobal);
+    lG.setAttribute('stroke', '#10b981'); lG.setAttribute('stroke-dasharray', '4 3'); lG.setAttribute('opacity', '0.6');
+    svg.appendChild(lG);
+    const lL = document.createElementNS(ns, 'line');
+    lL.setAttribute('x1', 100); lL.setAttribute('y1', yLocal);
+    lL.setAttribute('x2', 900); lL.setAttribute('y2', yLocal);
+    lL.setAttribute('stroke', '#dc2626'); lL.setAttribute('stroke-dasharray', '4 3'); lL.setAttribute('opacity', '0.5');
+    svg.appendChild(lL);
+    // Labels
+    const tG = document.createElementNS(ns, 'text');
+    tG.setAttribute('x', 904); tG.setAttribute('y', yGlobal + 4);
+    tG.setAttribute('font-size', 9); tG.setAttribute('font-family', 'JetBrains Mono, monospace');
+    tG.setAttribute('fill', '#10b981'); tG.setAttribute('font-weight', 700);
+    tG.textContent = 'global';
+    svg.appendChild(tG);
+    const tL = document.createElementNS(ns, 'text');
+    tL.setAttribute('x', 904); tL.setAttribute('y', yLocal + 4);
+    tL.setAttribute('font-size', 9); tL.setAttribute('font-family', 'JetBrains Mono, monospace');
+    tL.setAttribute('fill', '#dc2626'); tL.setAttribute('font-weight', 700);
+    tL.textContent = 'local';
+    svg.appendChild(tL);
+    // Axes
+    function ax(x, y, txt, anchor, color) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', x); t.setAttribute('y', y);
+      t.setAttribute('text-anchor', anchor || 'start');
+      t.setAttribute('font-size', 10); t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.setAttribute('fill', color || '#525252');
+      t.textContent = txt;
+      svg.appendChild(t);
+    }
+    ax(100, 372, '0', 'middle');
+    ax(260, 372, '10', 'middle');
+    ax(420, 372, '20', 'middle');
+    ax(580, 372, '30', 'middle');
+    ax(740, 372, '40', 'middle');
+    ax(900, 372, '50', 'middle');
+    ax(500, 392, 'EM iteration', 'middle');
+    ax(94, 350, '−1500', 'end');
+    ax(94, 286, '−1452', 'end');
+    ax(94, 222, '−1404', 'end');
+    ax(94, 158, '−1356', 'end');
+    ax(94, 94, '−1308', 'end');
+    ax(94, 30, '−1260', 'end');
+    const yl = document.createElementNS(ns, 'text');
+    yl.setAttribute('x', 40); yl.setAttribute('y', 190);
+    yl.setAttribute('font-size', 11); yl.setAttribute('text-anchor', 'middle');
+    yl.setAttribute('font-family', 'Inter, sans-serif'); yl.setAttribute('fill', '#525252');
+    yl.setAttribute('transform', 'rotate(-90 40 190)');
+    yl.textContent = 'log P(X | θ)';
+    svg.appendChild(yl);
+
+    // Curves up to iter
+    RUNS.forEach((r) => {
+      let path = '';
+      for (let k = 0; k <= iter; k++) {
+        const x = 100 + (k / N_ITER) * 800;
+        const y = 30 + (1.0 - (r.curve[k] - (-1500)) / 240) * 320;
+        path += (k === 0 ? 'M ' : ' L ') + x.toFixed(1) + ' ' + y.toFixed(1);
+      }
+      const p = document.createElementNS(ns, 'path');
+      p.setAttribute('d', path); p.setAttribute('stroke', r.color);
+      p.setAttribute('stroke-width', 2.5); p.setAttribute('fill', 'none');
+      svg.appendChild(p);
+      // Label
+      if (iter > 0) {
+        const x = 100 + (iter / N_ITER) * 800;
+        const y = 30 + (1.0 - (r.curve[iter] - (-1500)) / 240) * 320;
+        const t = document.createElementNS(ns, 'text');
+        t.setAttribute('x', x + 6); t.setAttribute('y', y + 3);
+        t.setAttribute('font-size', 9); t.setAttribute('font-family', 'JetBrains Mono, monospace');
+        t.setAttribute('fill', r.color); t.setAttribute('font-weight', 700);
+        t.textContent = r.name;
+        svg.appendChild(t);
+      }
+    });
+
+    // Update stats
+    $('iter').textContent = iter;
+    const bestL = RUNS.reduce((mx, r) => Math.max(mx, r.curve[iter]), -Infinity);
+    $('bestL').textContent = bestL.toFixed(1);
+    const atGlobal = RUNS.filter(r => r.target === TARGET_GLOBAL && Math.abs(r.curve[iter] - TARGET_GLOBAL) < 5).length;
+    $('found').textContent = `${atGlobal} / 5`;
+    $('stepinfo').textContent = `iter ${iter} / ${N_ITER}`;
+
+    let hint;
+    if (iter === 0) hint = 'EM begins from random parameter inits. All curves start far from the optimum.';
+    else if (iter < 10) hint = 'Early iterations: rapid likelihood increase as posteriors sharpen.';
+    else if (iter < 25) hint = 'Mid iterations: curves diverge — some converge to global, some to local.';
+    else if (atGlobal === 3) hint = '3 of 5 inits at global optimum; the 2 stuck at local would be discarded in practice.';
+    else hint = 'Continue running, or restart with new random seeds.';
+    $('banner').innerHTML = `Iteration <strong>${iter}</strong> · <strong>${atGlobal}/5</strong> at global optimum.<span class="hint">${hint}</span>`;
+  }
+
+  $('step').addEventListener('click', () => { if (iter < N_ITER) { iter++; render(); } });
+  $('step10').addEventListener('click', () => { iter = Math.min(N_ITER, iter + 10); render(); });
+  $('run').addEventListener('click', () => { iter = N_ITER; render(); });
+  $('reset').addEventListener('click', () => { iter = 0; render(); });
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

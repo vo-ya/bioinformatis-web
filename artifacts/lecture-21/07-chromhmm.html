@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChromHMM Segmentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>ChromHMM Segmentation</h1>
+    <p>A simplified 15-state ChromHMM run on a 1 Mb region with synthetic ChIP-seq tracks. Aha: ChromHMM integrates multi-track ChIP-seq into interpretable chromatin states; the per-state emission matrix is a readout of what each state represents.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="cell">Cell type / preset</label>
+      <select id="cell">
+        <option value="esc" selected>Embryonic stem cells (H1-ESC)</option>
+        <option value="kid">Kidney (HK-2)</option>
+        <option value="liver">Liver (HepG2)</option>
+        <option value="brain">Brain (cortex)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="filter">Highlight class</label>
+      <select id="filter">
+        <option value="all" selected>All states (default)</option>
+        <option value="active">Active regulatory only (promoters + enhancers)</option>
+        <option value="poised">Poised / bivalent only</option>
+        <option value="repressed">Repressed only (polycomb + heterochromatin)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="activeProm">—</div><div class="l">Active promoters</div></div>
+    <div class="stat"><div class="v" id="enhancers">—</div><div class="l">Enhancers</div></div>
+    <div class="stat"><div class="v" id="transcribed">—</div><div class="l">Transcribed</div></div>
+    <div class="stat"><div class="v" id="repressed">—</div><div class="l">Polycomb / heterochromatin</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>ChIP-seq tracks (6 marks, 1 Mb region)</h3>
+    <svg id="tracks" viewBox="0 0 1040 240" width="100%" height="240"></svg>
+  </div>
+
+  <div class="panel">
+    <h3>Viterbi-decoded chromatin segmentation (15 states)</h3>
+    <svg id="seg" viewBox="0 0 1040 80" width="100%" height="80"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. The 6 ChIP-seq tracks are synthetic but match biological mark-co-occurrence patterns at promoters/enhancers/heterochromatin. Real ChromHMM runs Baum-Welch on actual binarised ChIP-seq from tens of cell types and emits the segmentation as BED output. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  // 6 marks × 100 bins (each = 10 kb of 1 Mb)
+  // State assignments per cell type — different active loci
+  const N_BINS = 100;
+
+  function makeStates(cell) {
+    const r = cell === 'esc' ? 7 : cell === 'kid' ? 13 : cell === 'liver' ? 19 : 23;
+    const out = [];
+    let seed = r;
+    function rng() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+    let i = 0;
+    while (i < N_BINS) {
+      const u = rng();
+      let stateId, length;
+      if (u < 0.04) { stateId = 0; length = 1 + Math.floor(rng() * 2); } // active prom
+      else if (u < 0.06) { stateId = 1; length = 1; } // weak prom
+      else if (u < 0.12) { stateId = 2; length = 1 + Math.floor(rng() * 3); } // strong enh
+      else if (u < 0.16) { stateId = 3; length = 1 + Math.floor(rng() * 2); } // active enh
+      else if (u < 0.22) { stateId = 4; length = 2 + Math.floor(rng() * 4); } // weak enh
+      else if (u < 0.24) { stateId = 5; length = 1; } // insulator
+      else if (u < 0.30) { stateId = 6; length = 2 + Math.floor(rng() * 4); } // strong tx
+      else if (u < 0.42) { stateId = 7; length = 3 + Math.floor(rng() * 6); } // weak tx
+      else if (u < 0.46) { stateId = 8; length = 1 + Math.floor(rng() * 2); } // tx 3' end
+      else if (u < 0.55) { stateId = 9; length = 4 + Math.floor(rng() * 8); } // polycomb
+      else if (u < 0.57) { stateId = 10; length = 1; } // bivalent
+      else if (u < 0.72) { stateId = 11; length = 6 + Math.floor(rng() * 12); } // heterochromatin
+      else if (u < 0.74) { stateId = 12; length = 1 + Math.floor(rng() * 2); } // ZNF/repeats
+      else if (u < 0.78) { stateId = 13; length = 1; } // no signal
+      else { stateId = 14; length = 5 + Math.floor(rng() * 10); } // quiescent
+      length = Math.min(length, N_BINS - i);
+      for (let k = 0; k < length; k++) out.push(stateId);
+      i += length;
+    }
+    return out.slice(0, N_BINS);
+  }
+
+  const STATE_COLORS = [
+    '#dc2626', // 0 active prom
+    '#fca5a5', // 1 weak prom
+    '#b45309', // 2 strong enh
+    '#fbbf24', // 3 active enh
+    '#fde68a', // 4 weak enh
+    '#525252', // 5 insulator
+    '#065f46', // 6 strong tx
+    '#34d399', // 7 weak tx
+    '#86efac', // 8 tx 3'end
+    '#7c3aed', // 9 polycomb
+    '#a78bfa', // 10 bivalent
+    '#1f2937', // 11 heterochromatin
+    '#6b7280', // 12 ZNF/repeats
+    '#f3f4f6', // 13 no signal
+    '#d1d5db'  // 14 quiescent
+  ];
+  const STATE_NAMES = [
+    'Active promoter', 'Weak promoter', 'Strong enhancer', 'Active enhancer',
+    'Weak enhancer', 'Insulator', 'Strong transcription', 'Weak transcription',
+    'Tx 3-prime end', 'Polycomb-repressed', 'Bivalent', 'Heterochromatin',
+    'ZNF / repeats', 'No-signal', 'Quiescent'
+  ];
+
+  // Emission probabilities per state per mark (15 × 6)
+  const MARKS = ['H3K4me3', 'H3K4me1', 'H3K27ac', 'H3K36me3', 'H3K27me3', 'H3K9me3'];
+  const EMISSIONS = [
+    [0.95, 0.40, 0.85, 0.05, 0.05, 0.05], // 0 active prom
+    [0.60, 0.40, 0.45, 0.05, 0.05, 0.05], // 1 weak prom
+    [0.10, 0.85, 0.95, 0.05, 0.05, 0.05], // 2 strong enh
+    [0.10, 0.65, 0.65, 0.05, 0.05, 0.05], // 3 active enh
+    [0.05, 0.40, 0.20, 0.05, 0.05, 0.05], // 4 weak enh
+    [0.10, 0.20, 0.20, 0.05, 0.05, 0.05], // 5 insulator
+    [0.05, 0.10, 0.05, 0.95, 0.05, 0.05], // 6 strong tx
+    [0.05, 0.10, 0.05, 0.50, 0.05, 0.05], // 7 weak tx
+    [0.05, 0.05, 0.05, 0.85, 0.05, 0.05], // 8 tx 3'end
+    [0.05, 0.05, 0.05, 0.05, 0.95, 0.10], // 9 polycomb
+    [0.45, 0.10, 0.20, 0.05, 0.55, 0.05], // 10 bivalent
+    [0.05, 0.05, 0.05, 0.05, 0.10, 0.95], // 11 hetero
+    [0.05, 0.10, 0.05, 0.30, 0.05, 0.65], // 12 ZNF
+    [0.05, 0.05, 0.05, 0.05, 0.05, 0.05], // 13 no signal
+    [0.02, 0.02, 0.02, 0.02, 0.02, 0.02]  // 14 quiescent
+  ];
+
+  function update() {
+    const cell = $('cell').value;
+    const filter = $('filter').value;
+    const states = makeStates(cell);
+
+    // Counts
+    const counts = new Array(15).fill(0);
+    states.forEach(s => counts[s]++);
+
+    $('activeProm').textContent = `${(counts[0] / N_BINS * 100).toFixed(1)}%`;
+    $('enhancers').textContent = `${((counts[2] + counts[3] + counts[4]) / N_BINS * 100).toFixed(1)}%`;
+    $('transcribed').textContent = `${((counts[6] + counts[7] + counts[8]) / N_BINS * 100).toFixed(1)}%`;
+    $('repressed').textContent = `${((counts[9] + counts[11]) / N_BINS * 100).toFixed(1)}%`;
+
+    // Tracks
+    const tracksSvg = $('tracks');
+    tracksSvg.innerHTML = '';
+    MARKS.forEach((mark, m) => {
+      const y = 24 + m * 36;
+      const lbl = document.createElementNS(ns, 'text');
+      lbl.setAttribute('x', 6); lbl.setAttribute('y', y + 16);
+      lbl.setAttribute('font-size', 10); lbl.setAttribute('font-weight', 700);
+      lbl.setAttribute('font-family', 'JetBrains Mono, monospace');
+      lbl.setAttribute('fill', '#374151');
+      lbl.textContent = mark;
+      tracksSvg.appendChild(lbl);
+      // Draw signal: per-bin emission strength under that state
+      states.forEach((s, i) => {
+        const intensity = EMISSIONS[s][m];
+        const x = 80 + i * 9.6;
+        const r = document.createElementNS(ns, 'rect');
+        r.setAttribute('x', x); r.setAttribute('y', y + 4);
+        r.setAttribute('width', 9); r.setAttribute('height', 24);
+        const colors = ['#dc2626', '#b45309', '#b45309', '#065f46', '#7c3aed', '#1f2937'];
+        r.setAttribute('fill', colors[m]);
+        r.setAttribute('opacity', intensity * 0.85 + 0.05);
+        tracksSvg.appendChild(r);
+      });
+    });
+
+    // Segmentation
+    const segSvg = $('seg');
+    segSvg.innerHTML = '';
+    const filterStates = (sId) => {
+      if (filter === 'all') return true;
+      if (filter === 'active') return sId === 0 || sId === 1 || sId === 2 || sId === 3 || sId === 4;
+      if (filter === 'poised') return sId === 10;
+      if (filter === 'repressed') return sId === 9 || sId === 11;
+      return true;
+    };
+    states.forEach((s, i) => {
+      const x = 80 + i * 9.6;
+      const r = document.createElementNS(ns, 'rect');
+      r.setAttribute('x', x); r.setAttribute('y', 8);
+      r.setAttribute('width', 9.4); r.setAttribute('height', 36);
+      r.setAttribute('fill', filterStates(s) ? STATE_COLORS[s] : '#f5f5f4');
+      r.setAttribute('opacity', filterStates(s) ? 1 : 0.3);
+      segSvg.appendChild(r);
+    });
+    // Position labels
+    [0, 250, 500, 750, 1000].forEach(p => {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', 80 + (p / 1000) * (N_BINS * 9.6)); t.setAttribute('y', 64);
+      t.setAttribute('font-size', 9); t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.setAttribute('fill', '#525252'); t.setAttribute('text-anchor', p === 0 ? 'start' : (p === 1000 ? 'end' : 'middle'));
+      t.textContent = `${p} kb`;
+      segSvg.appendChild(t);
+    });
+
+    let hint;
+    if (cell === 'esc') hint = 'ESCs are bivalent-enriched: developmental genes have both H3K4me3 (active) and H3K27me3 (repressed) — poised for activation upon differentiation.';
+    else if (cell === 'liver') hint = 'Liver chromatin is heavily transcribed (H3K36me3 abundant in gene bodies) and has cell-type-specific enhancers (H3K4me1 + H3K27ac peaks).';
+    else if (cell === 'kid') hint = 'Kidney has tissue-specific active promoters and enhancers; non-renal regulatory loci are polycomb-repressed.';
+    else hint = 'Brain chromatin includes active enhancers near neuronal genes; repetitive elements are heterochromatic.';
+    $('banner').innerHTML = `<strong>${cell.toUpperCase()}</strong> · ${counts[0]}% active promoters · ${counts[6] + counts[7] + counts[8]}% transcribed.<span class="hint">${hint}</span>`;
+  }
+
+  ['cell', 'filter'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

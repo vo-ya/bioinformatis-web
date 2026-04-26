@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>End-to-End Annotation Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .stepper { display: flex; gap: 0.4rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .step-btn { padding: 0.55rem 0.9rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-family: var(--font-mono); font-size: 0.82rem; cursor: pointer; transition: all 0.15s; }
+  .step-btn.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+  .step-btn:hover:not(.active) { background: #f5f5f4; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .narration { background: #f5f3ff; border-left: 3px solid #7c3aed; padding: 0.7rem 1rem; font-size: 0.92rem; color: #4c1d95; line-height: 1.6; margin-top: 0.6rem; }
+  .iotxt { font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.5; padding: 0.6rem 0.8rem; background: #fafaf9; border-radius: 4px; border: 1px solid #e7e5e4; overflow-x: auto; white-space: pre; max-height: 280px; }
+  .annotation-card { background: linear-gradient(135deg, #dcfce7, #bbf7d0); border: 1px solid #065f46; border-radius: 8px; padding: 1rem 1.2rem; }
+  .annotation-card h4 { margin: 0 0 0.4rem; font-size: 1rem; color: #065f46; }
+  .annotation-card .meta { font-family: var(--font-mono); font-size: 0.85rem; color: #374151; line-height: 1.7; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>End-to-End Annotation Walkthrough</h1>
+    <p>Walk a 1 kb mock contig through assembly → ORF prediction → Pfam scan → BLAST function transfer → KEGG pathway. Aha: each tool contributes one piece; the final annotation is the synthesis.</p>
+  </div>
+
+  <div class="stepper" id="stepper"></div>
+
+  <div class="panel">
+    <h3>Stage I/O</h3>
+    <pre class="iotxt" id="iotxt"></pre>
+    <div class="narration" id="narr"></div>
+  </div>
+
+  <div class="panel">
+    <h3>Final annotation card</h3>
+    <div class="annotation-card" id="card">—</div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational walkthrough. The mock 1 kb contig is hand-crafted; real annotation pipelines (Prokka, Bakta) chain SPAdes/Flye → Prodigal → HMMER → DIAMOND → KofamScan over thousands of contigs in parallel. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const STEPS = [
+    {
+      label: '1. Assembly',
+      narration: 'SPAdes or Flye assembles raw reads into contigs. Output: a FASTA file with sequence + length.',
+      io: '> contig_001 length=1042 cov=48.3\nATGAAGCGTACGTTGGTCATGAACGTGGCAGCAACGCTGGCAGGTGGCGCTACTCAGCGGGCAATC\nGGCATCGCTGGCAACGGCAACATCGGTGCGGCTGTCAGTACGGCACTGTCAATGCAACAGGGCAAC\nCAGGTCGTCATCGTGGGCGGCAACAACAGCATCGCAGCAGTAGCAACGCTCGCCAATGCATTTGGT\nCAGCATCGCTACGTGCAACGGCAGCATGGCAGTAGCTGGTGCAGGTCATAACGTAACGCATCATCC\nAGCATGGCAACTGGGGTAATTAGCATCGGCAACGGGCAACGCAGCATCAGCATCAGCAGCAGCAGC\n... (1042 bp total)'
+    },
+    {
+      label: '2. ORF prediction',
+      narration: 'Prodigal scans the contig for open reading frames. Output: ORF coordinates + reading frame.',
+      io: 'Prodigal output (GFF):\ncontig_001  Prodigal  CDS  1  600  78.4  +  0  ID=ORF_001;partial=00\n\nProtein sequence (translated):\n>ORF_001 length=200aa\nMKRTLVMNVAATLAGGATQRAIGIAGNGNIGAAVSTALSMQQGNQVVIVGGN\nNSIAAVATLANAFGQHRYVQRQHGSSWCRSITKHQHGNWGVSGNGSAQHAS'
+    },
+    {
+      label: '3. Pfam scan (HMMER)',
+      narration: 'hmmscan against Pfam: finds known protein domains. Output: domain hits + bit scores + E-values.',
+      io: 'HMMER output:\n# Target: ORF_001  (200 residues)\n#  E-value   bit  domain        envelope     description\n  4.2e-42  142.6  PF00871.21    aa 30..195   Asp/Glu_racemase: aspartate / glutamate racemase\n  1.1e-08   33.4  PF13561.7     aa 152..195  Adh_short_C2: short-chain dehydrogenase\n\nDomain hit confirmed: ASP/GLU racemase fold.'
+    },
+    {
+      label: '4. BLAST function transfer (DIAMOND)',
+      narration: 'DIAMOND blastp against UniProt: finds the closest characterised homolog. Output: ortholog match + identity %.',
+      io: 'DIAMOND output:\nQuery: ORF_001\n# subject              %ID  bitscore  E-value     description\nsp|P00509|AAT_ECOLI    72.1  340.8     2.4e-95     Aspartate racemase, E. coli (UniProt P00509)\nsp|Q9PFD0|RACE_XYLFA   68.5  315.2     8.7e-89     Aspartate racemase, Xylella fastidiosa\nsp|P54820|RACE_BACSU   65.3  298.4     3.1e-84     Aspartate racemase, Bacillus subtilis\n\nReciprocal best hit found → confident ortholog.'
+    },
+    {
+      label: '5. KEGG pathway',
+      narration: 'KofamScan / EnrichKEGG: maps the gene to a metabolic pathway. Output: KEGG ortholog ID + pathway membership.',
+      io: 'KEGG mapping:\nORF_001 → KO assignment: K01779 (aspartate racemase)\n\nPathway memberships:\n  ko00250  Alanine, aspartate, and glutamate metabolism\n  ko00270  Cysteine and methionine metabolism (peripheral)\n  ko01100  Metabolic pathways (top-level)\n\nEC: 5.1.1.13 (aspartate racemase activity)\nReaction: L-aspartate ↔ D-aspartate'
+    }
+  ];
+
+  const FINAL_CARD = `
+    <h4>contig_001 / ORF_001 — annotated</h4>
+    <div class="meta">
+      <strong>Gene name:</strong> aspartate racemase (racD)<br>
+      <strong>Length:</strong> 200 aa · 600 bp CDS<br>
+      <strong>Pfam:</strong> PF00871.21 (Asp_Glu_racemase) · E = 4.2e−42<br>
+      <strong>UniProt match:</strong> P00509 / E. coli aspartate racemase · 72% ID<br>
+      <strong>EC:</strong> 5.1.1.13 · <strong>KO:</strong> K01779<br>
+      <strong>Pathway:</strong> ko00250 — Ala / Asp / Glu metabolism<br>
+      <strong>Confidence:</strong> high (RBH + Pfam + KO consistent)
+    </div>
+  `;
+
+  let cur = 0;
+
+  function renderStepper() {
+    let html = '';
+    STEPS.forEach((s, i) => {
+      html += `<button class="step-btn ${i === cur ? 'active' : ''}" data-i="${i}">${s.label}</button>`;
+    });
+    html += `<button class="step-btn ${cur === STEPS.length ? 'active' : ''}" data-i="${STEPS.length}">6. Final</button>`;
+    $('stepper').innerHTML = html;
+    $('stepper').querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => { cur = parseInt(b.dataset.i, 10); render(); });
+    });
+  }
+
+  function render() {
+    renderStepper();
+    if (cur < STEPS.length) {
+      const s = STEPS[cur];
+      $('iotxt').textContent = s.io;
+      $('narr').textContent = s.narration;
+      $('card').innerHTML = `<em style="color:#525252;">Final annotation appears at step 6.</em>`;
+    } else {
+      $('iotxt').textContent = '(complete pipeline — see final card below)';
+      $('narr').textContent = 'All five stages complete. The annotation is built up incrementally; each tool added one piece of the puzzle.';
+      $('card').innerHTML = FINAL_CARD;
+    }
+
+    let bannerText;
+    if (cur === 0) bannerText = 'Start at the raw assembly; click 2-6 to step through the pipeline. Each step transforms the data and adds annotation.';
+    else if (cur === STEPS.length) bannerText = 'Complete annotation: a single ORF with Pfam domain, UniProt ortholog, KEGG ortholog ID, and pathway context.';
+    else bannerText = `Stage ${cur + 1} / 5: ${STEPS[cur].label}.`;
+    $('banner').innerHTML = bannerText + `<span class="hint">Each tool runs in seconds for a single ORF; in production, the same pipeline parallelises over thousands of ORFs.</span>`;
+  }
+
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Viterbi Stepper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { display: flex; gap: 0.6rem; margin-bottom: 1rem; align-items: center; }
+  .btn { padding: 0.55rem 1rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-family: var(--font-mono); font-size: 0.85rem; cursor: pointer; transition: all 0.15s; }
+  .btn:hover { background: #f5f5f4; }
+  .btn.primary { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+  .btn.primary:hover { background: #1e40af; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .stepinfo { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg-muted); margin-left: auto; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .narration { background: #f5f3ff; border-left: 3px solid #7c3aed; padding: 0.7rem 1rem; font-size: 0.92rem; color: #4c1d95; line-height: 1.6; margin-bottom: 1rem; font-family: var(--font-mono); }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Viterbi Stepper</h1>
+    <p>Step through Viterbi cell-by-cell on a 3-state HMM trellis with 8-character input. Each step shows the max-plus computation for one cell. Aha: Viterbi is bottom-up max-plus DP; pointers store the argmax for backtrace.</p>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="reset">Reset</button>
+    <button class="btn primary" id="step">Step →</button>
+    <button class="btn" id="run">Run all</button>
+    <button class="btn" id="back">Backtrace</button>
+    <span class="stepinfo" id="stepinfo">—</span>
+  </div>
+
+  <div class="narration" id="narr">—</div>
+
+  <div class="panel">
+    <h3>Trellis (3 states × 8 time steps)</h3>
+    <svg id="svg" viewBox="0 0 1000 360" width="100%" height="360"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. The HMM parameters are hand-set for clarity (small state count, peaked emissions). Real Viterbi runs over chromosome-scale tapes with 100s of states (gene finders) or 100,000s of states (profile HMMs). Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const STATES = ['S₁', 'S₂', 'S₃'];
+  const SEQ = 'ACGGACGT';
+  const PI = [0.5, 0.3, 0.2];
+  const A = [[0.7, 0.2, 0.1], [0.1, 0.7, 0.2], [0.2, 0.1, 0.7]];
+  const B = {
+    A: [0.4, 0.2, 0.1],
+    C: [0.2, 0.4, 0.2],
+    G: [0.2, 0.2, 0.5],
+    T: [0.2, 0.2, 0.2]
+  };
+
+  let cur = -1; // -1 means initial (no cells filled yet)
+  let backshow = false;
+  let delta = [];
+  let psi = [];
+
+  function init() {
+    delta = []; psi = [];
+    for (let i = 0; i < 3; i++) { delta.push(new Array(8).fill(null)); psi.push(new Array(8).fill(null)); }
+    cur = -1;
+    backshow = false;
+    render();
+  }
+
+  function stepOnce() {
+    if (cur < 0) {
+      // Initialise t=0
+      for (let i = 0; i < 3; i++) {
+        delta[i][0] = Math.log(PI[i]) + Math.log(B[SEQ[0]][i]);
+        psi[i][0] = -1;
+      }
+      cur = 0;
+    } else {
+      const totalCells = 24;
+      if (cur >= totalCells - 1) return;
+      cur++;
+      const t = Math.floor(cur / 3);
+      const j = cur % 3;
+      // delta[j][t] = max over i [delta[i][t-1] + log a_ij] + log b_j(x_t)
+      let best = -Infinity, bestI = 0;
+      for (let i = 0; i < 3; i++) {
+        const v = delta[i][t - 1] + Math.log(A[i][j]);
+        if (v > best) { best = v; bestI = i; }
+      }
+      delta[j][t] = best + Math.log(B[SEQ[t]][j]);
+      psi[j][t] = bestI;
+    }
+    render();
+  }
+
+  function runAll() {
+    if (cur < 0) stepOnce();
+    while (cur < 23) stepOnce();
+  }
+
+  function showBacktrace() {
+    backshow = true;
+    render();
+  }
+
+  function buildSvg() {
+    const svg = $('svg');
+    svg.innerHTML = '';
+    const cellsX = [60, 180, 300, 420, 540, 660, 780, 900];
+    const cellsY = [80, 180, 280];
+
+    // Time axis
+    SEQ.split('').forEach((ch, t) => {
+      const tt = document.createElementNS(ns, 'text');
+      tt.setAttribute('x', cellsX[t]); tt.setAttribute('y', 30);
+      tt.setAttribute('text-anchor', 'middle'); tt.setAttribute('font-size', 14);
+      tt.setAttribute('font-family', 'JetBrains Mono, monospace');
+      tt.setAttribute('font-weight', 700); tt.setAttribute('fill', '#b45309');
+      tt.textContent = ch;
+      svg.appendChild(tt);
+      const tlbl = document.createElementNS(ns, 'text');
+      tlbl.setAttribute('x', cellsX[t]); tlbl.setAttribute('y', 50);
+      tlbl.setAttribute('text-anchor', 'middle'); tlbl.setAttribute('font-size', 10);
+      tlbl.setAttribute('font-family', 'JetBrains Mono, monospace');
+      tlbl.setAttribute('fill', '#525252');
+      tlbl.textContent = `t=${t + 1}`;
+      svg.appendChild(tlbl);
+    });
+    // State labels
+    STATES.forEach((s, i) => {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', 20); t.setAttribute('y', cellsY[i] + 4);
+      t.setAttribute('font-size', 12); t.setAttribute('font-weight', 700);
+      t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.setAttribute('fill', '#1e3a8a');
+      t.textContent = s;
+      svg.appendChild(t);
+    });
+
+    // All cells
+    for (let i = 0; i < 3; i++) {
+      for (let t = 0; t < 8; t++) {
+        const idx = t * 3 + i;
+        const cx = cellsX[t], cy = cellsY[i];
+        const isDone = idx <= cur && cur >= 0;
+        const isCurrent = idx === cur;
+        const c = document.createElementNS(ns, 'circle');
+        c.setAttribute('cx', cx); c.setAttribute('cy', cy);
+        c.setAttribute('r', 22);
+        c.setAttribute('fill', isDone ? '#1e3a8a' : '#fff');
+        c.setAttribute('fill-opacity', isDone ? '0.7' : '1');
+        c.setAttribute('stroke', isCurrent ? '#dc2626' : '#1e3a8a');
+        c.setAttribute('stroke-width', isCurrent ? 3 : 1.5);
+        svg.appendChild(c);
+        if (isDone) {
+          const v = document.createElementNS(ns, 'text');
+          v.setAttribute('x', cx); v.setAttribute('y', cy + 4);
+          v.setAttribute('text-anchor', 'middle'); v.setAttribute('font-size', 10);
+          v.setAttribute('font-family', 'JetBrains Mono, monospace');
+          v.setAttribute('font-weight', 700);
+          v.setAttribute('fill', '#fff');
+          v.textContent = delta[i][t].toFixed(1);
+          svg.appendChild(v);
+        }
+      }
+    }
+
+    // Backtrace overlay
+    if (backshow && cur === 23) {
+      const path = [];
+      let last = 0, best = -Infinity;
+      for (let i = 0; i < 3; i++) {
+        if (delta[i][7] > best) { best = delta[i][7]; last = i; }
+      }
+      path[7] = last;
+      for (let t = 6; t >= 0; t--) path[t] = psi[path[t + 1]][t + 1];
+      // Draw path
+      for (let t = 0; t < 7; t++) {
+        const ln = document.createElementNS(ns, 'line');
+        ln.setAttribute('x1', cellsX[t]); ln.setAttribute('y1', cellsY[path[t]]);
+        ln.setAttribute('x2', cellsX[t + 1]); ln.setAttribute('y2', cellsY[path[t + 1]]);
+        ln.setAttribute('stroke', '#dc2626'); ln.setAttribute('stroke-width', 4);
+        ln.setAttribute('stroke-linecap', 'round');
+        svg.appendChild(ln);
+      }
+      path.forEach((s, t) => {
+        const c = document.createElementNS(ns, 'circle');
+        c.setAttribute('cx', cellsX[t]); c.setAttribute('cy', cellsY[s]);
+        c.setAttribute('r', 8); c.setAttribute('fill', '#dc2626');
+        svg.appendChild(c);
+      });
+      const lbl = document.createElementNS(ns, 'text');
+      lbl.setAttribute('x', 500); lbl.setAttribute('y', 350);
+      lbl.setAttribute('text-anchor', 'middle'); lbl.setAttribute('font-size', 12);
+      lbl.setAttribute('font-weight', 700); lbl.setAttribute('fill', '#dc2626');
+      lbl.textContent = 'best path: ' + path.map(s => STATES[s]).join(' → ');
+      svg.appendChild(lbl);
+    }
+  }
+
+  function render() {
+    buildSvg();
+    if (cur < 0) {
+      $('stepinfo').textContent = 'step 0 / 24 — initialising';
+      $('narr').textContent = 'Press Step → to initialise t=1: δ₁(i) = π_i · b_i(x₁) for each state.';
+    } else {
+      const t = Math.floor(cur / 3);
+      const j = cur % 3;
+      $('stepinfo').textContent = `step ${cur + 1} / 24 — cell (t=${t + 1}, ${STATES[j]})`;
+      if (t === 0) {
+        $('narr').textContent = `Init t=1, ${STATES[j]}: log δ = log π_${j + 1} + log b_{${j + 1}}(${SEQ[0]}) = ${delta[j][t].toFixed(2)}`;
+      } else {
+        const back = psi[j][t];
+        $('narr').textContent = `Recurse t=${t + 1}, ${STATES[j]}: max over i [δ_{t-1}(i) + log a_{i,${j + 1}}] + log b_{${j + 1}}(${SEQ[t]}) = ${delta[j][t].toFixed(2)} (best predecessor: ${STATES[back]})`;
+      }
+    }
+
+    let bannerText;
+    if (cur < 0) bannerText = 'Click Step → to begin Viterbi DP. Each step fills one trellis cell with the max log-probability of paths ending there.';
+    else if (cur === 23 && !backshow) bannerText = 'All 24 cells computed. Click Backtrace to recover the most-probable state sequence by following the argmax pointers from t=8 backward.';
+    else if (backshow) bannerText = 'Backtrace complete: the red path is the most-probable state sequence given the observations.';
+    else bannerText = `Cell ${cur + 1}/24 computed. Step → to fill the next.`;
+    $('banner').innerHTML = bannerText + `<span class="hint">δ values are in log space; pointers ψ are stored implicitly (best predecessor noted in the narration).</span>`;
+  }
+
+  $('step').addEventListener('click', () => { backshow = false; stepOnce(); });
+  $('run').addEventListener('click', () => { backshow = false; runAll(); });
+  $('back').addEventListener('click', () => { if (cur === 23) showBacktrace(); });
+  $('reset').addEventListener('click', init);
+  init();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

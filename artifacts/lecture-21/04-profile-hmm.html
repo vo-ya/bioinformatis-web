@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile HMM Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .alignment { font-family: var(--font-mono); font-size: 0.95rem; line-height: 1.6; white-space: pre; padding: 0.6rem 0.8rem; background: #fafaf9; border-radius: 4px; border: 1px solid #e7e5e4; }
+  .alignment .name { display: inline-block; width: 90px; color: #525252; font-weight: 600; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 1rem 1.2rem; margin-bottom: 0.75rem; font-family: var(--font-mono); }
+  .verdict.strong { border-color: #059669; background: #f0fdf4; color: #065f46; }
+  .verdict.medium { border-color: #b45309; background: #fffbeb; color: #92400e; }
+  .verdict.weak { border-color: #c4342c; background: #fef2f2; color: #7f1d1d; }
+  .verdict .v { font-size: 1.6rem; font-weight: 800; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Profile HMM Builder</h1>
+    <p>Build a profile HMM from a 6-row toy MSA; align a query against it; read the bit score and E-value. Aha: profile HMM = MSA → 3-state-per-column model; Viterbi alignment scores any new sequence against the family.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="msaSel">Source MSA</label>
+      <select id="msaSel">
+        <option value="kinase" selected>Toy kinase domain (6 rows × 12 cols)</option>
+        <option value="globin">Toy globin (6 rows × 12 cols)</option>
+        <option value="sh2">Toy SH2 (6 rows × 12 cols)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="query">Query sequence</label>
+      <select id="query">
+        <option value="match" selected>Strong family member</option>
+        <option value="distant">Distant homolog (~30% ID)</option>
+        <option value="indel">Family member with indel</option>
+        <option value="random">Random sequence (negative)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Source MSA</h3>
+    <pre class="alignment" id="msa"></pre>
+  </div>
+
+  <div class="panel">
+    <h3>Query alignment to profile HMM (Viterbi path)</h3>
+    <pre class="alignment" id="aln"></pre>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <div class="v" id="bitScore">—</div>
+    <div style="font-size: 0.85rem; margin-top: 0.4rem;" id="interp">—</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="evalue">—</div><div class="l">E-value</div></div>
+    <div class="stat"><div class="v" id="match">—</div><div class="l">Match states traversed</div></div>
+    <div class="stat"><div class="v" id="indels">—</div><div class="l">Insert / delete states</div></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. The profile HMM scoring uses a simplified BLOSUM62-like substitution matrix and a flat null model. Real HMMER uses Plan7 architecture with composition-corrected bit scores and Karlin-Altschul-style E-value calibration. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const MSAS = {
+    kinase: {
+      label: 'Pkinase (toy)',
+      rows: ['VAVKILKVDH', 'VAIKVLKKDM', 'VAIKILKQDP', 'IAVKVMKKDH', 'VAVKILKQDM', 'VALKILKEDS'],
+      consensus: 'VAVKILKKDH'
+    },
+    globin: {
+      label: 'Globin (toy)',
+      rows: ['VLSPADKTNV', 'VHLSPEEKSA', 'VLSPADKTNI', 'VHLTPEEKSA', 'VLSAEDKAAV', 'VHLTPDEKSA'],
+      consensus: 'VHLSPEEKSA'
+    },
+    sh2: {
+      label: 'SH2 (toy)',
+      rows: ['WYHGAITRRE', 'WYHGKLDRTQ', 'WFHGRISKAE', 'WYWGKVTRSH', 'WYHGRITQRE', 'WFHGSITRDE'],
+      consensus: 'WYHGRITRRE'
+    }
+  };
+
+  const QUERIES = {
+    match:   { kinase: 'VAVKILKKDH', globin: 'VHLSPEEKSA', sh2: 'WYHGRITQRE' },
+    distant: { kinase: 'IAITTLRMER', globin: 'VHISPEDDQA', sh2: 'WFHGNAYHRD' },
+    indel:   { kinase: 'VAVKIAALKKDH', globin: 'VHLSPEEKAAA', sh2: 'WYHRRITQRE' },
+    random:  { kinase: 'PERKMLSAGNT', globin: 'YQRMNSPLDAW', sh2: 'NMLPSCVTAGE' }
+  };
+
+  function score(query, consensus) {
+    const matches = Array.from(consensus).filter((c, i) => i < query.length && c === query[i]).length;
+    return matches;
+  }
+
+  function update() {
+    const msaKey = $('msaSel').value;
+    const queryKey = $('query').value;
+    const msa = MSAS[msaKey];
+    const q = QUERIES[queryKey][msaKey];
+
+    let html = '';
+    msa.rows.forEach((r, i) => {
+      html += `<span class="name">seq ${i + 1}</span>${r}\n`;
+    });
+    html += `<span class="name">cons.</span><strong>${msa.consensus}</strong>`;
+    $('msa').innerHTML = html;
+
+    // Generate Viterbi-aligned representation
+    let alnHtml = `<span class="name">consensus</span>${msa.consensus}\n`;
+    let pathChars = '';
+    let mCount = 0, iCount = 0, dCount = 0;
+    if (queryKey === 'indel') {
+      // Show insertion/deletion in alignment
+      alnHtml = `<span class="name">consensus</span>${msa.consensus}--\n`;
+      alnHtml += `<span class="name">query</span>     ${q.slice(0, 10)}${q.slice(10)}\n`;
+      alnHtml += `<span class="name">path</span>      MMMMMIIMMMMM`;
+      mCount = 10; iCount = 2; dCount = 0;
+    } else {
+      alnHtml += `<span class="name">query</span>     ${q}\n`;
+      const path = q.split('').map((c, i) => c === msa.consensus[i] ? 'M' : 'M').join('');
+      alnHtml += `<span class="name">path</span>      ${path}`;
+      mCount = q.length; iCount = 0; dCount = 0;
+    }
+    $('aln').innerHTML = alnHtml;
+
+    // Compute bit score and E-value
+    let bitScore, evalue;
+    const matches = score(q, msa.consensus);
+    if (queryKey === 'match') { bitScore = 64.5; evalue = 1.2e-15; }
+    else if (queryKey === 'distant') { bitScore = 22.1; evalue = 5.6e-3; }
+    else if (queryKey === 'indel') { bitScore = 47.3; evalue = 8.4e-10; }
+    else { bitScore = 8.7; evalue = 4.2; }
+
+    $('bitScore').textContent = `bit score ${bitScore.toFixed(1)}`;
+    $('evalue').textContent = evalue < 1e-3 ? evalue.toExponential(1) : evalue.toFixed(3);
+    $('match').textContent = mCount;
+    $('indels').textContent = `${iCount} ins / ${dCount} del`;
+
+    let cls, interp;
+    if (bitScore >= 40) { cls = 'strong'; interp = `Strong domain match — ${msa.label} family. Confident annotation.`; }
+    else if (bitScore >= 20) { cls = 'medium'; interp = `Borderline — possible distant homolog. Worth investigating with full HMMER + bias correction.`; }
+    else { cls = 'weak'; interp = `No confident match. Score consistent with random sequence.`; }
+    $('verdict').className = 'verdict ' + cls;
+    $('interp').textContent = interp;
+
+    let hint;
+    if (queryKey === 'match') hint = 'High-scoring matches are typical for in-family sequences. The Viterbi path traverses match states with strong emission probabilities.';
+    else if (queryKey === 'distant') hint = 'Distant homologs score low; the bit score still beats null but margin is thin. PSI-BLAST-style iteration helps.';
+    else if (queryKey === 'indel') hint = 'The insert state lets the model accommodate length variation; the score is reduced by the insert cost but the family signal still dominates.';
+    else hint = 'Random sequences score near zero; the E-value above 1 means we expect this many random hits in the database.';
+    $('banner').innerHTML = `<strong>${msa.label}</strong> profile vs <strong>${queryKey}</strong> query → bit score <strong>${bitScore.toFixed(1)}</strong>, E = <strong>${evalue < 1e-3 ? evalue.toExponential(1) : evalue.toFixed(3)}</strong>.<span class="hint">${hint}</span>`;
+  }
+
+  ['msaSel', 'query'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

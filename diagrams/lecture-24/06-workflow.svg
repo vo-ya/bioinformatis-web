@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720" font-family="Inter, sans-serif">
+  <defs>
+    <style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }</style>
+    <marker id="arrW6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#525252"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="720" fill="#fafaf9" rx="6"/>
+  <text x="600" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">CRISPR screen analysis workflow — bands with reproducibility-critical steps</text>
+
+  <g transform="translate(60,70)">
+    <!-- Band 1 -->
+    <g>
+      <rect x="0" y="0" width="1080" height="58" fill="#dbeafe" stroke="#1e3a8a" stroke-width="1.5" rx="4"/>
+      <text x="20" y="22" font-size="12" font-weight="700" fill="#1e3a8a">1. Library transduction + selection</text>
+      <text x="20" y="40" font-size="10" class="mono" fill="#374151">lentivirus · MOI ~ 0.3 · puro selection · 500+ cells per sgRNA</text>
+      <text x="20" y="54" font-size="9" fill="#525252">⚠ MOI &gt; 0.3 → multi-perturbations · &lt; 500 cells/sgRNA → noise</text>
+    </g>
+    <line x1="540" y1="58" x2="540" y2="74" stroke="#525252" stroke-width="1.4" marker-end="url(#arrW6)"/>
+
+    <!-- Band 2 -->
+    <g transform="translate(0,74)">
+      <rect x="0" y="0" width="1080" height="58" fill="#fef3c7" stroke="#b45309" stroke-width="1.5" rx="4"/>
+      <text x="20" y="22" font-size="12" font-weight="700" fill="#b45309">2. T0 + T-final sequencing</text>
+      <text x="20" y="40" font-size="10" class="mono" fill="#374151">PCR amplify · Illumina ~40M reads/sample · 2-3 replicates</text>
+      <text x="20" y="54" font-size="9" fill="#525252">⚠ shallow read depth (&lt; 200 reads/sgRNA) inflates noise · log spike-ins</text>
+    </g>
+    <line x1="540" y1="132" x2="540" y2="148" stroke="#525252" stroke-width="1.4" marker-end="url(#arrW6)"/>
+
+    <!-- Band 3 -->
+    <g transform="translate(0,148)">
+      <rect x="0" y="0" width="1080" height="58" fill="#fee2e2" stroke="#7f1d1d" stroke-width="1.5" rx="4"/>
+      <text x="20" y="22" font-size="12" font-weight="700" fill="#7f1d1d">3. QC checks</text>
+      <text x="20" y="40" font-size="10" class="mono" fill="#374151">sgRNA recovery ≥ 90% · replicate r ≥ 0.9 · CEG dropout ≥ 80%</text>
+      <text x="20" y="54" font-size="9" fill="#525252">⚠ if ANY metric fails: re-run, do NOT bandage</text>
+    </g>
+    <line x1="540" y1="206" x2="540" y2="222" stroke="#525252" stroke-width="1.4" marker-end="url(#arrW6)"/>
+
+    <!-- Band 4 -->
+    <g transform="translate(0,222)">
+      <rect x="0" y="0" width="1080" height="58" fill="#dcfce7" stroke="#065f46" stroke-width="1.5" rx="4"/>
+      <text x="20" y="22" font-size="12" font-weight="700" fill="#065f46">4. Run MAGeCK + DrugZ + BAGEL2</text>
+      <text x="20" y="40" font-size="10" class="mono" fill="#374151">cross-validate three tools · NB test · RRA aggregation · Bayesian classifier</text>
+      <text x="20" y="54" font-size="9" fill="#525252">⚠ tool-specific p-values can disagree · use intersection or rank-based meta</text>
+    </g>
+    <line x1="540" y1="280" x2="540" y2="296" stroke="#525252" stroke-width="1.4" marker-end="url(#arrW6)"/>
+
+    <!-- Band 5 -->
+    <g transform="translate(0,296)">
+      <rect x="0" y="0" width="1080" height="58" fill="#fef3c7" stroke="#b45309" stroke-width="1.5" rx="4"/>
+      <text x="20" y="22" font-size="12" font-weight="700" fill="#b45309">5. Copy-number bias correction</text>
+      <text x="20" y="40" font-size="10" class="mono" fill="#374151">CRISPRcleanR · CERES · per-cell-line CN normalisation</text>
+      <text x="20" y="54" font-size="9" fill="#525252">⚠ cancer cell lines have many high-CN regions → false-positive essentiality</text>
+    </g>
+    <line x1="540" y1="354" x2="540" y2="370" stroke="#525252" stroke-width="1.4" marker-end="url(#arrW6)"/>
+
+    <!-- Band 6 -->
+    <g transform="translate(0,370)">
+      <rect x="0" y="0" width="1080" height="58" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5" rx="4"/>
+      <text x="20" y="22" font-size="12" font-weight="700" fill="#7c3aed">6. Gene-level rankings</text>
+      <text x="20" y="40" font-size="10" class="mono" fill="#374151">FDR-controlled hits · LFC + p-value + rank consistency</text>
+      <text x="20" y="54" font-size="9" fill="#525252">⚠ ~20k genes tested · BH FDR &lt; 0.05 · expect ~1000 hits in dropout, ~100 in selection</text>
+    </g>
+    <line x1="540" y1="428" x2="540" y2="444" stroke="#525252" stroke-width="1.4" marker-end="url(#arrW6)"/>
+
+    <!-- Band 7 -->
+    <g transform="translate(0,444)">
+      <rect x="0" y="0" width="1080" height="58" fill="#fef3c7" stroke="#b45309" stroke-width="1.5" rx="4"/>
+      <text x="20" y="22" font-size="12" font-weight="700" fill="#b45309">7. Pathway enrichment</text>
+      <text x="20" y="40" font-size="10" class="mono" fill="#374151">GSEA / fgsea · Reactome · KEGG · MSigDB Hallmark</text>
+      <text x="20" y="54" font-size="9" fill="#525252">⚠ pathway-level signal helps interpret weak gene-level signals</text>
+    </g>
+    <line x1="540" y1="502" x2="540" y2="518" stroke="#525252" stroke-width="1.4" marker-end="url(#arrW6)"/>
+
+    <!-- Band 8 -->
+    <g transform="translate(0,518)">
+      <rect x="0" y="0" width="1080" height="58" fill="#dcfce7" stroke="#065f46" stroke-width="1.5" rx="4"/>
+      <text x="20" y="22" font-size="12" font-weight="700" fill="#065f46">8. Hit triage (druggability + biology)</text>
+      <text x="20" y="40" font-size="10" class="mono" fill="#374151">DepMap selectivity · druggability score · pathway context · safety</text>
+      <text x="20" y="54" font-size="9" fill="#525252">⚠ ~50 hits → ~5 candidates after druggability + cytotoxicity filter</text>
+    </g>
+    <line x1="540" y1="576" x2="540" y2="592" stroke="#525252" stroke-width="1.4" marker-end="url(#arrW6)"/>
+
+    <!-- Band 9 -->
+    <g transform="translate(0,592)">
+      <rect x="0" y="0" width="1080" height="58" fill="#fff" stroke="#525252" stroke-width="2" rx="4"/>
+      <text x="540" y="24" text-anchor="middle" font-size="13" font-weight="700" fill="#525252">9. Validation: arrayed CRISPR + isogenic</text>
+      <text x="540" y="44" text-anchor="middle" font-size="10" class="mono" fill="#374151">individual sgRNAs · clean knockout · downstream phenotyping</text>
+    </g>
+  </g>
+</svg>

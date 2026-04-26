@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 24 — CRISPR Functional Screens and DepMap · Bioinformatics for EE</title>
+  <meta name="description" content="Pooled CRISPR screens as compressed sensing on a perturbation matrix. CRISPRko, CRISPRi, CRISPRa modalities. MAGeCK / DrugZ / BAGEL2 for screen analysis. DepMap dependency atlas. MAVEs for variant interpretation. Synthetic lethality and drug-target prioritisation.">
+
+  <meta property="og:title" content="Lecture 24 — CRISPR Functional Screens and DepMap">
+  <meta property="og:description" content="sgRNA library design + Doench Rule Set 2 · MAGeCK rank aggregation · Chronos cell-fitness scores · ~1000 cancer cell lines × 21k genes · MAVE saturation mutagenesis · synthetic lethality and drug discovery.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — CRISPR for Functional Genomics</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 The CRISPR mechanism</a></li>
+          <li><a href="#sec-1-2">1.2 Screen designs</a></li>
+          <li><a href="#sec-1-3">1.3 CRISPRi and CRISPRa</a></li>
+          <li><a href="#sec-1-4">1.4 Base + prime editors</a></li>
+          <li><a href="#sec-1-5">1.5 Pooled vs arrayed</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Library Design + Quality</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 Library catalogues</a></li>
+          <li><a href="#sec-2-2">2.2 sgRNA scoring</a></li>
+          <li><a href="#sec-2-3">2.3 Multiplicity of infection</a></li>
+          <li><a href="#sec-2-4">2.4 Coverage and replicates</a></li>
+          <li><a href="#sec-2-5">2.5 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Screen Analysis with MAGeCK</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 The data</a></li>
+          <li><a href="#sec-3-2">3.2 sgRNA-level fold change</a></li>
+          <li><a href="#sec-3-3">3.3 Gene-level aggregation</a></li>
+          <li><a href="#sec-3-4">3.4 Quality control</a></li>
+          <li><a href="#sec-3-5">3.5 Worked example</a></li>
+          <li><a href="#sec-3-6">3.6 Modern variants</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — DepMap and Cancer Dependencies</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 The DepMap project</a></li>
+          <li><a href="#sec-4-2">4.2 Chronos algorithm</a></li>
+          <li><a href="#sec-4-3">4.3 Lineage-selective dependencies</a></li>
+          <li><a href="#sec-4-4">4.4 Drug-screen integration</a></li>
+          <li><a href="#sec-4-5">4.5 Synthetic lethality</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — MAVEs</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 The MAVE concept</a></li>
+          <li><a href="#sec-5-2">5.2 Saturation mutagenesis</a></li>
+          <li><a href="#sec-5-3">5.3 Variant effect maps in clinic</a></li>
+          <li><a href="#sec-5-4">5.4 Computational complement</a></li>
+          <li><a href="#sec-5-5">5.5 The 2024 frontier</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Tools, Pitfalls, Workflows</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 Standard 2024 stack</a></li>
+          <li><a href="#sec-6-2">6.2 Pitfalls</a></li>
+          <li><a href="#sec-6-3">6.3 Reproducibility</a></li>
+          <li><a href="#sec-6-4">6.4 The 2024 frontier</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — From Screen to Therapy</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 Discovery → drug pipeline</a></li>
+          <li><a href="#sec-7-2">7.2 Pharma adoption</a></li>
+          <li><a href="#sec-7-3">7.3 Cancer therapy</a></li>
+          <li><a href="#sec-7-4">7.4 Beyond cancer</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 24</div>
+      <h1 class="lecture-title">CRISPR Functional Screens and DepMap</h1>
+      <p class="lecture-subtitle">A genome-scale knockout screen is compressed sensing on a perturbation matrix. ~80,000 sgRNAs in lentivirus, MOI ~ 0.3, T0 vs T-final sequencing → which gene losses kill cells, which provide drug resistance. MAGeCK aggregates 4-6 sgRNAs per gene via rank-based statistics. DepMap turns this into a cancer-dependency atlas across ~1000 cell lines. MAVEs (saturation mutagenesis) systematically map every variant's effect — directly informing clinical interpretation. Most modern cancer drug targets emerge from this pipeline.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">200 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — CRISPR for genomics</a></li>
+        <li><a href="#part-2">Part 2 — Library design</a></li>
+        <li><a href="#part-3">Part 3 — MAGeCK</a></li>
+        <li><a href="#part-4">Part 4 — DepMap</a></li>
+        <li><a href="#part-5">Part 5 — MAVEs</a></li>
+        <li><a href="#part-6">Part 6 — Tools and pitfalls</a></li>
+        <li><a href="#part-7">Part 7 — Screen to therapy</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Five moves:</em>
+        <span class="lecture-tagline-beat">make a 10⁵-perturbation library</span>,
+        <span class="lecture-tagline-beat">infect at MOI 0.3</span>,
+        <span class="lecture-tagline-beat">count sgRNAs at T0 and T-final</span>,
+        <span class="lecture-tagline-beat">aggregate sgRNAs to genes</span>,
+        <span class="lecture-tagline-beat">cross-reference DepMap for selectivity</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Describe the CRISPR-Cas9 mechanism in one paragraph; explain how it's repurposed for genome-scale functional screens.</li>
+          <li>Distinguish library types: CRISPR knockout (CRISPRko, Cas9), CRISPR interference (CRISPRi, dCas9-KRAB), CRISPR activation (CRISPRa, dCas9-VP64), base editors, prime editors.</li>
+          <li>Run a pooled-screen analysis end-to-end: from FASTQ → sgRNA counts → fitness scores via MAGeCK / DrugZ.</li>
+          <li>Interpret a screen as positive-selection or dropout (negative-selection); compute log fold change of sgRNA abundance and aggregate to gene-level.</li>
+          <li>Use the DepMap (Cancer Cell Line Encyclopedia) for cancer-gene-dependency lookup; identify lineage-selective dependencies; prioritise drug targets.</li>
+          <li>Apply MAVEs (multiplexed assays of variant effects) and saturation mutagenesis screens for variant interpretation.</li>
+          <li>Frame pooled screens as compressed sensing on a perturbation matrix; sgRNA abundance as noisy linear measurement; gene scoring as inverse problem.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 30 min</span>
+          CRISPR for Functional Genomics
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 The CRISPR mechanism</h3>
+          <p><strong>CRISPR-Cas9</strong> (Doudna &amp; Charpentier 2012, Zhang 2013) is a programmable nuclease:</p>
+          <ul>
+            <li><strong>sgRNA (single-guide RNA)</strong>: ~100 nt, 20 nt of which (the "spacer") is complementary to the target DNA.</li>
+            <li><strong>Cas9</strong>: a DNA endonuclease that binds the sgRNA and cleaves DNA where the sgRNA finds a match (with a downstream PAM sequence: NGG for SpCas9).</li>
+            <li><strong>Result</strong>: a double-strand break at the target site → cellular repair (NHEJ usually) → small indels → frameshift → loss-of-function.</li>
+          </ul>
+          <p>For pooled screens, build a library of ~80,000 sgRNAs (4-6 per gene × ~20,000 genes); deliver via lentivirus; each cell gets ~1 sgRNA at a time; selection / dropout reveals which gene knockouts affect fitness.</p>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 The screen designs</h3>
+          <p><strong>Positive-selection screen</strong>:</p>
+          <ul>
+            <li>Apply selection (drug, virus, hostile environment) that kills most cells.</li>
+            <li>Surviving cells are enriched for sgRNAs targeting genes whose loss confers resistance.</li>
+            <li>Read out: pre-selection vs post-selection sgRNA counts.</li>
+            <li>High-fold-change sgRNAs → resistance genes.</li>
+            <li>Examples: drug-resistance screens (BCR-ABL + imatinib → identify resistance pathway), viral entry (HIV co-receptor screens), tumour-suppressor identification.</li>
+          </ul>
+          <p><strong>Negative-selection / dropout screen</strong>:</p>
+          <ul>
+            <li>Grow cells over time without selection.</li>
+            <li>sgRNAs targeting essential genes → cells with that knockout die / fail to proliferate → sgRNA counts drop.</li>
+            <li>Read out: T0 (initial library) vs T-final (after 14-21 days).</li>
+            <li>Drop-out sgRNAs → essential genes.</li>
+            <li>Examples: cancer-essentiality (DepMap), context-dependent essentiality (essential in cancer cell lines but not normal — drug targets).</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-24/01-pooled-screen.svg"
+                 alt="Top-to-bottom flow of a pooled CRISPR screen. 1. sgRNA library cloned into lentiviral plasmid pool. 2. Lentivirus production + transduction at MOI ~0.3. 3. Cells split into T0 (initial) and T-final (post-selection). 4. Genomic DNA extraction. 5. PCR-amplify sgRNA region. 6. Sequence amplicons. 7. Count table (sgRNAs × samples). 8. MAGeCK / DrugZ analysis. 9. Gene-level fitness scores. Side annotation: ~80k sgRNAs, 4 sgRNAs/gene, ~10⁸ cells per replicate, ~$20k cost.">
+            <figcaption>Figure 1. Pooled CRISPR screen workflow. Library → lentivirus → T0 / T-final sequencing → count table → gene scores. ~80k sgRNAs, ~10⁸ cells, ~$20k.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-24/02-screen-simulator.html" loading="lazy" title="Artifact 2 — Pooled-Screen Simulator"></iframe>
+            <figcaption>
+              <strong>Artifact 2 — Pooled-Screen Simulator.</strong> Tune MOI, cell coverage, replicate count; see how parameters drive sgRNA recovery, replicate concordance, CEG dropout. Aha: screen design parameters directly determine result quality.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 CRISPRi and CRISPRa</h3>
+          <p>For non-cutting screens:</p>
+          <p><strong>CRISPRi (interference)</strong>:</p>
+          <ul>
+            <li><strong>dCas9-KRAB</strong>: catalytically-dead Cas9 fused to a KRAB transcriptional repressor.</li>
+            <li>Targets transcription start sites of genes; suppresses transcription without permanent DNA edits.</li>
+            <li><strong>Reversible</strong> (vs CRISPRko which permanently edits).</li>
+            <li>Better for essential genes (don't kill cells with single-cell-fatal knockouts).</li>
+          </ul>
+          <p><strong>CRISPRa (activation)</strong>:</p>
+          <ul>
+            <li><strong>dCas9-VP64</strong> (or SunTag, SAM): transcriptional activator.</li>
+            <li>Drives expression of normally-silent genes.</li>
+            <li>Used for gain-of-function screens (overexpression confers resistance to drug?).</li>
+          </ul>
+          <p>CRISPRko vs CRISPRi vs CRISPRa give complementary information: knockout (gene's removed), interference (gene's reduced), activation (gene's amplified). Modern screens often run all three.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-24/07-modalities.svg"
+                 alt="Three side-by-side panels comparing CRISPR modalities. CRISPRko (Cas9 + sgRNA): cuts DNA → indels → frameshift → loss of function. Permanent and fatal for essential genes. CRISPRi (dCas9-KRAB + sgRNA at TSS): represses transcription. Reversible, useful for essential genes. CRISPRa (dCas9-VP64 + sgRNA at TSS): activates transcription, used for gain-of-function screens. Each panel: schematic, typical use cases, library size, advantages and drawbacks.">
+            <figcaption>Figure 7. CRISPRko vs CRISPRi vs CRISPRa. Three modalities, three different perturbations: gene removed, reduced, amplified.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-24/06-modality-comparator.html" loading="lazy" title="Artifact 6 — CRISPRko vs CRISPRi Comparator"></iframe>
+            <figcaption>
+              <strong>Artifact 6 — CRISPRko vs CRISPRi Comparator.</strong> Run the same gene set with both modalities; compare LFC distributions and detection of essential genes. Aha: modality choice depends on whether you can tolerate cell death; CRISPRi is the right choice for essential-gene screens.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 Base editors and prime editors</h3>
+          <p><strong>Base editors</strong> (Komor 2016): create specific point mutations without DSBs. Useful for:</p>
+          <ul>
+            <li>Saturation mutagenesis at a specific gene (every codon changed).</li>
+            <li>MAVEs at single-base resolution.</li>
+            <li>Discovery of disease-causing variants.</li>
+          </ul>
+          <p><strong>Prime editors</strong> (Anzalone 2019): even more flexible — write arbitrary edits. Slower per cell but precise.</p>
+        </section>
+
+        <section id="sec-1-5">
+          <h3>1.5 Pooled vs arrayed screens</h3>
+          <ul>
+            <li><strong>Pooled</strong>: all sgRNAs in one tube; phenotype-cell linkage by sgRNA-amplicon sequencing. ~$20k for genome-scale screen.</li>
+            <li><strong>Arrayed</strong>: each sgRNA in a separate well; per-well phenotyping (e.g., imaging, RNA-seq). 10–100× more expensive but allows complex phenotypes.</li>
+          </ul>
+          <p>Most discovery screens are pooled; arrayed screens dominate for downstream characterisation.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 25 min</span>
+          Library Design and Quality
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 Library catalogues</h3>
+          <p>Standard human CRISPRko libraries:</p>
+          <ul>
+            <li><strong>Brunello</strong> (Doench 2016): 76k sgRNAs, 4 per gene, optimised activity scores.</li>
+            <li><strong>GeCKO v2</strong> (Sanjana 2014): legacy ~120k library.</li>
+            <li><strong>TKOv3</strong> (Mair 2019): 70k sgRNAs, optimised for dropout screens, anti-correlation control.</li>
+            <li><strong>CRISPick</strong> library generator: design custom libraries.</li>
+          </ul>
+          <p>For CRISPRi: <strong>Dolcetto</strong> or <strong>Horlbeck</strong> library.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-24/02-library-quality.svg"
+                 alt="Two-panel library quality figure. Top panel: distribution of on-target activity scores across libraries (Brunello, TKOv3, GeCKO v2). Modern libraries (Brunello, TKOv3) skew right with high activity peaks; older GeCKO v2 has a broader, lower-peaked distribution. Bottom panel: distribution of predicted off-target counts. Modern libraries skew left (few off-targets); older legacy library has a longer right tail. Side panel: number of sgRNAs per gene by library — typically 4 (Brunello) to 6 (legacy).">
+            <figcaption>Figure 2. sgRNA library quality characteristics. Modern libraries (Brunello, TKOv3) are tightly peaked at high on-target activity and low off-target burden; legacy libraries have wider, noisier distributions.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 sgRNA scoring</h3>
+          <p>Not all sgRNAs work equally. Two scoring axes:</p>
+          <p><strong>On-target activity</strong> — which sgRNAs cut efficiently?</p>
+          <ul>
+            <li><strong>Doench Rule Set 2</strong> (Doench 2016): linear regression on sgRNA features → activity score.</li>
+            <li><strong>Azimuth 2.0</strong>: deep-learning extension.</li>
+            <li>High-activity sgRNAs reduce noise in screens.</li>
+          </ul>
+          <p><strong>Off-target effects</strong> — which sgRNAs have unintended targets?</p>
+          <ul>
+            <li><strong>CFD score</strong>: per-position mismatch tolerance.</li>
+            <li><strong>MIT score</strong>: alternative.</li>
+            <li>High-specificity sgRNAs reduce false positives.</li>
+          </ul>
+          <p>Library design balances activity (high) and specificity (high) against catalogue coverage (4-6 sgRNAs per gene).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-24/08-sgrna-scoring.svg"
+                 alt="Two-panel sgRNA scoring figure. Top panel: on-target — sgRNA features (PAM context, GC content, position-specific nucleotides) → Doench Rule Set 2 score. Histogram of typical-library scores (Brunello ranges 0.4 to 0.95, peak around 0.65). Bottom panel: off-target — PAM-distal mismatches → CFD score. Heat map of mismatch tolerance per position showing seed region (positions 1-10 from PAM) intolerant, distal positions (11-20) more tolerant. Side annotation: 'high-quality sgRNA = high on-target + low off-target. Library design balances both.'">
+            <figcaption>Figure 8. sgRNA on-target / off-target scoring. Modern designs maximise on-target activity and minimise predicted off-targets; the seed region near the PAM is most mismatch-intolerant.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-24/01-sgrna-design.html" loading="lazy" title="Artifact 1 — sgRNA Library Design + Scoring"></iframe>
+            <figcaption>
+              <strong>Artifact 1 — sgRNA Library Design + Scoring.</strong> Pick a target gene; the artifact returns 4 best sgRNAs by Doench Rule Set 2 + CFD off-target score. Aha: sgRNA quality matters for screen performance; scoring algorithms quantify the trade-offs.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Multiplicity of infection</h3>
+          <p><strong>MOI</strong> = average number of viral particles per cell. For a clean screen, MOI ~ 0.3 → ~70% of cells get exactly one sgRNA, ~5% get two or more.</p>
+          <ul>
+            <li>Higher MOI → many cells get multiple sgRNAs → confounded phenotypes.</li>
+            <li>Lower MOI → fewer infected cells → less data.</li>
+          </ul>
+          <p>The MOI = 0.3 sweet spot is standard.</p>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Coverage and replicates</h3>
+          <ul>
+            <li><strong>Cell coverage</strong>: ~500 cells per sgRNA at infection (each sgRNA needs enough founders).</li>
+            <li><strong>Read coverage</strong>: ~500 reads per sgRNA at sequencing.</li>
+            <li><strong>Biological replicates</strong>: typically 2-3 independent infections.</li>
+          </ul>
+          <p>Genome-scale screens require ~10⁸ cells per replicate (75k sgRNAs × 500 cells × MOI 0.3 / 0.3).</p>
+        </section>
+
+        <section id="sec-2-5">
+          <h3>2.5 The deep dive</h3>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — pooled screens as compressed sensing</span>
+            <p>Each cell gets a (typically) single sgRNA, but the population is a mixture of ~80k different perturbations at known fractional abundances. Phenotype readout is the pooled effect of all perturbations. Recovering per-gene fitness from pooled-cell phenotypes is <strong>inverse-problem solving</strong> under known mixing matrix — directly analogous to compressed sensing. The MAGeCK / DrugZ algorithms are statistical solvers for this; modern variants (MAUDE, BAGEL2) explicitly invoke compressed-sensing machinery.</p>
+          </aside>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-24/11-compressed-sensing.svg"
+                 alt="Mathematical schematic. Population with sgRNA abundance vector x (size N ≈ 80,000). Phenotype readout = linear measurement y = Ax + ε where A is the sgRNA-to-gene mapping matrix and ε is sequencing noise. Inverse problem: recover gene-level effect from sgRNA-level abundance changes. Side annotation: 'MAGeCK / DrugZ / BAGEL2 are statistical solvers for this inverse problem. Same family as compressed sensing in EE.'">
+            <figcaption>Figure 11. A pooled CRISPR screen as compressed sensing. The mapping matrix A is sparse (4-6 sgRNAs per gene); statistical solvers like MAGeCK invert it to recover per-gene effects.</figcaption>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 40 min</span>
+          Screen Analysis with MAGeCK
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 The data</h3>
+          <p>Output of a screen: <strong>count tables</strong>.</p>
+          <ul>
+            <li>Rows: sgRNAs.</li>
+            <li>Columns: samples (typically pre-selection + post-selection × 2-3 replicates).</li>
+            <li>Cells: sgRNA read counts.</li>
+          </ul>
+          <p>For a typical screen, ~80k sgRNAs × 6-8 samples → ~600k cells in the matrix. Each sgRNA has 4-6 instances per gene, so the underlying gene-level matrix is ~20k × 6-8.</p>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 sgRNA-level fold change</h3>
+          <p>Per-sgRNA log fold change (LFC):</p>
+          <p>$$\text{LFC}_{i} = \log_2 \frac{\text{count post}_i + 1}{\text{count pre}_i + 1}$$</p>
+          <ul>
+            <li>Negative LFC: sgRNA dropped out → its target gene is essential.</li>
+            <li>Positive LFC: sgRNA enriched → its target gene's loss provides selection advantage.</li>
+          </ul>
+          <p>Normalisation: median normalisation, or DESeq-style size factors (count data, after all).</p>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Gene-level aggregation</h3>
+          <p>Per gene: combine 4-6 sgRNA LFCs into one gene-level score + p-value.</p>
+          <p><strong>MAGeCK</strong> (Li 2014, 2015) — the standard:</p>
+          <ul>
+            <li>Computes per-sgRNA p-values (negative-binomial test on counts).</li>
+            <li>Aggregates per-gene via <strong>modified RRA (robust rank aggregation)</strong>: median-rank-based test that's robust to a few non-functional sgRNAs.</li>
+            <li>Output: per-gene log fold change, p-value, FDR.</li>
+          </ul>
+          <p><strong>DrugZ</strong> (Wang 2017, 2018): Z-score-based; designed for drug-vs-control resistance/sensitisation screens.</p>
+          <p><strong>BAGEL2</strong> (Kim 2019): Bayesian classifier for essentiality. Probabilistic essentiality prediction.</p>
+          <p>For a typical screen: run all three; cross-validate.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-24/03-mageck.svg"
+                 alt="Top-to-bottom MAGeCK analysis flow. 1. Count tables (T0, T-final). 2. Median normalisation. 3. Per-sgRNA negative-binomial test → sgRNA p-values. 4. Per-gene RRA aggregation (4 sgRNAs → median rank). 5. Beta(1, k) significance test → gene p-value. 6. FDR correction (BH). 7. Gene rankings + significance. Side panel: example output table — top 10 essential genes for a cancer cell line.">
+            <figcaption>Figure 3. MAGeCK analysis flow. Negative-binomial sgRNA test → modified-RRA gene aggregation → BH FDR correction → ranked hits.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-24/09-rra.svg"
+                 alt="Scatter plot showing 4 sgRNAs per gene, x-axis is rank-percentile under null. Highly-essential gene: all 4 sgRNAs in top 1% (concordant strong signal). Modestly-essential: 2-3 sgRNAs in top 10%, 1-2 in middle. Non-essential: sgRNAs uniformly distributed. RRA computes the minimum percentile under Beta(1, k) null and outputs gene p-value. Annotation: 'MAGeCK's modified RRA is robust to a few non-functional sgRNAs — uses median rank, not mean.'">
+            <figcaption>Figure 9. RRA rank aggregation in MAGeCK. Concordant low percentiles across 4 sgRNAs = strong signal; one or two outliers don't kill the call.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-24/03-mageck.html" loading="lazy" title="Artifact 3 — MAGeCK Gene-Level Analysis"></iframe>
+            <figcaption>
+              <strong>Artifact 3 — MAGeCK Gene-Level Analysis.</strong> Run a simplified MAGeCK on a simulated count table; see per-sgRNA LFCs, RRA aggregation, gene-level FDR + volcano plot. Aha: MAGeCK produces interpretable gene rankings via principled rank aggregation.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Quality control</h3>
+          <p>Critical QC metrics:</p>
+          <ul>
+            <li><strong>sgRNA recovery</strong>: fraction of library sgRNAs detected with ≥ 5 reads. Target ≥ 90%.</li>
+            <li><strong>Replicate concordance</strong>: Pearson correlation between replicates at sgRNA level. Target ≥ 0.9.</li>
+            <li><strong>Essential gene recovery</strong>: fraction of CEGs (core essential genes) showing significant dropout. Target ≥ 80%.</li>
+            <li><strong>Non-essential gene null distribution</strong>: proper centring at LFC = 0 and adequate tail behaviour.</li>
+          </ul>
+          <p>If QC fails, the analysis is uninterpretable. Re-run, don't bandage.</p>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 Worked example</h3>
+          <p>A classic dropout screen on cancer cell lines:</p>
+          <ul>
+            <li>Library: TKOv3, ~70k sgRNAs.</li>
+            <li>6 cell lines, 2 replicates each, T0 + T21 days.</li>
+            <li>MAGeCK output: ~1,000 essential genes per cell line, with cell-line-specific subsets ("contextual essentialities").</li>
+          </ul>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — gene-level p-value as inverse Z-test on aggregated rank statistic</span>
+            <p>MAGeCK's RRA is mathematically the <strong>modified Beta distribution</strong> for the minimum order statistic of a uniform sample. Each gene has $k$ sgRNAs producing $k$ rank-percentile values; under the null (no effect), these are uniform on [0, 1]. The MAGeCK score = best (smallest) percentile. Under the null, this is Beta(1, $k$)-distributed; significance is computed analytically. This is the same Mann-Whitney-style rank aggregation used in GSEA — non-parametric, robust to outliers, uniformly minimum-variance unbiased.</p>
+          </aside>
+        </section>
+
+        <section id="sec-3-6">
+          <h3>3.6 Modern variants</h3>
+          <ul>
+            <li><strong>MAUDE</strong> (Doench 2018): integrates with the Brunello library design.</li>
+            <li><strong>MELANIE / CRISPRcleanR</strong>: corrections for copy-number-variation effects (high-CN regions can fail screens because Cas9 cuts every copy → huge fitness penalty unrelated to gene function).</li>
+            <li><strong>CASA</strong>: cell-line-aware model (handles polymorphic libraries).</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 30 min</span>
+          DepMap and Cancer Dependencies
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 The DepMap project</h3>
+          <p><strong>Cancer Dependency Map</strong> (Broad / Sanger collaboration): genome-scale CRISPR knockout screens in ~1,000+ cancer cell lines spanning ~30 cancer types.</p>
+          <p>Public release (depmap.org): per-gene fitness score (CERES, then Chronos) per cell line, plus matched omics (RNA-seq, methylation, mutations, copy number).</p>
+          <p>This is the <strong>Atlas of Druggable Cancer Dependencies</strong> — for any candidate drug target, you can ask: "in which cancer cell lines is this gene essential?"</p>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 The Chronos algorithm</h3>
+          <p><strong>CERES</strong> (Meyers 2017): the original DepMap scoring algorithm; corrects for copy-number bias.</p>
+          <p><strong>Chronos</strong> (Dempster 2021): the current scoring algorithm:</p>
+          <ul>
+            <li>Models per-cell-line, per-sgRNA log fold change.</li>
+            <li>Corrects for sgRNA-level activity, copy-number effect, library-batch effect.</li>
+            <li>Output: per-gene "gene effect" score for each cell line.</li>
+            <li>Score &lt; -1: strong essential. Score = 0: non-essential.</li>
+          </ul>
+          <p>The DepMap ~21,000 genes × ~1,000 cell lines is the result.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-24/04-depmap.svg"
+                 alt="Heat map of ~30 cell lines (rows) × top ~50 genes (columns), cells coloured by Chronos score. Pan-essential genes shown as solid blue columns (essential everywhere). Pan-non-essential as solid white columns. Lineage-selective: blue in some lineages, white in others (bands of selectivity). Annotation: 'lineage-selective dependencies = drug targets. Pan-essential = avoid (would kill normal cells too).'">
+            <figcaption>Figure 4. DepMap dependency landscape. Pan-essential = avoid; pan-non-essential = uninteresting; lineage-selective = drug targets.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Lineage-selective dependencies</h3>
+          <p>For drug-target prioritisation, the key signal is <strong>lineage-selective essentiality</strong>:</p>
+          <ul>
+            <li>Gene is essential in some cancers but not others.</li>
+            <li>→ Targeting it could kill specific cancer types without harming normal cells.</li>
+          </ul>
+          <p>Major examples found via DepMap:</p>
+          <ul>
+            <li><strong>MCL1</strong> in haematological cancers vs solid tumours.</li>
+            <li><strong>MTAP-deletion synthetic lethality</strong>: MTAP loss in 15% of cancers → PRMT5 dependency. Drug development target.</li>
+            <li><strong>EZH2</strong> in lymphomas with EZH2 mutations.</li>
+            <li><strong>WRN helicase</strong> in MSI-high cancers (synthetic lethal).</li>
+          </ul>
+          <p>The 2024 frontier: ~50 lineage-selective dependencies identified; ~10 in clinical trials; ~3 in advanced clinical use.</p>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-24/04-depmap-browser.html" loading="lazy" title="Artifact 4 — DepMap Dependency Browser"></iframe>
+            <figcaption>
+              <strong>Artifact 4 — DepMap Dependency Browser.</strong> Browse dependencies for a chosen cancer type; identify lineage-selective targets and overlay drug-target status. Aha: DepMap reveals lineage-specific drug targets; selectivity is the key.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Drug-screen integration</h3>
+          <p>DepMap also contains <strong>drug-screen data</strong> (PRISM, GDSC, CTRPv2): IC50 / AUC values for ~1,000 drugs across ~500 cell lines.</p>
+          <p>Cross-referencing CRISPR + drug screens:</p>
+          <ul>
+            <li>Drug X kills cell lines where gene Y knockout also kills.</li>
+            <li>→ Drug X likely targets gene Y or its pathway.</li>
+            <li>Used to deduce mechanism of action for novel drugs.</li>
+          </ul>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 Synthetic lethality</h3>
+          <p><strong>Synthetic lethality</strong>: gene A is non-essential, gene B is non-essential; but A + B knockout is lethal. For cancer therapy: if cancer has loss of A (driver mutation), targeting B becomes a cancer-selective killer.</p>
+          <p>Discovery pipeline:</p>
+          <ul>
+            <li>Identify cancer-specific gene losses (driver deletions).</li>
+            <li>Run CRISPR screens in cancer cell lines vs normal.</li>
+            <li>Look for cancer-selective dependencies → synthetic-lethal candidates.</li>
+          </ul>
+          <p>PARP inhibitors in BRCA1/2-deficient cancers are the canonical clinical example.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-24/10-synthetic-lethality.svg"
+                 alt="Two-panel synthetic lethality analysis. Panel 1: scatter of cell lines showing MTAP deletion (red, n≈200) vs MTAP-intact (cobalt, n≈800). Panel 2: PRMT5 essentiality (Chronos score) plotted; significantly stronger in MTAP-deleted cells. → MTAP-deletion + PRMT5 dependency = synthetic-lethal interaction. Annotation: 'PRMT5 inhibitors (TANGO / GSK) are in clinical trials based on this DepMap finding.'">
+            <figcaption>Figure 10. Synthetic lethality via DepMap. MTAP deletion + PRMT5 dependency: a classic DepMap-discovered synthetic-lethal pair, now in clinical trials.</figcaption>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 25 min</span>
+          MAVEs and Variant Effect Maps
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 The MAVE concept</h3>
+          <p><strong>MAVEs (Multiplexed Assays of Variant Effects)</strong>: experimental measurements of all possible variants in a region. Most commonly: deep mutational scanning (DMS) on a protein.</p>
+          <ul>
+            <li>Generate library of ~all single-amino-acid changes (~20× protein length).</li>
+            <li>Couple to a phenotypic assay (binding, growth, expression).</li>
+            <li>Count library members before vs after selection.</li>
+            <li>Score each variant.</li>
+          </ul>
+          <p>Result: a <strong>per-position-per-AA fitness map</strong> for a protein region.</p>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Saturation mutagenesis with base editors</h3>
+          <p>Base editors (Cas9-cytosine-deaminase) introduce point mutations at high efficiency without DSBs.</p>
+          <p>Workflow:</p>
+          <ul>
+            <li>Library of ~all possible base-edit sgRNAs targeting a gene.</li>
+            <li>Each edit produces a specific point mutation.</li>
+            <li>Pooled introduction; phenotype selection; sequencing of edited reads.</li>
+            <li>Score each variant.</li>
+          </ul>
+          <p>Example: <strong>BRCA1 saturation mutagenesis</strong> (Findlay 2018): tested ~4,000 BRCA1 single-base variants for HDR function → published variant-effect map → directly informs ACMG/AMP variant classification.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-24/05-mave-map.svg"
+                 alt="Heat map of amino-acid positions (x-axis, ~400 positions) by possible amino-acid change (y-axis, 20 AAs). Cells coloured by experimental fitness score: red = damaging, blue = neutral, green = beneficial. Wild-type residues shown as black dots along the diagonal. Functional sites (catalytic residues, binding sites) annotated as bands of red columns. Side panel: ClinVar Pathogenic variants overlaid with a concordance score against MAVE.">
+            <figcaption>Figure 5. MAVE variant effect map. Every possible single-amino-acid change for ~400 protein positions; functional sites stand out as red columns of damaging mutations.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-24/05-mave-interpretation.html" loading="lazy" title="Artifact 5 — MAVE → Variant Interpretation"></iframe>
+            <figcaption>
+              <strong>Artifact 5 — MAVE → Variant Interpretation.</strong> Click on a BRCA1 MAVE variant; see fitness score, ClinVar status, and the ACMG/AMP code triggered. Aha: MAVEs provide the functional evidence for clinical variant interpretation; the bridge to clinical genomics.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Variant effect maps in clinical genomics</h3>
+          <p>The bridge to clinical genomics:</p>
+          <ul>
+            <li>ACMG/AMP PS3 (functional studies show damaging effect): MAVEs provide systematic functional data.</li>
+            <li>For genes with published MAVEs (BRCA1, MSH2, TP53, etc.), variant interpretation gets a quantitative basis.</li>
+            <li>The <strong>MAVEdb</strong> repository aggregates published MAVEs across ~50 genes.</li>
+          </ul>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Computational complement: deep-learning MAVE</h3>
+          <p>For genes without experimental MAVEs:</p>
+          <ul>
+            <li><strong>AlphaMissense</strong>: deep-learning predictor trained partly on MAVE data.</li>
+            <li><strong>EVE</strong> (Frazer 2021): unsupervised deep-learning model that learns variant effects from sequence alone.</li>
+            <li>Both feed PP3/BP4 evidence in clinical interpretation.</li>
+          </ul>
+        </section>
+
+        <section id="sec-5-5">
+          <h3>5.5 The 2024 frontier</h3>
+          <ul>
+            <li><strong>Combinatorial MAVEs</strong>: paired mutations (epistasis maps).</li>
+            <li><strong>Single-cell MAVEs</strong>: link variant to phenotype at single-cell resolution.</li>
+            <li><strong>AI-MAVE integration</strong>: train deep models on existing MAVEs + apply to genes without experimental data.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 25 min</span>
+          Tools, Pitfalls, and Workflows
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 Standard 2024 stack</h3>
+          <p>For a typical CRISPR-screen analysis:</p>
+          <ul>
+            <li><strong>MAGeCK</strong> (Python/R): canonical tool.</li>
+            <li><strong>DrugZ</strong> (R): drug screens.</li>
+            <li><strong>BAGEL2</strong> (R): essentiality classifier.</li>
+            <li><strong>CRISPRcleanR</strong> (R): CN bias correction.</li>
+            <li><strong>MELANIE / CASA</strong>: advanced library-aware tools.</li>
+          </ul>
+          <p>For visualisation: <strong>R/Bioconductor</strong>, <strong>MAGeCKFlute</strong>, or in-house Python/Plotly.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-24/06-workflow.svg"
+                 alt="Horizontal banded flowchart for CRISPR screen analysis. Bands: 1. Sample acquisition + library transduction. 2. T0 + T-final sequencing. 3. QC checks (MOI, recovery, replicate concordance, CEG dropout). 4. MAGeCK / DrugZ / BAGEL2 (run all three). 5. CN-bias correction (CRISPRcleanR). 6. Gene-level rankings. 7. Pathway enrichment. 8. Hit triage (druggability, biological context). 9. Validation arrayed screen. Each band labelled with reproducibility-critical step.">
+            <figcaption>Figure 6. CRISPR screen analysis workflow. Each stage has its own tool and reproducibility hazard; QC checks before analysis are non-negotiable.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 Pitfalls</h3>
+          <p><strong>Library</strong>:</p>
+          <ul>
+            <li>Use a recent, well-validated library (Brunello, TKOv3, Dolcetto). Legacy libraries have many low-activity sgRNAs.</li>
+            <li>4-6 sgRNAs/gene minimum; fewer means high noise.</li>
+          </ul>
+          <p><strong>Experimental</strong>:</p>
+          <ul>
+            <li>MOI control: &gt; 0.3 → confounded multi-perturbations; enforce strict MOI &lt; 0.3.</li>
+            <li>Cell coverage: &lt; 500/sgRNA → noisy results.</li>
+            <li>Replicate concordance: &lt; 0.9 means major batch effect; investigate before interpreting.</li>
+          </ul>
+          <p><strong>Bioinformatics</strong>:</p>
+          <ul>
+            <li>Copy-number-variation bias: cancer cell lines often have high CN regions; sgRNAs in those regions cut more → inflated fitness penalty unrelated to gene function. CRISPRcleanR or CERES handles this.</li>
+            <li>Library DNA contamination: library plasmid DNA contaminates the screen; hash-check the count distribution.</li>
+            <li>Outlier essential genes: a few highly-essential genes always dominate; trim or rank-aggregate.</li>
+          </ul>
+          <p><strong>Statistical</strong>:</p>
+          <ul>
+            <li>Multiple testing: ~20k genes tested; FDR control essential.</li>
+            <li>Power: at typical signal sizes, n=2 replicates is barely enough; n=3 is standard; n=4 desirable for weak phenotypes.</li>
+          </ul>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 Reproducibility</h3>
+          <p>CRISPR screens have notably better reproducibility than microbiome (~80% replication), driven by:</p>
+          <ul>
+            <li>Standardised libraries.</li>
+            <li>Cell-line uniformity (vs human-cohort heterogeneity).</li>
+            <li>Fewer biological covariates (lab-adapted cell lines vs human variation).</li>
+          </ul>
+          <p>But cell-line-specific results don't always generalise to primary tissue — keep the cell-line vs tissue distinction in mind.</p>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 The 2024 frontier</h3>
+          <ul>
+            <li><strong>In vivo CRISPR screens</strong>: pooled screens in transplanted tumours / animal models.</li>
+            <li><strong>Single-cell CRISPR screens</strong>: Perturb-seq, ECCITE-seq → per-cell phenotype + perturbation linkage.</li>
+            <li><strong>Combinatorial perturbations</strong>: paired sgRNAs → epistasis screens.</li>
+            <li><strong>CRISPR-driven RNA targeting</strong>: Cas13a; targeting RNA rather than DNA.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 15 min</span>
+          From Screen to Therapy
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 The discovery → drug pipeline</h3>
+          <p>A typical drug-discovery program informed by CRISPR screens:</p>
+          <ol>
+            <li><strong>Disease model</strong>: cancer cell line / iPSC / patient-derived organoid.</li>
+            <li><strong>CRISPR screen</strong>: identify essential genes / pathway dependencies.</li>
+            <li><strong>Hit triage</strong>: filter for druggable targets (small-molecule-binding pockets, surface antigens).</li>
+            <li><strong>Validation</strong>: arrayed CRISPR knockout, isogenic-pair experiments.</li>
+            <li><strong>Drug discovery</strong>: virtual screening, hit-to-lead, medicinal chemistry.</li>
+            <li><strong>Clinical trials</strong>: based on validated target.</li>
+          </ol>
+          <p>The 2010s saw ~5 clinical-grade targets emerge from this pipeline; 2020s expects 10× more.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-24/12-screen-to-drug.svg"
+                 alt="Pipeline diagram from CRISPR screen to clinical drug. 1. CRISPR screen identifies dependency. 2. Hit validation (arrayed knockout, isogenic). 3. Druggability assessment (small-molecule pocket, surface accessible). 4. Hit-to-lead chemistry. 5. Pre-clinical validation (xenograft). 6. Phase I clinical trial (safety). 7. Phase II clinical trial (efficacy). 8. Phase III + FDA approval. Time annotation: ~7-10 years from screen to FDA. Side panel: example real timelines (PARP inhibitors, PRMT5 inhibitors).">
+            <figcaption>Figure 12. From screen to clinical drug. ~7-10 years from CRISPR-screen hit to FDA approval; PARP and PRMT5 inhibitors are case studies.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-24/07-screen-to-target.html" loading="lazy" title="Artifact 7 — From Screen to Drug-Target Picker"></iframe>
+            <figcaption>
+              <strong>Artifact 7 — From Screen to Drug-Target Picker.</strong> Triage 50 simulated screen hits through druggability + safety + clinical-stage filters. Aha: screen → drug requires more than essentiality; druggability + safety filter dominates downstream.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Pharma adoption</h3>
+          <p>CRISPR screens are now standard in:</p>
+          <ul>
+            <li><strong>Roche / Genentech / Pfizer / Novartis</strong> internal target ID.</li>
+            <li><strong>Recursion / Tempus / In8 / Nimbus</strong>: AI-driven CRISPR-screen-based drug discovery.</li>
+            <li><strong>Vertex Pharmaceuticals</strong>: pioneered MAVE-driven gene-therapy product (Casgevy, FDA-approved 2023, sickle cell disease).</li>
+          </ul>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 Cancer therapy</h3>
+          <p>In oncology, DepMap-driven targets in clinical development:</p>
+          <ul>
+            <li><strong>PRMT5 inhibitors</strong>: MTAP-deleted cancers (TANGO, GSK).</li>
+            <li><strong>WRN inhibitors</strong>: MSI-high cancers.</li>
+            <li><strong>PARP inhibitors</strong>: BRCA-deficient cancers.</li>
+            <li><strong>MCL1 inhibitors</strong>: hematologic malignancies.</li>
+          </ul>
+          <p>Each emerged from CRISPR-screen evidence + structural biology + clinical translation.</p>
+        </section>
+
+        <section id="sec-7-4">
+          <h3>7.4 Beyond cancer</h3>
+          <ul>
+            <li><strong>Anti-virals</strong>: CRISPR screens identify host factors required for viral replication. SARS-CoV-2 entry-factor screens (Daniloski 2021) found ACE2 + furin + cathepsin L.</li>
+            <li><strong>Inflammation</strong>: identify cytokine-pathway nodes for autoimmune drug development.</li>
+            <li><strong>Neurodegeneration</strong>: iPSC-derived neuron screens for Alzheimer's, Parkinson's targets.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ──────────────────────────────────────── -->
+      <section id="wrapup">
+        <h2>Wrap-up</h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>CRISPR-Cas9 + lentiviral library = genome-scale functional screen.</strong> Knockout, interference, activation each give distinct information.</li>
+          <li><strong>Pooled screens are compressed sensing</strong> on a perturbation matrix; gene-level scoring is rank aggregation across replicate sgRNAs.</li>
+          <li><strong>MAGeCK + DrugZ + BAGEL2</strong> are the analytical workhorses. Critical QC: sgRNA recovery, replicate concordance, CEG dropout.</li>
+          <li><strong>DepMap</strong> is the cancer-dependency atlas: ~1,000 cell lines × ~21k genes. Lineage-selective dependencies → drug targets.</li>
+          <li><strong>MAVEs</strong> (saturation mutagenesis) provide systematic variant-effect data → directly informs clinical variant interpretation.</li>
+          <li><strong>CRISPR screens drive modern target discovery</strong>: most emerging cancer drugs trace to CRISPR + structure + clinical translation.</li>
+          <li><strong>EE framings</strong>: pooled screen as compressed sensing; sgRNA abundance as noisy linear measurement; gene scoring as inverse problem; rank aggregation as modified Beta distribution test.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Data engineering for bioinformatics. The reproducibility infrastructure you'll learn there is what makes large-scale CRISPR + DepMap analysis possible.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Download a public CRISPR-screen dataset (e.g., DepMap Public 23Q4). Run MAGeCK on raw counts; report top 10 essential genes.</li>
+          <li>Compare the same screen analysed by MAGeCK vs DrugZ vs BAGEL2. Where do they agree? Where do they differ?</li>
+          <li>Pick a cancer type from DepMap; identify the top 5 lineage-selective essential genes. Cross-reference with PRISM drug-screen data; identify drugs targeting these genes.</li>
+          <li>From the BRCA1 MAVE (Findlay 2018), tabulate variant effects for the top 100 ClinVar Pathogenic variants. Compute concordance with experimental MAVE scores. Discuss disagreements.</li>
+          <li>Design a CRISPRko library targeting a 50-gene custom set. Pick optimal sgRNAs using CRISPick / Doench Rule Set 2. Report on-target activity and off-target predicted scores.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Doudna, J. A., &amp; Charpentier, E. (2014). The new frontier of genome engineering with CRISPR-Cas9. <em>Science</em> 346, 1258096.</li>
+          <li>Doench, J. G., et al. (2016). Optimized sgRNA design to maximize activity and minimize off-target effects of CRISPR-Cas9. <em>Nature Biotechnology</em> 34, 184–191.</li>
+          <li>Sanjana, N. E., et al. (2014). Improved vectors and genome-wide libraries for CRISPR screening. <em>Nature Methods</em> 11, 783–784.</li>
+          <li>Mair, B., et al. (2019). Essential gene profiles for human pluripotent stem cells identify uncharacterized genes. <em>Cell Reports</em> 27, 599–615.e4.</li>
+          <li>Li, W., et al. (2014). MAGeCK enables robust identification of essential genes from CRISPR/Cas9 screens. <em>Genome Biology</em> 15, 554.</li>
+          <li>Wang, B., et al. (2017). Robustly improved CRISPR screening data filtering. <em>Genome Biology</em> 18, 165.</li>
+          <li>Meyers, R. M., et al. (2017). Computational correction of CN bias in CRISPR screens. <em>Nature Genetics</em> 49, 1779–1784.</li>
+          <li>Dempster, J. M., et al. (2021). Chronos: a CRISPR cell fitness time-series model. <em>Genome Biology</em> 22, 343.</li>
+          <li>Findlay, G. M., et al. (2018). Accurate classification of BRCA1 variants with saturation genome editing. <em>Nature</em> 562, 217–222.</li>
+          <li>Tsherniak, A., et al. (2017). Defining a Cancer Dependency Map. <em>Cell</em> 170, 564–576.e16.</li>
+          <li>DepMap: <a href="https://depmap.org/" target="_blank" rel="noopener">depmap.org</a></li>
+          <li>MAGeCK: <a href="https://sourceforge.net/p/mageck/wiki/Home/" target="_blank" rel="noopener">sourceforge.net/p/mageck</a></li>
+          <li>MAVEdb: <a href="https://www.mavedb.org/" target="_blank" rel="noopener">mavedb.org</a></li>
+          <li>CRISPick: <a href="https://portals.broadinstitute.org/gpp/public/analysis-tools/sgrna-design" target="_blank" rel="noopener">broadinstitute.org/gpp</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — CRISPR for Functional Genomics</td>          <td>30&nbsp;min</td><td>0:30</td></tr>
+            <tr><td>Part 2 — Library Design and Quality</td>              <td>25&nbsp;min</td><td>0:55</td></tr>
+            <tr><td>Part 3 — Screen Analysis with MAGeCK</td>             <td>40&nbsp;min</td><td>1:35</td></tr>
+            <tr><td>Part 4 — DepMap and Cancer Dependencies</td>          <td>30&nbsp;min</td><td>2:05</td></tr>
+            <tr><td>Part 5 — MAVEs and Variant Effect Maps</td>            <td>25&nbsp;min</td><td>2:30</td></tr>
+            <tr><td>Part 6 — Tools, Pitfalls, and Workflows</td>           <td>25&nbsp;min</td><td>2:55</td></tr>
+            <tr><td>Part 7 — From Screen to Therapy</td>                    <td>15&nbsp;min</td><td>3:10</td></tr>
+            <tr><td>Wrap-up</td>                                              <td>10&nbsp;min</td><td>3:20</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 20min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) f.style.height = d.height + 'px';
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

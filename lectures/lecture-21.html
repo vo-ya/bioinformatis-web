@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 21 — HMMs, Profile HMMs, and Gene Finding · Bioinformatics for EE</title>
+  <meta name="description" content="HMMs as state-space models: forward, Viterbi, Baum-Welch. Profile HMMs (HMMER, Pfam) for remote-homology detection. Gene finding (GENSCAN, AUGUSTUS) and chromatin segmentation (ChromHMM).">
+
+  <meta property="og:title" content="Lecture 21 — HMMs, Profile HMMs, and Gene Finding">
+  <meta property="og:description" content="State-space models on discrete observations · forward / Viterbi / Baum-Welch · profile HMMs as position-specific filters · GENSCAN / AUGUSTUS / ChromHMM · why HMMs still beat deep learning at segmentation tasks.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — HMM Foundations</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Why Markov chains aren't enough</a></li>
+          <li><a href="#sec-1-2">1.2 The HMM definition</a></li>
+          <li><a href="#sec-1-3">1.3 The three canonical problems</a></li>
+          <li><a href="#sec-1-4">1.4 The CpG island example</a></li>
+          <li><a href="#sec-1-5">1.5 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — The Three HMM Algorithms</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 Forward algorithm</a></li>
+          <li><a href="#sec-2-2">2.2 Backward algorithm</a></li>
+          <li><a href="#sec-2-3">2.3 Viterbi</a></li>
+          <li><a href="#sec-2-4">2.4 Baum-Welch (EM)</a></li>
+          <li><a href="#sec-2-5">2.5 Belief propagation</a></li>
+          <li><a href="#sec-2-6">2.6 Practical tips</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Profile HMMs and HMMER</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 The profile-HMM idea</a></li>
+          <li><a href="#sec-3-2">3.2 Krogh-Mian-Mitchison architecture</a></li>
+          <li><a href="#sec-3-3">3.3 HMMER</a></li>
+          <li><a href="#sec-3-4">3.4 The Pfam database</a></li>
+          <li><a href="#sec-3-5">3.5 Worked example</a></li>
+          <li><a href="#sec-3-6">3.6 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Gene Finding</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 The eukaryotic problem</a></li>
+          <li><a href="#sec-4-2">4.2 GENSCAN</a></li>
+          <li><a href="#sec-4-3">4.3 Splice site detection</a></li>
+          <li><a href="#sec-4-4">4.4 AUGUSTUS</a></li>
+          <li><a href="#sec-4-5">4.5 RNA-seq-driven annotation</a></li>
+          <li><a href="#sec-4-6">4.6 Prokaryotic gene finding</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — HMM Applications Beyond Gene Finding</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 ChromHMM</a></li>
+          <li><a href="#sec-5-2">5.2 Splice-aware alignment</a></li>
+          <li><a href="#sec-5-3">5.3 Pair-HMMs in variant calling</a></li>
+          <li><a href="#sec-5-4">5.4 Viterbi-on-DAG</a></li>
+          <li><a href="#sec-5-5">5.5 What HMMs can't do</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Modern Alternatives and the HMM Niche</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 CRFs</a></li>
+          <li><a href="#sec-6-2">6.2 Deep learning replacements</a></li>
+          <li><a href="#sec-6-3">6.3 The HMM niche</a></li>
+          <li><a href="#sec-6-4">6.4 The hybrid future</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — Worked End-to-End Example</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 A bacterial genome</a></li>
+          <li><a href="#sec-7-2">7.2 A mammalian genome</a></li>
+          <li><a href="#sec-7-3">7.3 The 2024 frontier</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 21</div>
+      <h1 class="lecture-title">HMMs, Profile HMMs, and Gene Finding</h1>
+      <p class="lecture-subtitle">State-space models on discrete observations. Forward (likelihood), Viterbi (decoding), Baum-Welch (EM training) — three algorithms, $O(T K^2)$ each. Profile HMMs operationalise MSAs into probabilistic family models; HMMER + Pfam annotate every new genome. GENSCAN and AUGUSTUS read a chromosome as a giant HMM tape. ChromHMM segments the epigenome. Pair-HMMs power haplotype-aware variant callers. Where deep learning has replaced HMMs (regulatory prediction) and where HMMs still win (segmentation, small data, interpretable annotation).</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">225 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — HMM foundations</a></li>
+        <li><a href="#part-2">Part 2 — The three HMM algorithms</a></li>
+        <li><a href="#part-3">Part 3 — Profile HMMs and HMMER</a></li>
+        <li><a href="#part-4">Part 4 — Gene finding</a></li>
+        <li><a href="#part-5">Part 5 — HMM applications beyond gene finding</a></li>
+        <li><a href="#part-6">Part 6 — Modern alternatives and the HMM niche</a></li>
+        <li><a href="#part-7">Part 7 — Worked end-to-end example</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Five moves:</em>
+        <span class="lecture-tagline-beat">add latent state to a Markov chain</span>,
+        <span class="lecture-tagline-beat">forward for likelihood</span>,
+        <span class="lecture-tagline-beat">Viterbi for decoding</span>,
+        <span class="lecture-tagline-beat">Baum-Welch for training</span>,
+        <span class="lecture-tagline-beat">profile-HMM the MSA</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Define a Hidden Markov Model: states, transitions, emissions, initial distribution; explain why the Markov assumption holds in genomic segmentation and how it breaks for long-range dependencies.</li>
+          <li>Solve the three canonical HMM problems: forward / backward (likelihood), Viterbi (decoding), Baum-Welch (EM training); recognise EM and belief propagation as the underlying machinery.</li>
+          <li>Construct profile HMMs from MSAs (HMMER, Pfam): match, insert, delete states; the 3-state-per-column architecture and its connection to dynamic time warping.</li>
+          <li>Apply profile HMMs to remote-homology detection; interpret HMMER output (sequence and domain E-values; bit scores; bias correction).</li>
+          <li>Walk through eukaryotic gene finding (GENSCAN, AUGUSTUS): exon / intron / splice / UTR states; the role of length distributions and CRF extensions.</li>
+          <li>Connect HMMs to chromatin segmentation (ChromHMM), splice-aware alignment (HISAT2 graph extensions), and the Viterbi-on-DAG of pangenome alignment.</li>
+          <li>Recognise modern alternatives — CRFs, RNNs, transformers — and where HMMs still win: limited training data, interpretable annotation, sparse-state inference.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 30 min</span>
+          HMM Foundations
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Why Markov chains aren't enough</h3>
+          <p>A <strong>Markov chain</strong> on observations: $P(x_t \mid x_{t-1}, x_{t-2}, ..., x_1) = P(x_t \mid x_{t-1})$. The next observation depends only on the current one.</p>
+          <p>For DNA, this is too weak. A CpG island's "C is followed by G more often than chance" pattern requires distinguishing two regimes — inside-CpG-island vs outside — that a single Markov chain on letters cannot represent. The chain has one transition matrix; we need two.</p>
+          <p>The fix: introduce a <strong>latent state</strong> that captures "which regime are we in?". Now:</p>
+          <ul>
+            <li>Latent state $z_t$ at each position, with a Markov transition $P(z_t \mid z_{t-1})$.</li>
+            <li>Observation $x_t$ depends on the state via emission $P(x_t \mid z_t)$.</li>
+          </ul>
+          <p>This is a <strong>Hidden Markov Model</strong>.</p>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 The HMM definition</h3>
+          <p>Formally:</p>
+          <ul>
+            <li>States $\{S_1, ..., S_K\}$.</li>
+            <li>Initial distribution $\pi_i = P(z_1 = S_i)$.</li>
+            <li>Transition probabilities $a_{ij} = P(z_t = S_j \mid z_{t-1} = S_i)$.</li>
+            <li>Emission probabilities $b_i(x) = P(x_t = x \mid z_t = S_i)$.</li>
+            <li>Observations $X = x_1, ..., x_T$; latent states $Z = z_1, ..., z_T$.</li>
+          </ul>
+          <p>Parameters: $\theta = (\pi, a, b)$. Joint probability:</p>
+          <p>$$P(X, Z \mid \theta) = \pi_{z_1} \prod_{t=2}^{T} a_{z_{t-1}, z_t} \prod_{t=1}^{T} b_{z_t}(x_t)$$</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-21/01-hmm-graph.svg"
+                 alt="Top: a 4-state HMM as a directed graph with states as nodes, labelled transition arrows, and small bar-chart emission histograms attached to each state. Bottom: the unrolled-in-time graphical model for T equals 6 observations; states z₁ through z₆ form a horizontal Markov chain; observations x₁ through x₆ hang below each state. Annotation showing P(X,Z) factorisation with initial distribution, transitions, and emissions.">
+            <figcaption>Figure 1. HMM as graph and unrolled graphical model. The joint factorises into Markov transitions × emission distributions; algorithms exploit this factorisation.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 The three canonical problems</h3>
+          <p>Given an HMM, three things you might want:</p>
+          <ol>
+            <li><strong>Likelihood</strong>: $P(X \mid \theta)$. How probable is this observation? Solved by the <strong>forward algorithm</strong>.</li>
+            <li><strong>Decoding</strong>: $\arg\max_Z P(Z \mid X, \theta)$. What is the most probable state sequence? Solved by <strong>Viterbi</strong>.</li>
+            <li><strong>Training</strong>: $\arg\max_\theta P(X \mid \theta)$. Given observations only, learn the parameters? Solved by <strong>Baum-Welch (EM)</strong>.</li>
+          </ol>
+          <p>Each runs in $O(T K^2)$ time — efficient for small $K$ and any $T$.</p>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 The CpG island example</h3>
+          <p>The canonical first example. CpG dinucleotides are rare in mammalian DNA because methylated cytosine spontaneously deaminates to thymine. But CpG <strong>islands</strong> — short genomic regions with elevated CpG density — survive because they're typically unmethylated and functional (often near promoters).</p>
+          <p>Two-state HMM:</p>
+          <ul>
+            <li>State 1 — "CpG island" (high CpG dinucleotide frequency).</li>
+            <li>State 2 — "background" (low CpG frequency).</li>
+          </ul>
+          <p>Transitions: small probability of switching states (islands are rare); high self-transition (once inside an island, you stay for a few hundred bp).</p>
+          <p>Emissions: 16 dinucleotide probabilities per state.</p>
+          <p>Train on labelled data → run Viterbi on a new genome → get a CpG-island annotation.</p>
+          <p>This pattern — <strong>two-or-more state HMM + Viterbi → segmentation</strong> — recurs throughout genomics: ChromHMM (15+ chromatin states), gene finders (intergenic / exon / intron), peak callers with HMM extensions, copy-number callers.</p>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-21/01-hmm-playground.html" loading="lazy" title="Artifact 1 — HMM Playground"></iframe>
+            <figcaption>
+              <strong>Artifact 1 — HMM Playground.</strong> Build a 2-state CpG island HMM. Tune transitions + emissions; see Viterbi-decoded segmentation update live. Aha: a simple 2-state HMM segments a sequence; the segmentation depends on the transition rate (how sticky the states are) and the emission contrast (how strongly each state prefers the observed letter).
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-5">
+          <h3>1.5 The deep dive</h3>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — HMMs as state-space models on discrete symbols</span>
+            <p>An HMM is a <strong>discrete-state-space dynamical system</strong> with stochastic transitions and stochastic observations — exactly the setting of Kalman filtering with a discrete state. Forward-backward is the discrete-time-discrete-state analog of the Kalman filter / smoother. Viterbi is the <strong>MAP decoder</strong> for the most probable trajectory. Baum-Welch is <strong>EM</strong> for the latent state and parameters jointly. The HMM was published in 1966 (Baum and Petrie); Kalman 1960. The two communities developed independently for decades before the convergence in the 1990s. For an EE student, the punchline is: every HMM technique you'll use here has a state-space-model analog you've seen in signal processing — and the algorithms transfer.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 45 min</span>
+          The Three HMM Algorithms
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 Forward algorithm</h3>
+          <p>Goal: compute $P(X \mid \theta) = \sum_Z P(X, Z \mid \theta)$.</p>
+          <p>Naive sum over $K^T$ state paths is exponential. Forward DP collapses it.</p>
+          <p>Define $\alpha_t(i) = P(x_1, ..., x_t, z_t = S_i \mid \theta)$. Then:</p>
+          <ul>
+            <li>Initialise: $\alpha_1(i) = \pi_i b_i(x_1)$.</li>
+            <li>Recurse: $\alpha_t(j) = b_j(x_t) \sum_i \alpha_{t-1}(i) a_{ij}$.</li>
+            <li>Terminate: $P(X \mid \theta) = \sum_i \alpha_T(i)$.</li>
+          </ul>
+          <p>$O(T K^2)$ time, $O(T K)$ space. The recurrence sums over all paths into state $j$ at time $t$.</p>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 Backward algorithm</h3>
+          <p>Symmetric. Define $\beta_t(i) = P(x_{t+1}, ..., x_T \mid z_t = S_i, \theta)$.</p>
+          <ul>
+            <li>Initialise: $\beta_T(i) = 1$.</li>
+            <li>Recurse: $\beta_t(i) = \sum_j a_{ij} b_j(x_{t+1}) \beta_{t+1}(j)$.</li>
+          </ul>
+          <p>Combined with forward, the per-position posterior is</p>
+          <p>$$P(z_t = S_i \mid X, \theta) = \frac{\alpha_t(i) \beta_t(i)}{P(X \mid \theta)}.$$</p>
+          <p>This <strong>posterior decoding</strong> gives a per-position confidence — useful when you don't want the single most-probable path but rather "how likely is each state at each position?"</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-21/06-forward-backward.svg"
+                 alt="Chain of hidden states z₁ through z_T with emitted observations. Forward messages α drawn left-to-right in cobalt; backward messages β drawn right-to-left in amber. Per-position posterior γ shown at each node as a combined message. Annotation: forward-backward IS belief propagation on a chain; Felsenstein's pruning is BP on a tree.">
+            <figcaption>Figure 6. Forward-backward as belief propagation. Forward and backward messages combine at each node to give the per-position posterior — the same mechanism as sum-product BP on any chain or tree.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Viterbi algorithm</h3>
+          <p>Goal: $\arg\max_Z P(Z, X \mid \theta)$ — the most probable state sequence.</p>
+          <p>Define $\delta_t(i) = \max_{z_1, ..., z_{t-1}} P(z_1, ..., z_{t-1}, z_t = S_i, x_1, ..., x_t \mid \theta)$.</p>
+          <ul>
+            <li>Initialise: $\delta_1(i) = \pi_i b_i(x_1)$.</li>
+            <li>Recurse: $\delta_t(j) = b_j(x_t) \max_i [\delta_{t-1}(i) a_{ij}]$.</li>
+            <li>Backtrack: store $\arg\max$ pointers; trace from $\arg\max_i \delta_T(i)$.</li>
+          </ul>
+          <p>The forward algorithm sums over paths; Viterbi maxes over them. Both run $O(T K^2)$.</p>
+          <p>In log space (to avoid underflow):</p>
+          <p>$$\log \delta_t(j) = \log b_j(x_t) + \max_i \big[\log \delta_{t-1}(i) + \log a_{ij}\big]$$</p>
+          <p>This is <strong>max-plus DP</strong>. A pure Viterbi computation is structurally identical to log-domain pairwise alignment — pairwise alignment IS Viterbi on a trivial 1-state-per-residue HMM with explicit gap states.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-21/02-viterbi-trellis.svg"
+                 alt="A 4-state HMM unrolled over T equals 8 time steps. Trellis lattice with one node per state-time cell. Edges show transitions. Node colour intensity proportional to log delta. Viterbi backtrace path drawn in bold red from end to start. Side panel with pseudocode of the Viterbi recurrence.">
+            <figcaption>Figure 2. Viterbi trellis with backtrace. Max-plus DP on the lattice; same machinery as pairwise alignment.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-21/02-viterbi-stepper.html" loading="lazy" title="Artifact 2 — Viterbi Stepper"></iframe>
+            <figcaption>
+              <strong>Artifact 2 — Viterbi Stepper.</strong> Step through Viterbi cell-by-cell on a 3-state HMM trellis. Each step shows the max-plus computation and the pointer storage. Aha: Viterbi is just bottom-up max-plus DP; pointers store the argmax for backtrace.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Baum-Welch (EM training)</h3>
+          <p>Given observations $X$ but no labels $Z$, learn $\theta$.</p>
+          <p>EM iterates:</p>
+          <ul>
+            <li><strong>E-step</strong>: compute posterior expectations $\gamma_t(i) = P(z_t = S_i \mid X, \theta)$ and $\xi_t(i, j) = P(z_t = S_i, z_{t+1} = S_j \mid X, \theta)$ via forward-backward.</li>
+            <li><strong>M-step</strong>: re-estimate
+              $$\hat{\pi}_i = \gamma_1(i), \quad \hat{a}_{ij} = \frac{\sum_t \xi_t(i, j)}{\sum_t \gamma_t(i)}, \quad \hat{b}_i(x) = \frac{\sum_{t: x_t = x} \gamma_t(i)}{\sum_t \gamma_t(i)}.$$
+            </li>
+          </ul>
+          <p>Converges monotonically in $\log P(X \mid \theta^{(k)})$ — that's the EM guarantee. But to a <em>local</em> optimum. Initialisation matters; multiple random restarts are standard.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-21/07-baum-welch.svg"
+                 alt="Plot of log P(X|θ) versus iteration k for 5 different random initialisations. Three curves rise monotonically and converge to the global optimum at the top. Two curves rise monotonically but plateau at lower local optima. Annotation: EM monotonically increases likelihood; multiple restarts mitigate local optima.">
+            <figcaption>Figure 7. Baum-Welch convergence. Each random init traces its own monotonic likelihood curve; some find the global optimum, some get stuck at local optima.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-21/03-baum-welch.html" loading="lazy" title="Artifact 3 — Baum-Welch Convergence"></iframe>
+            <figcaption>
+              <strong>Artifact 3 — Baum-Welch Convergence.</strong> Watch EM iterate from 5 random initialisations on synthetic data. Aha: EM is local; multiple restarts are essential; pick the highest-likelihood result.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-5">
+          <h3>2.5 The connection to belief propagation</h3>
+          <p>Forward-backward IS belief propagation on the chain-structured graphical model that defines an HMM. The forward pass computes "messages from past"; the backward pass computes "messages from future"; their product gives the per-position posterior.</p>
+          <p>The connection is exact. Forward-backward is BP on a chain. Felsenstein's pruning (Lecture 20) is BP on a tree. The HMM and the phylogenetic tree differ only in graph structure — algorithmically, they're the same family.</p>
+        </section>
+
+        <section id="sec-2-6">
+          <h3>2.6 Practical tips</h3>
+          <ul>
+            <li><strong>Log space everything.</strong> Probabilities multiply across long sequences and underflow in floating point within a few hundred steps. Store log-probabilities; replace multiply with add and use the log-sum-exp trick for sums.</li>
+            <li><strong>Pseudocounts.</strong> Avoid zero probabilities in $a$ and $b$ from rare states (Laplace smoothing or a Dirichlet prior). A zero is forever in maximum likelihood.</li>
+            <li><strong>Multiple Baum-Welch restarts.</strong> EM is local. 5–10 random initialisations is standard; pick the highest-likelihood run.</li>
+            <li><strong>Hyperparameter $K$ (state count).</strong> Cross-validation, BIC, or AIC. BIC is the safer default for HMM model selection because it penalises additional states more heavily and tends to recover the right $K$ on simulated data.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 35 min</span>
+          Profile HMMs and HMMER
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 The profile-HMM idea</h3>
+          <p>A <strong>profile HMM</strong> is an HMM whose state structure encodes an MSA:</p>
+          <ul>
+            <li>One <strong>match (M) state</strong> per column of the MSA.</li>
+            <li>One <strong>insert (I) state</strong> per inter-column gap.</li>
+            <li>One <strong>delete (D) state</strong> per column allowing it to be skipped.</li>
+          </ul>
+          <p>Match-state emissions reflect the column's amino-acid composition; transition probabilities reflect the gap statistics of the input MSA. The result: a probabilistic model of a protein family that scores any new sequence by Viterbi alignment.</p>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 The Krogh-Mian-Mitchison architecture</h3>
+          <p>The standard profile-HMM topology (Krogh, Mian, Sjölander, Haussler 1994):</p>
+          <ul>
+            <li><strong>M (match)</strong>: position-specific emission of an amino acid.</li>
+            <li><strong>I (insert)</strong>: position-specific insertion of one or more amino acids; self-loop allowed.</li>
+            <li><strong>D (delete)</strong>: position skipped (no emission).</li>
+            <li><strong>B (begin)</strong>, <strong>E (end)</strong>: terminal states.</li>
+          </ul>
+          <p>Transitions are tightly constrained: from $M_k$ you can go to $M_{k+1}$, $I_k$, or $D_{k+1}$. From $I_k$, you can go to $M_{k+1}$, $I_k$ (self-loop), or $D_{k+1}$. From $D_k$, $M_{k+1}$, $D_{k+1}$, or $I_k$. This 3-state-per-column structure is the canonical profile-HMM topology.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-21/03-profile-hmm.svg"
+                 alt="Top: a 5-row by 8-column toy MSA. Bottom: the corresponding profile HMM with 8 match-state columns; each match state has a small 20-bar amino-acid emission histogram beneath it; insert states drawn as self-loops above each match; delete states drawn as bypass arrows below; B and E states at the ends. Side annotation: match emissions encode column composition, transitions encode gap statistics.">
+            <figcaption>Figure 3. Profile HMM as MSA → 3-state-per-column model. The MSA on top fixes the model; the model scores any new sequence by Viterbi alignment.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 HMMER</h3>
+          <p><strong>HMMER</strong> (Eddy 1998, 2011) is the dominant profile-HMM software.</p>
+          <ul>
+            <li><code>hmmbuild</code>: from an MSA → a profile HMM.</li>
+            <li><code>hmmsearch</code>: query a profile HMM against a sequence database.</li>
+            <li><code>hmmscan</code>: query a sequence against a database of profile HMMs.</li>
+            <li><code>nhmmer</code>: nucleotide variant (non-coding RNA detection, regulatory motif scanning).</li>
+          </ul>
+          <p>Output:</p>
+          <ul>
+            <li><strong>Sequence E-value</strong>: probability the entire sequence is from a random null model.</li>
+            <li><strong>Domain E-value</strong>: probability for the specific domain alignment.</li>
+            <li><strong>Bit score</strong>: log-odds of model vs null.</li>
+            <li><strong>Bias correction</strong>: adjusts for compositionally-biased queries (similar to BLAST's composition correction in Lecture 19).</li>
+          </ul>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 The Pfam database</h3>
+          <p><strong>Pfam</strong> (Bateman et al. 2002, Mistry et al. 2021, now hosted at InterPro): a curated database of ~20,000 protein families. Each family has:</p>
+          <ul>
+            <li>A <strong>seed alignment</strong> — a manually curated MSA of representative sequences.</li>
+            <li>A <strong>full alignment</strong> — HMMER auto-aligned to all UniProt sequences with $E < 10^{-3}$.</li>
+            <li>A <strong>profile HMM</strong> built from the seed.</li>
+            <li>Metadata: function, GO terms, structural classification, key literature.</li>
+          </ul>
+          <p>Pfam profile HMMs are the <strong>default first-pass</strong> for protein-domain annotation. When you assemble a new genome and translate ORFs, your first protein-level annotation is "scan against Pfam".</p>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 Worked example</h3>
+          <p>A 600-residue kinase has three Pfam domains: an SH2 (~aa 50–150), a kinase domain (~aa 200–450), and a PH domain (~aa 480–580). Each is a separate Pfam profile-HMM hit; the linker regions don't match anything. The three domains are the protein's functional building blocks; the linker is structurally flexible.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-21/11-pfam-hit.svg"
+                 alt="A 600-residue protein drawn as a horizontal bar with three Pfam domain boxes overlaid: SH2 domain at positions 50 to 150 in cobalt; kinase domain at positions 200 to 450 in amber; PH domain at positions 480 to 580 in green. HMMER E-values labelled per domain. Side panel showing the profile-HMM logos for each domain with position-specific conservation peaks.">
+            <figcaption>Figure 11. A multi-domain protein assembled from Pfam hits. Each domain is a separate profile-HMM hit; the linker regions don't match.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-21/04-profile-hmm.html" loading="lazy" title="Artifact 4 — Profile HMM Builder"></iframe>
+            <figcaption>
+              <strong>Artifact 4 — Profile HMM Builder.</strong> Build a profile HMM from a 6-row MSA; visualise the 3-state-per-column topology; align a query sequence and read the bit score / E-value. Aha: profile HMM = MSA → 3-state-per-column model; Viterbi aligns any new sequence.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-6">
+          <h3>3.6 The deep dive</h3>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — profile HMMs as position-specific filters with gap states</span>
+            <p>A profile HMM is a <strong>position-specific matched filter</strong> with explicit gap states. Compared to a fixed-template matched filter (which assumes the signal length is known), the profile HMM's insert and delete states allow <strong>length variability</strong>. The Viterbi alignment of a query to a profile HMM is the analog of dynamic time warping (DTW) in speech recognition: aligning a variable-rate query to a fixed template, allowing local stretches and skips. DTW and profile HMM alignment share the same DP machinery; they were developed in parallel through the 1970s-80s and unified in the 1990s.</p>
+            <p>The HMMER bit-score has the standard log-likelihood-ratio interpretation; Karlin-Altschul-style E-value statistics apply with HMM-specific calibration.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 40 min</span>
+          Gene Finding
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 The eukaryotic gene-finding problem</h3>
+          <p>Given an assembled eukaryotic genome (~3 Gbp for human), find:</p>
+          <ul>
+            <li>Gene boundaries (start and stop).</li>
+            <li>Exon-intron structure.</li>
+            <li>Coding (CDS) regions, in the right reading frame.</li>
+            <li>5'/3' untranslated regions (UTRs).</li>
+            <li>Sometimes: promoter regions.</li>
+          </ul>
+          <p>This is harder than prokaryotic gene finding (where coding density is near-uniform and there are no introns), because eukaryotic genes are sparse, fragmented, and overlap with regulatory elements.</p>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 GENSCAN</h3>
+          <p><strong>GENSCAN</strong> (Burge & Karlin 1997) is the canonical statistical gene finder. Architecture: a giant HMM with state classes:</p>
+          <ul>
+            <li><strong>Intergenic</strong> (single state).</li>
+            <li><strong>Promoter / 5'-UTR</strong> states.</li>
+            <li><strong>Initial exon</strong> (with start-codon emission).</li>
+            <li><strong>Internal exon</strong> states.</li>
+            <li><strong>Final exon</strong> (with stop-codon emission).</li>
+            <li><strong>Single-exon gene</strong> state.</li>
+            <li><strong>Intron-phase 0/1/2</strong> states (codon frame can be 0, 1, or 2 across an intron).</li>
+            <li><strong>3'-UTR</strong> + polyadenylation signal states.</li>
+          </ul>
+          <p>Each state has its own length distribution (geometric for introns, gamma for exons). Emission probabilities reflect codon usage, splice-site consensus sequences, and CpG-island context. Viterbi decoding on this HMM produces a complete gene-structure annotation.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-21/04-genscan.svg"
+                 alt="High-level state diagram of GENSCAN. Boxes for state classes: intergenic in grey; promoter and 5' UTR in muted cobalt; initial exon, internal exons, and final exon in green; intron phase 0, 1, 2 in amber; 3' UTR and polyA signal in muted cobalt; single-exon gene in green. Arrows showing canonical transitions. Length distributions noted next to states: geometric for intron, gamma for exon. Annotation: Viterbi on this HMM segments a 100 megabase chromosome into a list of genes in minutes.">
+            <figcaption>Figure 4. GENSCAN HMM architecture. Each state class has its own length distribution and emission profile; Viterbi on the chromosome produces a gene segmentation.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-21/05-gene-finder.html" loading="lazy" title="Artifact 5 — Gene Finder Simulator"></iframe>
+            <figcaption>
+              <strong>Artifact 5 — Gene Finder Simulator.</strong> Run a simplified GENSCAN-style HMM on a 10 kb genomic region. Toggle "with hints" / "without hints"; slide the intron length-distribution mean. Aha: eukaryotic gene finding is multi-state HMM segmentation; length distributions and emission patterns drive the result.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Splice site detection</h3>
+          <p>A critical sub-problem: identify donor (5') and acceptor (3') splice sites within introns.</p>
+          <ul>
+            <li><strong>Donor</strong>: GT consensus at intron start (positions +1 and +2 of the intron).</li>
+            <li><strong>Acceptor</strong>: AG consensus at intron end, with a polypyrimidine tract upstream.</li>
+          </ul>
+          <p>These are detected by <strong>position-specific weight matrices (PWMs)</strong> on a small window around each candidate site. The PWM is exactly a profile HMM with no inserts or deletes — the simplest case. Modern tools layer <strong>deep learning</strong> (SpliceAI) on top of PWM-style models for higher precision.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-21/08-splice-pwm.svg"
+                 alt="Two side-by-side splice-site sequence logos. Left: donor (5' splice site) PWM from positions -3 to +6 around the GT consensus; tall G and T at intron positions 1 and 2; height in bits. Right: acceptor (3' splice site) PWM from positions -14 to +3 with a polypyrimidine tract upstream of the AG consensus. Annotation: PWMs are the simplest profile HMM, no inserts or deletes; SpliceAI replaces these with deep CNN.">
+            <figcaption>Figure 8. Donor and acceptor splice-site PWMs. Tall stacks at +1/+2 (GT) and -2/-1 (AG) reflect the consensus; height = information content.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 AUGUSTUS</h3>
+          <p><strong>AUGUSTUS</strong> (Stanke et al. 2003-2008) is the modern eukaryotic gene finder. Improvements over GENSCAN:</p>
+          <ul>
+            <li><strong>Conditional Random Field (CRF) version</strong>: more flexible than HMM; conditions on observations rather than generative joint.</li>
+            <li><strong>Hint integration</strong>: external evidence (RNA-seq alignments, protein homologs, conservation tracks) folded into the scoring.</li>
+            <li><strong>Iterative training</strong>: bootstraps from an initial gene set on a related species and refines on the new genome.</li>
+          </ul>
+          <p>For a new mammalian genome, AUGUSTUS + RNA-seq hints is the standard.</p>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 RNA-seq-driven annotation</h3>
+          <p>A modern approach: <strong>train the gene finder on the genome's own RNA-seq data</strong>.</p>
+          <ol>
+            <li>Map RNA-seq reads to the genome (HISAT2 / STAR — Lecture 5).</li>
+            <li>Assemble transcripts (StringTie / Cufflinks).</li>
+            <li>Use the assembled transcripts as a training set for AUGUSTUS / BRAKER.</li>
+            <li>Run the gene finder; integrate predicted gene models with transcript evidence.</li>
+          </ol>
+          <p>Output: a gene set that is both algorithmically predicted <em>and</em> experimentally supported.</p>
+        </section>
+
+        <section id="sec-4-6">
+          <h3>4.6 Prokaryotic gene finding</h3>
+          <p>Simpler than eukaryotic: most prokaryotic genes are continuous (no introns), gene density is high (~1 gene / kb), and start codons are well-conserved.</p>
+          <p>Tools: <strong>GeneMark</strong>, <strong>Glimmer</strong>, <strong>Prodigal</strong>. Shorter HMMs with codon-frequency emissions; runs in minutes on a typical bacterial genome (~5 Mb).</p>
+          <p>For metagenomics (mixed organisms), MetaGeneMark and Prodigal-meta handle community-level gene finding.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 25 min</span>
+          HMM Applications Beyond Gene Finding
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 ChromHMM</h3>
+          <p><strong>ChromHMM</strong> (Ernst & Kellis 2012) is epigenome segmentation. A multi-mark HMM integrates ChIP-seq tracks for several histone modifications and calls distinct chromatin states. A typical 15-state model:</p>
+          <ul>
+            <li>Active promoter (high H3K4me3, H3K27ac).</li>
+            <li>Active enhancer (H3K4me1, H3K27ac).</li>
+            <li>Strong / weak enhancers (additional marks).</li>
+            <li>Insulator (CTCF-bound).</li>
+            <li>Strong transcription (H3K36me3 in gene bodies).</li>
+            <li>Polycomb-repressed (H3K27me3).</li>
+            <li>Heterochromatin (H3K9me3).</li>
+            <li>Quiescent (low signal across all marks).</li>
+          </ul>
+          <p>Each state has emission probabilities for each histone mark; the HMM is trained by Baum-Welch on whole-genome ChIP-seq from many marks. Practical: download ChromHMM, run on your own ChIP-seq data, get a chromatin-state segmentation. Used in ENCODE, Roadmap Epigenomics — connects directly to the ChIP-seq lecture.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-21/09-chromhmm-emission.svg"
+                 alt="Heat map of a 15-state ChromHMM model emission matrix. Rows: 15 states from active promoter through weak enhancer, insulator, transcribed, polycomb-repressed, heterochromatin, to quiescent. Columns: 9 histone marks (H3K4me3, H3K4me1, H3K27ac, H3K36me3, H3K27me3, H3K9me3, H3K9ac, H4K20me1, CTCF). Heat values: probability of mark observed given state. Side panel: genome-wide proportion of each state in human ESCs.">
+            <figcaption>Figure 9. ChromHMM emission matrix. Each chromatin state is defined by its mark-co-occurrence pattern; ChromHMM finds the states by Baum-Welch on whole-genome ChIP-seq.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-21/07-chromhmm.html" loading="lazy" title="Artifact 7 — ChromHMM Segmentation"></iframe>
+            <figcaption>
+              <strong>Artifact 7 — ChromHMM Segmentation.</strong> Run a simplified 15-state model on a 1 Mb region with synthetic ChIP-seq tracks. Aha: ChromHMM integrates multi-track ChIP-seq into interpretable chromatin states; the per-state emission matrix is a readout of what each state represents.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Splice-aware alignment in HISAT2</h3>
+          <p><strong>HISAT2</strong> uses an HMM extension for splicing:</p>
+          <ul>
+            <li>Reads can span an intron.</li>
+            <li>The aligner treats intron states as "skip-no-emission" states in a graph-aware HMM.</li>
+            <li>Splice junctions are scored by a junction likelihood (combining donor / acceptor PWM scores with intron-length priors).</li>
+          </ul>
+          <p>This is the engine behind RNA-seq alignment in modern pipelines (Lecture 5).</p>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Pair-HMMs in variant calling</h3>
+          <p>GATK <strong>HaplotypeCaller</strong> (Lecture 4) computes per-read alignment likelihood via a <strong>pair-HMM</strong> — a 3-state HMM for matches, insertions, and deletions in pairwise alignment.</p>
+          <p>Pair-HMMs handle indel-aware alignment with explicit gap-open / gap-extend transitions; they're the basis of all modern haplotype-based variant callers. DeepVariant runs a CNN on pair-HMM-aligned pileups.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-21/10-pair-hmm.svg"
+                 alt="Pair-HMM state diagram with three states: Match in cobalt, Insert in amber, Delete in green. Edges: M to M with probability 1 minus 2 delta minus tau (continue match); M to I with probability delta (open insertion); M to D with probability delta (open deletion); I to I with probability epsilon (extend insertion); I to M with probability 1 minus epsilon; D to D with probability epsilon (extend deletion); D to M with probability 1 minus epsilon; M to END with probability tau. Annotation: pair-HMM is the engine behind GATK HaplotypeCaller and DeepVariant.">
+            <figcaption>Figure 10. The 3-state pair-HMM for indel-aware pairwise alignment. The same machinery as profile-HMM alignment, but between two sequences instead of sequence-vs-model.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Connection to Viterbi-on-DAG</h3>
+          <p>A future lecture (long reads + pangenome) will introduce <strong>Viterbi on a DAG</strong> — alignment of a long read to a pangenome graph. The same machinery: states = positions in the graph; transitions = edges. The HMM background you have here makes Viterbi-on-DAG immediately interpretable.</p>
+        </section>
+
+        <section id="sec-5-5">
+          <h3>5.5 What HMMs can't do</h3>
+          <p>HMMs assume:</p>
+          <ul>
+            <li><strong>Markov property</strong>: state depends only on previous state. Long-range dependencies (e.g., trans-splicing across a 100 kb intron) violate this.</li>
+            <li><strong>Conditional independence</strong>: emissions are independent given state. Real dependencies (e.g., codon-context correlations spanning multiple sites) are imperfectly captured.</li>
+            <li><strong>Discrete state space</strong>: continuous variables (e.g., expression levels) need extension to GMM-HMM or autoregressive HMM.</li>
+          </ul>
+          <p>For genomic segmentation, these are mostly fine. For natural language and music, transformers replaced HMMs because long-range dependencies dominate. Genomics is in the middle: HMMs still dominate gene finding and chromatin segmentation; transformers are gaining ground on regulatory prediction (Enformer).</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 20 min</span>
+          Modern Alternatives and the HMM Niche
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 CRFs</h3>
+          <p><strong>Conditional Random Fields</strong> generalise HMMs by removing the generative assumption:</p>
+          <ul>
+            <li>HMM models $P(X, Z)$.</li>
+            <li>CRF models $P(Z \mid X)$ directly.</li>
+          </ul>
+          <p>CRFs allow rich feature functions on observations without the conditional-independence constraint. AUGUSTUS uses a CRF for gene finding; Segway is a CRF chromatin-state caller.</p>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 Deep learning replacements</h3>
+          <p>For sequence-classification tasks, RNNs and transformers have largely replaced HMMs:</p>
+          <ul>
+            <li><strong>SpliceAI</strong> — deep CNN on splice-site detection.</li>
+            <li><strong>DeepBind / DeepSEA</strong> — CNN on transcription-factor binding.</li>
+            <li><strong>Enformer / Borzoi</strong> — dilated CNN + transformer on regulatory sequence.</li>
+          </ul>
+          <p>These models have higher accuracy at scale but are <strong>less interpretable</strong> and require much more training data.</p>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 The HMM niche</h3>
+          <p>HMMs still win for:</p>
+          <ul>
+            <li><strong>Small training data</strong>: a handful of labelled examples (a new pathogen's gene structure) trains a robust HMM but a flaky deep model.</li>
+            <li><strong>Interpretable annotation</strong>: each state needs a human-readable label.</li>
+            <li><strong>Sparse-state inference</strong>: most positions belong to one of a few well-defined states (chromatin segmentation, gene segmentation).</li>
+            <li><strong>Deterministic decoding</strong>: when you need a single most-probable assignment, not a probability distribution.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-21/05-hmm-vs-dl.svg"
+                 alt="2D plot. X-axis: training set size, log scale from 10² to 10⁹ examples. Y-axis: prediction accuracy. Two curves: HMM in cobalt rises early and plateaus around 10⁴ examples; deep learning in red rises later but exceeds HMM around 10⁵. Crossover region annotated. Side annotation: HMM regime — limited data plus interpretability; DL regime — abundant data plus flexibility; most genomic-classification tasks sit near the crossover.">
+            <figcaption>Figure 5. The HMM ↔ deep learning landscape. HMMs dominate when data is scarce or interpretability matters; deep learning takes over once you have ≥ 10⁵ labelled examples.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 The hybrid future</h3>
+          <p>Most modern bioinformatics pipelines use <strong>HMMs + deep learning hybrids</strong>:</p>
+          <ul>
+            <li>HMM segments first; deep learning refines per-state predictions.</li>
+            <li>Or: deep learning extracts features; HMM provides a calibrated state assignment with a length prior.</li>
+          </ul>
+          <p>Examples: BRAKER (AUGUSTUS HMM + deep learning hints), DeepHMM (deep emissions on classical HMM topology), HMMRATAC (HMM segmentation on ATAC-seq with deep features).</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 20 min</span>
+          Worked End-to-End Example
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 Annotating a new bacterial genome</h3>
+          <p>A typical 2024 workflow:</p>
+          <ol>
+            <li><strong>Assemble</strong> reads to contigs.</li>
+            <li><strong>Run Prodigal</strong> for prokaryotic gene finding. Get ~5,000 ORF predictions on a 5 Mb genome.</li>
+            <li><strong>Translate</strong> ORFs to protein sequences.</li>
+            <li><strong>HMMER scan against Pfam</strong> for domain assignment. ~80% of ORFs annotated.</li>
+            <li><strong>DIAMOND BLAST against UniProt</strong> for the rest. Get function transfer for ~90% of ORFs.</li>
+            <li><strong>Map to KEGG pathways</strong> for metabolic context.</li>
+            <li><strong>Final gene set</strong> with ~95% functional annotation.</li>
+          </ol>
+          <p>Total runtime: hours on a laptop.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-21/12-pipeline.svg"
+                 alt="Top-to-bottom flowchart of a bacterial genome annotation pipeline. Boxes: 1. Raw reads (FASTQ); 2. Assembly (SPAdes / Flye); 3. Repeat masking; 4. ORF prediction (Prodigal); 5. Protein translation; 6. Pfam scan (HMMER); 7. UniProt search (DIAMOND); 8. KEGG pathway mapping; 9. Final annotation table. Each step labelled with typical runtime and tool name. Side panel: equivalent eukaryotic pipeline with AUGUSTUS / BRAKER plus RNA-seq hints.">
+            <figcaption>Figure 12. End-to-end annotation pipeline. Each step has a tool, a runtime, and a well-defined input/output; the pipeline composes cleanly.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-21/06-annotation-walkthrough.html" loading="lazy" title="Artifact 6 — End-to-End Annotation Walkthrough"></iframe>
+            <figcaption>
+              <strong>Artifact 6 — End-to-End Annotation Walkthrough.</strong> Step a 1 kb mock contig through assembly → ORF prediction → Pfam → BLAST function transfer → KEGG pathway. Aha: each tool contributes one piece; the final annotation is the synthesis.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Annotating a new mammalian genome</h3>
+          <p>For a 3 Gbp mammalian genome:</p>
+          <ol>
+            <li><strong>Assemble</strong> with long reads (a future lecture).</li>
+            <li><strong>Repeat-mask</strong> with RepeatMasker (~40% of the genome).</li>
+            <li><strong>Train AUGUSTUS</strong> on a related species' gene set as a starting point.</li>
+            <li><strong>Run BRAKER</strong> with your own RNA-seq data → trained eukaryotic gene model.</li>
+            <li><strong>Run AUGUSTUS</strong> on the masked genome → ~20,000 gene predictions.</li>
+            <li><strong>Validate</strong> with HMMER/Pfam for domain annotation; cross-check with InterProScan.</li>
+            <li><strong>Assign function</strong> via ortholog identification (OrthoFinder against UniProt).</li>
+          </ol>
+          <p>Total runtime: days on a server.</p>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 The 2024 frontier</h3>
+          <ul>
+            <li><strong>DeepBind / DeepSEA</strong> for regulatory annotation — replace pure-HMM regulatory state inference with deep models.</li>
+            <li><strong>AlphaFold-driven annotation</strong> for protein function — predict structure, then infer function from structural homologs.</li>
+            <li><strong>Metagenomic gene callers</strong> (MetaProdigal, Prokka) for community-level annotation.</li>
+          </ul>
+          <p>The HMM-driven core (Pfam, AUGUSTUS, ChromHMM) remains the foundation; deep learning is layered on top.</p>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ──────────────────────────────────────── -->
+      <section id="wrapup">
+        <h2>Wrap-up</h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>HMMs are state-space models on discrete observations.</strong> Three algorithms — forward (likelihood), Viterbi (decoding), Baum-Welch (training) — each $O(T K^2)$.</li>
+          <li><strong>Profile HMMs operationalise MSA → probabilistic family.</strong> HMMER + Pfam are the workhorses for protein-domain annotation.</li>
+          <li><strong>Gene finding is HMM-driven.</strong> GENSCAN architecture: state classes for intergenic, promoter, exon-initial / internal / final, intron-phase 0/1/2, UTR. AUGUSTUS adds CRF + RNA-seq hints.</li>
+          <li><strong>HMM applications beyond gene finding</strong>: ChromHMM (chromatin segmentation), pair-HMMs (variant calling), splice-aware alignment, Viterbi-on-DAG (pangenome alignment).</li>
+          <li><strong>Modern alternatives</strong> (CRFs, RNNs, transformers) have replaced HMMs in regulatory prediction but not in segmentation tasks. The HMM niche is interpretable annotation, small training sets, and sparse states.</li>
+          <li><strong>EE framings</strong>: HMMs as state-space models; forward-backward as belief propagation; Viterbi as MAP decoding; profile HMMs as position-specific filters with gap states; Baum-Welch as EM.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Bulk RNA-seq: from reads to expression counts. The splice-aware alignment in HISAT2 you saw mentioned here is what does the heavy lifting.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Build a 2-state HMM for CpG islands. Run Viterbi on a synthetic 10 kb sequence; identify the islands. Compute precision/recall against ground truth.</li>
+          <li>Run HMMER on a protein sequence of your choice against Pfam (web service or local). Report all domain hits with $E < 10^{-3}$ and note alignment quality.</li>
+          <li>Use AUGUSTUS to predict genes on a 100 kb genomic region of your choice. Compare predictions to existing annotations; report concordance.</li>
+          <li>Implement Baum-Welch in Python for a 3-state HMM. Train on synthetic data; verify the recovered transitions and emissions match the generating process. (~50 lines.)</li>
+          <li>Pick a chromatin state from a ChromHMM-annotated genome (e.g., ENCODE H1 ESC). Compute the genome-wide proportion of bases in that state; compare to published numbers.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Eddy, S. R. (1998). Profile hidden Markov models. <em>Bioinformatics</em> 14, 755–763.</li>
+          <li>Eddy, S. R. (2011). Accelerated profile HMM searches. <em>PLoS Computational Biology</em> 7, e1002195.</li>
+          <li>Krogh, A., Brown, M., Mian, I. S., Sjölander, K., &amp; Haussler, D. (1994). Hidden Markov models in computational biology: applications to protein modeling. <em>Journal of Molecular Biology</em> 235, 1501–1531.</li>
+          <li>Burge, C., &amp; Karlin, S. (1997). Prediction of complete gene structures in human genomic DNA. <em>Journal of Molecular Biology</em> 268, 78–94.</li>
+          <li>Stanke, M., &amp; Waack, S. (2003). Gene prediction with a hidden Markov model and a new intron submodel. <em>Bioinformatics</em> 19, ii215–ii225.</li>
+          <li>Ernst, J., &amp; Kellis, M. (2012). ChromHMM: automating chromatin-state discovery and characterization. <em>Nature Methods</em> 9, 215–216.</li>
+          <li>Mistry, J., Chuguransky, S., Williams, L., et al. (2021). Pfam: the protein families database in 2021. <em>Nucleic Acids Research</em> 49, D412–D419.</li>
+          <li>Rabiner, L. R. (1989). A tutorial on hidden Markov models and selected applications in speech recognition. <em>Proceedings of the IEEE</em> 77, 257–286. (Classic; still excellent.)</li>
+          <li>HMMER: <a href="http://hmmer.org/" target="_blank" rel="noopener">hmmer.org</a></li>
+          <li>Pfam (now at InterPro): <a href="https://www.ebi.ac.uk/interpro/" target="_blank" rel="noopener">ebi.ac.uk/interpro</a></li>
+          <li>AUGUSTUS: <a href="https://bioinf.uni-greifswald.de/augustus/" target="_blank" rel="noopener">bioinf.uni-greifswald.de/augustus</a></li>
+          <li>ChromHMM: <a href="http://compbio.mit.edu/ChromHMM/" target="_blank" rel="noopener">compbio.mit.edu/ChromHMM</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — HMM Foundations</td>                              <td>30&nbsp;min</td><td>0:30</td></tr>
+            <tr><td>Part 2 — The Three HMM Algorithms</td>                     <td>45&nbsp;min</td><td>1:15</td></tr>
+            <tr><td>Part 3 — Profile HMMs and HMMER</td>                       <td>35&nbsp;min</td><td>1:50</td></tr>
+            <tr><td>Part 4 — Gene Finding</td>                                  <td>40&nbsp;min</td><td>2:30</td></tr>
+            <tr><td>Part 5 — HMM Applications Beyond Gene Finding</td>         <td>25&nbsp;min</td><td>2:55</td></tr>
+            <tr><td>Part 6 — Modern Alternatives and the HMM Niche</td>        <td>20&nbsp;min</td><td>3:15</td></tr>
+            <tr><td>Part 7 — Worked End-to-End Example</td>                     <td>20&nbsp;min</td><td>3:35</td></tr>
+            <tr><td>Wrap-up</td>                                                  <td>10&nbsp;min</td><td>3:45</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 45min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) f.style.height = d.height + 'px';
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

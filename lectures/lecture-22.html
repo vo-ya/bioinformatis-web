@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 22 — Network Biology and Pathway Analysis · Bioinformatics for EE</title>
+  <meta name="description" content="Networks as graph signal processing: PPI / GRN / metabolic / signalling / disease networks. ORA and GSEA pathway enrichment, network propagation as Laplacian smoothing, module detection by spectral clustering and Louvain.">
+
+  <meta property="og:title" content="Lecture 22 — Network Biology and Pathway Analysis">
+  <meta property="og:description" content="Five network types · KEGG/Reactome/GO/MSigDB · ORA hypergeometric · GSEA Mann-Whitney · RWR + heat diffusion as low-pass filter · Louvain + spectral clustering as graph-spectrum operations.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — Why Networks</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 The gene-list problem</a></li>
+          <li><a href="#sec-1-2">1.2 Network types in biology</a></li>
+          <li><a href="#sec-1-3">1.3 Network properties</a></li>
+          <li><a href="#sec-1-4">1.4 Why graphs</a></li>
+          <li><a href="#sec-1-5">1.5 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Pathway Databases</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 What's a pathway</a></li>
+          <li><a href="#sec-2-2">2.2 KEGG</a></li>
+          <li><a href="#sec-2-3">2.3 Reactome</a></li>
+          <li><a href="#sec-2-4">2.4 Gene Ontology</a></li>
+          <li><a href="#sec-2-5">2.5 MSigDB</a></li>
+          <li><a href="#sec-2-6">2.6 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Pathway Enrichment</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 The over-representation problem</a></li>
+          <li><a href="#sec-3-2">3.2 Hypergeometric / Fisher</a></li>
+          <li><a href="#sec-3-3">3.3 Multiple testing</a></li>
+          <li><a href="#sec-3-4">3.4 GSEA</a></li>
+          <li><a href="#sec-3-5">3.5 Modern variants</a></li>
+          <li><a href="#sec-3-6">3.6 Signed vs unsigned</a></li>
+          <li><a href="#sec-3-7">3.7 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Network Propagation</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 The smoothing intuition</a></li>
+          <li><a href="#sec-4-2">4.2 Random walk with restart</a></li>
+          <li><a href="#sec-4-3">4.3 Heat diffusion</a></li>
+          <li><a href="#sec-4-4">4.4 What propagation does</a></li>
+          <li><a href="#sec-4-5">4.5 PRINCE, HotNet, workflow</a></li>
+          <li><a href="#sec-4-6">4.6 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Module Detection</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 The module hypothesis</a></li>
+          <li><a href="#sec-5-2">5.2 Modularity</a></li>
+          <li><a href="#sec-5-3">5.3 Spectral clustering</a></li>
+          <li><a href="#sec-5-4">5.4 Louvain and Leiden</a></li>
+          <li><a href="#sec-5-5">5.5 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Applications</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 Drug-target prediction</a></li>
+          <li><a href="#sec-6-2">6.2 Disease-gene prioritisation</a></li>
+          <li><a href="#sec-6-3">6.3 Pathway-context for DEGs</a></li>
+          <li><a href="#sec-6-4">6.4 Cell-cell communication</a></li>
+          <li><a href="#sec-6-5">6.5 The 2024 frontier</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — Tools and Workflows</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 Visualisation tools</a></li>
+          <li><a href="#sec-7-2">7.2 Standard workflow</a></li>
+          <li><a href="#sec-7-3">7.3 Common pitfalls</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 22</div>
+      <h1 class="lecture-title">Network Biology and Pathway Analysis</h1>
+      <p class="lecture-subtitle">From a gene list to biological meaning. Five network types — PPI, GRN, metabolic, signalling, disease — each with its own data sources and uses. Pathway enrichment via ORA (hypergeometric) and GSEA (Mann-Whitney / KS on the ranked list). Network propagation as a low-pass filter on the graph Laplacian; module detection as clustering in the graph spectrum. The whole field is graph signal processing applied to biology — the EE student already knows the math.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">195 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — Why networks</a></li>
+        <li><a href="#part-2">Part 2 — Pathway databases</a></li>
+        <li><a href="#part-3">Part 3 — Pathway enrichment</a></li>
+        <li><a href="#part-4">Part 4 — Network propagation</a></li>
+        <li><a href="#part-5">Part 5 — Module detection</a></li>
+        <li><a href="#part-6">Part 6 — Applications</a></li>
+        <li><a href="#part-7">Part 7 — Tools and workflows</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Five moves:</em>
+        <span class="lecture-tagline-beat">turn the gene list into a graph</span>,
+        <span class="lecture-tagline-beat">enrich pathways with ORA / GSEA</span>,
+        <span class="lecture-tagline-beat">propagate signal as low-pass filter</span>,
+        <span class="lecture-tagline-beat">cut into modules by graph spectrum</span>,
+        <span class="lecture-tagline-beat">read off the biology</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Distinguish the major biological-network types: protein-protein interaction (PPI), gene regulatory (GRN), metabolic, signalling, and disease networks; recognise the data sources behind each.</li>
+          <li>Apply pathway enrichment via over-representation analysis (ORA, hypergeometric / Fisher's exact test) and gene-set enrichment analysis (GSEA, signed Mann-Whitney / Kolmogorov-Smirnov on a ranked list).</li>
+          <li>Compute network propagation (random-walk-with-restart, heat diffusion) and explain it as a Laplacian smoother on the network.</li>
+          <li>Detect modules / communities via spectral clustering and modularity maximisation (Louvain, Leiden).</li>
+          <li>Interpret pathway databases (KEGG, Reactome, MSigDB, GO) and their hierarchical / DAG structure.</li>
+          <li>Apply network-based methods to drug-target prediction, disease-gene prioritisation, and pathway-context interpretation of DEGs.</li>
+          <li>Frame network biology as graph signal processing: the network Laplacian is a spectral operator; propagation = low-pass filter; module detection = clustering on graph spectrum.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 25 min</span>
+          Why Networks
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 The gene-list problem</h3>
+          <p>By the time you reach this lecture, you've generated several gene lists in this course:</p>
+          <ul>
+            <li>DEGs from RNA-seq differential expression.</li>
+            <li>TF-bound regions from ChIP-seq.</li>
+            <li>Cell-state-marker genes from scRNA-seq clustering.</li>
+            <li>GWAS-significant SNPs and their nearest genes.</li>
+            <li>Tumour-driver mutations.</li>
+          </ul>
+          <p>In every case, the question <strong>"what does this gene list mean?"</strong> is the next step. Networks and pathways are the framework for answering it.</p>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 Network types in biology</h3>
+          <p>Several distinct types, each with different data sources and uses.</p>
+          <p><strong>Protein-protein interaction (PPI)</strong>: nodes are proteins; edges are physical interactions detected by affinity-purification mass spec (AP-MS), yeast two-hybrid (Y2H), proximity labelling (BioID, APEX), or structural prediction (AlphaFold-multimer). Major databases: <strong>STRING</strong> (broadest, includes predicted interactions), <strong>BioGRID</strong> (curated experimental), <strong>IntAct</strong>, <strong>HuRI</strong> (human reference interactome). Use: identify protein complexes; infer function by guilt-by-association.</p>
+          <p><strong>Gene regulatory networks (GRNs)</strong>: nodes are genes (or TFs and their targets); edges are TF-target regulation. Sources: ChIP-seq motif enrichment, perturbation experiments (CRISPRi screens), ATAC-seq + chromatin annotation. Use: predict expression cascades; identify master regulators.</p>
+          <p><strong>Metabolic networks</strong>: nodes are metabolites; edges are enzymes (or vice versa). Sources: KEGG, MetaCyc, Recon3D. Use: pathway analysis, flux balance analysis, drug-side-effect prediction.</p>
+          <p><strong>Signalling networks</strong>: nodes are signalling proteins (kinases, GPCRs, etc.); edges are phosphorylation, allosteric activation, complex formation. Sources: PhosphoSitePlus, OmniPath, Reactome. Use: drug-mechanism inference, pathway perturbation modelling.</p>
+          <p><strong>Disease networks</strong>: nodes are diseases; edges are shared genes, comorbidity, drug-target overlap. Sources: DisGeNET, OpenTargets, OMIM. Use: drug repurposing, comorbidity prediction.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-22/01-network-types.svg"
+                 alt="Five panels showing the major biological network types side by side. Panel 1 PPI: dense graph of proteins with cobalt edges; STRING, BioGRID listed; ~20,000 nodes / 1M edges in human. Panel 2 GRN: TFs and target genes with red regulatory edges; ENCODE-derived. Panel 3 metabolic: metabolite nodes connected by green enzyme edges; KEGG-style. Panel 4 signalling: phosphorylation cascade in violet. Panel 5 disease: triangular disease nodes connected by shared-gene teal edges. Cross-network workflow panel below.">
+            <figcaption>Figure 1. Biological network taxonomy. Five major network types — PPI, GRN, metabolic, signalling, disease — each with its own data sources, scale, and applications.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 Network properties at a glance</h3>
+          <p>Real biological networks share common topology features:</p>
+          <ul>
+            <li><strong>Scale-free degree distribution</strong>: a few hub nodes (high degree) and many low-degree nodes. Power law $P(k) \sim k^{-\gamma}$, typically $\gamma \in [2, 3]$.</li>
+            <li><strong>Small-world</strong>: average path length grows logarithmically with network size — any two proteins are typically 4-6 hops apart.</li>
+            <li><strong>Modular</strong>: dense functional clusters connected sparsely.</li>
+          </ul>
+          <p>None of these are unique to biology — social networks, the Internet, citation networks all show similar patterns. The toolkit of network science transfers directly.</p>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 Why graphs are the natural representation</h3>
+          <p>Genes and proteins don't function in isolation. Their behaviour depends on:</p>
+          <ul>
+            <li>Which other proteins they interact with.</li>
+            <li>Which pathways they're embedded in.</li>
+            <li>How perturbations propagate through their neighbourhood.</li>
+          </ul>
+          <p>A list misses all of this; a graph captures it. Once you have the graph, the toolkit of graph algorithms — shortest paths, centrality, community detection, propagation — applies directly.</p>
+        </section>
+
+        <section id="sec-1-5">
+          <h3>1.5 The deep dive</h3>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — networks as graph signal processing</span>
+            <p>A biological network is a graph $G = (V, E)$ with adjacency matrix $A$ and Laplacian $L = D - A$ (where $D$ is the degree matrix). A "signal" on the graph is a function $f: V \to \mathbb{R}$ — e.g., expression levels at each node. The graph Fourier transform decomposes $f$ in the eigenbasis of $L$: low-frequency components are smooth across edges; high-frequency components vary rapidly. Network propagation (Part 4) is a <strong>low-pass filter</strong>: it smooths the input signal across the network. Spectral clustering (Part 5) operates in the same eigenbasis. The whole field of network biology can be re-cast as graph signal processing — a relatively young area in EE that bioinformatics implicitly invented in the 2000s.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 25 min</span>
+          Pathway Databases and the Gene-Set Universe
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 What's a pathway</h3>
+          <p>A <strong>pathway</strong> is a curated list of genes / proteins / metabolites that work together to accomplish a biological function:</p>
+          <ul>
+            <li>Glycolysis — ~20 enzymes converting glucose to pyruvate.</li>
+            <li>p53 signalling — TP53 + ATM + MDM2 + CDKN1A + ~50 downstream targets.</li>
+            <li>Wnt-β-catenin — ligands, receptors, intracellular cascade, transcriptional output.</li>
+          </ul>
+          <p>Pathways are the unit of human-readable biological interpretation.</p>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 KEGG</h3>
+          <p><strong>KEGG (Kyoto Encyclopedia of Genes and Genomes)</strong>, established 1995. ~550 manually-curated pathways: metabolic pathway maps (the iconic "ball-and-stick" diagrams), signalling, regulatory, disease pathways. Pathways are abstract; genes mapped per species. KEGG pathway IDs (e.g., <code>hsa04110</code> = "Cell cycle - human") are the de facto standard for pathway-level annotation.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-22/07-kegg-glycolysis.svg"
+                 alt="Stylised KEGG-style glycolysis pathway map. Glucose at top connected through HK (hexokinase) to glucose-6-phosphate; then PGI to fructose-6-phosphate; then PFK to fructose-1,6-bisphosphate; then aldolase, GAPDH, phosphoglycerate kinase, enolase, pyruvate kinase to pyruvate at the bottom. Branches: pentose-phosphate-pathway entry from G6P; lactate output from pyruvate; mitochondrial entry of pyruvate. Each enzyme labelled with its EC number.">
+            <figcaption>Figure 7. KEGG glycolysis. The iconic ball-and-stick diagram is the standard visual language for metabolic pathways; nodes are metabolites and edges are enzymes (with EC numbers).</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Reactome</h3>
+          <p><strong>Reactome</strong>, established 2003, ~2,500 pathways (more granular than KEGG). Hierarchical — pathways nest into super-pathways and sub-pathways. Reaction-level detail — each pathway is a sequence of biochemical reactions. Strong coverage of human signalling and immune pathways.</p>
+          <p>Reactome's hierarchy means you can run analysis at the granularity that fits your question — "DNA repair" (broad) or "Translesion synthesis" (specific).</p>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 Gene Ontology (GO)</h3>
+          <p><strong>GO</strong>, established 1998, ~50,000 terms organised as three DAGs:</p>
+          <ul>
+            <li><strong>Biological Process (BP)</strong>: e.g., "cell cycle progression", "immune response".</li>
+            <li><strong>Molecular Function (MF)</strong>: e.g., "kinase activity", "DNA binding".</li>
+            <li><strong>Cellular Component (CC)</strong>: e.g., "nucleus", "plasma membrane".</li>
+          </ul>
+          <p>GO is the most widely-used annotation system in the world. Each gene is annotated with multiple GO terms — often dozens. The DAG structure means terms have parent-child hierarchy: "cell cycle phase transition" ⊂ "cell cycle" ⊂ "cellular process" ⊂ "biological process".</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-22/08-go-dag.svg"
+                 alt="A subset of the GO Biological Process DAG. Root: biological process. Two main paths: (a) biological process → cellular process → cell cycle → cell cycle phase transition → G1/S transition; (b) biological process → metabolic process → carbohydrate metabolism → glycolysis. Some terms have multiple parents shown by crossing edges. Side panel showing the number of GO terms at each level (1 root, ~30 level-1, ~300 level-2, etc.).">
+            <figcaption>Figure 8. GO DAG hierarchy. Each GO term has parent-child relationships; a gene annotated to a deep term is implicitly annotated to all its ancestors (the "true-path rule").</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-5">
+          <h3>2.5 MSigDB and other compendia</h3>
+          <p><strong>MSigDB</strong> (Molecular Signatures Database, Broad Institute) aggregates many pathway / gene-set sources. ~30,000 gene sets across:</p>
+          <ul>
+            <li>Hallmark gene sets (50 well-curated functional collections).</li>
+            <li>KEGG, Reactome, BioCarta translations.</li>
+            <li>Curated signatures from literature.</li>
+            <li>Cancer-specific signatures.</li>
+            <li>Cell-type marker genes.</li>
+          </ul>
+          <p>For typical RNA-seq DE analysis, MSigDB is the first place to test enrichment.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-22/02-pathway-databases.svg"
+                 alt="Grid showing each major pathway database (KEGG, Reactome, GO BP, GO MF, GO CC, MSigDB Hallmark) as a row with columns: pathway count, granularity, hierarchy structure, typical use case. Bottom: example query 'What pathways is TP53 in?' with the heterogeneous answers from each database — KEGG 14, Reactome 87, GO BP 198, MSigDB Hallmark 6. Side annotation reading 'Different databases give different answers; modern analyses run multiple in parallel.'">
+            <figcaption>Figure 2. The pathway-database landscape. Each database has its own granularity and curation philosophy; the same gene appears in different "pathways" across them.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-22/05-pathway-query.html" loading="lazy" title="Artifact 5 — Pathway Database Query"></iframe>
+            <figcaption>
+              <strong>Artifact 5 — Pathway Database Query.</strong> Pick a gene; see what pathways it's in across KEGG, Reactome, GO, MSigDB Hallmark. Aha: gene-set sources differ in granularity; the same gene appears in different "pathways" across databases — pick the database that matches your question.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-6">
+          <h3>2.6 The deep dive</h3>
+          <p>The <strong>gene-set universe</strong> has rich structure: genes belong to many overlapping sets; sets have hierarchical relationships; some are well-curated, others are statistical aggregates. Modern analyses must account for this overlap — similar terms often produce correlated p-values, and a "significant" result on a parent term plus a child term may be one finding double-counted.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 45 min</span>
+          Pathway Enrichment Analysis
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 The over-representation problem</h3>
+          <p>Setup:</p>
+          <ul>
+            <li>$L$ = your gene list (e.g., DEGs at FDR &lt; 0.05).</li>
+            <li>$G$ = a gene set (e.g., a KEGG pathway).</li>
+            <li>$U$ = the universe (typically all genes tested in the experiment).</li>
+          </ul>
+          <p>Question: are genes from $G$ over-represented in $L$ relative to expectation under the null "$L$ is a random subset of $U$"?</p>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Hypergeometric / Fisher's exact test</h3>
+          <p>The natural null: $L$ is sampled uniformly without replacement from $U$. Under this null, the count of $L \cap G$ follows a <strong>hypergeometric distribution</strong>.</p>
+          <p>Fisher's exact test is mathematically equivalent in this setting:</p>
+          <table>
+            <thead><tr><th></th><th>In $G$</th><th>Not in $G$</th><th>Total</th></tr></thead>
+            <tbody>
+              <tr><td>In $L$</td><td>$a$</td><td>$b$</td><td>$a + b$</td></tr>
+              <tr><td>Not in $L$</td><td>$c$</td><td>$d$</td><td>$c + d$</td></tr>
+              <tr><td>Total</td><td>$a + c$</td><td>$b + d$</td><td>$N$</td></tr>
+            </tbody>
+          </table>
+          <p>P-value = probability of observing $\geq a$ overlap by chance, computed exactly via the hypergeometric CDF. This is <strong>ORA (Over-Representation Analysis)</strong> — the simplest pathway-enrichment method.</p>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-22/01-ora-calculator.html" loading="lazy" title="Artifact 1 — ORA Enrichment Calculator"></iframe>
+            <figcaption>
+              <strong>Artifact 1 — ORA Enrichment Calculator.</strong> Compute a hypergeometric / Fisher's-exact p-value for over-representation. Adjust the universe; see how p-value changes. Aha: bigger overlap given $|L|$ and $|G|$ → smaller p-value; universe size matters; gene-set background doesn't fix bias.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 The multiple-testing problem</h3>
+          <p>If you test 1000 pathways, you'll get many "significant" by chance. Apply Benjamini-Hochberg FDR (from the differential-expression lecture) to the per-pathway p-values. Cap reported pathways at FDR &lt; 0.05.</p>
+          <p>For overlapping gene sets (e.g., parent and child GO terms), the p-values are correlated, so BH is conservative but valid.</p>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 GSEA</h3>
+          <p><strong>Gene Set Enrichment Analysis</strong> (Subramanian et al. 2005) addresses ORA's biggest weakness: ORA throws away the rank information. ORA only counts genes above the significance threshold; GSEA uses the full ranked list of all tested genes.</p>
+          <p>Algorithm:</p>
+          <ol>
+            <li>Rank all $N$ genes by some statistic (e.g., signed log fold change).</li>
+            <li>For each gene set $G$:
+              <ul>
+                <li>Walk down the ranked list.</li>
+                <li>At each gene in $G$, increment a running enrichment score (ES).</li>
+                <li>At each gene not in $G$, decrement.</li>
+                <li>Track the maximum $|ES|$ reached — this is the <strong>enrichment score</strong> for $G$.</li>
+              </ul>
+            </li>
+            <li>Compute statistical significance via permutation: shuffle gene labels and re-compute ES; the p-value is the fraction of permutations with $|ES'| \geq |ES|$.</li>
+          </ol>
+          <p>GSEA detects coherent shifts in pathway expression even when individual genes don't pass the strict significance threshold. Far more sensitive than ORA on real data.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-22/03-ora-vs-gsea.svg"
+                 alt="Two-panel comparison. Left: ORA — a 2x2 contingency table with hypergeometric p-value computation; counts shown for genes in/out of list and in/out of set; p-value = 1e-6. Right: GSEA — a ranked gene list with all genes on x-axis; tick marks below for the gene set members, clustered toward the left (top); running enrichment score curve overlaid showing a peak ES around 0.6; max ES marked. Bottom annotation: 'ORA throws away rank; GSEA uses the full list. GSEA detects coherent shifts ORA misses.'">
+            <figcaption>Figure 3. ORA vs GSEA. ORA discretises the gene list at the significance threshold; GSEA uses the full continuous ranking. GSEA's strength is catching coherent pathway-wide shifts that ORA misses.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-22/10-gsea-running.svg"
+                 alt="A 5000-gene ranked list along the x-axis. Black tick marks below the axis for gene set members concentrated in the top half of the ranking. Running enrichment score curve (signed; positive accumulating gene-set hits, negative accumulating non-hits) overlaid; reaches a maximum around position 1000 with ES ≈ 0.6, then descends as the gene-set tick marks become sparser. Max |ES| highlighted. Side panel showing the 'leading-edge subset' — the 30 genes contributing to ES at the maximum.">
+            <figcaption>Figure 10. GSEA running enrichment statistic. The curve walks from left to right along the ranked list; it climbs at gene-set hits and falls at non-hits. The leading-edge subset is the genes contributing to the maximum.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-22/02-gsea-explorer.html" loading="lazy" title="Artifact 2 — GSEA Running-Enrichment Explorer"></iframe>
+            <figcaption>
+              <strong>Artifact 2 — GSEA Running-Enrichment Explorer.</strong> Walk along a synthetic ranked gene list with three example sets (strong / mixed / no enrichment); see the running ES build up. Aha: GSEA detects coherent shifts; non-clustered gene sets don't accumulate ES.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 Modern variants</h3>
+          <ul>
+            <li><strong>fgsea</strong> (Sergushichev 2016) — fast preranked GSEA.</li>
+            <li><strong>camera</strong> (Wu &amp; Smyth 2012) — variance-inflation correction for inter-gene correlation.</li>
+            <li><strong>roast / mroast</strong> (Wu et al. 2010) — rotation-based gene-set tests.</li>
+            <li><strong>SAFE / SCREENER / CERNO</strong> — alternative running-statistic methods.</li>
+          </ul>
+          <p>For typical RNA-seq workflows: run <strong>fgsea</strong> with MSigDB Hallmark + KEGG + Reactome, FDR &lt; 0.05.</p>
+        </section>
+
+        <section id="sec-3-6">
+          <h3>3.6 The signed vs unsigned distinction</h3>
+          <p>If the ranked statistic is signed (e.g., log fold change), GSEA detects <strong>directional</strong> enrichment (pathway up vs down). If unsigned (absolute value), GSEA detects <strong>deregulation</strong> (pathway perturbed in either direction).</p>
+          <p>Choice depends on the question:</p>
+          <ul>
+            <li>"Is glycolysis up in tumour vs normal?" → signed.</li>
+            <li>"Is glycolysis perturbed (up or down) by drug X?" → unsigned.</li>
+          </ul>
+        </section>
+
+        <section id="sec-3-7">
+          <h3>3.7 The deep dive</h3>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — GSEA as a Mann-Whitney / Kolmogorov-Smirnov test on signed rankings</span>
+            <p>GSEA's running enrichment score is the difference between two CDFs: the CDF of "genes in $G$" and the CDF of "all genes" along the ranked axis. The maximum deviation is the <strong>Kolmogorov-Smirnov statistic</strong> for the two-sample test. The signed version is the <strong>signed-rank Mann-Whitney</strong>: for each gene in $G$, sum its rank; compare to expected sum under the null. This is well-known statistical machinery; GSEA's contribution was the running-statistic visualisation and the permutation-test calibration that's robust to gene-gene correlation. The Subramanian paper is one of the most-cited bioinformatics papers ever (~30,000 citations) — partly because the visualisation made the method instantly interpretable.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 30 min</span>
+          Network Propagation
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 The smoothing intuition</h3>
+          <p>If gene $g$ is connected to many DEGs in the PPI network, $g$ is likely involved even if its own expression didn't change. <strong>Network propagation</strong> formalises this: spread the DEG signal across the network so neighbours of DEGs accumulate score.</p>
+          <p>Used in:</p>
+          <ul>
+            <li>Disease-gene prioritisation: spread known-disease genes; rank novel candidates.</li>
+            <li>Drug-target prediction: spread known drug targets; rank candidates.</li>
+            <li>GWAS interpretation: spread GWAS hits to identify implicated pathways.</li>
+            <li>Cancer driver discovery: spread mutations across the PPI to find driving modules.</li>
+          </ul>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 Random walk with restart (RWR)</h3>
+          <p>The most common propagation algorithm:</p>
+          <p>$$\mathbf{p}^{(t+1)} = (1 - r)\, W\, \mathbf{p}^{(t)} + r\, \mathbf{p}^{(0)}$$</p>
+          <p>where $W$ is a normalised adjacency matrix (typically column-normalised to be a transition matrix), $r$ is the restart probability (typical 0.5), and $\mathbf{p}^{(0)}$ is the initial signal — 1 for known-disease genes / known drug targets / DEGs, 0 elsewhere.</p>
+          <p>At each step:</p>
+          <ul>
+            <li>With probability $1 - r$, walk to a neighbour.</li>
+            <li>With probability $r$, restart at $\mathbf{p}^{(0)}$.</li>
+          </ul>
+          <p>Iterate to convergence (~50 iterations). The stationary distribution $\mathbf{p}^{(\infty)}$ scores each node by its proximity to the seeds. Closed form: $\mathbf{p}^{(\infty)} = r (I - (1-r) W)^{-1} \mathbf{p}^{(0)}$.</p>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-22/03-rwr-walker.html" loading="lazy" title="Artifact 3 — Network Propagation Walker"></iframe>
+            <figcaption>
+              <strong>Artifact 3 — Network Propagation Walker.</strong> Run RWR on a small PPI; watch heat propagate from seeds to network neighbours. Tune the restart probability $r$. Aha: propagation spreads signal across the network; restart probability controls the spread radius.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Heat diffusion</h3>
+          <p>An alternative formulation: model the signal as a heat distribution that diffuses according to the graph Laplacian:</p>
+          <p>$$\frac{d\mathbf{p}}{dt} = -L\, \mathbf{p}$$</p>
+          <p>with $L$ the normalised Laplacian. Solution: $\mathbf{p}(t) = e^{-Lt} \mathbf{p}(0)$. The continuous heat kernel $e^{-Lt}$ is the analog of RWR. Both are <strong>low-pass filters</strong> in the graph Fourier basis.</p>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 What propagation does, formally</h3>
+          <p>In the eigenbasis of $L$ (with eigenvalues $\lambda_i$ and eigenvectors $\mathbf{v}_i$):</p>
+          <p>$$\mathbf{p}(t) = \sum_i e^{-\lambda_i t} \langle \mathbf{p}(0), \mathbf{v}_i \rangle \mathbf{v}_i$$</p>
+          <p>High-eigenvalue components decay fast; low-eigenvalue components persist. The result: the propagated signal is <strong>smooth</strong> across the graph (low-frequency in the graph spectrum).</p>
+          <p>This is the same low-pass-filter logic as Gaussian smoothing in image processing, applied to a graph instead of a grid.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-22/04-network-propagation.svg"
+                 alt="Three-panel time series of RWR propagation on a small PPI. Top panel (t=0): three seed nodes coloured red with intensity 1; rest of the ~30-node network white. Middle panel (t=5): direct neighbours of seeds have intensity ~0.4, second-degree neighbours ~0.1. Bottom panel (t=50, steady state): exponential decay with graph distance from seeds. Side panel: graph-signal-processing analogy showing the same effect as Gaussian smoothing on an image grid — original impulse vs. smoothed.">
+            <figcaption>Figure 4. Network propagation as low-pass filtering. The signal starts as impulses at the seed nodes and smooths across the graph; the steady-state distribution decays with graph distance.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 PRINCE, HotNet, and the workflow</h3>
+          <ul>
+            <li><strong>PRINCE</strong> (Vanunu et al. 2010) — RWR for disease-gene prioritisation; the canonical implementation.</li>
+            <li><strong>HotNet2</strong> (Leiserson et al. 2015) — heat-diffusion-based discovery of "hot subnetworks" enriched in cancer mutations.</li>
+            <li><strong>NetWAS</strong> — GWAS hit prioritisation via network propagation.</li>
+          </ul>
+          <p>Practical workflow: load network → set seeds → run propagation (50 iterations or matrix inversion) → rank nodes by score → interpret top hits.</p>
+        </section>
+
+        <section id="sec-4-6">
+          <h3>4.6 The deep dive</h3>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — network propagation as Laplacian smoothing</span>
+            <p>RWR and heat diffusion are both <strong>low-pass filters in the graph Fourier domain</strong>. The graph Laplacian $L$ is the spectral operator: smooth signals (slowly varying across edges) live in low-eigenvalue eigenvectors; rough signals (rapidly varying) live in high-eigenvalue ones. Diffusing a signal for time $t$ multiplies its eigenvector decomposition by $e^{-\lambda_i t}$; the high-frequency components are damped. This is exactly the spatial smoothing intuition — propagation enforces "neighbours should have similar scores" in the same way image smoothing enforces "adjacent pixels should be similar". The connection to graph signal processing is direct.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 25 min</span>
+          Module Detection and Communities
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 The module hypothesis</h3>
+          <p>A <strong>module</strong> is a tightly-connected subgraph corresponding to a functional unit (a protein complex, a pathway, a cell-type-specific regulatory module). Detecting modules from a network is <strong>community detection</strong>.</p>
+          <p>Biological assumption: genes in the same module have related functions and are more likely to be co-regulated, co-expressed, and disease-associated.</p>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Modularity</h3>
+          <p>The Newman modularity score (Newman 2004) quantifies how strongly a partition $\{C_1, ..., C_k\}$ corresponds to communities:</p>
+          <p>$$Q = \frac{1}{2m} \sum_{i,j} \left[ A_{ij} - \frac{k_i k_j}{2m} \right] \delta(c_i, c_j)$$</p>
+          <p>where $m$ = total edges, $k_i$ = degree of node $i$, $\delta(c_i, c_j) = 1$ if $i$ and $j$ are in the same community, 0 otherwise. Maximising $Q$ produces the optimal community partition. The Louvain and Leiden algorithms (Traag et al. 2019) are the standard fast heuristics.</p>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Spectral clustering</h3>
+          <p>An alternative: eigendecompose the graph Laplacian $L$, then cluster on the smallest non-zero eigenvectors.</p>
+          <ol>
+            <li>Compute $L = D - A$.</li>
+            <li>Find the $k$ smallest non-zero eigenvalues with eigenvectors $\mathbf{v}_1, ..., \mathbf{v}_k$.</li>
+            <li>Form an $n \times k$ matrix $V$.</li>
+            <li>Cluster rows of $V$ with k-means.</li>
+          </ol>
+          <p>The eigenvectors at low frequencies highlight <strong>cuts</strong> of the graph that separate dense communities. Spectral clustering is mathematically equivalent to graph-cut optimisation and produces similar results to modularity maximisation.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-22/05-spectral-clustering.svg"
+                 alt="Three-panel illustration. Top: a 30-node network with three visually-apparent dense clusters connected sparsely. Middle: 2D scatter on the second and third smallest Laplacian eigenvectors v₂ vs v₃; the three clusters separate cleanly into three regions of the eigenspace. Bottom: k-means partition in the eigenspace; nodes coloured by inferred cluster, returning the correct community assignment. Side panel comparing to Louvain — same partition, different algorithm.">
+            <figcaption>Figure 5. Spectral clustering of a network. Project onto the smallest non-zero eigenvectors of the Laplacian; communities separate in this low-frequency space.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-22/04-spectral-cluster.html" loading="lazy" title="Artifact 4 — Spectral Clustering Visualizer"></iframe>
+            <figcaption>
+              <strong>Artifact 4 — Spectral Clustering Visualizer.</strong> On a small network with known communities, compute the Laplacian, eigendecompose, project, k-means cluster. Aha: low-frequency eigenvectors separate communities; k-means in eigenspace recovers them.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Louvain and Leiden</h3>
+          <p><strong>Louvain</strong> (Blondel et al. 2008) iterates modularity maximisation:</p>
+          <ul>
+            <li>Initialise each node as its own community.</li>
+            <li>For each node, move to the neighbouring community that increases $Q$ most.</li>
+            <li>Aggregate communities; repeat at the meta-level.</li>
+          </ul>
+          <p><strong>Leiden</strong> (Traag et al. 2019) improves Louvain by guaranteeing connectivity within communities (Louvain occasionally produces disconnected modules). Used in scanpy / Seurat for single-cell clustering — the same Leiden you'll see again in scRNA-seq lectures.</p>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-22/07-louvain.html" loading="lazy" title="Artifact 7 — Module Detection (Louvain)"></iframe>
+            <figcaption>
+              <strong>Artifact 7 — Module Detection (Louvain).</strong> Run Louvain step by step on a small network; watch communities emerge from local optimisation; track modularity $Q$. Aha: Louvain greedily improves $Q$; converges fast in practice; produces interpretable communities.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-5">
+          <h3>5.5 The deep dive</h3>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — community detection as graph-spectrum clustering</span>
+            <p>Both modularity maximisation (Louvain / Leiden) and spectral clustering operate on the <strong>graph spectrum</strong>. The smallest-eigenvalue eigenvectors of $L$ encode the slowest-varying signals on the graph; these are the natural "split directions" — the graph analog of the lowest-frequency Fourier components that highlight large-scale cuts. The connection between modularity $Q$ and spectral clustering was made rigorous in the early 2010s. They give <strong>similar results in practice</strong> for biological networks; the difference is mostly speed (Louvain/Leiden scale better) and theoretical guarantees (spectral has a tighter cut-quality bound).</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 20 min</span>
+          Applications: Drugs, Disease, and Beyond
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 Drug-target prediction</h3>
+          <p>Build a heterogeneous network: drugs, targets, diseases, side effects. Run RWR from drugs of known efficacy or known disease genes. Predict new drug-target relationships from high RWR scores between drug nodes and protein nodes.</p>
+          <p>Methods: <strong>GBA (Guilt By Association)</strong>, <strong>NeoDTI</strong> (deep-learning extension), <strong>DrugBank-based RWR</strong>. In practice, network methods are useful for <strong>drug repurposing</strong> (finding new uses for existing drugs) and <strong>off-target prediction</strong> (anticipating safety issues before clinical trials).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-22/09-drug-target-rwr.svg"
+                 alt="A small heterogeneous graph with drugs (squares), proteins (circles), and diseases (triangles). Edges colour-coded: drug-target in red, protein-protein in cobalt, drug-disease in amber, gene-disease in teal. Three frames showing RWR from a known drug seed: t=0 only the drug seed has intensity 1; t=10 heat has spread to direct targets; t=50 heat reaches PPI neighbours and other drug-disease relationships, revealing novel drug-target candidates.">
+            <figcaption>Figure 9. RWR in a heterogeneous drug-target network. Heat propagates from the drug seed through known targets to PPI neighbours; novel candidates rank high in the steady state.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-22/06-drug-target-rwr.html" loading="lazy" title="Artifact 6 — Drug-Target Prediction with RWR"></iframe>
+            <figcaption>
+              <strong>Artifact 6 — Drug-Target Prediction with RWR.</strong> Build a heterogeneous drug-target-disease network; run RWR from one drug; predict novel targets. Aha: RWR predicts plausible novel drug-target associations from network structure alone.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 Disease-gene prioritisation</h3>
+          <p>Given a chromosomal region (e.g., from GWAS or clinical exome), several genes lie in the candidate region. Which is most likely the disease gene?</p>
+          <p>Network-based approach:</p>
+          <ul>
+            <li>Take a known set of seed disease genes for the same disease.</li>
+            <li>Run RWR from the seeds.</li>
+            <li>Among candidate genes in the region, the one with the highest RWR score is the most likely culprit.</li>
+          </ul>
+          <p>Tools: <strong>PRINCE</strong> (Vanunu 2010), <strong>DOMINO</strong> (Levi 2021), <strong>GeneMania</strong> (Warde-Farley 2010). Routine in clinical genomics for novel disease-gene discovery.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-22/11-disease-module.svg"
+                 alt="A subgraph extracted from STRING showing known cardiomyopathy genes (highlighted red) connected to their high-confidence (STRING > 0.9) neighbours. Module structure visible: most known disease genes cluster together with strong PPI density; a few outlier genes connect via hub nodes. Side panel showing pathway enrichment of the module — top 5 pathways: sarcomere assembly, muscle contraction, cardiac muscle contraction, calcium signalling, cytoskeletal organisation.">
+            <figcaption>Figure 11. A disease-gene module on the PPI. Known disease genes form a connected module; novel candidates rank high by network proximity and can be prioritised for clinical validation.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 Pathway-context interpretation of DEGs</h3>
+          <p>When you have 200 DEGs from an RNA-seq experiment, ORA and GSEA tell you which pathways are enriched. Network methods take this further:</p>
+          <ul>
+            <li>Project DEGs onto the PPI network.</li>
+            <li>Run propagation to find connected modules among DEGs.</li>
+            <li>Identify "core" hubs that connect multiple DEGs.</li>
+            <li>Hypothesise causal mechanism: hub gene's perturbation explains the cascade.</li>
+          </ul>
+          <p>This is the workflow behind tools like <strong>OmicsNet</strong>, <strong>NetworkAnalyst</strong>, and <strong>STRING</strong>-driven analysis.</p>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 Cell-cell communication</h3>
+          <p>From single-cell data, infer cell-cell signalling networks based on ligand-receptor expression patterns and downstream effector activation.</p>
+          <p>Tools: <strong>CellChat</strong> (Jin 2021), <strong>CellPhoneDB</strong>. The signalling network is inferred per cell-type pair; integrative analysis identifies dominant communication pathways in tissue.</p>
+        </section>
+
+        <section id="sec-6-5">
+          <h3>6.5 The 2024 frontier</h3>
+          <ul>
+            <li><strong>Graph neural networks (GNNs)</strong> are starting to replace classical RWR for some tasks. They learn task-specific node embeddings instead of using fixed propagation.</li>
+            <li><strong>Multi-modal networks</strong> integrate PPI + GRN + drug-target + GWAS into one heterogeneous graph; GNNs learn unified embeddings.</li>
+            <li><strong>Network medicine</strong> applies network biology to clinical decision support; still mostly research, slowly entering clinical practice.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-22/12-hub-bias.svg"
+                 alt="Two histograms side by side. Left: degree distribution showing TP53 with degree ~250 (a hub, far in the tail). Right: degree distribution of a representative non-hub protein with degree ~5 (typical of the bulk of proteins). Below: comparison of p-values for 'TP53 enriched in this gene list' computed naively (p < 1e-10) vs. after hub-centrality correction (p ≈ 0.05). Annotation: 'Hubs appear in every analysis; correct for hub centrality before claiming biological significance.'">
+            <figcaption>Figure 12. Hub-centrality bias. Hubs like TP53 appear "significant" in every analysis. Always correct for hub centrality before interpreting.</figcaption>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 15 min</span>
+          Tools, Visualisation, and Workflows
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 Visualisation tools</h3>
+          <ul>
+            <li><strong>Cytoscape</strong> — desktop standard for network visualisation; many plugins for layout, statistics, integration.</li>
+            <li><strong>Gephi</strong> — another popular desktop tool.</li>
+            <li><strong>igraph</strong> (R / Python) — scriptable analysis.</li>
+            <li><strong>networkx</strong> (Python) — the de facto standard for programmatic network analysis.</li>
+          </ul>
+          <p>For a typical RNA-seq paper: igraph / networkx for analysis; Cytoscape for figure generation.</p>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 The standard workflow</h3>
+          <ol>
+            <li><strong>Define seeds</strong>: DEGs / GWAS hits / cancer drivers.</li>
+            <li><strong>Pick network</strong>: STRING (broad), BioGRID (curated), Reactome (pathway-based).</li>
+            <li><strong>Filter network</strong>: keep highest-confidence interactions (STRING confidence &gt; 0.7).</li>
+            <li><strong>Run propagation / community detection</strong>.</li>
+            <li><strong>Visualise</strong>: subgraph induced by seeds + their high-score neighbours.</li>
+            <li><strong>Annotate</strong>: pathway enrichment on each module.</li>
+          </ol>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-22/06-workflow.svg"
+                 alt="Top-to-bottom flowchart of a network analysis workflow. 1. Gene list (DEGs / GWAS hits / cancer drivers). 2. Network selection (STRING, BioGRID, Reactome). 3. Filter to confidence > 0.7. 4. Run propagation or community detection. 5. Pathway enrichment on modules. 6. Visualise (Cytoscape). 7. Biological hypothesis. Each step labelled with tool choice and runtime estimate. Side panel: variant for GWAS-driven workflow using NetWAS / DOMINO.">
+            <figcaption>Figure 6. Standard network-analysis workflow. Modular: seeds in, biology out; each step has its own tool and runtime budget.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 Common pitfalls</h3>
+          <ul>
+            <li><strong>Network bias</strong>: the network has more edges among well-studied proteins; rankings reflect study-bias rather than biology.</li>
+            <li><strong>False edges</strong>: high-throughput interaction screens have false-positive rates 30-50%. STRING's score thresholds matter.</li>
+            <li><strong>Tissue specificity</strong>: PPI networks are species-aggregate, not tissue-specific. Tissue-specific filtering improves relevance.</li>
+            <li><strong>Hub bias</strong>: hubs (e.g., TP53) appear in every analysis as significant; correct for hub centrality before interpreting.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ──────────────────────────────────────── -->
+      <section id="wrapup">
+        <h2>Wrap-up</h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Networks are the natural representation</strong> for biology beyond gene lists. Five major types: PPI, GRN, metabolic, signalling, disease.</li>
+          <li><strong>Pathway enrichment</strong> comes in two flavours: ORA (hypergeometric on a thresholded gene list) and GSEA (Mann-Whitney / KS on a ranked list). GSEA is more sensitive for coherent shifts.</li>
+          <li><strong>Network propagation</strong> = RWR or heat diffusion. Mathematically a low-pass filter in the graph spectrum. Used for disease-gene prioritisation, drug-target prediction, GWAS interpretation.</li>
+          <li><strong>Module detection</strong> = modularity maximisation (Louvain / Leiden) or spectral clustering. Both operate on the graph spectrum.</li>
+          <li><strong>Pathway databases</strong> (KEGG, Reactome, GO, MSigDB) differ in granularity and coverage; modern analyses run multiple in parallel.</li>
+          <li><strong>EE framings</strong>: networks as graphs with Laplacian; propagation as low-pass filter; module detection as spectral clustering; GSEA as KS test on ranked statistic.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Single-cell RNA-seq fundamentals. The Leiden clustering used in scanpy / Seurat is the same Leiden algorithm you saw here.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Take a list of 200 DEGs (use any public RNA-seq DE result). Run ORA against MSigDB Hallmark, KEGG, Reactome via clusterProfiler or g:Profiler. Report the top 5 enriched pathways at FDR &lt; 0.05.</li>
+          <li>Run GSEA on the same data using the full ranked list. Compare to ORA: how many pathways agree? Where does GSEA find pathways ORA misses?</li>
+          <li>Build a small (~50-node) PPI subgraph from STRING for a gene family of your choice. Run RWR from one seed gene; rank all nodes by RWR score. Compare top 10 to direct neighbours of the seed.</li>
+          <li>Implement Louvain community detection in Python on a synthetic network with known communities. Compare to ground truth using normalised mutual information.</li>
+          <li>For one disease of interest, get the DisGeNET disease genes. Run propagation in the STRING network. Identify novel candidates (high RWR score, not yet associated with the disease).</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Subramanian, A., Tamayo, P., Mootha, V. K., et al. (2005). Gene set enrichment analysis: a knowledge-based approach for interpreting genome-wide expression profiles. <em>PNAS</em> 102, 15545–15550.</li>
+          <li>Khatri, P., Sirota, M., &amp; Butte, A. J. (2012). Ten years of pathway analysis: current approaches and outstanding challenges. <em>PLoS Computational Biology</em> 8, e1002375.</li>
+          <li>Vanunu, O., Magger, O., Ruppin, E., et al. (2010). Associating genes and protein complexes with disease via network propagation. <em>PLoS Computational Biology</em> 6, e1000641.</li>
+          <li>Leiserson, M. D., Vandin, F., Wu, H. T., et al. (2015). Pan-cancer network analysis identifies combinations of rare somatic mutations across pathways and protein complexes. <em>Nature Genetics</em> 47, 106–114.</li>
+          <li>Newman, M. E. (2006). Modularity and community structure in networks. <em>PNAS</em> 103, 8577–8582.</li>
+          <li>Traag, V. A., Waltman, L., &amp; van Eck, N. J. (2019). From Louvain to Leiden: guaranteeing well-connected communities. <em>Scientific Reports</em> 9, 5233.</li>
+          <li>Cowen, L., Ideker, T., Raphael, B. J., &amp; Sharan, R. (2017). Network propagation: a universal amplifier of genetic associations. <em>Nature Reviews Genetics</em> 18, 551–562.</li>
+          <li>Barabási, A. L., Gulbahce, N., &amp; Loscalzo, J. (2011). Network medicine: a network-based approach to human disease. <em>Nature Reviews Genetics</em> 12, 56–68.</li>
+          <li>STRING: <a href="https://string-db.org/" target="_blank" rel="noopener">string-db.org</a></li>
+          <li>KEGG: <a href="https://www.kegg.jp/" target="_blank" rel="noopener">kegg.jp</a></li>
+          <li>Reactome: <a href="https://reactome.org/" target="_blank" rel="noopener">reactome.org</a></li>
+          <li>MSigDB: <a href="https://www.gsea-msigdb.org/gsea/msigdb/" target="_blank" rel="noopener">gsea-msigdb.org/gsea/msigdb</a></li>
+          <li>Gene Ontology: <a href="http://geneontology.org/" target="_blank" rel="noopener">geneontology.org</a></li>
+          <li>Cytoscape: <a href="https://cytoscape.org/" target="_blank" rel="noopener">cytoscape.org</a></li>
+          <li>networkx: <a href="https://networkx.org/" target="_blank" rel="noopener">networkx.org</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — Why Networks</td>                                  <td>25&nbsp;min</td><td>0:25</td></tr>
+            <tr><td>Part 2 — Pathway Databases and the Gene-Set Universe</td>   <td>25&nbsp;min</td><td>0:50</td></tr>
+            <tr><td>Part 3 — Pathway Enrichment Analysis</td>                   <td>45&nbsp;min</td><td>1:35</td></tr>
+            <tr><td>Part 4 — Network Propagation</td>                            <td>30&nbsp;min</td><td>2:05</td></tr>
+            <tr><td>Part 5 — Module Detection and Communities</td>              <td>25&nbsp;min</td><td>2:30</td></tr>
+            <tr><td>Part 6 — Applications: Drugs, Disease, and Beyond</td>        <td>20&nbsp;min</td><td>2:50</td></tr>
+            <tr><td>Part 7 — Tools, Visualisation, and Workflows</td>             <td>15&nbsp;min</td><td>3:05</td></tr>
+            <tr><td>Wrap-up</td>                                                  <td>10&nbsp;min</td><td>3:15</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 15min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) f.style.height = d.height + 'px';
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

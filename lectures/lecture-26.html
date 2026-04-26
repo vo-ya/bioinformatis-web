@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 26 — Drug Discovery and Chemoinformatics · Bioinformatics for EE</title>
+  <meta name="description" content="From SMILES to FDA: molecular representations, Morgan fingerprints + Tanimoto similarity, AutoDock Vina virtual screening, ADMET prediction, GNN property models (Chemprop), generative de novo design (REINVENT, MolDiff), AlphaFold-driven structure-based design.">
+
+  <meta property="og:title" content="Lecture 26 — Drug Discovery and Chemoinformatics">
+  <meta property="og:description" content="Chemical space as discrete optimisation · fingerprints as locality-sensitive hashing · docking as constrained energy minimisation · ADMET as multi-objective filter · DL replaces classical heuristics.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — Drug Discovery Landscape</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 What's a drug</a></li>
+          <li><a href="#sec-1-2">1.2 Discovery timeline</a></li>
+          <li><a href="#sec-1-3">1.3 Where genomics fits</a></li>
+          <li><a href="#sec-1-4">1.4 Druggability</a></li>
+          <li><a href="#sec-1-5">1.5 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Molecular Representations</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 SMILES</a></li>
+          <li><a href="#sec-2-2">2.2 InChI / InChIKey</a></li>
+          <li><a href="#sec-2-3">2.3 Molecular graphs</a></li>
+          <li><a href="#sec-2-4">2.4 RDKit basics</a></li>
+          <li><a href="#sec-2-5">2.5 Property descriptors</a></li>
+          <li><a href="#sec-2-6">2.6 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Fingerprints and Similarity</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 What's a fingerprint</a></li>
+          <li><a href="#sec-3-2">3.2 MACCS</a></li>
+          <li><a href="#sec-3-3">3.3 Morgan / ECFP</a></li>
+          <li><a href="#sec-3-4">3.4 Tanimoto similarity</a></li>
+          <li><a href="#sec-3-5">3.5 Pharmacophore fingerprints</a></li>
+          <li><a href="#sec-3-6">3.6 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Virtual Screening and Docking</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 The screening problem</a></li>
+          <li><a href="#sec-4-2">4.2 Receptor preparation</a></li>
+          <li><a href="#sec-4-3">4.3 Docking algorithms</a></li>
+          <li><a href="#sec-4-4">4.4 Scoring functions</a></li>
+          <li><a href="#sec-4-5">4.5 Enrichment + ROC</a></li>
+          <li><a href="#sec-4-6">4.6 Practical workflow</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — ADMET and Druglikeness</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 The ADMET concept</a></li>
+          <li><a href="#sec-5-2">5.2 Lipinski's Rule of Five</a></li>
+          <li><a href="#sec-5-3">5.3 QED</a></li>
+          <li><a href="#sec-5-4">5.4 Toxicity prediction</a></li>
+          <li><a href="#sec-5-5">5.5 ADMET ML models</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Deep Learning for Drug Discovery</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 GNNs for property prediction</a></li>
+          <li><a href="#sec-6-2">6.2 Generative models</a></li>
+          <li><a href="#sec-6-3">6.3 DL + structure</a></li>
+          <li><a href="#sec-6-4">6.4 Hit expansion</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — From Hit to Drug</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 Hit-to-lead</a></li>
+          <li><a href="#sec-7-2">7.2 Lead optimisation</a></li>
+          <li><a href="#sec-7-3">7.3 Pre-clinical</a></li>
+          <li><a href="#sec-7-4">7.4 Clinical trials</a></li>
+          <li><a href="#sec-7-5">7.5 Recent successes</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 26</div>
+      <h1 class="lecture-title">Drug Discovery and Chemoinformatics</h1>
+      <p class="lecture-subtitle">Chemical space contains $10^{60}$+ drug-like molecules; the discovery problem is finding one that maximises potency, minimises off-target activity, and respects ADMET. Molecules become SMILES (storage), graphs (working representation), fingerprints (ML features). AutoDock Vina docks ligands into pockets; Lipinski + QED filter for druglikeness; GNNs (Chemprop) predict properties; REINVENT / MolDiff generate de novo. Most modern drugs come out of an AlphaFold + DL pipeline. The whole field is constrained multi-objective optimisation in a discrete space.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">205 min</span>
+        <span>EE undergraduates &middot; minimal biology / chemistry assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — Landscape</a></li>
+        <li><a href="#part-2">Part 2 — Molecular reps</a></li>
+        <li><a href="#part-3">Part 3 — Fingerprints + similarity</a></li>
+        <li><a href="#part-4">Part 4 — Docking</a></li>
+        <li><a href="#part-5">Part 5 — ADMET</a></li>
+        <li><a href="#part-6">Part 6 — Deep learning</a></li>
+        <li><a href="#part-7">Part 7 — Hit to drug</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Five moves:</em>
+        <span class="lecture-tagline-beat">SMILES → graph → fingerprint</span>,
+        <span class="lecture-tagline-beat">Tanimoto for similarity search</span>,
+        <span class="lecture-tagline-beat">Vina for docking</span>,
+        <span class="lecture-tagline-beat">Lipinski + QED + ML for ADMET</span>,
+        <span class="lecture-tagline-beat">GNNs + generative DL for design</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Represent small molecules as SMILES, InChI, and molecular graphs; convert between formats; compute basic descriptors with RDKit.</li>
+          <li>Compute molecular fingerprints (Morgan / ECFP, MACCS, atom-pair) and use Tanimoto similarity for compound clustering and library deduplication.</li>
+          <li>Run a basic virtual screen: from receptor structure → docking pose generation (AutoDock Vina) → scoring → enrichment analysis.</li>
+          <li>Apply ADMET property predictions (Lipinski's Rule of 5, QED, BBB permeability, hepatotoxicity); recognise QSAR limits.</li>
+          <li>Describe modern deep-learning approaches: GNNs for molecular property prediction (Chemprop), generative models for de novo design (REINVENT, MolDiff), AlphaFold-driven structure-based design.</li>
+          <li>Trace a drug discovery program from target ID through hit-to-lead, lead optimisation, IND-enabling studies, and clinical development.</li>
+          <li>Frame drug discovery in EE terms: chemical space as a high-dimensional discrete optimisation problem; fingerprints as feature vectors; docking as a constrained-optimisation problem on a binding-energy landscape.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 25 min</span>
+          Drug Discovery Landscape
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 What's a drug</h3>
+          <p>A <strong>drug</strong> is a chemical entity that:</p>
+          <ol>
+            <li>Binds a specific protein (or other macromolecule) target.</li>
+            <li>Modulates the target's activity in a clinically useful way.</li>
+            <li>Has acceptable safety profile, pharmacokinetics, and route of administration.</li>
+          </ol>
+          <p>Most drugs are <strong>small molecules</strong> (&lt; 900 Da; e.g., aspirin, statins, kinase inhibitors). A growing fraction are <strong>biologics</strong> (antibodies, peptides, proteins, oligonucleotides). This lecture focuses on small molecules.</p>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 The drug discovery timeline</h3>
+          <p>Typical pipeline (10-15 years from start to FDA approval):</p>
+          <ol>
+            <li><strong>Target identification</strong> (~1 year): genetic + functional + clinical evidence pinpoint a druggable target.</li>
+            <li><strong>Hit discovery</strong> (~2 years): high-throughput screening, virtual screening, structure-based design → 100s-1000s of "hits" (compounds with sub-μM activity).</li>
+            <li><strong>Hit-to-lead</strong> (~1-2 years): triage hits for druggability; optimise to leads (~10s of lead candidates).</li>
+            <li><strong>Lead optimisation</strong> (~2-3 years): medicinal chemistry on leads to improve potency, selectivity, ADMET. Output: 1-3 "development candidates".</li>
+            <li><strong>Pre-clinical</strong> (~1-2 years): pharmacokinetics, toxicology, animal efficacy.</li>
+            <li><strong>Clinical trials</strong> (~5-7 years): Phase 1 (safety), Phase 2 (efficacy), Phase 3 (large-scale efficacy + safety).</li>
+            <li><strong>FDA review</strong> (~1 year).</li>
+          </ol>
+          <p>Cost: ~$1-3 billion per approved drug. Attrition: ~10% of clinical candidates make it to approval.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-26/01-pipeline.svg"
+                 alt="Top-to-bottom drug discovery pipeline. Boxes for target ID, hit discovery, hit-to-lead, lead optimisation, pre-clinical, Phase I, Phase II, Phase III, FDA review. Each box labelled with typical duration and cost. Side panel showing attrition: 10000 hits → 100 leads → 10 development candidates → 1 approved drug.">
+            <figcaption>Figure 1. The drug discovery pipeline. ~10-15 years and ~$1-3B per approved drug; attrition concentrated at clinical stages.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 Where genomics fits</h3>
+          <p>Modern drug discovery is informed by genomics at every step:</p>
+          <ul>
+            <li><strong>Target ID</strong>: GWAS, CRISPR screens, DepMap, Mendelian randomisation.</li>
+            <li><strong>Mechanism</strong>: pathway analysis, structural biology.</li>
+            <li><strong>Patient stratification</strong>: clinical genomics, pharmacogenomics.</li>
+            <li><strong>Biomarker development</strong>: RNA-seq, single-cell, cancer genomics.</li>
+          </ul>
+          <p>This lecture focuses on the <strong>chemistry side</strong> — how computational approaches manipulate molecules and screen against targets.</p>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 Druggability</h3>
+          <p><strong>Druggability</strong>: can a target be modulated by a small-molecule drug?</p>
+          <ul>
+            <li><strong>Druggable</strong> targets: enzymes (especially kinases, GPCRs), receptors, ion channels. ~3,000 of ~20,000 human proteins.</li>
+            <li><strong>Undruggable</strong>: transcription factors, scaffolds, intrinsically-disordered proteins. Recent advances (PROTACs, molecular glues, AlphaFold-driven cryptic-pocket design) are making these accessible.</li>
+          </ul>
+          <p>For each target, structural assessment: does the protein have a binding pocket that can accommodate a drug-sized molecule?</p>
+        </section>
+
+        <section id="sec-1-5">
+          <h3>1.5 The deep dive</h3>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — drug discovery as constrained optimisation in chemical space</span>
+            <p>Chemical space contains $10^{60}$+ "drug-like" molecules. The drug discovery problem: find one (or a small set) that <strong>maximises potency on the target</strong> while <strong>minimising off-target activity</strong> and <strong>respecting ADMET constraints</strong>. This is a <strong>constrained, multi-objective, discrete optimisation problem</strong>. Classical approaches use heuristic search (high-throughput screening = random sampling; medicinal chemistry = local search). Modern approaches use deep learning (REINVENT = RL on chemistry actions; MolDiff = diffusion models on molecular graphs). The same family of optimisation tools you'd use for hardware design or signal-processing-circuit synthesis.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 30 min</span>
+          Molecular Representations
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 SMILES</h3>
+          <p><strong>SMILES (Simplified Molecular-Input Line-Entry System)</strong>: a string representation of molecules.</p>
+          <ul>
+            <li>Water: <code>O</code></li>
+            <li>Methane: <code>C</code></li>
+            <li>Aspirin: <code>CC(=O)Oc1ccccc1C(=O)O</code></li>
+            <li>Penicillin G: <code>CC1(C)SC2C(NC(=O)Cc3ccccc3)C(=O)N2C1C(=O)O</code></li>
+          </ul>
+          <p>Rules: atoms by element symbol (uppercase = aliphatic, lowercase = aromatic); bonds (<code>-</code> single, <code>=</code> double, <code>#</code> triple, <code>:</code> aromatic); branching with parentheses; rings with matched digits.</p>
+          <p>Canonical SMILES: every molecule has one canonical form (defined by the Daylight algorithm); makes equality testing easy.</p>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 InChI and InChIKey</h3>
+          <p><strong>InChI (International Chemical Identifier)</strong>: similar to SMILES but with standardised normalisation (handles tautomers, charges).</p>
+          <p><strong>InChIKey</strong>: a 27-character hash of InChI. Used for database keys; collision-free in practice.</p>
+          <p>For database lookups (PubChem, ChEMBL, DrugBank), InChIKey is the recommended identifier.</p>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Molecular graphs</h3>
+          <p>Internally, RDKit/OpenBabel parse SMILES into a <strong>molecular graph</strong>:</p>
+          <ul>
+            <li>Nodes: atoms (with element, formal charge, hybridisation, aromaticity).</li>
+            <li>Edges: bonds (with type, stereochemistry).</li>
+            <li>Implicit hydrogens (typically not stored explicitly).</li>
+          </ul>
+          <p>For machine learning, the graph is the canonical representation; SMILES is the storage format.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-26/02-representations.svg"
+                 alt="Three-panel figure showing aspirin in three representations. Left: SMILES string CC(=O)Oc1ccccc1C(=O)O. Middle: 2D molecular graph with atoms as labelled nodes (C, O) and bonds as lines (single, double, aromatic). Right: 1024-bit Morgan fingerprint as a sparse bit vector with red lines for set bits. Arrows showing the conversion sequence.">
+            <figcaption>Figure 2. SMILES → molecular graph → fingerprint. Each representation has a use: storage, working analysis, ML features.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-26/01-smiles-fingerprint.html" loading="lazy" title="Artifact 1 — SMILES → Fingerprint Converter"></iframe>
+            <figcaption>
+              <strong>Artifact 1 — SMILES → Fingerprint Converter.</strong> Pick a SMILES; see the molecular graph + Morgan fingerprint + key descriptors (MW, logP, TPSA). Aha: SMILES is a serialisation; the working representation is the graph; for ML you flatten to a fingerprint.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 RDKit basics</h3>
+          <p><strong>RDKit</strong> is the open-source standard. Python interface: <code>from rdkit import Chem</code>.</p>
+          <pre style="background:#f5f5f4; padding:0.8rem 1rem; border-radius:6px; overflow-x:auto; font-family:'JetBrains Mono', monospace; font-size:0.88rem;"><code>mol = Chem.MolFromSmiles("CC(=O)Oc1ccccc1C(=O)O")  # aspirin
+mol.GetNumAtoms()           # 13
+mol.GetMolWt()              # 180.16
+mol.GetNumHeavyAtoms()      # 13
+mol.GetNumRotatableBonds()  # 3</code></pre>
+          <p>Common operations:</p>
+          <ul>
+            <li>Compute descriptors (MW, logP, TPSA, H-bond donors/acceptors, rotatable bonds).</li>
+            <li>Generate 3D coordinates (UFF, MMFF94 force fields).</li>
+            <li>Compute fingerprints (Morgan, MACCS).</li>
+            <li>Substructure search.</li>
+          </ul>
+          <p>Industry default for chemoinformatics; ~50% of pharma chemoinformatics teams use RDKit.</p>
+        </section>
+
+        <section id="sec-2-5">
+          <h3>2.5 Property descriptors</h3>
+          <p>Standard properties computable from SMILES:</p>
+          <ul>
+            <li><strong>MW</strong>: molecular weight.</li>
+            <li><strong>logP</strong>: octanol-water partition coefficient (lipophilicity).</li>
+            <li><strong>TPSA</strong>: topological polar surface area (membrane permeability proxy).</li>
+            <li><strong>HBD / HBA</strong>: hydrogen-bond donor / acceptor count.</li>
+            <li><strong>Rotatable bonds</strong>: flexibility.</li>
+          </ul>
+          <p>These descriptors feed all downstream filtering and ML.</p>
+        </section>
+
+        <section id="sec-2-6">
+          <h3>2.6 The deep dive</h3>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — SMILES as serialisation; graph as ground truth</span>
+            <p>SMILES is an ASCII serialisation of the molecular graph. Different SMILES can encode the same molecule (canonical SMILES is the unique form). For ML, we typically operate on the graph (GNNs) or on a fixed-feature transformation of the graph (fingerprints). The relationship is: SMILES (storage) ⇄ graph (working representation) ⇄ fingerprint / 3D conformer (ML / docking). Each conversion is well-defined; choose by the task.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 30 min</span>
+          Fingerprints and Similarity
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 What's a fingerprint</h3>
+          <p>A <strong>molecular fingerprint</strong> is a fixed-length binary or count vector encoding the presence/absence of structural features:</p>
+          <ul>
+            <li>Length 1024-2048 bits (typical).</li>
+            <li>Each bit corresponds to a specific substructure or environment.</li>
+            <li>Fast to compute and compare.</li>
+          </ul>
+          <p>Two main families: substructure-based (MACCS) and circular (ECFP / Morgan).</p>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 MACCS fingerprints</h3>
+          <p><strong>MACCS (Molecular ACCess System)</strong>: 166 hand-curated structural keys (e.g., "has aromatic ring", "has nitrogen attached to oxygen").</p>
+          <p>Pros: interpretable, compact, predictable. Cons: limited to 166 features; misses subtle distinctions. Used as a quick first-pass.</p>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Morgan / ECFP fingerprints</h3>
+          <p><strong>Morgan fingerprints / ECFP</strong> (Extended Connectivity Fingerprint, Rogers &amp; Hahn 2010): the modern default.</p>
+          <ol>
+            <li>Each atom gets an initial identifier (e.g., based on element, charge, valence).</li>
+            <li>For each iteration $r$ (radius), the atom's identifier is updated based on identifiers of its neighbours within $r$ bonds.</li>
+            <li>After radius 2-3 iterations, hash all unique atom-environment identifiers into a bitset.</li>
+          </ol>
+          <p><strong>ECFP4</strong> (radius 2, ~typical) and <strong>ECFP6</strong> (radius 3) capture larger neighbourhoods. Morgan/ECFP fingerprints encode local environments — invariant to molecular ordering, sensitive to substructures.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-26/03-morgan.svg"
+                 alt="Morgan fingerprint algorithm illustration. Top: small molecule (e.g., ethanol C-C-O). Middle: three iterations of identifier expansion. Iteration 0: each atom gets initial identifier from its element + properties. Iteration 1: each atom's identifier is updated to incorporate immediate neighbours. Iteration 2: incorporates 2-hop neighbours. Bottom: all unique identifiers across iterations are hashed into a 1024-bit vector with arrows showing which features map to which bits.">
+            <figcaption>Figure 3. The Morgan / ECFP algorithm. Iterative neighbourhood expansion + hashing → fixed-length bit vector.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Tanimoto similarity</h3>
+          <p>The standard fingerprint-similarity metric:</p>
+          <p>$$T(A, B) = \frac{|A \cap B|}{|A \cup B|}$$</p>
+          <p>$A$ and $B$ are bit vectors; intersection = bits both have set; union = bits either has set.</p>
+          <ul>
+            <li>$T = 1$: identical fingerprints (likely identical molecules).</li>
+            <li>$T \geq 0.85$: very similar.</li>
+            <li>$T \geq 0.6$: same chemical series.</li>
+            <li>$T \approx 0.3$: random.</li>
+          </ul>
+          <p>Used for: clustering compound libraries, identifying similar molecules to a known active, filtering library duplicates, hit-list expansion.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-26/08-tanimoto.svg"
+                 alt="Tanimoto similarity matrix heat map for 12 example drugs. Rows and columns labelled with drug names (aspirin, ibuprofen, naproxen, atorvastatin, simvastatin, sildenafil, etc). Cells coloured by Tanimoto coefficient (red = high similarity, blue = low). Visible block structure: NSAIDs cluster together; statins cluster together. Diagonal is 1.0.">
+            <figcaption>Figure 8. Tanimoto similarity matrix on 12 drugs. Drugs in the same chemical series cluster (NSAIDs, statins); cross-series similarity is low.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-26/02-tanimoto.html" loading="lazy" title="Artifact 2 — Tanimoto Similarity Calculator"></iframe>
+            <figcaption>
+              <strong>Artifact 2 — Tanimoto Similarity Calculator.</strong> Pick two molecules; see their fingerprint overlap and Tanimoto coefficient. Cluster a 20-drug library by similarity threshold. Aha: Tanimoto is Jaccard similarity on bit vectors — same machinery as image hashing.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 Pharmacophore fingerprints</h3>
+          <p>Beyond chemical structure: encode <strong>pharmacophores</strong> — abstract features (H-bond donor, H-bond acceptor, aromatic, hydrophobic) at specific 3D distances.</p>
+          <p>Used when the question is "do these molecules share a binding mode?" rather than "do they share atoms?". Tools: RDKit pharmacophores, LigandScout.</p>
+        </section>
+
+        <section id="sec-3-6">
+          <h3>3.6 The deep dive</h3>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — fingerprints as locality-sensitive hashing</span>
+            <p>A Morgan fingerprint is a <strong>locality-sensitive hash</strong> of the molecular graph. Similar molecules → similar bit patterns; dissimilar → dissimilar. This is the chemoinformatics cousin of LSH for high-dimensional vectors and image hashing. The Tanimoto coefficient is a dissimilarity measure; structurally analogous to Jaccard similarity in set space. Modern variants (Avalon, SECFP, count-based ECFP) refine this by using counts instead of binary, encoding pharmacophore features, or subgraph variations. The task-specific fingerprint is a feature engineering choice.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 40 min</span>
+          Virtual Screening and Docking
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 The virtual screening problem</h3>
+          <p>You have:</p>
+          <ul>
+            <li>A target protein (with a known binding pocket).</li>
+            <li>A library of $\sim 10^6$ candidate molecules.</li>
+          </ul>
+          <p>Goal: rank molecules by predicted binding affinity → enrich the top few thousand → buy / synthesise / test.</p>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 Receptor preparation</h3>
+          <p>Target structure (from X-ray, cryo-EM, AlphaFold) prepared for docking:</p>
+          <ul>
+            <li>Add hydrogens (most PDB structures lack them).</li>
+            <li>Assign charges (Gasteiger or AMBER).</li>
+            <li>Identify binding pocket (manual annotation, blind docking, or pocket-finding tools like fpocket).</li>
+            <li>Define a "search space" — a 3D box around the pocket.</li>
+          </ul>
+          <p>Output: a "receptor" file ready for docking.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-26/07-chemical-space.svg"
+                 alt="2D scatter showing chemical space exploration. ~5000 dots representing chemicals, coloured by activity (red = active hit, green = lead, blue = inactive). Dense clouds in some regions (well-explored chemical series); sparse regions (under-explored). Annotation: drug discovery is local search in a vast space; ML can prioritise where to search.">
+            <figcaption>Figure 7. Chemical space exploration. Drug discovery is local search through a vast discrete space; ML prioritises regions worth exploring.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Docking algorithms</h3>
+          <p><strong>AutoDock Vina</strong> (Trott &amp; Olson 2010): the most-used open-source docker.</p>
+          <ol>
+            <li>Pose generation: enumerate ligand conformations and orientations within the search box.</li>
+            <li>Pose scoring: empirical scoring function (combines van der Waals, hydrogen bonds, electrostatics, hydrophobic effects).</li>
+            <li>Best pose returned with score (predicted ΔG of binding, kcal/mol).</li>
+          </ol>
+          <p>Modern variants: <strong>AutoDock GPU</strong> (GPU-accelerated), <strong>DiffDock</strong> (Corso 2022, generative diffusion model for pose prediction), <strong>RoseTTAFold All-Atom</strong> (Krishna 2023, joint protein-ligand structure prediction).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-26/04-vina-docking.svg"
+                 alt="Three-panel Vina docking visualisation. Left: receptor pocket as a translucent 3D surface with green key residues; ligand as a stick-figure. Middle: 9 alternative ligand poses in the same pocket, each with a Vina score. Right: best pose highlighted with key contacts (H-bonds in cyan, hydrophobic contacts in yellow); ΔG = −9.2 kcal/mol.">
+            <figcaption>Figure 4. AutoDock Vina pose generation. Many candidate poses; best pose ranked by empirical ΔG; key contacts highlighted.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-26/04-vina-docking.html" loading="lazy" title="Artifact 4 — Vina Docking Visualiser"></iframe>
+            <figcaption>
+              <strong>Artifact 4 — Vina Docking Visualiser.</strong> Pick a receptor + ligand pair; see the docked pose, predicted ΔG, and a per-residue contact map. Aha: docking is constrained energy minimisation; pose quality is the score.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Scoring functions</h3>
+          <p>Empirical scoring functions: <strong>Vina score</strong> (6-term physics-based), <strong>Glide SP / XP</strong> (commercial; often more accurate), <strong>GBSA / PBSA</strong> (free-energy calculations; slower, more accurate), <strong>MM-GBSA</strong> (post-docking rescoring).</p>
+          <p>Modern ML-based: <strong>GNINA</strong> (CNN-rescored Vina), <strong>DiffDock + scoring</strong> (end-to-end deep model).</p>
+          <p>For typical workflows: dock with Vina; rescore top 1,000 with GNINA or MM-GBSA.</p>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 Enrichment and ROC</h3>
+          <p>How well does a virtual screen distinguish actives from decoys?</p>
+          <p><strong>Enrichment factor</strong> EF$_x$: the fold-enrichment of actives in the top $x$% of ranked hits, vs random ordering.</p>
+          <ul>
+            <li>EF$_{1\%}$ = 5: top 1% of ranked compounds is 5× more enriched in actives than random.</li>
+            <li>EF$_{1\%}$ = 50: enormous enrichment (rare).</li>
+          </ul>
+          <p><strong>ROC curve</strong>: actives recall vs false-positive rate; AUC summarises overall discrimination.</p>
+          <p>For typical virtual screens against well-characterised targets: AUC = 0.7-0.85; EF$_{1\%}$ = 5-30. Significantly better than random; well below perfect.</p>
+        </section>
+
+        <section id="sec-4-6">
+          <h3>4.6 Practical workflow</h3>
+          <p>A typical Vina virtual screen:</p>
+          <ol>
+            <li>Library: 10⁶ ZINC compounds.</li>
+            <li>Vina dock each (~10 sec/compound on GPU; ~1 hour/compound on CPU). Total: ~3 days on a cluster.</li>
+            <li>Rank by predicted ΔG.</li>
+            <li>Inspect top 100 manually (visual chemical sense).</li>
+            <li>Filter for druggability (Lipinski, ADMET).</li>
+            <li>Order top 50; experimentally test.</li>
+          </ol>
+          <p>Hit rate from virtual screen: typically 5-15% of ordered compounds show measurable activity.</p>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — docking as constrained optimisation on a binding-energy landscape</span>
+            <p>Docking is <strong>search over ligand conformation + position</strong> to <strong>minimise binding free energy</strong> within the receptor pocket. The optimisation is non-convex (many local minima — alternative binding modes). Vina uses iterated local search; DiffDock uses gradient flow on a learned energy model. The task is structurally identical to <strong>placement-and-routing in EE / IC design</strong>: place a ligand (cell) into a binding pocket (chip area) optimising scoring (timing / area / power) under constraints (clashes / spacing). Cross-disciplinary: optimisation methods from one area transfer to the other.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 25 min</span>
+          ADMET and Druglikeness
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 The ADMET concept</h3>
+          <p>A drug must reach its target at sufficient concentration and not cause harm. Five properties:</p>
+          <ul>
+            <li><strong>Absorption</strong>: oral bioavailability.</li>
+            <li><strong>Distribution</strong>: tissue distribution; blood-brain-barrier (BBB) for CNS drugs.</li>
+            <li><strong>Metabolism</strong>: hepatic clearance (CYP450 enzymes).</li>
+            <li><strong>Excretion</strong>: renal clearance, half-life.</li>
+            <li><strong>Toxicity</strong>: hepatotoxicity, cardiotoxicity (hERG), genotoxicity.</li>
+          </ul>
+          <p>A potent compound that fails ADMET → useless. Most drug-discovery failures are ADMET-related.</p>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Lipinski's Rule of Five</h3>
+          <p>Lipinski's empirical rules for oral bioavailability:</p>
+          <ul>
+            <li>MW ≤ 500.</li>
+            <li>logP ≤ 5.</li>
+            <li>HBD ≤ 5.</li>
+            <li>HBA ≤ 10.</li>
+          </ul>
+          <p>Compounds violating ≥ 2 rules are "less likely" to be orally bioavailable. Not a strict filter — many drugs violate (~10% of approved drugs violate ≥ 2). But useful for triage.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-26/09-lipinski.svg"
+                 alt="4-panel histogram showing Lipinski property distributions across ~2000 approved drugs. Panel 1: MW with peak around 350; cutoff line at 500. Panel 2: logP with peak around 2; cutoff at 5. Panel 3: HBD count with peak at 2; cutoff at 5. Panel 4: HBA count with peak at 5; cutoff at 10. Annotation: ~90% of approved drugs satisfy all 4 rules; the rest are mostly biologics or specialised classes.">
+            <figcaption>Figure 9. Lipinski's Rule of Five compliance across approved drugs. MW, logP, HBD, HBA distributions; ~90% satisfy all four.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-26/03-lipinski-qed.html" loading="lazy" title="Artifact 3 — Lipinski / QED Filter"></iframe>
+            <figcaption>
+              <strong>Artifact 3 — Lipinski / QED Filter.</strong> Run a 50-compound library through Lipinski + QED filters; see the pass rate and which rules each violation breaks. Aha: Lipinski is a soft heuristic — useful for triage but not a strict gate.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 QED (Quantitative Estimate of Druglikeness)</h3>
+          <p><strong>QED</strong> (Bickerton 2012): a single-number druglikeness score combining 8 properties (MW, logP, HBD/HBA, PSA, rotatable bonds, aromatic rings, alerts).</p>
+          <p>QED ranges 0-1; ~0.6+ is drug-like. Used for filtering large libraries.</p>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Toxicity prediction</h3>
+          <p>Specific toxicity flags:</p>
+          <ul>
+            <li><strong>PAINS (Pan-Assay Interference Compounds)</strong>: structural alerts for promiscuous false-positives.</li>
+            <li><strong>hERG</strong>: predicts cardiac potassium channel blockade → arrhythmia risk.</li>
+            <li><strong>AMES</strong>: predicts mutagenicity.</li>
+            <li><strong>Hepatotoxicity</strong>: predicts liver damage.</li>
+          </ul>
+          <p>Tools: RDKit's PAINS filter, ToxCast, Tox21 ML models, modern deep-learning predictors.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-26/05-admet-radar.svg"
+                 alt="Radar chart showing ADMET profile for three example compounds: aspirin (drug-like, all green), candidate-A (intermediate, mixed), candidate-B (poor, mostly red). Six axes: oral absorption, BBB, CYP3A4 metabolism, half-life, hERG safety, hepatotoxicity. Larger radius = better property.">
+            <figcaption>Figure 5. ADMET radar chart. Compares three compounds across 6 ADMET axes; visual triage tool for medicinal chemists.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-26/05-admet.html" loading="lazy" title="Artifact 5 — ADMET Predictor"></iframe>
+            <figcaption>
+              <strong>Artifact 5 — ADMET Predictor.</strong> Pick a compound; see predicted oral absorption, BBB permeability, CYP3A4 inhibition, hERG, hepatotoxicity, and key structural alerts (PAINS). Aha: most drug-discovery failures are ADMET, not potency.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-5">
+          <h3>5.5 ADMET ML models</h3>
+          <p>Modern ADMET prediction is increasingly ML-driven:</p>
+          <ul>
+            <li><strong>Chemprop</strong> (Yang 2019): GNN-based predictor; trained on public ADMET data; often outperforms traditional QSAR.</li>
+            <li><strong>ADMETlab 2.0</strong>: web service running ML predictors for ~50 ADMET endpoints.</li>
+            <li><strong>AlphaFold-driven</strong>: predict drug binding to off-target proteins (CYP450, transporters).</li>
+          </ul>
+          <p>The 2024 frontier: foundation models for chemistry (ChemBERTa, MolBERT, MoLFormer) pre-trained on ~10⁶ molecules; multi-task ADMET predicting 50 properties jointly; uncertainty-aware models.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 25 min</span>
+          Deep Learning for Drug Discovery
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 GNNs for property prediction</h3>
+          <p><strong>Chemprop</strong> and <strong>D-MPNN</strong> (Yang 2019): graph neural networks for molecular property prediction.</p>
+          <ul>
+            <li>Input: molecular graph (atoms + bonds with features).</li>
+            <li>Message passing: each atom updates based on neighbours.</li>
+            <li>Readout: graph-level prediction (scalar property).</li>
+          </ul>
+          <p>Trained on labelled data (e.g., known IC50s for 100k compounds against a target). Predicts properties for new molecules.</p>
+          <p>For typical drug-discovery workflows: train Chemprop on internal SAR data; predict for new compounds; rank for synthesis priority.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-26/10-gnn-message-passing.svg"
+                 alt="GNN message passing on a small molecule. Round 0: each atom holds an initial feature vector. Round 1: each atom's vector updates by aggregating neighbour vectors weighted by bond features. Round 2: same but with the new vectors. Final: a readout function (sum or mean) reduces all atom vectors to a single graph-level vector → MLP → predicted property.">
+            <figcaption>Figure 10. GNN message passing on a molecule. Iterative neighbour aggregation → graph readout → property prediction.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-26/06-gnn-predictor.html" loading="lazy" title="Artifact 6 — GNN Molecular Property Predictor"></iframe>
+            <figcaption>
+              <strong>Artifact 6 — GNN Molecular Property Predictor.</strong> Pick a molecule; step through GNN message passing; see the predicted property + a saliency map highlighting which atoms drove the prediction. Aha: GNNs learn graph-level features; saliency maps make them interpretable.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 Generative models for de novo design</h3>
+          <p>Beyond predicting properties: <strong>generate</strong> new molecules that satisfy desired properties.</p>
+          <ul>
+            <li><strong>REINVENT</strong> (Olivecrona 2017, Loeffler 2024): RL-based; trains a recurrent neural net to generate SMILES that maximise a reward (predicted potency, druglikeness, novelty).</li>
+            <li><strong>MolDiff</strong> (Li 2023): diffusion model on molecular graphs.</li>
+            <li><strong>Pocket2Mol</strong> (Peng 2022): pocket-conditioned molecule generation — given a binding pocket, design molecules that fit.</li>
+          </ul>
+          <p>These tools generate ~10⁵-10⁶ new molecules per run; chemists triage by druglikeness + synthetic accessibility.</p>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 Deep learning + structure</h3>
+          <p><strong>AlphaFold-driven design</strong>:</p>
+          <ol>
+            <li>AlphaFold predicts target structure.</li>
+            <li>Pocket detection identifies druggable sites.</li>
+            <li>Generative model conditioned on pocket geometry produces fitting molecules.</li>
+            <li>Docking validates predicted poses.</li>
+          </ol>
+          <p>This pipeline (Insilico Medicine's INS018_055, BenevolentAI's drug candidates) is producing IND-stage candidates.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-26/06-dl-workflow.svg"
+                 alt="Drug discovery DL workflow. Top: target sequence → AlphaFold → predicted structure. Middle: pocket detection (fpocket / DeepSite) → identified druggable site. Bottom: pocket-conditioned generative model (Pocket2Mol / REINVENT) → ~10⁶ candidate molecules → ADMET filter → docking → top 100 leads → synthesis. Side panel: timeline showing 2-3 year reduction vs classical pipeline.">
+            <figcaption>Figure 6. The modern DL drug-discovery workflow. AlphaFold + generative + ADMET ML compresses target-to-candidate from years to months.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-26/12-alphafold-design.svg"
+                 alt="AlphaFold-driven design pipeline. Step 1: target gene sequence → AlphaFold-2 predicts 3D structure with confidence score (pLDDT). Step 2: pocket finder identifies cryptic pocket. Step 3: pocket geometry passed to Pocket2Mol generative model. Step 4: 10000 candidate molecules. Step 5: ADMET filter shrinks to 500. Step 6: Vina docking ranks top 50. Step 7: 5 candidates synthesised. Annotation: this pipeline took 18 months for INS018_055 vs typical 5+ years.">
+            <figcaption>Figure 12. AlphaFold-driven design pipeline. End-to-end target-to-candidate in 18 months; INS018_055 (Insilico Medicine) is the first IND-enabling AI-discovered drug.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 Hit expansion via DL</h3>
+          <p>Given a known active, design analogues that:</p>
+          <ul>
+            <li>Maintain target binding.</li>
+            <li>Improve ADMET.</li>
+            <li>Avoid patent space.</li>
+          </ul>
+          <p>Iterative refinement loops: generate → predict properties → rank → select → repeat. Modern pharma teams use this routinely.</p>
+          <p>The 2024 frontier: active learning loops (ML model selects next compounds to test, balancing exploration and exploitation), quantum chemistry surrogates (ML approximations to expensive DFT calculations), allosteric site discovery (AlphaFold-based identification of cryptic binding pockets).</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 20 min</span>
+          From Hit to Drug
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 Hit-to-lead</h3>
+          <p>A "hit" has measurable activity (~μM IC50). A "lead" has:</p>
+          <ul>
+            <li>Sub-μM IC50.</li>
+            <li>Selectivity (10×-100× over off-targets).</li>
+            <li>Reasonable ADMET.</li>
+            <li>Synthetic accessibility.</li>
+          </ul>
+          <p>Hit-to-lead activities: SAR (structure-activity relationship) studies, ADMET screening, counter-screening for selectivity. Output: ~5-10 "lead" compounds entering optimisation.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-26/11-hit-to-lead.svg"
+                 alt="Hit-to-lead optimisation diagram. Left: original hit molecule with IC50 = 5 μM. Middle: 6 analogues with substituent variations (-Cl, -F, -OMe, -CN, -CH3, -OH); each labelled with IC50 ranging from 0.05 to 50 μM. Right: best lead with IC50 = 50 nM, ADMET pass, selectivity 100×. Annotation: SAR-driven optimisation typically improves potency 10-100x and improves ADMET.">
+            <figcaption>Figure 11. Hit-to-lead optimisation. Six analogue series; IC50 spans 50 μM to 50 nM; the best lead enters lead optimisation.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Lead optimisation</h3>
+          <p>Iterative medicinal chemistry on each lead:</p>
+          <ul>
+            <li>Improve potency 10-100×.</li>
+            <li>Improve ADMET.</li>
+            <li>Address known liabilities (toxicity flags, low oral bioavailability).</li>
+            <li>Patent considerations.</li>
+          </ul>
+          <p>Tools: free-energy perturbation calculations (FEP+), GNN-based property prediction, structure-based design. Output: 1-3 "development candidates" per program.</p>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 Pre-clinical</h3>
+          <p>In vivo studies before human trials:</p>
+          <ul>
+            <li><strong>Pharmacokinetics</strong>: drug levels in animals over time.</li>
+            <li><strong>Toxicology</strong>: dose-response in animals (rodents + non-human primates).</li>
+            <li><strong>Efficacy</strong>: animal models of disease.</li>
+          </ul>
+          <p>Output: an <strong>IND (Investigational New Drug)</strong> filing with the FDA → clinical trials.</p>
+        </section>
+
+        <section id="sec-7-4">
+          <h3>7.4 Clinical trials</h3>
+          <ul>
+            <li>Phase 1 (~30-100 patients): safety + dose-finding.</li>
+            <li>Phase 2 (~100-300): efficacy in target indication.</li>
+            <li>Phase 3 (~1000-5000): pivotal efficacy + safety.</li>
+          </ul>
+          <p>Each phase ~2-4 years. Attrition: 90% of Phase 1 doesn't reach approval.</p>
+        </section>
+
+        <section id="sec-7-5">
+          <h3>7.5 Recent successes from computational pipelines</h3>
+          <ul>
+            <li><strong>Sotorasib</strong> (KRAS G12C inhibitor): structure-driven design; AlphaFold-era selectivity.</li>
+            <li><strong>Casgevy / exa-cel</strong> (sickle cell gene therapy): MAVE-validated.</li>
+            <li><strong>Insilico's INS018_055</strong>: AlphaFold + generative DL → IND-enabling, fastest computational-to-clinic timeline.</li>
+            <li><strong>Deucravacitinib</strong> (Bristol Myers Squibb): structure-based selectivity for TYK2 over JAK family.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-26/07-pipeline-sim.html" loading="lazy" title="Artifact 7 — Drug Discovery Pipeline Simulator"></iframe>
+            <figcaption>
+              <strong>Artifact 7 — Drug Discovery Pipeline Simulator.</strong> Step a virtual drug program through target ID → hit discovery → lead optimisation → pre-clinical → clinical phases. See cumulative cost, attrition rate, and final probability of approval. Aha: most cost is in late-stage; most attrition is in Phase 2.
+            </figcaption>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ──────────────────────────────────────── -->
+      <section id="wrapup">
+        <h2>Wrap-up</h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Drug discovery is constrained optimisation in chemical space</strong>: maximise potency, minimise off-target, respect ADMET. Classical heuristics + modern ML.</li>
+          <li><strong>Molecular representations</strong>: SMILES (storage), molecular graphs (working), fingerprints (ML features). RDKit is the open-source standard.</li>
+          <li><strong>Fingerprints + Tanimoto</strong>: locality-sensitive hashing of molecular graphs; the workhorse of similarity search.</li>
+          <li><strong>Virtual screening with docking</strong>: enriches hit candidates ~10× over random; AutoDock Vina is the open-source standard.</li>
+          <li><strong>ADMET predictions</strong> (Lipinski, QED, ML-based): filter library before synthesis; most drug-discovery failures are ADMET-related.</li>
+          <li><strong>Deep learning</strong> (GNNs for properties, generative models for design) is rapidly transforming the field; AlphaFold-driven pipelines are producing IND candidates faster than ever.</li>
+          <li><strong>EE framings</strong>: chemical space as discrete optimisation; fingerprints as LSH; docking as constrained energy minimisation; drug discovery as multi-objective optimisation under constraints.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>Imaging-omics and pathology AI. The DL methods you saw here (GNNs, generative models, foundation models) connect to broader genomic and imaging ML.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Use RDKit to compute MW, logP, TPSA, HBD/HBA for 10 molecules of your choice. Apply Lipinski + QED; tabulate which pass.</li>
+          <li>From a SMILES list of 100 known drugs, compute pairwise Morgan fingerprints + Tanimoto similarity. Cluster into ~10 chemical series; report representative drugs per cluster.</li>
+          <li>Run AutoDock Vina on a kinase target (e.g., ABL1 1IEP) against 100 ZINC molecules. Report top 10 by predicted ΔG. Manually inspect best pose; comment on plausibility.</li>
+          <li>Train a simple Chemprop GNN on a public dataset (BACE, BBBP). Report test R² or AUC. Identify two molecules where predictions are wildly wrong; discuss potential reasons.</li>
+          <li>For one drug development candidate of your choice, summarise the pre-clinical profile (PK, tox, animal efficacy) → IND filing → Phase 1 data. Identify the most challenging optimisation step.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Daylight Chemical Information Systems. SMILES specification (online).</li>
+          <li>Rogers, D., &amp; Hahn, M. (2010). Extended-connectivity fingerprints. <em>Journal of Chemical Information and Modeling</em> 50, 742–754.</li>
+          <li>Trott, O., &amp; Olson, A. J. (2010). AutoDock Vina: improving the speed and accuracy of docking. <em>Journal of Computational Chemistry</em> 31, 455–461.</li>
+          <li>Lipinski, C. A., et al. (1997). Experimental and computational approaches to estimate solubility and permeability in drug discovery and development settings. <em>Advanced Drug Delivery Reviews</em> 23, 3–25.</li>
+          <li>Bickerton, G. R., et al. (2012). Quantifying the chemical beauty of drugs. <em>Nature Chemistry</em> 4, 90–98.</li>
+          <li>Yang, K., et al. (2019). Analyzing learned molecular representations for property prediction. <em>Journal of Chemical Information and Modeling</em> 59, 3370–3388.</li>
+          <li>Olivecrona, M., et al. (2017). Molecular de-novo design through deep reinforcement learning. <em>Journal of Cheminformatics</em> 9, 48.</li>
+          <li>Corso, G., et al. (2022). DiffDock: diffusion steps, twists, and turns for molecular docking. <em>arXiv:2210.01776</em>.</li>
+          <li>RDKit: <a href="https://www.rdkit.org/" target="_blank" rel="noopener">rdkit.org</a></li>
+          <li>AutoDock Vina: <a href="https://vina.scripps.edu/" target="_blank" rel="noopener">vina.scripps.edu</a></li>
+          <li>Chemprop: <a href="https://chemprop.readthedocs.io/" target="_blank" rel="noopener">chemprop.readthedocs.io</a></li>
+          <li>ZINC database: <a href="https://zinc20.docking.org/" target="_blank" rel="noopener">zinc20.docking.org</a></li>
+          <li>ChEMBL: <a href="https://www.ebi.ac.uk/chembl/" target="_blank" rel="noopener">ebi.ac.uk/chembl</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — Drug Discovery Landscape</td>           <td>25&nbsp;min</td><td>0:25</td></tr>
+            <tr><td>Part 2 — Molecular Representations</td>          <td>30&nbsp;min</td><td>0:55</td></tr>
+            <tr><td>Part 3 — Fingerprints and Similarity</td>        <td>30&nbsp;min</td><td>1:25</td></tr>
+            <tr><td>Part 4 — Virtual Screening and Docking</td>      <td>40&nbsp;min</td><td>2:05</td></tr>
+            <tr><td>Part 5 — ADMET and Druglikeness</td>             <td>25&nbsp;min</td><td>2:30</td></tr>
+            <tr><td>Part 6 — Deep Learning for Drug Discovery</td>   <td>25&nbsp;min</td><td>2:55</td></tr>
+            <tr><td>Part 7 — From Hit to Drug</td>                    <td>20&nbsp;min</td><td>3:15</td></tr>
+            <tr><td>Wrap-up</td>                                       <td>10&nbsp;min</td><td>3:25</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 25min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) f.style.height = d.height + 'px';
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

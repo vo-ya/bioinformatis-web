@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pleiotropy Detector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .snp-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.85rem; }
+  .snp-table th, .snp-table td { padding: 0.5rem 0.7rem; border-bottom: 1px solid #e7e5e4; text-align: left; }
+  .snp-table th { background: #f5f5f4; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); }
+  .snp-table .pleio { background: #fee2e2; font-weight: 700; color: #7f1d1d; }
+  .snp-table .clean { background: #dcfce7; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Pleiotropy Detector</h1>
+    <p>For 20 candidate SNPs, check Egger residual + PheWAS-scan pattern. Drop the worst pleiotropic offenders before running MR. Aha: pleiotropy is detectable per-SNP; the goal is to drop the worst offenders before MR.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="exposure">Exposure</label>
+      <select id="exposure">
+        <option value="ldl" selected>LDL cholesterol</option>
+        <option value="bmi">BMI</option>
+        <option value="bp">Blood pressure</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="thresh">Pleiotropy z-score threshold</label>
+      <select id="thresh">
+        <option value="2.0" selected>|z| &gt; 2.0 (standard)</option>
+        <option value="2.5">|z| &gt; 2.5 (strict)</option>
+        <option value="3.0">|z| &gt; 3.0 (very strict)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="nClean">—</div><div class="l">Clean SNPs</div></div>
+    <div class="stat"><div class="v" id="nPleio" style="color:#dc2626">—</div><div class="l">Pleiotropic (drop)</div></div>
+    <div class="stat"><div class="v" id="ivwBefore">—</div><div class="l">IVW before / after</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Per-SNP residual + PheWAS profile</h3>
+    <table class="snp-table">
+      <thead><tr><th>SNP</th><th>Locus / nearest gene</th><th>Wald</th><th>Residual z</th><th>Other phenotypes hit</th><th>Verdict</th></tr></thead>
+      <tbody id="snpBody"></tbody>
+    </table>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. SNP profiles are calibrated against published LDL/BMI/BP MR analyses but values are simplified. Real pleiotropy detection uses MR-PRESSO + PhenoScanner + cis-trans annotation. Drop SNPs whose other-trait hits suggest a non-X causal pathway. Synthetic SNP names; not real loci.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const SCENARIOS = {
+    ldl: {
+      label: 'LDL cholesterol',
+      ivwBefore: 0.62, ivwAfter: 0.55,
+      snps: [
+        { snp: 'rs693', locus: 'APOB', wald: 0.55, z: 0.3, others: 'lipids only' },
+        { snp: 'rs7412', locus: 'APOE', wald: 0.58, z: 0.5, others: 'lipids, AD risk' },
+        { snp: 'rs429358', locus: 'APOE', wald: 0.50, z: 0.2, others: 'lipids, AD risk' },
+        { snp: 'rs6511720', locus: 'LDLR', wald: 0.56, z: 0.4, others: 'lipids only' },
+        { snp: 'rs11591147', locus: 'PCSK9', wald: 0.54, z: 0.1, others: 'lipids only' },
+        { snp: 'rs10455872', locus: 'LPA', wald: 1.42, z: 3.5, others: 'Lp(a), CAD-direct' },
+        { snp: 'rs3798220', locus: 'LPA', wald: 1.28, z: 2.8, others: 'Lp(a), CAD-direct' },
+        { snp: 'rs7903146', locus: 'TCF7L2', wald: 0.95, z: 2.2, others: 'T2D-direct' },
+        { snp: 'rs9939609', locus: 'FTO', wald: 0.85, z: 2.1, others: 'BMI, T2D' },
+        { snp: 'rs1421085', locus: 'FTO', wald: 0.82, z: 2.0, others: 'BMI, T2D' },
+        { snp: 'rs7522462', locus: 'NPC1L1', wald: 0.52, z: 0.3, others: 'lipids only' },
+        { snp: 'rs599839', locus: 'CELSR2', wald: 0.57, z: 0.4, others: 'lipids only' },
+        { snp: 'rs646776', locus: 'SORT1', wald: 0.55, z: 0.2, others: 'lipids only' },
+        { snp: 'rs17328057', locus: 'NCAN', wald: 0.50, z: 0.5, others: 'lipids, NAFLD' },
+        { snp: 'rs515135', locus: 'APOB', wald: 0.55, z: 0.3, others: 'lipids only' },
+        { snp: 'rs2228671', locus: 'LDLR', wald: 0.53, z: 0.6, others: 'lipids only' },
+        { snp: 'rs562338', locus: 'APOB', wald: 0.51, z: 0.5, others: 'lipids only' },
+        { snp: 'rs10401969', locus: 'TM6SF2', wald: 0.62, z: 1.4, others: 'lipids, NAFLD' },
+        { snp: 'rs58542926', locus: 'TM6SF2', wald: 0.60, z: 1.2, others: 'lipids, NAFLD' },
+        { snp: 'rs2954029', locus: 'TRIB1', wald: 0.55, z: 0.7, others: 'lipids only' }
+      ]
+    },
+    bmi: {
+      label: 'BMI',
+      ivwBefore: 0.45, ivwAfter: 0.38,
+      snps: [
+        { snp: 'rs9939609', locus: 'FTO', wald: 0.42, z: 0.3, others: 'BMI only' },
+        { snp: 'rs1558902', locus: 'FTO', wald: 0.41, z: 0.5, others: 'BMI only' },
+        { snp: 'rs1421085', locus: 'FTO', wald: 0.43, z: 0.4, others: 'BMI only' },
+        { snp: 'rs17782313', locus: 'MC4R', wald: 0.40, z: 0.2, others: 'BMI only' },
+        { snp: 'rs6548238', locus: 'TMEM18', wald: 0.39, z: 0.5, others: 'BMI only' },
+        { snp: 'rs1234415', locus: 'NEGR1', wald: 0.41, z: 0.6, others: 'BMI only' },
+        { snp: 'rs3128971', locus: 'HLA', wald: 1.20, z: 3.8, others: 'autoimmune, lipids' },
+        { snp: 'rs2243267', locus: 'IL10', wald: 0.95, z: 2.5, others: 'inflammation, CAD' },
+        { snp: 'rs7903146', locus: 'TCF7L2', wald: 0.85, z: 2.3, others: 'T2D-direct' },
+        { snp: 'rs2237892', locus: 'KCNQ1', wald: 0.80, z: 2.1, others: 'T2D-direct' },
+        { snp: 'rs10401969', locus: 'TM6SF2', wald: 0.55, z: 1.0, others: 'lipids' },
+        { snp: 'rs2206734', locus: 'CDKAL1', wald: 0.45, z: 0.7, others: 'BMI, T2D' },
+        { snp: 'rs10968576', locus: 'LRRN6C', wald: 0.42, z: 0.4, others: 'BMI only' },
+        { snp: 'rs7359397', locus: 'SH2B1', wald: 0.40, z: 0.3, others: 'BMI only' },
+        { snp: 'rs12970134', locus: 'MC4R', wald: 0.39, z: 0.5, others: 'BMI only' },
+        { snp: 'rs887912', locus: 'FANCL', wald: 0.41, z: 0.4, others: 'BMI only' },
+        { snp: 'rs11847697', locus: 'PRKD1', wald: 0.43, z: 0.6, others: 'BMI only' },
+        { snp: 'rs10182181', locus: 'ADCY3', wald: 0.40, z: 0.5, others: 'BMI only' },
+        { snp: 'rs2867125', locus: 'TMEM18', wald: 0.42, z: 0.4, others: 'BMI only' },
+        { snp: 'rs2287019', locus: 'GIPR', wald: 0.41, z: 0.5, others: 'BMI, T2D' }
+      ]
+    },
+    bp: {
+      label: 'Blood pressure',
+      ivwBefore: 0.52, ivwAfter: 0.48,
+      snps: [
+        { snp: 'rs9320001', locus: 'CYP1A2', wald: 0.50, z: 0.3, others: 'BP only' },
+        { snp: 'rs6749447', locus: 'GUCY1A3', wald: 0.48, z: 0.5, others: 'BP only' },
+        { snp: 'rs17249754', locus: 'ATP2B1', wald: 0.51, z: 0.2, others: 'BP only' },
+        { snp: 'rs2014408', locus: 'SOX6', wald: 0.49, z: 0.4, others: 'BP only' },
+        { snp: 'rs3814995', locus: 'NPR3', wald: 0.50, z: 0.3, others: 'BP only' },
+        { snp: 'rs1378942', locus: 'CSK', wald: 0.50, z: 0.4, others: 'BP only' },
+        { snp: 'rs4373814', locus: 'BAG6', wald: 1.30, z: 3.1, others: 'HLA, autoimmune' },
+        { snp: 'rs880315', locus: 'CASZ1', wald: 0.95, z: 2.5, others: 'BP, kidney' },
+        { snp: 'rs5068', locus: 'NPPA', wald: 0.85, z: 2.2, others: 'BP, lipids' },
+        { snp: 'rs1799884', locus: 'GCK', wald: 0.78, z: 2.0, others: 'glucose, T2D' },
+        { snp: 'rs10818488', locus: 'TRAF1', wald: 0.50, z: 0.4, others: 'BP only' },
+        { snp: 'rs11014166', locus: 'CACNB2', wald: 0.51, z: 0.3, others: 'BP only' },
+        { snp: 'rs419076', locus: 'MECOM', wald: 0.49, z: 0.5, others: 'BP only' },
+        { snp: 'rs1530440', locus: 'C10orf107', wald: 0.50, z: 0.3, others: 'BP only' },
+        { snp: 'rs381815', locus: 'PLEKHA7', wald: 0.49, z: 0.4, others: 'BP only' },
+        { snp: 'rs653178', locus: 'ATXN2', wald: 0.48, z: 0.6, others: 'BP only' },
+        { snp: 'rs17695092', locus: 'C17orf82', wald: 0.50, z: 0.4, others: 'BP only' },
+        { snp: 'rs932764', locus: 'PLCE1', wald: 0.51, z: 0.3, others: 'BP only' },
+        { snp: 'rs12940887', locus: 'ZNF652', wald: 0.49, z: 0.5, others: 'BP only' },
+        { snp: 'rs1004467', locus: 'CYP17A1', wald: 0.47, z: 0.7, others: 'BP only' }
+      ]
+    }
+  };
+
+  function update() {
+    const exp = $('exposure').value;
+    const thresh = parseFloat($('thresh').value);
+    const scn = SCENARIOS[exp];
+
+    let html = '';
+    let nClean = 0, nPleio = 0;
+    scn.snps.forEach(s => {
+      const isPleio = s.z >= thresh;
+      const cls = isPleio ? 'pleio' : 'clean';
+      if (isPleio) nPleio++; else nClean++;
+      html += `<tr class="${cls}">
+        <td>${s.snp}</td>
+        <td>${s.locus}</td>
+        <td>${s.wald.toFixed(2)}</td>
+        <td>${s.z.toFixed(1)}</td>
+        <td>${s.others}</td>
+        <td>${isPleio ? '✗ DROP' : '✓ keep'}</td>
+      </tr>`;
+    });
+    $('snpBody').innerHTML = html;
+    $('nClean').textContent = nClean;
+    $('nPleio').textContent = nPleio;
+    $('ivwBefore').textContent = `${scn.ivwBefore.toFixed(2)} → ${scn.ivwAfter.toFixed(2)}`;
+
+    let hint;
+    if (nPleio > 5) hint = `${nPleio} pleiotropic SNPs identified — substantial bias if not removed. Re-run IVW after dropping them.`;
+    else if (nPleio === 0) hint = `No SNPs flagged at this threshold — clean instrument set, IVW likely valid.`;
+    else hint = `${nPleio} SNPs to drop. Re-estimate IVW; the difference (${scn.ivwBefore.toFixed(2)} → ${scn.ivwAfter.toFixed(2)}) shows the bias contribution.`;
+    $('banner').innerHTML = `<strong>${scn.label}</strong> · ${nClean} clean SNPs · ${nPleio} pleiotropic.<span class="hint">${hint}</span>`;
+  }
+
+  ['exposure', 'thresh'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

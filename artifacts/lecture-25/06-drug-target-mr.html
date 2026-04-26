@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drug-Target MR Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.0rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 0.9rem 1.1rem; font-family: var(--font-mono); font-size: 0.92rem; margin-bottom: 0.75rem; }
+  .verdict.go { border-color: #059669; background: #f0fdf4; color: #065f46; }
+  .verdict.caution { border-color: #b45309; background: #fffbeb; color: #92400e; }
+  .verdict.nogo { border-color: #c4342c; background: #fef2f2; color: #7f1d1d; }
+  .phewas-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.85rem; }
+  .phewas-table th, .phewas-table td { padding: 0.5rem 0.7rem; border-bottom: 1px solid #e7e5e4; text-align: left; }
+  .phewas-table th { background: #f5f5f4; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); }
+  .phewas-table .target { background: #dcfce7; font-weight: 700; color: #065f46; }
+  .phewas-table .adverse { background: #fee2e2; color: #7f1d1d; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Drug-Target MR Explorer</h1>
+    <p>Pick a target gene; see cis-eQTL instruments, MR estimates per disease, and PheWAS side-effect scan. Aha: cis-MR de-risks drugs before clinical trials.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="target">Drug-target gene</label>
+      <select id="target">
+        <option value="pcsk9" selected>PCSK9 — LDL receptor regulator</option>
+        <option value="hmgcr">HMGCR — statin target</option>
+        <option value="il6r">IL6R — IL-6 receptor (tocilizumab)</option>
+        <option value="cetp">CETP — cholesterol transfer (anacetrapib)</option>
+        <option value="lpa">LPA — Lipoprotein(a)</option>
+        <option value="apoc3">APOC3 — apolipoprotein C-III</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="nIVs">—</div><div class="l">cis-eQTL IVs</div></div>
+    <div class="stat"><div class="v" id="primary">—</div><div class="l">Primary effect (β)</div></div>
+    <div class="stat"><div class="v" id="diseases">—</div><div class="l">Diseases affected</div></div>
+    <div class="stat"><div class="v" id="adverse" style="color:#dc2626">—</div><div class="l">Adverse signals</div></div>
+  </div>
+
+  <div class="verdict" id="verdict">—</div>
+
+  <div class="panel">
+    <h3>PheWAS scan — phenotype effects of cis-eQTL instruments</h3>
+    <table class="phewas-table">
+      <thead><tr><th>Phenotype</th><th>Type</th><th>β</th><th>p-value</th><th>Direction</th></tr></thead>
+      <tbody id="phewasBody"></tbody>
+    </table>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. Effect sizes calibrated against published cis-MR analyses (Holmes 2017, Schmidt 2020, Reay 2021). Real cis-MR uses TwoSampleMR + GTEx eQTLs + UK Biobank PheWAS. Clinical decisions need integrated evidence (GWAS, eQTL, MR, structural biology, animal data, and Phase I safety). Not for drug-development decisions.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const TARGETS = {
+    pcsk9: {
+      name: 'PCSK9', nIVs: 6,
+      verdictCls: 'go',
+      verdictMsg: '✓ GO: clean target. LDL effect ~ 0.42 SD; CAD effect ~ 0.55 SD; no adverse signals → green-light drug development.',
+      phenotypes: [
+        { ph: 'LDL cholesterol', type: 'target', beta: -0.42, p: 1e-50, dir: 'down (target effect)' },
+        { ph: 'Coronary artery disease', type: 'target', beta: -0.55, p: 1e-22, dir: 'down (therapeutic)' },
+        { ph: 'Stroke', type: 'related', beta: -0.20, p: 1e-4, dir: 'down (mild benefit)' },
+        { ph: 'Type 2 diabetes', type: '—', beta: 0.05, p: 0.18, dir: '— (no effect)' },
+        { ph: 'CKD', type: '—', beta: 0.02, p: 0.62, dir: '—' },
+        { ph: 'Cancer', type: '—', beta: 0.01, p: 0.85, dir: '—' },
+        { ph: 'Liver function (ALT)', type: '—', beta: 0.03, p: 0.32, dir: '—' },
+        { ph: 'Cognitive decline', type: '—', beta: -0.02, p: 0.71, dir: '—' }
+      ]
+    },
+    hmgcr: {
+      name: 'HMGCR', nIVs: 4,
+      verdictCls: 'caution',
+      verdictMsg: '△ CAUTION: clean LDL/CAD effect, but mild T2D risk signal (β = +0.10). Statins are FDA-approved despite this — manageable.',
+      phenotypes: [
+        { ph: 'LDL cholesterol', type: 'target', beta: -0.40, p: 1e-45, dir: 'down (target effect)' },
+        { ph: 'Coronary artery disease', type: 'target', beta: -0.52, p: 1e-20, dir: 'down (therapeutic)' },
+        { ph: 'Type 2 diabetes', type: 'adverse', beta: 0.10, p: 1e-3, dir: 'up (adverse)' },
+        { ph: 'Stroke', type: 'related', beta: -0.18, p: 1e-3, dir: 'down (mild benefit)' },
+        { ph: 'Cataracts', type: 'related', beta: 0.05, p: 0.04, dir: 'mild up' },
+        { ph: 'Liver enzymes', type: '—', beta: 0.04, p: 0.25, dir: '—' },
+        { ph: 'Cancer', type: '—', beta: -0.02, p: 0.66, dir: '—' }
+      ]
+    },
+    il6r: {
+      name: 'IL6R', nIVs: 5,
+      verdictCls: 'go',
+      verdictMsg: '✓ GO: protective effect on CAD via inflammation pathway. Some infection-risk signal (typical of immune-modulating drugs).',
+      phenotypes: [
+        { ph: 'CRP (inflammation)', type: 'target', beta: -0.50, p: 1e-60, dir: 'down (target)' },
+        { ph: 'Coronary artery disease', type: 'target', beta: -0.18, p: 1e-6, dir: 'down (protective)' },
+        { ph: 'Atrial fibrillation', type: 'related', beta: -0.08, p: 1e-3, dir: 'down (mild benefit)' },
+        { ph: 'Rheumatoid arthritis', type: 'target', beta: -0.35, p: 1e-15, dir: 'down (validated)' },
+        { ph: 'Infection (general)', type: 'adverse', beta: 0.08, p: 0.005, dir: 'up (mild adverse)' },
+        { ph: 'Cancer', type: '—', beta: 0.02, p: 0.42, dir: '—' },
+        { ph: 'Diabetes', type: '—', beta: 0.01, p: 0.85, dir: '—' }
+      ]
+    },
+    cetp: {
+      name: 'CETP', nIVs: 7,
+      verdictCls: 'caution',
+      verdictMsg: '△ CAUTION: HDL up + LDL down. Modest CAD reduction but multiple Phase III trial failures (off-target effects). Anacetrapib eventually shelved.',
+      phenotypes: [
+        { ph: 'HDL cholesterol', type: 'target', beta: 0.45, p: 1e-40, dir: 'up (target)' },
+        { ph: 'LDL cholesterol', type: 'target', beta: -0.20, p: 1e-15, dir: 'down (target)' },
+        { ph: 'Coronary artery disease', type: 'target', beta: -0.10, p: 1e-3, dir: 'down (mild therapeutic)' },
+        { ph: 'Triglycerides', type: 'related', beta: -0.15, p: 1e-8, dir: 'down (related)' },
+        { ph: 'Diabetes', type: '—', beta: 0.04, p: 0.15, dir: '—' },
+        { ph: 'Macular degeneration', type: 'adverse', beta: 0.10, p: 0.03, dir: 'up (mild adverse)' }
+      ]
+    },
+    lpa: {
+      name: 'LPA', nIVs: 4,
+      verdictCls: 'go',
+      verdictMsg: '✓ GO: clean cis-MR signal. Lp(a) reduction predicts CAD reduction. Pelacarsen in Phase III trials.',
+      phenotypes: [
+        { ph: 'Lipoprotein(a)', type: 'target', beta: -0.95, p: 1e-100, dir: 'down (target)' },
+        { ph: 'Coronary artery disease', type: 'target', beta: -0.32, p: 1e-12, dir: 'down (therapeutic)' },
+        { ph: 'Aortic stenosis', type: 'target', beta: -0.40, p: 1e-8, dir: 'down (therapeutic)' },
+        { ph: 'Stroke', type: 'related', beta: -0.10, p: 1e-3, dir: 'down (mild benefit)' },
+        { ph: 'LDL cholesterol', type: '—', beta: -0.05, p: 0.10, dir: '—' },
+        { ph: 'Diabetes', type: '—', beta: 0.01, p: 0.78, dir: '—' }
+      ]
+    },
+    apoc3: {
+      name: 'APOC3', nIVs: 5,
+      verdictCls: 'go',
+      verdictMsg: '✓ GO: triglyceride reduction predicts CAD reduction. Volanesorsen FDA-approved for FCS; ongoing trials for broader CAD use.',
+      phenotypes: [
+        { ph: 'Triglycerides', type: 'target', beta: -0.85, p: 1e-90, dir: 'down (target)' },
+        { ph: 'Coronary artery disease', type: 'target', beta: -0.22, p: 1e-7, dir: 'down (therapeutic)' },
+        { ph: 'HDL cholesterol', type: 'related', beta: 0.20, p: 1e-10, dir: 'up (related)' },
+        { ph: 'Pancreatitis', type: 'target', beta: -0.55, p: 1e-15, dir: 'down (severe-disease)' },
+        { ph: 'Diabetes', type: '—', beta: -0.05, p: 0.12, dir: '—' },
+        { ph: 'Liver enzymes', type: '—', beta: 0.03, p: 0.45, dir: '—' }
+      ]
+    }
+  };
+
+  function update() {
+    const t = $('target').value;
+    const data = TARGETS[t];
+    $('nIVs').textContent = data.nIVs;
+    const primary = data.phenotypes.find(p => p.type === 'target');
+    $('primary').textContent = primary ? primary.beta.toFixed(2) : '—';
+    const targetCount = data.phenotypes.filter(p => p.type === 'target').length;
+    const adverseCount = data.phenotypes.filter(p => p.type === 'adverse').length;
+    $('diseases').textContent = targetCount;
+    $('adverse').textContent = adverseCount;
+
+    $('verdict').className = 'verdict ' + data.verdictCls;
+    $('verdict').textContent = data.verdictMsg;
+
+    let html = '';
+    data.phenotypes.forEach(p => {
+      let cls = '';
+      if (p.type === 'target') cls = 'target';
+      else if (p.type === 'adverse') cls = 'adverse';
+      html += `<tr class="${cls}">
+        <td>${p.ph}</td>
+        <td>${p.type}</td>
+        <td>${p.beta >= 0 ? '+' : ''}${p.beta.toFixed(2)}</td>
+        <td>${p.p < 1e-3 ? p.p.toExponential(0) : p.p.toFixed(3)}</td>
+        <td>${p.dir}</td>
+      </tr>`;
+    });
+    $('phewasBody').innerHTML = html;
+
+    let hint;
+    if (data.verdictCls === 'go') hint = `Clean cis-MR signature — exposure-target effect aligned with disease benefit, no major adverse signals. Standard ${data.name} drug development decision.`;
+    else if (data.verdictCls === 'caution') hint = `Mixed signals — therapeutic benefit clear but some adverse side-effects flagged. Drug development goes ahead with safety monitoring (or shelved if too severe).`;
+    else hint = `Adverse signals dominate; drug development NO-GO unless mechanism can be tuned to avoid them.`;
+    $('banner').innerHTML = `<strong>${data.name}</strong> · ${data.nIVs} cis-IVs · ${targetCount} therapeutic effects · ${adverseCount} adverse.<span class="hint">${hint}</span>`;
+  }
+
+  $('target').addEventListener('change', update);
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

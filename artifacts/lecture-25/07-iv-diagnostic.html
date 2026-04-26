@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IV-Assumption Diagnostic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; width: 100%; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 0.9rem 1.1rem; font-family: var(--font-mono); font-size: 0.92rem; margin-bottom: 0.75rem; }
+  .verdict.valid { border-color: #059669; background: #f0fdf4; color: #065f46; }
+  .verdict.weak { border-color: #b45309; background: #fffbeb; color: #92400e; }
+  .verdict.invalid { border-color: #c4342c; background: #fef2f2; color: #7f1d1d; }
+  .iv-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.85rem; }
+  .iv-table th, .iv-table td { padding: 0.5rem 0.7rem; border-bottom: 1px solid #e7e5e4; text-align: left; }
+  .iv-table th { background: #f5f5f4; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); }
+  .iv-table .pass { background: #dcfce7; }
+  .iv-table .fail { background: #fee2e2; color: #7f1d1d; }
+  .iv-table .marg { background: #fef3c7; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>IV-Assumption Diagnostic</h1>
+    <p>For 5 candidate instruments, check F-statistic (relevance), confounder correlation (independence), and Steiger directionality (exclusion). Aha: each assumption maps to a measurable test; violations are diagnosable.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="set">Candidate IV set</label>
+      <select id="set">
+        <option value="clean" selected>Clean: 5 strong cis-eQTLs (LDL → CAD)</option>
+        <option value="weak">Weak: 5 SNPs with low F-stats</option>
+        <option value="pleio">Pleiotropic: 5 SNPs with horizontal effects</option>
+        <option value="mixed">Mixed: variety of issues</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">—</div>
+
+  <div class="panel">
+    <h3>Per-IV diagnostic table — three IV assumptions</h3>
+    <table class="iv-table">
+      <thead><tr><th>IV</th><th>F-stat (relevance)</th><th>r(C, Z) (independence)</th><th>Steiger (exclusion)</th><th>Verdict</th></tr></thead>
+      <tbody id="ivBody"></tbody>
+    </table>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. Each candidate IV is checked against the three core assumptions. F &gt; 10 = relevant; |r(C, Z)| &lt; 0.05 = independent; R²(Z, X) &gt; R²(Z, Y) = direction supported. Real diagnostics use proper SE-aware F, partial-correlation tests, and Steiger Z; this tool is illustrative.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const SETS = {
+    clean: {
+      verdictCls: 'valid',
+      verdictMsg: '✓ ALL 5 IVs PASS — strong cis-eQTLs at lipid-pathway genes. MR proceeds with confidence.',
+      ivs: [
+        { name: 'rs6511720', F: 240, rCZ: 0.01, steiger: 0.95 },
+        { name: 'rs693',     F: 180, rCZ: 0.02, steiger: 0.92 },
+        { name: 'rs429358',  F: 320, rCZ: 0.01, steiger: 0.96 },
+        { name: 'rs7412',    F: 410, rCZ: 0.02, steiger: 0.97 },
+        { name: 'rs11591147', F: 285, rCZ: 0.01, steiger: 0.94 }
+      ]
+    },
+    weak: {
+      verdictCls: 'weak',
+      verdictMsg: '✗ ALL 5 IVs FAIL relevance (F &lt; 10) — instruments are weak. MR is unreliable; consider polygenic score or skip MR.',
+      ivs: [
+        { name: 'rs1', F: 4.2, rCZ: 0.02, steiger: 0.85 },
+        { name: 'rs2', F: 3.1, rCZ: 0.02, steiger: 0.82 },
+        { name: 'rs3', F: 5.8, rCZ: 0.01, steiger: 0.88 },
+        { name: 'rs4', F: 2.5, rCZ: 0.03, steiger: 0.79 },
+        { name: 'rs5', F: 6.4, rCZ: 0.02, steiger: 0.83 }
+      ]
+    },
+    pleio: {
+      verdictCls: 'invalid',
+      verdictMsg: '✗ 4 of 5 IVs FAIL independence or exclusion — pleiotropic SNPs. Drop and re-test, or use MR-Egger / weighted median.',
+      ivs: [
+        { name: 'rs10455872', F: 380, rCZ: 0.18, steiger: 0.65 },
+        { name: 'rs3798220', F: 290, rCZ: 0.22, steiger: 0.55 },
+        { name: 'rs7903146', F: 195, rCZ: 0.15, steiger: 0.70 },
+        { name: 'rs1421085', F: 175, rCZ: 0.09, steiger: 0.72 },
+        { name: 'rs6511720', F: 240, rCZ: 0.01, steiger: 0.95 }
+      ]
+    },
+    mixed: {
+      verdictCls: 'weak',
+      verdictMsg: '△ MIXED: 2 valid, 1 weak, 2 pleiotropic. Use only the 2 valid IVs; expect wider CIs.',
+      ivs: [
+        { name: 'rs6511720', F: 240, rCZ: 0.01, steiger: 0.95 },
+        { name: 'rs429358',  F: 320, rCZ: 0.01, steiger: 0.96 },
+        { name: 'rs1',       F: 6.2, rCZ: 0.04, steiger: 0.85 },
+        { name: 'rs10455872', F: 380, rCZ: 0.20, steiger: 0.60 },
+        { name: 'rs7903146', F: 195, rCZ: 0.15, steiger: 0.70 }
+      ]
+    }
+  };
+
+  function update() {
+    const set = $('set').value;
+    const data = SETS[set];
+
+    let html = '';
+    let allPass = true, anyPass = false;
+    data.ivs.forEach(iv => {
+      const passF = iv.F >= 10;
+      const passC = Math.abs(iv.rCZ) < 0.05;
+      const passS = iv.steiger >= 0.85;
+      const allThree = passF && passC && passS;
+      let cls = '';
+      if (allThree) { cls = 'pass'; anyPass = true; }
+      else if (!passF || !passC || !passS) { cls = 'fail'; allPass = false; }
+      const verdict = allThree ? '✓ valid' : (!passF ? '✗ weak' : (!passS ? '✗ exclusion' : '✗ independence'));
+      html += `<tr class="${cls}">
+        <td>${iv.name}</td>
+        <td>${iv.F.toFixed(0)} ${passF ? '✓' : '✗'}</td>
+        <td>${iv.rCZ.toFixed(2)} ${passC ? '✓' : '✗'}</td>
+        <td>${iv.steiger.toFixed(2)} ${passS ? '✓' : '✗'}</td>
+        <td>${verdict}</td>
+      </tr>`;
+    });
+    $('ivBody').innerHTML = html;
+
+    $('verdict').className = 'verdict ' + data.verdictCls;
+    $('verdict').textContent = data.verdictMsg;
+
+    let hint;
+    if (data.verdictCls === 'valid') hint = 'All five IVs pass all three checks. Standard cis-MR with confidence.';
+    else if (data.verdictCls === 'weak' && set === 'weak') hint = 'F &lt; 10 means SNPs barely predict X — MR estimates biased toward null. Drop these IVs.';
+    else if (data.verdictCls === 'invalid') hint = 'Pleiotropic SNPs (high r(C, Z) or low Steiger) violate the third IV assumption. Use MR-Egger / weighted median for sensitivity.';
+    else hint = 'Mixed scenario: keep the valid IVs, drop the rest. Confidence interval widens but causal direction holds.';
+    $('banner').innerHTML = `Set <strong>${set}</strong>.<span class="hint">${hint}</span>`;
+  }
+
+  $('set').addEventListener('change', update);
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

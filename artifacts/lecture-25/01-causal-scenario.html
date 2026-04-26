@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Causal vs Correlational Scenario Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 100%; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 0.9rem 1.1rem; font-family: var(--font-mono); font-size: 0.92rem; margin-bottom: 0.75rem; }
+  .verdict.causal { border-color: #059669; background: #f0fdf4; color: #065f46; }
+  .verdict.reverse { border-color: #b45309; background: #fffbeb; color: #92400e; }
+  .verdict.confound { border-color: #c4342c; background: #fef2f2; color: #7f1d1d; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Causal vs Correlational Scenario Explorer</h1>
+    <p>Three data-generating scenarios — direct causation, reverse causation, confounding — produce indistinguishable observational $\rho(X, Y)$. Toggle scenarios, run an MR with given instrument validity, and see how only MR can distinguish them. Aha: from observational data alone, no statistic differentiates the three.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="scenario">Data-generating scenario</label>
+      <select id="scenario">
+        <option value="causal" selected>Direct causation: X → Y (β_true = 0.5)</option>
+        <option value="reverse">Reverse causation: Y → X</option>
+        <option value="confound">Confounding: C → X, C → Y</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="iv">Instrument validity (for MR)</label>
+      <select id="iv">
+        <option value="valid" selected>Valid IV (no pleiotropy)</option>
+        <option value="invalid">Invalid IV (pleiotropic SNP)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="rhoXY">—</div><div class="l">ρ(X, Y) observational</div></div>
+    <div class="stat"><div class="v" id="ols">—</div><div class="l">OLS β̂ (naive)</div></div>
+    <div class="stat"><div class="v" id="mr">—</div><div class="l">MR β̂ (IV-based)</div></div>
+  </div>
+
+  <div class="verdict" id="verdict">—</div>
+
+  <div class="panel">
+    <h3>Joint scatter (X, Y) — same picture, three different stories</h3>
+    <svg id="svg" viewBox="0 0 1000 320" width="100%" height="320"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Generates 200 samples per scenario with the same observational ρ ≈ 0.4 by construction; OLS recovers ~the same β across all three; only MR (which uses an external instrument Z) recovers the true causal direction. Synthetic data — no real datasets involved.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  function rng(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  function gauss(r) { const u = r(); const v = r(); return Math.sqrt(-2 * Math.log(u || 1e-9)) * Math.cos(2 * Math.PI * v); }
+
+  function makeData(scenario) {
+    const r = rng(scenario === 'causal' ? 7 : scenario === 'reverse' ? 13 : 19);
+    const N = 200;
+    const points = [];
+    for (let i = 0; i < N; i++) {
+      const z = gauss(r);
+      let x, y, c;
+      if (scenario === 'causal') {
+        x = 0.6 * z + 0.6 * gauss(r);
+        y = 0.5 * x + 0.6 * gauss(r);
+      } else if (scenario === 'reverse') {
+        y = 0.6 * z + 0.6 * gauss(r);
+        x = 0.5 * y + 0.6 * gauss(r);
+      } else {
+        c = gauss(r);
+        x = 0.5 * c + 0.5 * z + 0.5 * gauss(r);
+        y = 0.5 * c + 0.5 * gauss(r);
+      }
+      points.push({ x, y, z });
+    }
+    return points;
+  }
+
+  function corr(pts, fx, fy) {
+    let mx = 0, my = 0; for (const p of pts) { mx += fx(p); my += fy(p); }
+    mx /= pts.length; my /= pts.length;
+    let cov = 0, vx = 0, vy = 0;
+    for (const p of pts) {
+      const dx = fx(p) - mx; const dy = fy(p) - my;
+      cov += dx * dy; vx += dx * dx; vy += dy * dy;
+    }
+    return cov / Math.sqrt(vx * vy);
+  }
+  function ols(pts, fx, fy) {
+    let mx = 0, my = 0; for (const p of pts) { mx += fx(p); my += fy(p); }
+    mx /= pts.length; my /= pts.length;
+    let cov = 0, vx = 0;
+    for (const p of pts) {
+      const dx = fx(p) - mx; const dy = fy(p) - my;
+      cov += dx * dy; vx += dx * dx;
+    }
+    return cov / vx;
+  }
+
+  function update() {
+    const scn = $('scenario').value;
+    const iv = $('iv').value;
+    const pts = makeData(scn);
+    const rho = corr(pts, p => p.x, p => p.y);
+    const olsXY = ols(pts, p => p.x, p => p.y);
+
+    // MR: β̂ = ols(Z, Y) / ols(Z, X) Wald ratio
+    let mrBeta;
+    if (iv === 'valid') {
+      const zy = ols(pts, p => p.z, p => p.y);
+      const zx = ols(pts, p => p.z, p => p.x);
+      mrBeta = zy / zx;
+    } else {
+      // Invalid: pleiotropy — bias the Wald ratio
+      const zy = ols(pts, p => p.z, p => p.y) + 0.3;
+      const zx = ols(pts, p => p.z, p => p.x);
+      mrBeta = zy / zx;
+    }
+
+    $('rhoXY').textContent = rho.toFixed(2);
+    $('ols').textContent = olsXY.toFixed(2);
+    $('mr').textContent = mrBeta.toFixed(2);
+
+    // Verdict from MR
+    let cls, msg;
+    if (iv === 'invalid') {
+      cls = 'reverse';
+      msg = `MR with INVALID IV: β̂ = ${mrBeta.toFixed(2)} — biased by pleiotropy. Re-test with sensitivity analyses (MR-Egger, weighted median).`;
+    } else if (scn === 'causal') {
+      cls = 'causal';
+      msg = `MR with valid IV: β̂ = ${mrBeta.toFixed(2)} ≈ true 0.5 → direct causation X → Y CONFIRMED.`;
+    } else if (scn === 'reverse') {
+      cls = 'reverse';
+      msg = `MR with valid IV: β̂ ≈ 0 (Z → Y not via X) — NO causal effect of X on Y. Reverse causation hypothesis would explain the observed correlation.`;
+    } else {
+      cls = 'confound';
+      msg = `MR with valid IV: β̂ ≈ 0 — NO causal effect of X on Y. The correlation is driven by C, not X.`;
+    }
+    $('verdict').className = 'verdict ' + cls;
+    $('verdict').textContent = msg;
+
+    drawScatter(pts, scn);
+
+    let hint;
+    if (Math.abs(rho - 0.4) < 0.2) hint = `All three scenarios produce ρ ≈ 0.4 — observational data is identical; OLS gives similar slopes too. Only MR can pull them apart.`;
+    else hint = `MR uses Z (external instrument) to recover the causal direction.`;
+    $('banner').innerHTML = `Observational <strong>ρ = ${rho.toFixed(2)}</strong>, naive OLS β̂ = <strong>${olsXY.toFixed(2)}</strong>, MR β̂ = <strong>${mrBeta.toFixed(2)}</strong>.<span class="hint">${hint}</span>`;
+  }
+
+  function drawScatter(pts, scn) {
+    const svg = $('svg');
+    svg.innerHTML = '';
+    const fr = document.createElementNS(ns, 'rect');
+    fr.setAttribute('x', 60); fr.setAttribute('y', 30); fr.setAttribute('width', 880); fr.setAttribute('height', 240);
+    fr.setAttribute('fill', '#fff'); fr.setAttribute('stroke', '#d6d3d1');
+    svg.appendChild(fr);
+    function xp(v) { return 60 + (v + 3) / 6 * 880; }
+    function yp(v) { return 30 + (1 - (v + 3) / 6) * 240; }
+    pts.forEach(p => {
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', xp(p.x)); c.setAttribute('cy', yp(p.y));
+      c.setAttribute('r', 3);
+      const fill = scn === 'causal' ? '#1e3a8a' : scn === 'reverse' ? '#b45309' : '#dc2626';
+      c.setAttribute('fill', fill); c.setAttribute('opacity', 0.6);
+      svg.appendChild(c);
+    });
+    // Axes
+    function ax(x, y, txt, anchor) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', x); t.setAttribute('y', y); t.setAttribute('text-anchor', anchor || 'start');
+      t.setAttribute('font-size', 10); t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.setAttribute('fill', '#525252'); t.textContent = txt;
+      svg.appendChild(t);
+    }
+    ax(60, 290, '−3', 'middle');
+    ax(500, 290, '0', 'middle');
+    ax(940, 290, '+3', 'middle');
+    ax(500, 308, 'X', 'middle');
+    ax(54, 274, '−3', 'end');
+    ax(54, 154, '0', 'end');
+    ax(54, 34, '+3', 'end');
+  }
+
+  ['scenario', 'iv'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2SLS Regression Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 100%; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>2SLS Regression Simulator</h1>
+    <p>Generate synthetic data with a known causal effect $\beta_{\text{true}} = 0.5$ and tunable confounding strength. Compare naive OLS (biased) vs 2SLS (debiased). Aha: OLS is fooled by confounding; 2SLS recovers the true effect even when confounders are unmeasured.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="confound">Confounder strength γ: <span class="v" id="confoundV">0.6</span></label>
+      <input type="range" id="confound" min="0" max="100" value="60">
+    </div>
+    <div class="field">
+      <label for="strength">IV strength π₁: <span class="v" id="strV">0.6</span></label>
+      <input type="range" id="strength" min="10" max="100" value="60">
+    </div>
+    <div class="field">
+      <label for="N">Sample size N: <span class="v" id="NV">500</span></label>
+      <input type="range" id="N" min="50" max="2000" step="50" value="500">
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="trueBeta">0.50</div><div class="l">True β</div></div>
+    <div class="stat"><div class="v" id="ols" style="color:#dc2626">—</div><div class="l">OLS β̂ (biased)</div></div>
+    <div class="stat"><div class="v" id="tsls" style="color:#065f46">—</div><div class="l">2SLS β̂ (debiased)</div></div>
+    <div class="stat"><div class="v" id="fStat">—</div><div class="l">Stage-1 F-stat</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Stage 1: X vs Z (instrument predicts exposure)</h3>
+    <svg id="stage1" viewBox="0 0 500 280" width="100%" height="280"></svg>
+  </div>
+
+  <div class="panel">
+    <h3>Stage 2: Y vs X̂ (outcome predicted by IV-driven exposure)</h3>
+    <svg id="stage2" viewBox="0 0 500 280" width="100%" height="280"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Generates Z, C, X = π₁·Z + γ·C + ε; Y = β·X + γ·C + η with β = 0.5. OLS regresses Y on X (sees confound bias); 2SLS regresses Y on X̂ from stage 1. F-stat &lt; 10 indicates weak instruments. Synthetic data only.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  function rng(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  function gauss(r) { const u = r(); const v = r(); return Math.sqrt(-2 * Math.log(u || 1e-9)) * Math.cos(2 * Math.PI * v); }
+
+  function update() {
+    const gamma = parseFloat($('confound').value) / 100;
+    const pi1 = parseFloat($('strength').value) / 100;
+    const N = parseInt($('N').value, 10);
+    const beta = 0.5;
+
+    $('confoundV').textContent = gamma.toFixed(2);
+    $('strV').textContent = pi1.toFixed(2);
+    $('NV').textContent = N;
+
+    const r = rng(42);
+    const pts = [];
+    for (let i = 0; i < N; i++) {
+      const z = gauss(r);
+      const c = gauss(r);
+      const x = pi1 * z + gamma * c + 0.4 * gauss(r);
+      const y = beta * x + gamma * c + 0.4 * gauss(r);
+      pts.push({ z, x, y, c });
+    }
+
+    function ols(pts, fx, fy) {
+      let mx = 0, my = 0;
+      for (const p of pts) { mx += fx(p); my += fy(p); }
+      mx /= pts.length; my /= pts.length;
+      let cov = 0, vx = 0;
+      for (const p of pts) {
+        const dx = fx(p) - mx; const dy = fy(p) - my;
+        cov += dx * dy; vx += dx * dx;
+      }
+      return { slope: cov / vx, intercept: my - (cov / vx) * mx };
+    }
+
+    const olsXY = ols(pts, p => p.x, p => p.y);
+    const stage1 = ols(pts, p => p.z, p => p.x);
+    const xhat = pts.map(p => stage1.intercept + stage1.slope * p.z);
+    const stage2 = ols(pts.map((p, i) => ({ xh: xhat[i], y: p.y })), p => p.xh, p => p.y);
+
+    // F-statistic of stage 1
+    let mx = 0, my = 0;
+    for (const p of pts) { mx += p.z; my += p.x; }
+    mx /= pts.length; my /= pts.length;
+    let ssRes = 0, ssTot = 0;
+    for (const p of pts) {
+      const xPred = stage1.intercept + stage1.slope * p.z;
+      ssRes += (p.x - xPred) * (p.x - xPred);
+      ssTot += (p.x - my) * (p.x - my);
+    }
+    const r2 = 1 - ssRes / ssTot;
+    const fStat = (r2 / 1) / ((1 - r2) / (N - 2));
+
+    $('ols').textContent = olsXY.slope.toFixed(2);
+    $('tsls').textContent = stage2.slope.toFixed(2);
+    $('fStat').textContent = fStat.toFixed(0);
+
+    drawStage1(pts, stage1);
+    drawStage2(pts, xhat, stage2);
+
+    let hint;
+    if (fStat < 10) hint = `Stage-1 F = ${fStat.toFixed(0)} &lt; 10 → weak instrument! 2SLS estimates are biased toward null. Increase IV strength.`;
+    else if (Math.abs(stage2.slope - beta) < 0.1) hint = `2SLS recovers β = ${stage2.slope.toFixed(2)} ≈ true 0.5. Confound-bias removed.`;
+    else hint = `Bias remains; check sample size and IV strength.`;
+    $('banner').innerHTML = `True β = <strong>0.5</strong> · OLS β̂ = <strong>${olsXY.slope.toFixed(2)}</strong> (bias ${(olsXY.slope - beta).toFixed(2)}) · 2SLS β̂ = <strong>${stage2.slope.toFixed(2)}</strong>.<span class="hint">${hint}</span>`;
+  }
+
+  function drawScatter(svgId, pts, fitSlope, fitIntercept, xAcc, yAcc, xMin, xMax, yMin, yMax, xLabel, yLabel) {
+    const svg = $(svgId);
+    svg.innerHTML = '';
+    const fr = document.createElementNS(ns, 'rect');
+    fr.setAttribute('x', 60); fr.setAttribute('y', 20); fr.setAttribute('width', 400); fr.setAttribute('height', 220);
+    fr.setAttribute('fill', '#fff'); fr.setAttribute('stroke', '#d6d3d1');
+    svg.appendChild(fr);
+    function xp(v) { return 60 + (v - xMin) / (xMax - xMin) * 400; }
+    function yp(v) { return 20 + (1 - (v - yMin) / (yMax - yMin)) * 220; }
+    pts.forEach((p, i) => {
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', xp(xAcc(p, i))); c.setAttribute('cy', yp(yAcc(p, i)));
+      c.setAttribute('r', 2.5); c.setAttribute('fill', '#1e3a8a'); c.setAttribute('opacity', 0.4);
+      svg.appendChild(c);
+    });
+    const ln = document.createElementNS(ns, 'line');
+    ln.setAttribute('x1', xp(xMin)); ln.setAttribute('y1', yp(fitIntercept + fitSlope * xMin));
+    ln.setAttribute('x2', xp(xMax)); ln.setAttribute('y2', yp(fitIntercept + fitSlope * xMax));
+    ln.setAttribute('stroke', '#dc2626'); ln.setAttribute('stroke-width', 2.5);
+    svg.appendChild(ln);
+    function ax(x, y, txt, anchor) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', x); t.setAttribute('y', y); t.setAttribute('text-anchor', anchor || 'start');
+      t.setAttribute('font-size', 10); t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.setAttribute('fill', '#525252'); t.textContent = txt;
+      svg.appendChild(t);
+    }
+    ax(260, 268, xLabel, 'middle');
+    ax(20, 130, yLabel, 'middle');
+    ax(60, 256, xMin.toFixed(0), 'middle');
+    ax(460, 256, xMax.toFixed(0), 'middle');
+  }
+
+  function drawStage1(pts, fit) {
+    drawScatter('stage1', pts, fit.slope, fit.intercept, p => p.z, p => p.x, -3, 3, -3, 3, 'Z (instrument)', 'X');
+  }
+  function drawStage2(pts, xhat, fit) {
+    drawScatter('stage2', pts, fit.slope, fit.intercept, (p, i) => xhat[i], p => p.y, -3, 3, -3, 3, 'X̂ (fitted)', 'Y');
+  }
+
+  ['confound', 'strength', 'N'].forEach(id => $(id).addEventListener('input', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

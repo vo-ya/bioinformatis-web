@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 27 — Mass-Spectrometry Proteomics + Metabolomics · Bioinformatics for EE</title>
+  <meta name="description" content="LC-MS/MS workflow, peptide identification by database search, target-decoy FDR, DDA vs DIA acquisition, label-free + SILAC + TMT quantification, plasma biomarker discovery, chemoproteomics, and a metabolomics primer.">
+
+  <meta property="og:title" content="Lecture 27 — Mass-Spectrometry Proteomics + Metabolomics">
+  <meta property="og:description" content="Spectra as 1D signals · peptide ID as constrained matched-filter search · DIA as compressed sensing · PTMs as codebook expansion. From plasma to phosphoproteome.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — From Spectrum to Peptide</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 Why proteins, not just transcripts</a></li>
+          <li><a href="#sec-1-2">1.2 The LC-MS/MS instrument</a></li>
+          <li><a href="#sec-1-3">1.3 The fragmentation spectrum</a></li>
+          <li><a href="#sec-1-4">1.4 Database search</a></li>
+          <li><a href="#sec-1-5">1.5 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Acquisition Modes</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 Data-dependent (DDA)</a></li>
+          <li><a href="#sec-2-2">2.2 Data-independent (DIA)</a></li>
+          <li><a href="#sec-2-3">2.3 Targeted (MRM / PRM)</a></li>
+          <li><a href="#sec-2-4">2.4 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — Identification and FDR</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Target-decoy strategy</a></li>
+          <li><a href="#sec-3-2">3.2 Protein inference</a></li>
+          <li><a href="#sec-3-3">3.3 PTMs and modifications</a></li>
+          <li><a href="#sec-3-4">3.4 Phosphoproteomics</a></li>
+          <li><a href="#sec-3-5">3.5 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Quantification</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 Label-free (LFQ)</a></li>
+          <li><a href="#sec-4-2">4.2 SILAC</a></li>
+          <li><a href="#sec-4-3">4.3 TMT and iTRAQ</a></li>
+          <li><a href="#sec-4-4">4.4 The DIA quantification advantage</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Statistical Analysis</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 The protein matrix</a></li>
+          <li><a href="#sec-5-2">5.2 Differential abundance</a></li>
+          <li><a href="#sec-5-3">5.3 Missing values</a></li>
+          <li><a href="#sec-5-4">5.4 Pathway analysis</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Applications</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 Biomarker discovery</a></li>
+          <li><a href="#sec-6-2">6.2 Chemoproteomics</a></li>
+          <li><a href="#sec-6-3">6.3 Structural proteomics</a></li>
+          <li><a href="#sec-6-4">6.4 Single-cell proteomics</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-65">Part 6.5 — Metabolomics Primer</a>
+        <ol>
+          <li><a href="#sec-65-1">6.5.1 What metabolomics measures</a></li>
+          <li><a href="#sec-65-2">6.5.2 LC-MS for metabolites</a></li>
+          <li><a href="#sec-65-3">6.5.3 Identification challenges</a></li>
+          <li><a href="#sec-65-4">6.5.4 Targeted vs untargeted</a></li>
+          <li><a href="#sec-65-5">6.5.5 Lipidomics</a></li>
+          <li><a href="#sec-65-6">6.5.6 Multi-omics integration</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — Tools and Pitfalls</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 The 2024 stack</a></li>
+          <li><a href="#sec-7-2">7.2 Common pitfalls</a></li>
+          <li><a href="#sec-7-3">7.3 Reproducibility</a></li>
+          <li><a href="#sec-7-4">7.4 The 2024 frontier</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="26" x2="38" y2="46" stroke="#1e3a8a" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="30" x2="46" y2="42" stroke="#7c3aed" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-text">Bioinformatics for Engineers</span>
+    </a>
+
+    <article class="lecture-prose lecture-article">
+
+      <header class="lecture-header">
+        <p class="lecture-header-eyebrow">Lecture 27</p>
+        <h1 class="lecture-header-title">Mass-Spectrometry Proteomics + Metabolomics</h1>
+        <p class="lecture-header-summary">
+          RNA-seq counts transcripts; mass spectrometry counts the proteins that actually do the work — and the metabolites that show what the proteins did. LC-MS/MS turns proteins into peptides, ionises them, fragments them along the backbone, and matches the resulting b/y peaks to a database. Target-decoy gives the false-discovery rate; DDA and DIA give two ways to acquire spectra; LFQ, SILAC, and TMT give three ways to quantify. Then PTMs, plasma biomarkers, chemoproteomics — and metabolomics, where ~30–50% of peaks are still unidentified. The whole field is matched-filter detection in EE clothing.
+        </p>
+        <p class="lecture-header-meta">
+          ≈&nbsp;3h&nbsp;25min · 13&nbsp;figures · 7&nbsp;interactive tools
+        </p>
+      </header>
+
+      <!-- ─── Learning objectives ──────────────────────────── -->
+      <section id="objectives">
+        <h2>Learning objectives</h2>
+        <ol>
+          <li>Describe the principles of LC-MS/MS for proteomic measurement: digestion, separation, ionisation, fragmentation, mass analysis.</li>
+          <li>Distinguish bottom-up, top-down, and middle-down proteomics; describe DDA vs DIA acquisition.</li>
+          <li>Run a basic peptide identification: spectra → database search → protein inference → FDR filtering.</li>
+          <li>Apply quantification methods (LFQ, SILAC, TMT, iTRAQ) and recognise their statistical properties.</li>
+          <li>Distinguish proteomics from RNA-seq: protein vs mRNA correlation, PTMs, splice isoforms, secretome.</li>
+          <li>Describe key proteomics applications: biomarker discovery, drug target validation (chemoproteomics), structural proteomics.</li>
+          <li>Frame MS proteomics in EE terms: spectra as 1D signals; peptide ID as constrained search; DIA as compressed sensing on a peptide-coverage matrix.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ───────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>Part 1 — From Mass Spectrum to Peptide</h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 Why proteins, not just transcripts</h3>
+          <p>RNA-seq measures <strong>transcript abundance</strong>. But protein abundance is what does the work in cells. The correlation between mRNA and protein abundance is surprisingly low (typically $r = 0.4$–$0.6$ across genes), driven by:</p>
+          <ul>
+            <li><strong>Translation efficiency</strong>: some transcripts are heavily translated; others sit unused.</li>
+            <li><strong>Post-translational modifications</strong>: phosphorylation, acetylation, ubiquitination radically change protein function without changing transcript count.</li>
+            <li><strong>Protein degradation</strong>: some proteins are short-lived; others persist for days.</li>
+            <li><strong>Secretion</strong>: cytokines and hormones are biology-defining but not present in the cell that made them.</li>
+            <li><strong>Splice isoforms</strong> at the protein level — which protein isoform is actually produced?</li>
+          </ul>
+          <p>Many drug targets and disease biomarkers are inferred from protein-level signals that RNA-seq alone misses.</p>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 The LC-MS/MS instrument</h3>
+          <p>The dominant proteomics workflow is <strong>liquid chromatography coupled to tandem mass spectrometry</strong>:</p>
+          <ol>
+            <li><strong>Protein extraction</strong>: from cell, tissue, plasma.</li>
+            <li><strong>Tryptic digestion</strong>: trypsin cleaves proteins after K and R into peptides ~5–25 residues.</li>
+            <li><strong>LC separation</strong>: peptides flow through a reverse-phase column over ~1–3 hours and elute at characteristic times.</li>
+            <li><strong>Ionisation (ESI)</strong>: peptides aerosolised + ionised in electrospray.</li>
+            <li><strong>MS1 scan</strong>: parent peptide masses measured.</li>
+            <li><strong>MS/MS</strong>: selected peptides fragmented (typically by HCD); fragment ions measured.</li>
+            <li><strong>Detector</strong>: ion counts, $m/z$ resolved.</li>
+          </ol>
+          <p>Result: thousands of MS2 spectra per sample, each (typically) a fragment-ion pattern from one peptide.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-27/01-lc-ms-ms.svg" alt="LC-MS/MS workflow: lysis → trypsin → LC → ESI → MS1 → MS2 → spectra → search → quantification.">
+            <figcaption><strong>Figure 1.</strong> LC-MS/MS workflow end-to-end: from cells to a protein × sample abundance matrix. Side annotations show typical scales (~50,000 peptides per run, ~$300/sample).</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 The fragmentation spectrum</h3>
+          <p>In MS2, peptides fragment along the peptide backbone, producing <strong>b-ions</strong> (N-terminal fragments) and <strong>y-ions</strong> (C-terminal fragments). For a peptide LSDPYHRGSP:</p>
+          <ul>
+            <li>$y_1$: P (singleton C-terminal). $y_2$: SP. $y_3$: GSP. ...</li>
+            <li>$b_1$: L. $b_2$: LS. $b_3$: LSD. ...</li>
+          </ul>
+          <p>Each fragment has a calculable mass. The full b/y series gives the sequence. A real MS2 spectrum has these masses plus many low-intensity noise peaks; identification means matching observed fragment masses to a candidate peptide's predicted spectrum.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-27/08-fragmentation.svg" alt="Peptide LSDPYHRGSP with b- and y-ion cleavage points marked, plus the predicted MS2 spectrum showing b-ions in cobalt and y-ions in red.">
+            <figcaption><strong>Figure 8.</strong> Peptide fragmentation: each backbone cleavage produces a b/y pair; the full series uniquely identifies the sequence.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-27/01-fragment-calculator.html" loading="lazy" title="Artifact 1 — Peptide Fragment Ion Calculator"></iframe>
+            <figcaption><strong>Artifact 1 — Peptide Fragment Ion Calculator.</strong> Type a peptide (or use LSDPYHRGSP), see all b/y masses + the predicted MS2 stick spectrum. <em>Aha</em>: identification = matching observed peaks to predicted b/y; the full series uniquely determines the sequence.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 Database search</h3>
+          <p>Given an observed MS2 spectrum and a protein database (e.g., UniProt human reference):</p>
+          <ol>
+            <li>In silico digest all proteins → candidate peptides.</li>
+            <li>For each candidate, predict the theoretical b/y fragment masses.</li>
+            <li>Score against the observed spectrum (cross-correlation or related).</li>
+            <li>Best-scoring candidate = peptide identification.</li>
+          </ol>
+          <p>Tools: <strong>Mascot</strong> (commercial, classic), <strong>MaxQuant</strong> (free, dominant), <strong>MS-Fragger</strong> (fast, modern), <strong>Comet</strong>.</p>
+        </section>
+
+        <section id="sec-1-5">
+          <h3>1.5 The deep dive — peptide identification as constrained matched filtering</h3>
+          <blockquote>
+            An MS2 spectrum is a 1D signal: $m/z$ on the x-axis, intensity on the y-axis. A candidate peptide's theoretical spectrum is a discrete set of expected peaks. Identification is matched-filter detection — does the candidate's predicted-peak pattern correlate with the observed signal? The constraint is <strong>enzyme-specific</strong>: only peptides ending in K or R (after trypsin) are candidates. Modern tools combine matched-filter scoring with statistical models (target-decoy FDR estimation).
+          </blockquote>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ───────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>Part 2 — Acquisition Modes (DDA vs DIA)</h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 Data-dependent acquisition (DDA)</h3>
+          <p>The classical mode:</p>
+          <ul>
+            <li>MS1 scan: identify the most abundant peptide masses.</li>
+            <li>Pick the top-N (typically $N = 10$–$20$) most intense MS1 peaks.</li>
+            <li>Fragment each in MS2 sequentially.</li>
+            <li>Repeat throughout the LC gradient.</li>
+          </ul>
+          <p><strong>Advantages</strong>: well-validated, mature pipelines. <strong>Limitations</strong>: stochastic — if a peptide isn't in the top-N at some moment, it's missed. Peptide coverage varies between samples.</p>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 Data-independent acquisition (DIA)</h3>
+          <p>Modern alternative:</p>
+          <ul>
+            <li>MS1 scan as before.</li>
+            <li>Instead of picking specific peaks, <strong>systematically fragment all peptides in defined m/z windows</strong> (e.g., 20-Da windows from 400 to 1200 m/z = 40 windows).</li>
+            <li>Each MS2 spectrum is a "co-fragmented mixture" — multiple peptides fragmenting simultaneously in the window.</li>
+            <li>Identification: deconvolve the mixture using a peptide library or de novo.</li>
+          </ul>
+          <p><strong>Advantages</strong>: deterministic peptide coverage; reproducible across samples. <strong>Limitations</strong>: chimeric spectra need deconvolution; needs a spectral library or DIA-NN. DIA is becoming dominant for clinical / cohort-scale proteomics where reproducibility matters.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-27/02-dda-vs-dia.svg" alt="DDA selectively fragments only top-N MS1 peaks; DIA fragments every peptide in fixed m/z windows. Reproducibility across replicates is much higher for DIA.">
+            <figcaption><strong>Figure 2.</strong> DDA picks; DIA scans. DIA's deterministic acquisition trades chimeric spectra for replicate concordance.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Targeted acquisition (MRM / PRM)</h3>
+          <p>For absolute quantification of a few specific peptides:</p>
+          <ul>
+            <li><strong>MRM (Multiple Reaction Monitoring)</strong>: triple-quadrupole MS; measure specific precursor → fragment pairs.</li>
+            <li><strong>PRM (Parallel Reaction Monitoring)</strong>: high-resolution variant.</li>
+          </ul>
+          <p>Used for clinical biomarker quantification (e.g., troponin I, BNP) where precision matters more than coverage.</p>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 The deep dive — DIA as compressed sensing</h3>
+          <blockquote>
+            In DIA, each MS2 spectrum is a <strong>superposition</strong> of peptide fragmentation patterns. The acquisition matrix is sparse — only peptides in the m/z window contribute. Identification is solving a sparse-recovery problem: find the smallest set of library peptides whose theoretical spectra explain the observed spectrum. This is structurally identical to <strong>compressed sensing</strong>: a sparse signal, an under-determined linear system, recovered via $\ell_1$ / sparse-coding approaches. Modern DIA tools (DIA-NN, Spectronaut, OpenSWATH) implement this with neural-network-trained spectral libraries.
+          </blockquote>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-27/02-dda-vs-dia.html" loading="lazy" title="Artifact 2 — DDA vs DIA Acquisition Simulator"></iframe>
+            <figcaption><strong>Artifact 2 — DDA vs DIA Acquisition Simulator.</strong> Tune top-N (DDA) or window count (DIA) and watch the per-replicate identification overlap shift. <em>Aha</em>: increasing top-N still leaves stochastic gaps; DIA at 40 windows already gets 85%+ replicate concordance.</figcaption>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ───────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>Part 3 — Identification and FDR</h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 Target-decoy strategy</h3>
+          <p>How do we know how many false identifications we have?</p>
+          <p><strong>Target-decoy</strong>: search not only against the real protein database (target) but also against a reverse / shuffled database (decoy). Decoy hits are by definition false. Compute $\text{FDR} = \text{decoy hits} / \text{target hits}$ at any score threshold.</p>
+          <p>Classical threshold: <strong>FDR &lt; 1%</strong> at the peptide level. This generalises to FDR-based ML scorers like <strong>Percolator</strong> (Käll 2007): train a classifier on target/decoy features and use the predicted score for ranking.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-27/09-target-decoy.svg" alt="Target and decoy score distributions overlapping; sliding the score threshold trades sensitivity for FDR; 1% FDR cutoff marked.">
+            <figcaption><strong>Figure 9.</strong> Target-decoy FDR estimation: decoys are false by construction; their rate scales with the target false-positive rate.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-27/03-target-decoy.html" loading="lazy" title="Artifact 3 — Target-Decoy FDR Explorer"></iframe>
+            <figcaption><strong>Artifact 3 — Target-Decoy FDR Explorer.</strong> Drag the score threshold and watch target hits, decoy hits, and FDR co-move. <em>Aha</em>: 1% FDR is not free — tightening the threshold trades sensitivity for specificity, and the trade is steepest near the score-distribution overlap.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Protein inference</h3>
+          <p>Peptides identify proteins, but:</p>
+          <ul>
+            <li>A peptide can be shared across multiple proteins (peptide ambiguity).</li>
+            <li>A protein with no unique peptides cannot be unambiguously identified.</li>
+          </ul>
+          <p><strong>Razor peptide assignment</strong>: shared peptides assigned to the protein with the most unique peptides. <strong>Protein FDR</strong>: separately controlled (typically also &lt; 1%); often more stringent than peptide FDR.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-27/03-ms2-id.svg" alt="MS2 spectrum with annotated b/y peaks for LSDPYHRGSP, target-decoy distributions, FDR vs threshold curve.">
+            <figcaption><strong>Figure 3.</strong> Top: an MS2 spectrum with b/y peak annotations. Middle: target-decoy distributions. Bottom: FDR vs score threshold; 1% cutoff marked.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 Modifications and PTMs</h3>
+          <p>Post-translational modifications change peptide masses:</p>
+          <ul>
+            <li><strong>Phosphorylation</strong> (S/T/Y): $+79.97$ Da.</li>
+            <li><strong>Acetylation</strong> (K, N-terminus): $+42.01$ Da.</li>
+            <li><strong>Methylation</strong>: $+14.02$ Da per methyl.</li>
+            <li><strong>Ubiquitination</strong>: GG remnant after trypsin = $+114.04$ Da on K.</li>
+            <li><strong>Glycosylation</strong>: complex, multi-glycoform.</li>
+          </ul>
+          <p>Database search with <strong>variable modifications</strong> allows modified peptides to match — but each modification doubles the search space; many mods $\to$ combinatorial explosion. Modern tools (MaxQuant, FragPipe) handle ~10 common variable mods routinely.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-27/10-ptm-shifts.svg" alt="Common PTMs (phospho +79.97, acetyl +42.01, methyl +14.02, ubiquitin +114.04, oxidation +15.99) on a peptide diagram; combinatorial growth of search space with variable mods.">
+            <figcaption><strong>Figure 10.</strong> PTM mass shifts and the combinatorial growth of search space when many variable modifications are turned on.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-27/06-ptm-detector.html" loading="lazy" title="Artifact 6 — PTM Mass-Shift Detector"></iframe>
+            <figcaption><strong>Artifact 6 — PTM Mass-Shift Detector.</strong> Search a synthetic spectrum set for variable phospho/acetyl/methyl modifications. <em>Aha</em>: PTMs show as <em>characteristic mass shifts</em> in the search expansion — the +79.97 Da phospho-shift is unmistakable once you look for it.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 Specialised modifications: phosphoproteomics</h3>
+          <p>Phosphorylation regulates kinase signalling. <strong>Phosphoproteomics</strong>:</p>
+          <ul>
+            <li>Enrich phosphopeptides via TiO2 or IMAC affinity columns.</li>
+            <li>LC-MS/MS as standard.</li>
+            <li>Identify phosphosites + their stoichiometry.</li>
+          </ul>
+          <p>Output: ~20,000 phosphosites per typical experiment. Bridges with kinase signalling networks (L22) and CRISPR screens (L24).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-27/12-phospho-enrich.svg" alt="Phosphoproteomics workflow: tryptic digest → TiO2/IMAC enrichment → LC-MS/MS → variable phospho search → phosphosite localisation → site × sample matrix.">
+            <figcaption><strong>Figure 12.</strong> Phosphoproteomics enrichment workflow; ~20,000 phosphosites per experiment.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 The deep dive — PTMs as codebook expansion</h3>
+          <blockquote>
+            A peptide's mass spectrum is a base signal; a PTM adds a fixed offset to specific b/y fragments. Searching for PTMs = expanded matched-filter dictionary that includes modified variants. The combinatorial explosion (PTM combinations on multi-residue peptides) is exactly the <strong>codebook expansion</strong> problem in EE detection theory: search depth grows with the modification dictionary size.
+          </blockquote>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ───────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>Part 4 — Quantification</h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 Label-free quantification (LFQ)</h3>
+          <p>Without isotopic labels, quantify by MS1 ion intensity:</p>
+          <ul>
+            <li>For each peptide, integrate its MS1 elution profile across the LC-MS run.</li>
+            <li>Compare across samples.</li>
+            <li>Aggregate per-protein.</li>
+          </ul>
+          <p><strong>MaxQuant LFQ</strong> (Cox 2014) is the standard. Cheap, scalable, ~10–15% CV, but with missing values across samples.</p>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 SILAC</h3>
+          <p><strong>Stable Isotope Labeling by Amino acids in Cell culture</strong> (Mann 2002):</p>
+          <ul>
+            <li>Grow cells in media with isotopically labelled amino acids (e.g., heavy K, R).</li>
+            <li>Mix with control (light) sample.</li>
+            <li>LC-MS/MS — peptide pairs differ in mass by predictable $\Delta$.</li>
+            <li>Quantify ratio = relative abundance.</li>
+          </ul>
+          <p>Very accurate (~5% CV); paired comparison eliminates batch effects. Limitation: cell culture only.</p>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Tandem Mass Tagging (TMT) and iTRAQ</h3>
+          <p>Modern multiplexed quantification:</p>
+          <ul>
+            <li><strong>TMT</strong>: chemical labels (typically 6-, 11-, 16-plex) added to peptides post-digestion.</li>
+            <li>All samples mixed; LC-MS/MS as one run.</li>
+            <li>MS2 spectra contain reporter ions at characteristic $m/z$; intensity = relative abundance.</li>
+          </ul>
+          <p>6–16 samples in one run; reduced LC-MS time. Limitations: ratio compression (signal smearing); reagent cost (~$5,000 per 16-plex).</p>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 The DIA quantification advantage</h3>
+          <p>DIA's deterministic peptide coverage gives much better LFQ-style quantification than DDA — typically 5% CV vs 15% for DDA-LFQ. For cohort work where reproducibility matters, DIA is now preferred.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-27/04-quantification.svg" alt="Four-panel quantification comparison: LFQ MS1 integration, SILAC heavy/light pairs, TMT reporter ions, PRM targeted; comparison table on precision, multiplexing, cost.">
+            <figcaption><strong>Figure 4.</strong> Quantification methods at a glance: LFQ (cheap, missing values), SILAC (cell culture only), TMT (multiplexed but compressed), targeted PRM (absolute, low-throughput).</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-27/04-quant-comparator.html" loading="lazy" title="Artifact 4 — Quantification Method Comparator"></iframe>
+            <figcaption><strong>Artifact 4 — Quantification Method Comparator.</strong> Run the same simulated experiment under LFQ, SILAC, and TMT — compare CV, missing-value patterns, and statistical power. <em>Aha</em>: SILAC has the lowest CV; TMT has best multiplexing but ratio compression; LFQ has the most missing values.</figcaption>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ───────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>Part 5 — Statistical Analysis and Differential Abundance</h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 The protein-level matrix</h3>
+          <p>Output of a proteomics experiment: a protein × sample matrix of relative abundances. Typical scale: ~5,000–8,000 proteins × 30–100 samples — the proteomics analog of the L8 / L9 RNA-seq count matrix.</p>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Differential abundance analysis</h3>
+          <p>Adapted from RNA-seq:</p>
+          <ul>
+            <li><strong>t-test</strong> with multiple-testing correction.</li>
+            <li><strong>limma</strong> (Smyth 2004): linear models with empirical-Bayes shrinkage.</li>
+            <li><strong>DEqMS</strong> (Zhu 2020): proteomics-specific extension of limma, handles missing values.</li>
+            <li><strong>ProDA</strong> (Ahlmann-Eltze 2020): probabilistic dropout-aware DE.</li>
+          </ul>
+          <p>For a typical study: limma or DEqMS at FDR &lt; 0.05.</p>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Missing values: a proteomics-specific challenge</h3>
+          <p>Proteomics data has lots of missing values:</p>
+          <ul>
+            <li>A peptide not detected in some samples might be <strong>missing-not-at-random (MNAR)</strong> — really not present.</li>
+            <li>Or <strong>missing-at-random (MAR)</strong> — present but missed by stochastic acquisition.</li>
+          </ul>
+          <p>Imputation strategies: <strong>half-min</strong> (assumes MNAR); <strong>KNN</strong> (assumes MAR); <strong>multiple imputation</strong>; or use DIA and skip imputation entirely. Choice matters: MNAR imputation creates bias if the missing actually are MAR.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-27/11-missing-values.svg" alt="Heatmap of 50 proteins × 30 samples with white cells for missing; clear MNAR pattern in low-abundance proteins, MAR pattern scattered. Imputation comparison panel.">
+            <figcaption><strong>Figure 11.</strong> Missing-value patterns: low-abundance proteins are mostly MNAR (block-missing); stochastic gaps are MAR (scattered).</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-27/05-diff-abundance.html" loading="lazy" title="Artifact 5 — Proteomics Differential Abundance"></iframe>
+            <figcaption><strong>Artifact 5 — Proteomics Differential Abundance.</strong> Run t-test / limma / DEqMS on a synthetic protein matrix with realistic missing values; toggle imputation. <em>Aha</em>: imputation choice affects discoveries — KNN tends to inflate, half-min tends to deflate, depending on the MNAR/MAR mix.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Pathway analysis</h3>
+          <p>Same machinery as RNA-seq (L22): ORA / GSEA on protein abundance changes; KEGG / Reactome / GO enrichment; STRING-based network propagation. A typical proteomics paper reports DE proteins + pathway enrichment + (often) PPI network analysis.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ───────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>Part 6 — Applications</h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 Biomarker discovery</h3>
+          <p>Plasma / serum proteomics for clinical biomarkers:</p>
+          <ul>
+            <li><strong>Olink</strong> and <strong>SomaScan</strong>: ~5,000-protein affinity-based panels per blood draw.</li>
+            <li><strong>Simoa</strong>: single-molecule sensitivity for low-abundance proteins.</li>
+            <li><strong>Targeted LC-MS/MS (PRM)</strong>: absolute quantification of validated biomarkers.</li>
+          </ul>
+          <p>Examples: cardiac (troponin I, BNP, ST2); cancer (PSA, CA-125, CA 19-9); Alzheimer's (amyloid-β, tau, NfL). The plasma proteome has ~5,000 detectable proteins; ~50 are widely used clinical biomarkers.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-27/05-biomarkers.svg" alt="Plasma proteome abundance landscape on a log axis: albumin at 10⁻⁴ M down to amyloid-β at 10⁻¹³ M; assay coverage by abundance for Olink, Simoa, LC-MS/MS.">
+            <figcaption><strong>Figure 5.</strong> The plasma proteome spans 10 orders of magnitude. Abundance is the limiting factor for clinical biomarker validation.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-27/07-plasma-biomarkers.html" loading="lazy" title="Artifact 7 — Plasma Proteome Biomarker Explorer"></iframe>
+            <figcaption><strong>Artifact 7 — Plasma Proteome Biomarker Explorer.</strong> Drag a target abundance slider and see which assays (LC-MS/MS, Olink, SomaScan, Simoa) can detect it. <em>Aha</em>: assay choice depends on target abundance — routine LC-MS/MS untargeted bottoms out around $10^{-9}$ M; below that, you need affinity capture or single-molecule sensitivity.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 Chemoproteomics and target validation</h3>
+          <p><strong>Chemoproteomics</strong>: identify the proteins a drug binds in cells.</p>
+          <ul>
+            <li>Drug + photoaffinity / chemical-probe linker.</li>
+            <li>Apply to live cells.</li>
+            <li>Pull down crosslinked proteins.</li>
+            <li>Identify by MS.</li>
+            <li>→ list of drug targets (and off-targets).</li>
+          </ul>
+          <p>Tools: <strong>CETSA</strong> (cellular thermal shift), <strong>TPP</strong> (thermal proteome profiling), <strong>ABPP</strong> (activity-based protein profiling). The experimental complement to AlphaFold-based docking — find what a drug actually binds in cells, not what we predict it should bind.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-27/06-chemoproteomics.svg" alt="Chemoproteomics flow: drug + linker → live-cell UV crosslink → pull-down → LC-MS/MS → target list. Example: kinase inhibitor identifies 5 expected and 15 off-targets.">
+            <figcaption><strong>Figure 6.</strong> Chemoproteomics workflow: drug-probe → crosslink → MS-ID → targets. Off-targets are the rule, not the exception.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 Structural proteomics</h3>
+          <p>Identify protein–protein and protein–ligand interactions at near-atomic resolution:</p>
+          <ul>
+            <li><strong>Cross-linking MS (XL-MS)</strong>: chemical crosslinker captures interacting residues; MS identifies them.</li>
+            <li><strong>Hydrogen-deuterium exchange MS (HDX-MS)</strong>: probe protein conformation changes upon ligand binding.</li>
+            <li><strong>Native MS</strong>: measure intact protein-complex masses.</li>
+          </ul>
+          <p>Complements AlphaFold + cryo-EM for understanding drug-target structural details.</p>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 Single-cell proteomics</h3>
+          <p>Emerging frontier (scProteomics):</p>
+          <ul>
+            <li><strong>CITE-seq</strong> (with antibodies): not strictly MS, but ~100 proteins + scRNA-seq.</li>
+            <li><strong>PiMMS / Sonar</strong>: emerging single-cell MS workflows (~$1k/sample currently).</li>
+            <li>Mostly research; clinical adoption years away.</li>
+          </ul>
+          <p>2024 frontier additions: spatial proteomics (IMC, CODEX), proteoforms (specific isoforms × PTM combos), and PROTAC effects via chemoproteomics.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 6.5 ─────────────────────────────────────── -->
+      <section id="part-65">
+        <h2>Part 6.5 — Metabolomics Primer</h2>
+
+        <section id="sec-65-1">
+          <h3>6.5.1 What metabolomics measures</h3>
+          <p>Where proteomics measures the proteome (~20,000 proteins), <strong>metabolomics</strong> measures the <strong>metabolome</strong> — the small-molecule output of cellular metabolism: amino acids, nucleotides, lipids, sugars, organic acids, drug metabolites, hormones — typically 1,000–5,000 detectable molecules in human plasma.</p>
+          <p>The metabolome integrates upstream genetic + transcriptional + translational + enzymatic activity into a single readout. Often the closest measurement to phenotype:</p>
+          <ul>
+            <li><strong>Diabetes</strong>: glucose, HbA1c, lactate, ketone bodies.</li>
+            <li><strong>Cardiovascular</strong>: LDL/HDL, triglycerides, ApoB, oxidised lipids.</li>
+            <li><strong>Cancer metabolism</strong>: 2-hydroxyglutarate (IDH-mutant gliomas), succinate (SDH-mutant paragangliomas).</li>
+            <li><strong>Drug response</strong>: pharmacokinetics measured at metabolite level.</li>
+            <li><strong>Microbiome</strong>: short-chain fatty acids, bile acids, indoles — host-microbiome cross-talk.</li>
+          </ul>
+        </section>
+
+        <section id="sec-65-2">
+          <h3>6.5.2 LC-MS/MS for metabolites</h3>
+          <p>Same instrument as proteomics, but with different chromatography and ionisation:</p>
+          <ul>
+            <li><strong>Reverse-phase LC</strong>: separates lipophilic compounds.</li>
+            <li><strong>HILIC</strong>: separates polar metabolites.</li>
+            <li><strong>Positive-mode ESI</strong>: ionises basic / amine compounds.</li>
+            <li><strong>Negative-mode ESI</strong>: ionises acidic compounds (organic acids, sugar phosphates).</li>
+          </ul>
+          <p>Result: a 2D map (retention time × $m/z$) with intensity peaks per metabolite.</p>
+        </section>
+
+        <section id="sec-65-3">
+          <h3>6.5.3 Identification challenges</h3>
+          <p>Where peptides are identified by matching to a sequence database, metabolites are matched to <strong>metabolite databases</strong> — and the matching is much harder:</p>
+          <ul>
+            <li><strong>HMDB</strong> (Human Metabolome Database, ~250,000 entries).</li>
+            <li><strong>METLIN</strong>: tandem-MS spectra for ~1M molecules (commercial).</li>
+            <li><strong>MoNA</strong>: community spectra.</li>
+            <li><strong>GNPS</strong>: networking-based.</li>
+          </ul>
+          <p>Metabolites have <em>no sequence</em> to match. Identification leans on accurate mass (within 5 ppm), retention time (vs known standards), MS/MS fragmentation pattern, and isotope pattern. Even with all four, ~30–50% of detected peaks remain <strong>unidentified</strong> in typical untargeted runs.</p>
+          <p>The <strong>Metabolomics Standards Initiative</strong> confidence levels:</p>
+          <ul>
+            <li><strong>Level 1</strong>: matched to standard (mass + RT + MS/MS).</li>
+            <li><strong>Level 2</strong>: putative annotation (mass + MS/MS match to DB).</li>
+            <li><strong>Level 3</strong>: putative class (mass + isotope match).</li>
+            <li><strong>Level 4</strong>: unknown feature.</li>
+          </ul>
+        </section>
+
+        <section id="sec-65-4">
+          <h3>6.5.4 Targeted vs untargeted</h3>
+          <p><strong>Targeted metabolomics</strong>: ~50–200 specific metabolites with calibration standards. Quantitative, validated, clinical-grade (Biocrates AbsoluteIDQ, Metabolon panels).</p>
+          <p><strong>Untargeted metabolomics</strong>: all detectable features (~5,000–10,000 peaks). Discovery-mode; semi-quantitative. Used for biomarker discovery and mechanism studies. The distinction mirrors targeted vs full DIA in proteomics.</p>
+        </section>
+
+        <section id="sec-65-5">
+          <h3>6.5.5 Lipidomics</h3>
+          <p><strong>Lipidomics</strong> measures the lipid fraction (~10,000+ species). Lipids are organised by class (phospholipids, sphingolipids, sterols, fatty acids, glycerolipids) with characteristic head groups + variable acyl chains.</p>
+          <p>Tools: LipidSearch, LipidBlast, LipidMatch. Clinically relevant biomarkers: LDL particle subclasses, ceramides (diabetes / heart failure), plasma free-fatty-acid profile, drug-induced lipid shifts.</p>
+        </section>
+
+        <section id="sec-65-6">
+          <h3>6.5.6 Multi-omics integration</h3>
+          <p>Modern translational pipelines combine proteomics + metabolomics with genomic / transcriptomic data:</p>
+          <ul>
+            <li><strong>mGWAS</strong>: SNPs → metabolite levels → trait association. MR (L25) often uses metabolite IVs.</li>
+            <li><strong>Multi-omics ML</strong>: proteomics + metabolomics + transcriptomics for diagnostic classifiers.</li>
+            <li><strong>Pathway-level integration</strong>: KEGG / Reactome (L22).</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-27/13-metabolomics.svg" alt="Metabolomics LC-MS workflow: sample → extraction (polar/non-polar) → reverse-phase + HILIC LC → +ESI / -ESI → MS1/MS2 → identification cascade through HMDB / METLIN / spectral matching → MSI confidence Levels 1–4.">
+            <figcaption><strong>Figure 13.</strong> Metabolomics LC-MS workflow: same instrument, two columns, two ionisation polarities, identification cascade through HMDB / METLIN. ~30–50% of peaks remain unidentified.</figcaption>
+          </figure>
+
+          <p><em>EE framing</em>: a metabolite has a molecular formula → exact mass; the database has ~$10^6$ candidate formulas in plausible composition space. A 5 ppm mass measurement narrows to ~5–50 candidates; MS/MS narrows to 1–3. The remaining ambiguity is the <strong>identification gap</strong>. Tools like SIRIUS and CSI:FingerID use deep learning on fragmentation. Same matched-filter pattern as proteomics, but with a much sparser reference: peptides have a sequence prior; metabolites have only a chemistry prior.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ───────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>Part 7 — Tools, Pitfalls, Workflows</h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 The standard 2024 stack</h3>
+          <ul>
+            <li><strong>Search engines</strong>: MaxQuant (DDA, free), MS-Fragger / FragPipe (fast DDA, free), DIA-NN (DIA), Spectronaut (DIA, commercial).</li>
+            <li><strong>Quantification</strong>: built-in to search engine.</li>
+            <li><strong>Statistical analysis</strong>: limma (R), DEqMS, MSstats.</li>
+            <li><strong>Visualisation</strong>: Perseus (the MaxQuant ecosystem; visual + stats).</li>
+          </ul>
+          <p>For a clinical Olink / SomaScan study: vendor-specific QC, then standard limma / nlme.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-27/07-workflow.svg" alt="End-to-end proteomics analysis workflow: sample acquisition → LC-MS/MS → search → FDR → quantification → statistical analysis → pathway → network. Reproducibility checkpoints called out at each stage.">
+            <figcaption><strong>Figure 7.</strong> End-to-end proteomics analysis workflow with reproducibility-critical decisions called out per stage.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Common pitfalls</h3>
+          <p><strong>Sample preparation</strong>: keratin contamination (skin, sample handling); incomplete tryptic digestion → missed-cleavage peptides.</p>
+          <p><strong>Acquisition</strong>: DDA stochastic coverage; mass-accuracy drift; carryover between samples.</p>
+          <p><strong>Identification</strong>: wrong PTM searches → many false-positive PTM IDs; database mismatch → systematic mis-ID; multi-protein peptide ambiguity.</p>
+          <p><strong>Quantification</strong>: handle missing values explicitly; ratio compression in TMT; batch effects even within a single experiment.</p>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 Reproducibility</h3>
+          <ul>
+            <li>DIA workflows: ~80–85% protein-ID overlap across replicates.</li>
+            <li>DDA: ~70% identification overlap.</li>
+            <li>Differential abundance hits: ~60–70% replication across cohorts.</li>
+          </ul>
+          <p>Better than microbiome (~50%); worse than RNA-seq (~85%).</p>
+        </section>
+
+        <section id="sec-7-4">
+          <h3>7.4 The 2024 frontier</h3>
+          <ul>
+            <li><strong>DIA + ML libraries</strong>: DIA-NN's NN-trained spectral libraries enable database-free DIA analysis.</li>
+            <li><strong>AlphaPeptDeep / Pulsar</strong>: deep-learning spectrum prediction for closer matched-filter detection.</li>
+            <li><strong>Foundation models</strong> for proteomics, pre-trained on millions of MS2 spectra.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ──────────────────────────────────────── -->
+      <section id="wrapup">
+        <h2>Wrap-up</h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>MS proteomics measures protein abundance</strong>, the post-transcriptional readout. Correlates only modestly with mRNA ($r \approx 0.5$).</li>
+          <li><strong>LC-MS/MS</strong> (bottom-up): protein → trypsin → peptides → LC → MS1 / MS2 → identification → quantification.</li>
+          <li><strong>DDA vs DIA</strong>: DDA is stochastic; DIA is deterministic. DIA is becoming the cohort-scale standard.</li>
+          <li><strong>Identification by database search</strong> + target-decoy FDR. Modern tools: MaxQuant, MS-Fragger / FragPipe.</li>
+          <li><strong>Quantification</strong>: LFQ (cheap), SILAC (cell culture), TMT (multiplexed). Choose by question + budget.</li>
+          <li><strong>Applications</strong>: biomarker discovery (Olink, SomaScan, plasma MS), chemoproteomics, structural proteomics (XL-MS, HDX-MS).</li>
+          <li><strong>Metabolomics</strong>: same instrument, sparser reference, ~30–50% of peaks unidentified.</li>
+          <li><strong>EE framings</strong>: spectra as 1D signals; peptide ID as constrained matched-filter search; PTMs as codebook expansion; DIA as compressed sensing.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>This is the last lecture in the proposed 27-lecture arc. The protein-level signals you learned here complement single-cell mRNA — modern multimodal experiments combine both. Next steps: pick a public dataset and run an end-to-end proteomics analysis (homework problem 1).</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Run MaxQuant on a public proteomics dataset (e.g., an HEK293 LC-MS/MS run). Identify peptides at 1% FDR; report protein count + identification overlap with the published list.</li>
+          <li>Pick a specific PTM (phosphorylation, acetylation). Run a dedicated search; identify modified peptides. Compare to a non-PTM search.</li>
+          <li>Implement label-free quantification on simulated MS1 elution profiles. Add 30% missing values; compare imputation strategies (half-min, KNN, no imputation).</li>
+          <li>From an Olink panel of 100 plasma proteins for a cohort, run differential abundance for case vs control. Interpret the hits in terms of biology.</li>
+          <li>Walk through a published chemoproteomics study (e.g., kinase-inhibitor target ID via Kinobeads). Re-derive the target identification logic.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Aebersold, R., &amp; Mann, M. (2003). Mass spectrometry-based proteomics. <em>Nature</em> 422, 198–207.</li>
+          <li>Cox, J., et al. (2014). Accurate proteome-wide label-free quantification (MaxLFQ). <em>Molecular &amp; Cellular Proteomics</em> 13, 2513–2526.</li>
+          <li>Tyanova, S., et al. (2016). The MaxQuant computational platform. <em>Nature Protocols</em> 11, 2301–2319.</li>
+          <li>Käll, L., et al. (2007). Semi-supervised learning for peptide identification (Percolator). <em>Nature Methods</em> 4, 923–925.</li>
+          <li>Demichev, V., et al. (2020). DIA-NN: neural networks and interference correction. <em>Nature Methods</em> 17, 41–44.</li>
+          <li>Mann, M. (2002). The rise of mass spectrometry. <em>TiBS</em> 27, 233–235. (SILAC origins.)</li>
+          <li>Thompson, A., et al. (2003). Tandem Mass Tags. <em>Analytical Chemistry</em> 75, 1895–1904.</li>
+          <li>Savitski, M. M., et al. (2014). Tracking cancer drugs by thermal profiling (TPP). <em>Science</em> 346, 1255784.</li>
+          <li>MaxQuant: <a href="https://www.maxquant.org/" target="_blank" rel="noopener">maxquant.org</a></li>
+          <li>DIA-NN: <a href="https://github.com/vdemichev/DiaNN" target="_blank" rel="noopener">github.com/vdemichev/DiaNN</a></li>
+          <li>Olink: <a href="https://www.olink.com/" target="_blank" rel="noopener">olink.com</a></li>
+          <li>ProteomicsDB: <a href="https://www.proteomicsdb.org/" target="_blank" rel="noopener">proteomicsdb.org</a></li>
+          <li>HMDB: <a href="https://hmdb.ca/" target="_blank" rel="noopener">hmdb.ca</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — From Spectrum to Peptide</td>          <td>25&nbsp;min</td><td>0:25</td></tr>
+            <tr><td>Part 2 — Acquisition Modes</td>                  <td>25&nbsp;min</td><td>0:50</td></tr>
+            <tr><td>Part 3 — Identification and FDR</td>             <td>30&nbsp;min</td><td>1:20</td></tr>
+            <tr><td>Part 4 — Quantification</td>                     <td>25&nbsp;min</td><td>1:45</td></tr>
+            <tr><td>Part 5 — Statistical Analysis</td>               <td>25&nbsp;min</td><td>2:10</td></tr>
+            <tr><td>Part 6 — Applications</td>                        <td>20&nbsp;min</td><td>2:30</td></tr>
+            <tr><td>Part 6.5 — Metabolomics Primer</td>              <td>30&nbsp;min</td><td>3:00</td></tr>
+            <tr><td>Part 7 — Tools and Pitfalls</td>                 <td>15&nbsp;min</td><td>3:15</td></tr>
+            <tr><td>Wrap-up</td>                                       <td>10&nbsp;min</td><td>3:25</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 25min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) f.style.height = d.height + 'px';
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

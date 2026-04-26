@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniFrac vs Bray-Curtis Comparator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.4rem; font-weight: 800; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>UniFrac vs Bray-Curtis Comparator</h1>
+    <p>Two example sample-pairs where Bray-Curtis is identical but UniFrac differs — phylogenetically close vs distant shared taxa. Aha: choice of metric encodes biology assumption. Pick UniFrac when phylogenetic relatedness matters; pick Bray-Curtis for compositional dissimilarity alone.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="pair">Sample pair</label>
+      <select id="pair">
+        <option value="close" selected>Pair A — shared taxa phylogenetically close (cousins)</option>
+        <option value="distant">Pair B — shared taxa phylogenetically distant</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="bcVal" style="color:#525252;">—</div><div class="l">Bray-Curtis</div></div>
+    <div class="stat"><div class="v" id="ufVal" style="color:#7c3aed;">—</div><div class="l">Unweighted UniFrac</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Phylogenetic tree (8 taxa, 2 samples)</h3>
+    <svg id="tree" viewBox="0 0 1000 380" width="100%" height="380"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. Two hand-crafted scenarios with the same compositional overlap pattern but different phylogenetic structure. Real UniFrac computation in QIIME2 / scikit-bio operates on full ASV trees with thousands of leaves. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const SCENARIOS = {
+    close: {
+      label: 'Shared taxa are phylogenetic cousins',
+      // Tree positions: y for each leaf
+      leaves: [
+        { y: 60, sample: 'A' },
+        { y: 100, sample: 'A' },
+        { y: 140, sample: 'A' },
+        { y: 180, sample: 'A' },
+        { y: 220, sample: 'B' },
+        { y: 260, sample: 'B' },
+        { y: 300, sample: 'B' },
+        { y: 340, sample: 'B' }
+      ],
+      // Edges of the tree
+      bc: 0.5,
+      uf: 0.30,
+      hint: 'A and B share an ancestor; the "different" taxa are still phylogenetically close. UniFrac stays low even though Bray-Curtis is moderate.'
+    },
+    distant: {
+      label: 'Shared taxa span the tree',
+      leaves: [
+        { y: 60, sample: 'A' },
+        { y: 100, sample: 'B' },
+        { y: 140, sample: 'A' },
+        { y: 180, sample: 'B' },
+        { y: 220, sample: 'A' },
+        { y: 260, sample: 'B' },
+        { y: 300, sample: 'A' },
+        { y: 340, sample: 'B' }
+      ],
+      bc: 0.5,
+      uf: 0.70,
+      hint: 'A and B taxa interleave across the tree; they are phylogenetically distant despite the same composition overlap. UniFrac is high.'
+    }
+  };
+
+  function render() {
+    const scn = SCENARIOS[$('pair').value];
+    $('bcVal').textContent = scn.bc.toFixed(2);
+    $('ufVal').textContent = scn.uf.toFixed(2);
+
+    const svg = $('tree');
+    svg.innerHTML = '';
+
+    // Tree skeleton: 8 leaves at right; nested bifurcations
+    const xRoot = 80, xMid1 = 180, xMid2 = 280, xMid3 = 380, xLeaf = 480;
+    function lineEdge(x1, y1, x2, y2, color, width) {
+      const ln = document.createElementNS(ns, 'line');
+      ln.setAttribute('x1', x1); ln.setAttribute('y1', y1);
+      ln.setAttribute('x2', x2); ln.setAttribute('y2', y2);
+      ln.setAttribute('stroke', color); ln.setAttribute('stroke-width', width || 2.5);
+      svg.appendChild(ln);
+    }
+
+    function colorOf(samples) {
+      if (samples.has('A') && samples.has('B')) return '#0d7377';
+      if (samples.has('A')) return '#dc2626';
+      return '#1e3a8a';
+    }
+
+    const ys = scn.leaves.map(l => l.y);
+    const sampleAt = scn.leaves.map(l => l.sample);
+
+    // Pair leaves into 4 cherries
+    function leafColor(i) { return scn.leaves[i].sample === 'A' ? '#dc2626' : '#1e3a8a'; }
+    function cherrySamples(i, j) { return new Set([scn.leaves[i].sample, scn.leaves[j].sample]); }
+
+    // Cherries: (0,1), (2,3), (4,5), (6,7)
+    const cherryY = [(ys[0] + ys[1]) / 2, (ys[2] + ys[3]) / 2, (ys[4] + ys[5]) / 2, (ys[6] + ys[7]) / 2];
+    const cherryPairs = [[0, 1], [2, 3], [4, 5], [6, 7]];
+
+    // Higher-level: groups (0,1) + (2,3) and (4,5) + (6,7)
+    const groupY = [(cherryY[0] + cherryY[1]) / 2, (cherryY[2] + cherryY[3]) / 2];
+    // Root joins the two groups
+
+    // Draw root
+    lineEdge(xRoot, (groupY[0] + groupY[1]) / 2, xMid1, (groupY[0] + groupY[1]) / 2, '#525252', 2.5);
+
+    // Vertical from root to two group nodes
+    lineEdge(xMid1, groupY[0], xMid1, groupY[1], '#525252', 2);
+    // Horizontal from group nodes
+    lineEdge(xMid1, groupY[0], xMid2, groupY[0], colorOf(new Set([...cherryPairs[0].map(i => sampleAt[i]), ...cherryPairs[1].map(i => sampleAt[i])])));
+    lineEdge(xMid1, groupY[1], xMid2, groupY[1], colorOf(new Set([...cherryPairs[2].map(i => sampleAt[i]), ...cherryPairs[3].map(i => sampleAt[i])])));
+
+    // Vertical at xMid2 splitting into two cherry parents
+    lineEdge(xMid2, cherryY[0], xMid2, cherryY[1], '#525252', 2);
+    lineEdge(xMid2, cherryY[2], xMid2, cherryY[3], '#525252', 2);
+    // Horizontal to xMid3
+    lineEdge(xMid2, cherryY[0], xMid3, cherryY[0], colorOf(cherrySamples(0, 1)));
+    lineEdge(xMid2, cherryY[1], xMid3, cherryY[1], colorOf(cherrySamples(2, 3)));
+    lineEdge(xMid2, cherryY[2], xMid3, cherryY[2], colorOf(cherrySamples(4, 5)));
+    lineEdge(xMid2, cherryY[3], xMid3, cherryY[3], colorOf(cherrySamples(6, 7)));
+
+    // Cherries: vertical
+    cherryPairs.forEach((pair, ci) => {
+      const ya = ys[pair[0]];
+      const yb = ys[pair[1]];
+      lineEdge(xMid3, ya, xMid3, yb, '#525252', 2);
+      lineEdge(xMid3, ya, xLeaf, ya, leafColor(pair[0]));
+      lineEdge(xMid3, yb, xLeaf, yb, leafColor(pair[1]));
+    });
+
+    // Leaf circles
+    scn.leaves.forEach((l, i) => {
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', xLeaf + 12); c.setAttribute('cy', l.y); c.setAttribute('r', 8);
+      c.setAttribute('fill', l.sample === 'A' ? '#dc2626' : '#1e3a8a');
+      c.setAttribute('stroke', '#fff'); c.setAttribute('stroke-width', 1);
+      svg.appendChild(c);
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', xLeaf + 28); t.setAttribute('y', l.y + 4);
+      t.setAttribute('font-size', 11); t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.setAttribute('font-weight', 700); t.setAttribute('fill', '#374151');
+      t.textContent = `ASV${i + 1} (${l.sample})`;
+      svg.appendChild(t);
+    });
+
+    // Side panel: numbers + interpretation
+    const sx = 660;
+    const sg = document.createElementNS(ns, 'g');
+    sg.setAttribute('transform', `translate(${sx},40)`);
+    const rect = document.createElementNS(ns, 'rect');
+    rect.setAttribute('width', 320); rect.setAttribute('height', 320);
+    rect.setAttribute('fill', '#fafaf9'); rect.setAttribute('stroke', '#d6d3d1'); rect.setAttribute('rx', 4);
+    sg.appendChild(rect);
+    const tt = document.createElementNS(ns, 'text');
+    tt.setAttribute('x', 160); tt.setAttribute('y', 22);
+    tt.setAttribute('text-anchor', 'middle'); tt.setAttribute('font-size', 12); tt.setAttribute('font-weight', 700);
+    tt.setAttribute('fill', '#374151'); tt.textContent = 'Interpretation';
+    sg.appendChild(tt);
+    const lines = [
+      `Pair: ${scn.label}`,
+      ``,
+      `Bray-Curtis: ${scn.bc.toFixed(2)}`,
+      `UniFrac (unweighted): ${scn.uf.toFixed(2)}`,
+      ``,
+      `BC is the same in both pairs (overlap`,
+      `composition is identical).`,
+      ``,
+      `UniFrac differs: it weighs branches`,
+      `by which sample(s) reach them.`,
+      ``,
+      `Single-coloured branches (red/cobalt)`,
+      `count toward UniFrac; shared (teal)`,
+      `branches do not.`
+    ];
+    lines.forEach((line, i) => {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', 20); t.setAttribute('y', 50 + i * 18);
+      t.setAttribute('font-size', 10); t.setAttribute('font-family', 'Inter, sans-serif');
+      t.setAttribute('fill', i === 0 ? '#1e3a8a' : (i === 2 || i === 3 ? '#7c3aed' : '#374151'));
+      if (i === 0 || i === 2 || i === 3) t.setAttribute('font-weight', 700);
+      t.textContent = line;
+      sg.appendChild(t);
+    });
+    svg.appendChild(sg);
+
+    $('banner').innerHTML = `Bray-Curtis = <strong>${scn.bc.toFixed(2)}</strong>, UniFrac = <strong>${scn.uf.toFixed(2)}</strong>. Same compositional overlap → very different phylogenetic distance.<span class="hint">${scn.hint}</span>`;
+  }
+
+  $('pair').addEventListener('change', render);
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

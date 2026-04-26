@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpha + Beta Diversity Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .alpha-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.85rem; margin-bottom: 0.75rem; }
+  .alpha-table th, .alpha-table td { padding: 0.5rem 0.7rem; border-bottom: 1px solid #e7e5e4; text-align: right; }
+  .alpha-table th { text-align: right; background: #f5f5f4; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); }
+  .alpha-table td:first-child, .alpha-table th:first-child { text-align: left; }
+  .composition { display: flex; flex-direction: column; gap: 0.3rem; }
+  .comp-row { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-mono); font-size: 0.78rem; }
+  .comp-row .name { width: 76px; color: #525252; font-weight: 600; }
+  .comp-row .bar { flex: 1; display: flex; height: 16px; border-radius: 2px; overflow: hidden; }
+  .comp-row .bar > div { height: 100%; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Alpha + Beta Diversity Calculator</h1>
+    <p>Five samples × five taxa. Pick a preset; see Shannon, Simpson, richness per sample, and the Bray-Curtis pairwise dissimilarity matrix + PCoA. Aha: diversity metrics capture different aspects — richness, evenness, phylogenetic depth.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="preset">Composition preset</label>
+      <select id="preset">
+        <option value="case-control" selected>Case vs control (3 case + 2 control)</option>
+        <option value="gradient">Gradient (richness varies)</option>
+        <option value="all-rich">All rich (high diversity)</option>
+        <option value="all-poor">All dominated (low diversity)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="metric">Beta-diversity metric</label>
+      <select id="metric">
+        <option value="bc" selected>Bray-Curtis (compositional)</option>
+        <option value="jaccard">Jaccard (presence/absence)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Sample compositions</h3>
+    <div class="composition" id="composition"></div>
+  </div>
+
+  <div class="panel">
+    <h3>Alpha diversity (per sample)</h3>
+    <table class="alpha-table">
+      <thead><tr><th>Sample</th><th>Richness</th><th>Shannon H</th><th>Simpson 1−D</th><th>Faith's PD*</th></tr></thead>
+      <tbody id="alphaBody"></tbody>
+    </table>
+    <div style="font-size:0.75rem; color:#525252;">* Faith's PD computed against a hand-built 5-taxon phylogeny.</div>
+  </div>
+
+  <div class="panel">
+    <h3>Beta diversity matrix + PCoA</h3>
+    <svg id="betaSvg" viewBox="0 0 1000 300" width="100%" height="300"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. Computes Shannon, Simpson, observed richness, simplified Faith's PD, Bray-Curtis, and Jaccard on a 5-sample × 5-taxon toy dataset. Real diversity computation in QIIME2 / phyloseq runs on rarefied or compositionally-adjusted ASV tables with 10²–10⁴ taxa. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const TAXA = ['Bacteroides', 'Faecalibacterium', 'Bifidobacterium', 'Akkermansia', 'Escherichia'];
+  const COLORS = ['#1e3a8a', '#065f46', '#b45309', '#0d7377', '#dc2626'];
+  const PD_BRANCHES = [0.5, 0.4, 0.3, 0.6, 0.7];
+
+  const PRESETS = {
+    'case-control': [
+      [40, 20, 15, 10, 15],
+      [35, 25, 15, 12, 13],
+      [38, 22, 14, 14, 12],
+      [10, 5, 5, 0, 80],
+      [12, 8, 6, 4, 70]
+    ],
+    'gradient': [
+      [80, 10, 5, 3, 2],
+      [40, 30, 15, 10, 5],
+      [30, 25, 20, 15, 10],
+      [25, 20, 20, 20, 15],
+      [22, 21, 20, 19, 18]
+    ],
+    'all-rich': [
+      [22, 21, 20, 19, 18],
+      [21, 20, 22, 18, 19],
+      [20, 22, 19, 21, 18],
+      [19, 21, 22, 18, 20],
+      [20, 20, 20, 20, 20]
+    ],
+    'all-poor': [
+      [70, 10, 8, 6, 6],
+      [80, 5, 5, 5, 5],
+      [75, 15, 5, 3, 2],
+      [85, 10, 3, 1, 1],
+      [78, 12, 5, 3, 2]
+    ]
+  };
+
+  function shannon(p) {
+    return p.reduce((s, pi) => pi > 0 ? s - pi * Math.log(pi) : s, 0);
+  }
+  function simpson(p) {
+    return 1 - p.reduce((s, pi) => s + pi * pi, 0);
+  }
+  function richness(p) {
+    return p.filter(pi => pi > 0.005).length;
+  }
+  function faithPD(p) {
+    return p.reduce((s, pi, i) => pi > 0.005 ? s + PD_BRANCHES[i] : s, 0);
+  }
+  function bc(a, b) {
+    let num = 0, den = 0;
+    for (let i = 0; i < a.length; i++) { num += Math.abs(a[i] - b[i]); den += a[i] + b[i]; }
+    return num / den;
+  }
+  function jaccard(a, b) {
+    let union = 0, intersect = 0;
+    for (let i = 0; i < a.length; i++) {
+      const aP = a[i] > 0.005 ? 1 : 0;
+      const bP = b[i] > 0.005 ? 1 : 0;
+      if (aP || bP) union++;
+      if (aP && bP) intersect++;
+    }
+    return union > 0 ? 1 - intersect / union : 0;
+  }
+
+  function update() {
+    const presetKey = $('preset').value;
+    const metric = $('metric').value;
+    const samples = PRESETS[presetKey].map(s => {
+      const t = s.reduce((a, b) => a + b, 0);
+      return s.map(x => x / t);
+    });
+
+    // Composition bars
+    let compHtml = '';
+    samples.forEach((s, i) => {
+      let bar = '';
+      s.forEach((pi, ti) => { bar += `<div style="width:${pi * 100}%; background:${COLORS[ti]};"></div>`; });
+      compHtml += `<div class="comp-row"><span class="name">Sample ${i + 1}</span><div class="bar">${bar}</div></div>`;
+    });
+    // Legend
+    compHtml += '<div style="display:flex; gap:0.6rem; margin-top:0.4rem; flex-wrap:wrap; font-size:0.75rem;">';
+    TAXA.forEach((t, i) => {
+      compHtml += `<span style="display:inline-flex; align-items:center; gap:0.3rem;"><span style="width:10px; height:10px; background:${COLORS[i]}; display:inline-block;"></span>${t}</span>`;
+    });
+    compHtml += '</div>';
+    $('composition').innerHTML = compHtml;
+
+    // Alpha
+    let alphaHtml = '';
+    samples.forEach((s, i) => {
+      alphaHtml += `<tr>
+        <td><strong>Sample ${i + 1}</strong></td>
+        <td>${richness(s)}</td>
+        <td>${shannon(s).toFixed(2)}</td>
+        <td>${simpson(s).toFixed(3)}</td>
+        <td>${faithPD(s).toFixed(2)}</td>
+      </tr>`;
+    });
+    $('alphaBody').innerHTML = alphaHtml;
+
+    // Beta matrix
+    const distFn = metric === 'bc' ? bc : jaccard;
+    const N = samples.length;
+    const dist = Array.from({ length: N }, () => new Array(N).fill(0));
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) dist[i][j] = distFn(samples[i], samples[j]);
+
+    drawBeta(dist, samples);
+
+    // Find most-different pair
+    let maxD = 0, maxPair = [0, 0];
+    let minD = Infinity, minPair = [0, 0];
+    for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
+      if (dist[i][j] > maxD) { maxD = dist[i][j]; maxPair = [i, j]; }
+      if (dist[i][j] < minD) { minD = dist[i][j]; minPair = [i, j]; }
+    }
+    // Most diverse alpha
+    const shannons = samples.map(shannon);
+    const maxA = shannons.indexOf(Math.max(...shannons));
+
+    let hint;
+    if (presetKey === 'case-control') hint = `Cases (1-3) cluster together; controls (4-5) form a separate group. Bray-Curtis ≈ ${dist[0][3].toFixed(2)} between groups vs ≈ ${dist[0][1].toFixed(2)} within.`;
+    else if (presetKey === 'gradient') hint = `Diversity decreases monotonically across samples. Sample 1 dominated by one taxon; sample 5 evenly distributed.`;
+    else if (presetKey === 'all-rich') hint = `All samples evenly distributed; alpha diversity high in all; beta diversity uniformly low.`;
+    else hint = `All samples dominated by one taxon; alpha diversity low; beta diversity reflects which dominator.`;
+    $('banner').innerHTML = `Most diverse: <strong>Sample ${maxA + 1}</strong> (Shannon ${shannons[maxA].toFixed(2)}). Most similar pair: <strong>${minPair[0] + 1}–${minPair[1] + 1}</strong> (${distFn === bc ? 'BC' : 'Jaccard'} ${minD.toFixed(2)}).<span class="hint">${hint}</span>`;
+  }
+
+  function drawBeta(dist, samples) {
+    const svg = $('betaSvg');
+    svg.innerHTML = '';
+    // Heat map (left)
+    const cell = 40;
+    const x0 = 60, y0 = 40;
+    for (let i = 0; i < dist.length; i++) {
+      for (let j = 0; j < dist.length; j++) {
+        const r = document.createElementNS(ns, 'rect');
+        r.setAttribute('x', x0 + j * cell); r.setAttribute('y', y0 + i * cell);
+        r.setAttribute('width', cell); r.setAttribute('height', cell);
+        r.setAttribute('fill', `rgba(220, 38, 38, ${dist[i][j]})`);
+        r.setAttribute('stroke', '#fff');
+        svg.appendChild(r);
+        const t = document.createElementNS(ns, 'text');
+        t.setAttribute('x', x0 + j * cell + cell / 2); t.setAttribute('y', y0 + i * cell + cell / 2 + 4);
+        t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', 9);
+        t.setAttribute('font-family', 'JetBrains Mono, monospace');
+        t.setAttribute('fill', dist[i][j] > 0.5 ? '#fff' : '#374151');
+        t.textContent = dist[i][j].toFixed(2);
+        svg.appendChild(t);
+      }
+      const lbl = document.createElementNS(ns, 'text');
+      lbl.setAttribute('x', x0 - 8); lbl.setAttribute('y', y0 + i * cell + cell / 2 + 4);
+      lbl.setAttribute('text-anchor', 'end'); lbl.setAttribute('font-size', 10);
+      lbl.setAttribute('font-family', 'JetBrains Mono, monospace');
+      lbl.setAttribute('fill', '#525252');
+      lbl.textContent = `S${i + 1}`;
+      svg.appendChild(lbl);
+      const lbl2 = document.createElementNS(ns, 'text');
+      lbl2.setAttribute('x', x0 + i * cell + cell / 2); lbl2.setAttribute('y', y0 - 4);
+      lbl2.setAttribute('text-anchor', 'middle'); lbl2.setAttribute('font-size', 10);
+      lbl2.setAttribute('font-family', 'JetBrains Mono, monospace');
+      lbl2.setAttribute('fill', '#525252');
+      lbl2.textContent = `S${i + 1}`;
+      svg.appendChild(lbl2);
+    }
+
+    // Simplified PCoA: use 2 first eigenvectors via classical MDS
+    const N = dist.length;
+    const M = Array.from({ length: N }, () => new Array(N).fill(0));
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) M[i][j] = dist[i][j] * dist[i][j];
+    // Double-centring
+    const rowMean = M.map(row => row.reduce((s, x) => s + x, 0) / N);
+    const colMean = new Array(N).fill(0);
+    for (let j = 0; j < N; j++) { let s = 0; for (let i = 0; i < N; i++) s += M[i][j]; colMean[j] = s / N; }
+    const grandMean = rowMean.reduce((s, x) => s + x, 0) / N;
+    const B = Array.from({ length: N }, () => new Array(N).fill(0));
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) B[i][j] = -0.5 * (M[i][j] - rowMean[i] - colMean[j] + grandMean);
+
+    // Power iteration for top 2 eigenvectors
+    function powerIter(A, prevs) {
+      let v = new Array(N).fill(0).map(() => Math.random() - 0.5);
+      for (let it = 0; it < 100; it++) {
+        const next = new Array(N).fill(0);
+        for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) next[i] += A[i][j] * v[j];
+        prevs.forEach(p => { let c = 0; for (let i = 0; i < N; i++) c += next[i] * p[i]; for (let i = 0; i < N; i++) next[i] -= c * p[i]; });
+        let nrm = 0; for (let i = 0; i < N; i++) nrm += next[i] * next[i]; nrm = Math.sqrt(nrm);
+        if (nrm > 0) v = next.map(x => x / nrm);
+      }
+      let lambda = 0; for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) lambda += v[i] * A[i][j] * v[j];
+      return { vec: v, lambda };
+    }
+    const e1 = powerIter(B, []);
+    const e2 = powerIter(B, [e1.vec]);
+    const xs = e1.vec.map(x => x * Math.sqrt(Math.abs(e1.lambda)));
+    const ys = e2.vec.map(x => x * Math.sqrt(Math.abs(e2.lambda)));
+    const xMin = Math.min(...xs), xMax = Math.max(...xs);
+    const yMin = Math.min(...ys), yMax = Math.max(...ys);
+    const px = v => 480 + ((v - xMin) / Math.max(0.01, xMax - xMin)) * 440;
+    const py = v => 60 + (1 - (v - yMin) / Math.max(0.01, yMax - yMin)) * 200;
+
+    // PCoA frame
+    const fr = document.createElementNS(ns, 'rect');
+    fr.setAttribute('x', 480); fr.setAttribute('y', 60); fr.setAttribute('width', 440); fr.setAttribute('height', 200);
+    fr.setAttribute('fill', '#fafaf9'); fr.setAttribute('stroke', '#9ca3af');
+    svg.appendChild(fr);
+    const ta = document.createElementNS(ns, 'text');
+    ta.setAttribute('x', 700); ta.setAttribute('y', 50);
+    ta.setAttribute('text-anchor', 'middle'); ta.setAttribute('font-size', 11); ta.setAttribute('font-weight', 700);
+    ta.setAttribute('fill', '#374151'); ta.textContent = 'PCoA';
+    svg.appendChild(ta);
+
+    for (let i = 0; i < N; i++) {
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', px(xs[i])); c.setAttribute('cy', py(ys[i])); c.setAttribute('r', 12);
+      c.setAttribute('fill', '#1e3a8a'); c.setAttribute('stroke', '#fff'); c.setAttribute('stroke-width', 2);
+      svg.appendChild(c);
+      const lbl = document.createElementNS(ns, 'text');
+      lbl.setAttribute('x', px(xs[i])); lbl.setAttribute('y', py(ys[i]) + 4);
+      lbl.setAttribute('text-anchor', 'middle'); lbl.setAttribute('font-size', 11); lbl.setAttribute('font-weight', 700);
+      lbl.setAttribute('font-family', 'JetBrains Mono, monospace'); lbl.setAttribute('fill', '#fff');
+      lbl.textContent = `S${i + 1}`;
+      svg.appendChild(lbl);
+    }
+
+    const tBetaTitle = document.createElementNS(ns, 'text');
+    tBetaTitle.setAttribute('x', 130); tBetaTitle.setAttribute('y', 50);
+    tBetaTitle.setAttribute('text-anchor', 'middle'); tBetaTitle.setAttribute('font-size', 11); tBetaTitle.setAttribute('font-weight', 700);
+    tBetaTitle.setAttribute('fill', '#374151'); tBetaTitle.textContent = 'Pairwise distance matrix';
+    svg.appendChild(tBetaTitle);
+  }
+
+  ['preset', 'metric'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

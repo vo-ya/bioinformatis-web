@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>16S vs Shotgun Design Chooser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  select, input[type=range] { width: 100%; padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  input[type=range] { padding: 0; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 1.2rem 1.4rem; margin-bottom: 0.75rem; }
+  .verdict.s16 { border-color: #b45309; background: #fffbeb; }
+  .verdict.shotgun { border-color: #1e3a8a; background: #eff6ff; }
+  .verdict.either { border-color: #525252; background: #fafaf9; }
+  .verdict .v { font-family: var(--font-mono); font-size: 1.7rem; font-weight: 800; }
+  .verdict.s16 .v { color: #b45309; }
+  .verdict.shotgun .v { color: #1e3a8a; }
+  .verdict.either .v { color: #525252; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .reasons { font-size: 0.92rem; line-height: 1.6; padding: 0.7rem 1rem; background: #fafaf9; border-radius: 4px; border: 1px solid #e7e5e4; margin-top: 0.6rem; }
+  .reasons li { margin: 0.2rem 0; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>16S vs Shotgun Design Chooser</h1>
+    <p>Pick the constraints of your study; the chooser recommends 16S amplicon or shotgun metagenomics. Aha: design choice is driven by question + constraints; no universally-best assay.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="goal">Primary goal</label>
+      <select id="goal">
+        <option value="screen" selected>Screen many samples for taxonomic patterns</option>
+        <option value="function">Quantify functional pathways</option>
+        <option value="strain">Strain-level resolution</option>
+        <option value="mag">Recover novel genomes (MAGs)</option>
+        <option value="virus">Catch viruses / fungi / archaea</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="budget">Budget per sample: <span class="v" id="budgetV">$60</span></label>
+      <input type="range" id="budget" min="20" max="500" step="10" value="60">
+    </div>
+    <div class="field">
+      <label for="biomass">Sample biomass</label>
+      <select id="biomass">
+        <option value="high" selected>High (gut, fermented food)</option>
+        <option value="medium">Medium (oral, vaginal)</option>
+        <option value="low">Low (skin, low-density gut, plasma)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="nsamples">Number of samples</label>
+      <select id="nsamples">
+        <option value="few">&lt; 50</option>
+        <option value="medium" selected>50 – 500</option>
+        <option value="many">500+</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <div style="font-size: 0.7rem; letter-spacing: 0.14em; color: #6b7280; text-transform: uppercase;">Recommendation</div>
+    <div class="v" id="rec">—</div>
+    <ul class="reasons" id="reasons"></ul>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="costTotal">—</div><div class="l">Total cost estimate</div></div>
+    <div class="stat"><div class="v" id="resolution">—</div><div class="l">Expected resolution</div></div>
+    <div class="stat"><div class="v" id="complexity">—</div><div class="l">Bioinformatics complexity</div></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational decision tool. Cost figures are 2024 ballpark estimates ($30 / sample for 16S V3-V4, $300 / sample for shotgun); your sequencing core's pricing will differ. Real decisions also depend on host-DNA depletion, downstream questions, and team expertise. Not a procurement tool.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  function update() {
+    const goal = $('goal').value;
+    const budget = parseInt($('budget').value, 10);
+    const biomass = $('biomass').value;
+    const nsamples = $('nsamples').value;
+
+    $('budgetV').textContent = `$${budget}`;
+
+    const reasons = [];
+    let rec, cls;
+
+    // Decision logic
+    if (goal === 'function' || goal === 'mag' || goal === 'virus') {
+      rec = 'shotgun';
+      cls = 'shotgun';
+      reasons.push(`Goal "${$('goal').selectedOptions[0].text.toLowerCase()}" requires shotgun — 16S can't deliver this.`);
+      if (budget < 200) reasons.push('⚠ Budget is below typical shotgun cost (~$300/sample); consider increased budget or fewer samples.');
+      if (biomass === 'low' && goal !== 'virus') reasons.push('⚠ Low biomass means heavy host-DNA contamination; ultra-deep sequencing or host-depletion needed.');
+    } else if (goal === 'strain') {
+      if (budget >= 200) {
+        rec = 'shotgun + StrainPhlAn';
+        cls = 'shotgun';
+        reasons.push('Strain resolution requires shotgun + tools like StrainPhlAn / inStrain.');
+      } else {
+        rec = 'long-read 16S (PacBio HiFi)';
+        cls = 'shotgun';
+        reasons.push('Full-length 16S on PacBio gives near-strain resolution at intermediate cost (~$200/sample).');
+      }
+    } else if (goal === 'screen') {
+      if (budget < 100 || nsamples === 'many') {
+        rec = '16S V3-V4';
+        cls = 's16';
+        reasons.push('Screening many samples with limited budget → 16S V3-V4 is the standard choice.');
+        if (biomass === 'low') reasons.push('Low biomass: 16S avoids host-DNA contamination problems that plague low-biomass shotgun.');
+      } else if (budget >= 200 && (nsamples === 'few' || nsamples === 'medium')) {
+        rec = 'shotgun (or 16S + shotgun subset)';
+        cls = 'shotgun';
+        reasons.push('Budget allows shotgun for richer data; consider hybrid: 16S all + shotgun on subset.');
+      } else {
+        rec = '16S V3-V4';
+        cls = 's16';
+        reasons.push('Budget-effective for screening; upgrade to shotgun on a follow-up subset if needed.');
+      }
+    }
+
+    if (biomass === 'low' && cls === 'shotgun' && goal !== 'virus') {
+      reasons.push('Tip: pre-deplete human DNA with KneadData or a lab-side host-depletion protocol.');
+    }
+    if (nsamples === 'many' && cls === 'shotgun') {
+      reasons.push('500+ shotgun samples is logistics-heavy; ensure pipeline + storage capacity.');
+    }
+
+    $('rec').textContent = rec;
+    $('verdict').className = 'verdict ' + cls;
+    $('reasons').innerHTML = reasons.map(r => `<li>${r}</li>`).join('');
+
+    const costPerSample = cls === 's16' ? 30 : (rec.includes('PacBio') ? 200 : 300);
+    const ns = nsamples === 'few' ? 30 : nsamples === 'medium' ? 200 : 1000;
+    $('costTotal').textContent = `$${(costPerSample * ns).toLocaleString()}`;
+    $('resolution').textContent = cls === 's16' ? 'genus' : (rec.includes('Strain') || rec.includes('PacBio') ? 'strain' : 'species');
+    $('complexity').textContent = cls === 's16' ? 'low (DADA2)' : 'high (multi-tool)';
+
+    let hint;
+    if (rec.includes('shotgun + Strain')) hint = 'StrainPhlAn / inStrain need shotgun depth and well-characterised reference genomes.';
+    else if (rec.includes('PacBio')) hint = 'PacBio HiFi 16S is the cheapest path to species/near-strain resolution; cost ~7× short-read 16S, but ~30% of shotgun.';
+    else if (cls === 's16') hint = '16S V3-V4 with DADA2 + QIIME2 is the workhorse; reach for shotgun only when 16S can\'t answer the question.';
+    else hint = 'Shotgun gives functional content + multi-kingdom coverage at 10× the cost; pick when you need it.';
+    $('banner').innerHTML = `Recommendation: <strong>${rec}</strong>.<span class="hint">${hint}</span>`;
+  }
+
+  ['goal', 'budget', 'biomass', 'nsamples'].forEach(id => $(id).addEventListener('input', update));
+  ['goal', 'biomass', 'nsamples'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

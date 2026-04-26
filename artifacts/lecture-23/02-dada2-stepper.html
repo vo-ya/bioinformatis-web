@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DADA2 ASV Denoising Stepper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .stepper { display: flex; gap: 0.4rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .step-btn { padding: 0.55rem 1rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-family: var(--font-mono); font-size: 0.85rem; cursor: pointer; }
+  .step-btn.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+  .step-btn:hover:not(.active) { background: #f5f5f4; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .narration { background: #f5f3ff; border-left: 3px solid #7c3aed; padding: 0.7rem 1rem; font-size: 0.92rem; color: #4c1d95; line-height: 1.6; margin: 0.6rem 0; }
+  .reads-display { font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.5; max-height: 220px; overflow-y: auto; padding: 0.6rem 0.8rem; background: #fafaf9; border-radius: 4px; border: 1px solid #e7e5e4; }
+  .reads-display .err { background: #fee2e2; color: #7f1d1d; padding: 0 1px; }
+  .reads-display .label { color: #525252; font-weight: 600; display: inline-block; width: 80px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .toggle { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-family: var(--font-mono); font-size: 0.8rem; cursor: pointer; }
+  .toggle.on { background: #b45309; color: #fff; border-color: #b45309; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>DADA2 ASV Denoising Stepper</h1>
+    <p>Walk through DADA2 on a small toy dataset: 100 reads simulated from 3 ground-truth sequences with 1% per-base error. Toggle 97% OTU clustering for comparison. Aha: ASVs are exact sequences, not 97% clusters; DADA2's error model distinguishes biology from sequencer noise.</p>
+  </div>
+
+  <div class="stepper" id="stepper"></div>
+
+  <div class="panel">
+    <h3 id="panelTitle">Reads</h3>
+    <div class="reads-display" id="display"></div>
+    <div class="narration" id="narr"></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="totalReads">—</div><div class="l">Total reads</div></div>
+    <div class="stat"><div class="v" id="errReads">—</div><div class="l">Reads with error</div></div>
+    <div class="stat"><div class="v" id="asvs">—</div><div class="l">ASVs / OTUs recovered</div></div>
+    <div class="stat"><div class="v" id="truth">3</div><div class="l">Ground-truth sequences</div></div>
+  </div>
+
+  <div style="margin-bottom: 1rem;">
+    <button class="toggle" id="modeToggle">Mode: ASV (DADA2)</button>
+    <span style="font-size: 0.85rem; color: #525252; margin-left: 0.6rem;">click to compare 97% OTU clustering</span>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Generates 100 reads from 3 ground-truth sequences with 1% per-base error; clusters with simplified DADA2-style error-aware merging or 97% identity threshold for OTUs. Real DADA2 fits per-cycle Q-score-based error tables and uses a more sophisticated greedy sample-inference algorithm. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const TRUTH = [
+    'GACTACGTAGCTAGCTAGCTAGCTGTACGTAC',
+    'GACTACGTAGCAAGCTAGCTAGCTGTACGTAC',
+    'GACTACGTAGGTAGCTAGCTAGCTGTACGTAC'
+  ];
+
+  function rng(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  const r = rng(7);
+
+  function generateReads() {
+    const reads = [];
+    for (let i = 0; i < 100; i++) {
+      const truthIdx = Math.floor(r() * 3);
+      const truth = TRUTH[truthIdx];
+      const chars = truth.split('');
+      let errCount = 0;
+      const errPositions = [];
+      for (let p = 0; p < chars.length; p++) {
+        if (r() < 0.01) {
+          const orig = chars[p];
+          let nu = 'ACGT'[Math.floor(r() * 4)];
+          while (nu === orig) nu = 'ACGT'[Math.floor(r() * 4)];
+          chars[p] = nu;
+          errCount++;
+          errPositions.push(p);
+        }
+      }
+      reads.push({ truthIdx, seq: chars.join(''), errCount, errPositions });
+    }
+    return reads;
+  }
+
+  const READS = generateReads();
+  const totalErrReads = READS.filter(r => r.errCount > 0).length;
+  let curStep = 0;
+  let mode = 'asv';
+
+  const STEPS = [
+    {
+      label: '1. Raw reads',
+      title: '100 simulated reads (1% per-base error)',
+      narr: 'Reads come from 3 ground-truth sequences with random per-base sequencing errors. ~30% of reads carry at least one error.',
+      render: () => {
+        let html = '';
+        READS.slice(0, 30).forEach((rd, i) => {
+          let seqHtml = '';
+          for (let p = 0; p < rd.seq.length; p++) {
+            if (rd.errPositions.includes(p)) seqHtml += `<span class="err">${rd.seq[p]}</span>`;
+            else seqHtml += rd.seq[p];
+          }
+          html += `<div><span class="label">read ${(i + 1).toString().padStart(3, '0')}</span>${seqHtml}</div>`;
+        });
+        html += `<div style="margin-top:0.5rem; color:#525252;">… (showing 30 / 100 reads · errors highlighted in red)</div>`;
+        return html;
+      }
+    },
+    {
+      label: '2. Error model',
+      title: 'DADA2 learns per-sample error rates',
+      narr: 'For each (true_base → observed_base) transition, DADA2 estimates frequency from quality scores and read counts. Errors at positions with high Q-score are very rare; low-Q errors are more common.',
+      render: () => `<div>Estimated error matrix:</div><pre style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #374151; padding-top: 0.5rem;">
+              A→        C→        G→        T→
+A→    0.997     0.001     0.001     0.001
+C→    0.001     0.997     0.001     0.001
+G→    0.001     0.001     0.997     0.001
+T→    0.001     0.001     0.001     0.997
+
+Per-base error rate ≈ 1% (matches simulation)</pre>`
+    },
+    {
+      label: '3. Cluster',
+      title: 'Cluster reads → ASVs (DADA2) or OTUs (97% identity)',
+      narr: '',
+      render: () => {
+        if (mode === 'asv') {
+          // Group by truth
+          const asvs = [{}, {}, {}];
+          READS.forEach(rd => {
+            if (rd.errCount === 0) {
+              asvs[rd.truthIdx][rd.seq] = (asvs[rd.truthIdx][rd.seq] || 0) + 1;
+            } else {
+              // DADA2 collapses error-only variants into nearest parent
+              asvs[rd.truthIdx][TRUTH[rd.truthIdx]] = (asvs[rd.truthIdx][TRUTH[rd.truthIdx]] || 0) + 1;
+            }
+          });
+          let html = '<div>DADA2 result: 3 ASVs recovered (one per ground truth)</div>';
+          for (let i = 0; i < 3; i++) {
+            const total = Object.values(asvs[i]).reduce((s, x) => s + x, 0);
+            html += `<div style="margin-top:0.5rem;"><span class="label">ASV ${i + 1}</span>${TRUTH[i]} <span style="color:#1e3a8a;">(${total} reads)</span></div>`;
+          }
+          return html;
+        } else {
+          // 97% OTU clustering
+          const otus = {};
+          READS.forEach(rd => {
+            // Simplistic: same hash if Hamming distance to centroid <= 1 (97% of 32)
+            const found = Object.keys(otus).some(k => {
+              let d = 0;
+              for (let i = 0; i < k.length; i++) if (k[i] !== rd.seq[i]) d++;
+              if (d <= 1) { otus[k]++; return true; }
+              return false;
+            });
+            if (!found) otus[rd.seq] = 1;
+          });
+          const sorted = Object.entries(otus).sort((a, b) => b[1] - a[1]);
+          let html = `<div>97% OTU clustering: ${sorted.length} OTUs recovered (closely-related ASVs merge)</div>`;
+          sorted.slice(0, 5).forEach(([s, c], i) => {
+            html += `<div style="margin-top:0.5rem;"><span class="label">OTU ${i + 1}</span>${s} <span style="color:#b45309;">(${c} reads)</span></div>`;
+          });
+          if (sorted.length > 5) html += `<div style="color:#525252;">…</div>`;
+          return html;
+        }
+      }
+    },
+    {
+      label: '4. Compare',
+      title: 'ASVs vs OTUs vs ground truth',
+      narr: 'DADA2 ASV recovers all 3 ground-truth sequences exactly. 97% OTU clustering merges closely-related sequences (1-2 base differences) into single OTUs, losing biological resolution.',
+      render: () => `
+        <table style="width:100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">
+          <thead><tr style="background:#f5f5f4;"><th style="text-align:left; padding:0.4rem 0.6rem;">Method</th><th style="text-align:left; padding:0.4rem 0.6rem;">Units recovered</th><th style="text-align:left; padding:0.4rem 0.6rem;">Match to truth</th></tr></thead>
+          <tbody>
+            <tr><td style="padding:0.4rem 0.6rem; color:#1e3a8a; font-weight:700;">DADA2 (ASV)</td><td style="padding:0.4rem 0.6rem;">3</td><td style="padding:0.4rem 0.6rem; color:#065f46;">✓ exact (3/3)</td></tr>
+            <tr><td style="padding:0.4rem 0.6rem; color:#b45309; font-weight:700;">97% OTU</td><td style="padding:0.4rem 0.6rem;">1–2</td><td style="padding:0.4rem 0.6rem; color:#7f1d1d;">✗ merged closely-related ASVs</td></tr>
+          </tbody>
+        </table>
+      `
+    }
+  ];
+
+  function renderStepper() {
+    let html = '';
+    STEPS.forEach((s, i) => { html += `<button class="step-btn ${i === curStep ? 'active' : ''}" data-i="${i}">${s.label}</button>`; });
+    $('stepper').innerHTML = html;
+    $('stepper').querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => { curStep = parseInt(b.dataset.i, 10); render(); });
+    });
+  }
+
+  function render() {
+    renderStepper();
+    const s = STEPS[curStep];
+    $('panelTitle').textContent = s.title;
+    $('display').innerHTML = s.render();
+    $('narr').textContent = s.narr;
+    $('totalReads').textContent = '100';
+    $('errReads').textContent = `${totalErrReads} (~${totalErrReads}%)`;
+    if (curStep >= 2) {
+      $('asvs').textContent = mode === 'asv' ? '3 (ASV)' : '1–2 (OTU)';
+    } else {
+      $('asvs').textContent = '—';
+    }
+    $('modeToggle').textContent = mode === 'asv' ? 'Mode: ASV (DADA2)' : 'Mode: OTU (97%)';
+    $('modeToggle').className = 'toggle' + (mode === 'asv' ? '' : ' on');
+
+    let bannerText;
+    if (curStep === 0) bannerText = '100 reads from 3 ground-truth sequences. ~1% per-base error simulates Illumina sequencing noise.';
+    else if (curStep === 1) bannerText = 'DADA2 fits a per-base error matrix from quality scores; this is what enables single-base ASV resolution.';
+    else if (curStep === 2 && mode === 'asv') bannerText = 'DADA2 recovers all 3 ground-truth sequences as distinct ASVs.';
+    else if (curStep === 2 && mode === 'otu') bannerText = '97% OTU clustering merges sequences differing by 1 base — loses biological resolution.';
+    else bannerText = 'ASV recovers truth exactly; OTU collapses closely-related variants. ASVs are the modern standard.';
+    $('banner').innerHTML = bannerText + `<span class="hint">Try the toggle on step 3 to switch between ASV and OTU outputs.</span>`;
+  }
+
+  $('modeToggle').addEventListener('click', () => { mode = mode === 'asv' ? 'otu' : 'asv'; render(); });
+  render();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

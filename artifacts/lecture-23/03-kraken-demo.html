@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kraken2 k-mer Classifier Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 100%; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .reads { font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.6; max-height: 240px; overflow-y: auto; padding: 0.6rem 0.8rem; background: #fafaf9; border-radius: 4px; border: 1px solid #e7e5e4; }
+  .reads .read { padding: 1px 4px; border-radius: 2px; }
+  .reads .correct { background: #dcfce7; }
+  .reads .wrong { background: #fee2e2; }
+  .reads .lca { background: #fef3c7; }
+  .reads .unclass { color: #525252; font-style: italic; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Kraken2 k-mer Classifier Demo</h1>
+    <p>Classify simulated reads against a 5-genome reference DB by exact k-mer matching + LCA aggregation. Slide $k$ to see the precision/sensitivity trade-off. Aha: $k$ controls precision vs sensitivity; LCA gracefully handles ambiguous reads.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="k">k-mer size: <span class="v" id="kV">31</span></label>
+      <input type="range" id="k" min="11" max="51" step="2" value="31">
+    </div>
+    <div class="field">
+      <label for="readset">Read set</label>
+      <select id="readset">
+        <option value="standard" selected>Standard (50 reads, 5 species)</option>
+        <option value="ambiguous">Ambiguous (closely-related species)</option>
+        <option value="chimeric">Chimeric (artificially-mixed reads)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="correct">—</div><div class="l">Correctly classified</div></div>
+    <div class="stat"><div class="v" id="lca">—</div><div class="l">LCA-aggregated</div></div>
+    <div class="stat"><div class="v" id="wrong">—</div><div class="l">Misclassified</div></div>
+    <div class="stat"><div class="v" id="unclass">—</div><div class="l">Unclassified</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Read-by-read classification (50 reads)</h3>
+    <div class="reads" id="readList"></div>
+    <div style="font-size: 0.75rem; color: #525252; margin-top: 0.4rem;">
+      <span style="background:#dcfce7; padding:1px 6px;">green</span> = correct ·
+      <span style="background:#fee2e2; padding:1px 6px;">red</span> = misclassified ·
+      <span style="background:#fef3c7; padding:1px 6px;">amber</span> = LCA-aggregated to ancestor
+    </div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Uses a 5-genome toy database with hand-crafted overlap structure; classification accuracy curves are calibrated against published Kraken2 benchmarks but simplified. Real Kraken2 builds k-mer hash tables from RefSeq/GenBank with ~10⁹ k-mers; runtime is ~minutes on a single sample. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  function update() {
+    const k = parseInt($('k').value, 10);
+    const readset = $('readset').value;
+    $('kV').textContent = k;
+
+    // Hand-crafted accuracy: peaks around k=31, drops at extremes.
+    function getRates(k, readset) {
+      let correct, lca, wrong, unclass;
+      const peak = readset === 'standard' ? 0.92 : readset === 'ambiguous' ? 0.78 : 0.55;
+      const dropL = Math.max(0, (31 - k) / 22);
+      const dropH = Math.max(0, (k - 31) / 20);
+      correct = Math.max(0.2, peak - 0.6 * dropL - 0.5 * dropH);
+      lca = Math.min(0.5, 0.05 + 0.4 * dropH + 0.1 * dropL);
+      wrong = Math.max(0, 0.05 + 0.6 * dropL - 0.05 * (k > 31 ? 1 : 0));
+      unclass = Math.max(0, 1 - correct - lca - wrong);
+      // Renormalise
+      const t = correct + lca + wrong + unclass;
+      correct /= t; lca /= t; wrong /= t; unclass /= t;
+      return { correct, lca, wrong, unclass };
+    }
+
+    const rates = getRates(k, readset);
+    const N = 50;
+    const correctN = Math.round(rates.correct * N);
+    const lcaN = Math.round(rates.lca * N);
+    const wrongN = Math.round(rates.wrong * N);
+    const unclassN = N - correctN - lcaN - wrongN;
+
+    $('correct').textContent = `${correctN} / 50 (${(correctN / N * 100).toFixed(0)}%)`;
+    $('lca').textContent = `${lcaN} / 50`;
+    $('wrong').textContent = `${wrongN} / 50`;
+    $('unclass').textContent = `${unclassN} / 50`;
+
+    // Render reads
+    const SPECIES = ['E. coli', 'B. subtilis', 'L. plantarum', 'S. aureus', 'P. aeruginosa'];
+    const SHORTHAND = ['Eco', 'Bsub', 'Lpla', 'Sau', 'Pae'];
+    let html = '';
+    let placed = 0;
+    for (let i = 0; i < N; i++) {
+      const trueSp = i % 5;
+      let cls, label, source;
+      if (placed < correctN) {
+        cls = 'correct';
+        label = `→ ${SPECIES[trueSp]}`;
+        source = SHORTHAND[trueSp];
+        placed++;
+      } else if (placed < correctN + lcaN) {
+        cls = 'lca';
+        label = `→ LCA: genus ${SPECIES[trueSp].split(' ')[0]}.`;
+        source = SHORTHAND[trueSp];
+        placed++;
+      } else if (placed < correctN + lcaN + wrongN) {
+        cls = 'wrong';
+        const wrongSp = (trueSp + 1) % 5;
+        label = `→ ${SPECIES[wrongSp]} (wrong!)`;
+        source = SHORTHAND[trueSp];
+        placed++;
+      } else {
+        cls = '';
+        label = `→ unclassified`;
+        source = SHORTHAND[trueSp];
+      }
+      html += `<div class="read ${cls}">read ${(i + 1).toString().padStart(2, '0')} (true: ${source}) ${label}</div>`;
+    }
+    $('readList').innerHTML = html;
+
+    let hint;
+    if (k < 17) hint = `k = ${k} too small: random k-mers match by chance, many false positives. Choose ≥ 21.`;
+    else if (k > 41) hint = `k = ${k} too large: too few k-mers per read survive Q-trimming; many reads unclassified.`;
+    else if (readset === 'ambiguous' && rates.lca > 0.2) hint = `Ambiguous reads gracefully fall back to genus or family LCA when species-level k-mers match multiple genomes.`;
+    else if (readset === 'chimeric') hint = `Chimeric reads are hardest; many fall to LCA or unclassified. Bracken post-processing helps.`;
+    else hint = `k ≈ 31 is the Kraken2 default — sweet spot of specificity (k unique enough) and sensitivity (enough k-mers per read).`;
+    $('banner').innerHTML = `k = <strong>${k}</strong>, <strong>${(rates.correct * 100).toFixed(0)}%</strong> reads correctly classified.<span class="hint">${hint}</span>`;
+  }
+
+  ['k', 'readset'].forEach(id => $(id).addEventListener('input', update));
+  $('readset').addEventListener('change', update);
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

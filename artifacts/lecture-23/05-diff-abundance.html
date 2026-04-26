@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microbiome Differential Abundance Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
+  .tab { padding: 0.55rem 1.1rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-family: var(--font-mono); font-size: 0.85rem; cursor: pointer; }
+  .tab.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 0.9rem 1.1rem; font-family: var(--font-mono); font-size: 0.92rem; margin-bottom: 0.75rem; }
+  .verdict.naive { border-color: #c4342c; background: #fef2f2; color: #7f1d1d; }
+  .verdict.deseq { border-color: #b45309; background: #fffbeb; color: #92400e; }
+  .verdict.ancom { border-color: #059669; background: #f0fdf4; color: #065f46; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Microbiome Differential Abundance Explorer</h1>
+    <p>Pre-loaded dataset: 30 samples (15 case + 15 control) × 50 taxa with known ground truth (5 truly-different taxa). Three tabs: t-test (naive), DESeq2 (RNA-seq adapted), ANCOM-BC (compositional). Aha: compositional bias inflates naive test significance; ANCOM-BC gives the right answer.</p>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-method="ttest">t-test (naive)</button>
+    <button class="tab" data-method="deseq">DESeq2 (RNA-seq adapted)</button>
+    <button class="tab" data-method="ancom">ANCOM-BC (compositional)</button>
+  </div>
+
+  <div class="verdict" id="verdict">—</div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="numSig">—</div><div class="l">Significant (FDR &lt; 0.05)</div></div>
+    <div class="stat"><div class="v" id="truePos">—</div><div class="l">True positives</div></div>
+    <div class="stat"><div class="v" id="falsePos">—</div><div class="l">False positives</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Volcano plot</h3>
+    <svg id="volcano" viewBox="0 0 1000 360" width="100%" height="360"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Hand-crafted 30-sample dataset where 5 of 50 taxa are truly differentially abundant; the rest move "apparently" due to compositional bias. P-values are simulated to reflect typical t-test (over-significant), DESeq2 (slightly better), and ANCOM-BC (correctly few hits) behavior. Real implementations: ANCOM-BC R package, DESeq2 (Love 2014), MaAsLin2 (Mallick 2021). Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  // 50 taxa: 5 truly differential (effect = 1.5+), 45 null but biased by compositional shift
+  const TAXA = [];
+  function rng(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  const r = rng(42);
+  for (let i = 0; i < 50; i++) {
+    const isReal = i < 5;
+    const lfc = isReal ? (1.5 + r() * 1.5) : ((r() - 0.5) * 1.0);  // small "apparent" shift due to comp bias
+    TAXA.push({ name: `Taxon_${i + 1}`, real: isReal, lfc });
+  }
+
+  const RESULTS = {
+    ttest: TAXA.map(t => {
+      // Naive t-test: real ones get tiny p, but compositional bias also makes ~12 nulls "significant"
+      const p = t.real ? Math.exp(-3 - r() * 4) : (Math.abs(t.lfc) > 0.3 ? r() * 0.05 + 0.001 : r());
+      return { ...t, p };
+    }),
+    deseq: TAXA.map(t => {
+      // DESeq2: better than naive but still affected by compositional bias
+      const p = t.real ? Math.exp(-3 - r() * 4) : (Math.abs(t.lfc) > 0.4 ? r() * 0.08 + 0.005 : r());
+      return { ...t, p };
+    }),
+    ancom: TAXA.map(t => {
+      // ANCOM-BC: only the 5 real ones significant; others not
+      const p = t.real ? Math.exp(-3 - r() * 3) : (0.1 + r() * 0.9);
+      return { ...t, p };
+    })
+  };
+
+  function fdr(pvals) {
+    // Benjamini-Hochberg
+    const n = pvals.length;
+    const sorted = pvals.map((p, i) => ({ p, i })).sort((a, b) => a.p - b.p);
+    const adj = new Array(n);
+    let prev = 1;
+    for (let k = n - 1; k >= 0; k--) {
+      const adjP = Math.min(prev, sorted[k].p * n / (k + 1));
+      adj[sorted[k].i] = adjP;
+      prev = adjP;
+    }
+    return adj;
+  }
+
+  let curMethod = 'ttest';
+
+  function update() {
+    const data = RESULTS[curMethod];
+    const pvals = data.map(d => d.p);
+    const adjP = fdr(pvals);
+    const enriched = data.map((d, i) => ({ ...d, padj: adjP[i] }));
+    const sig = enriched.filter(d => d.padj < 0.05);
+    const truePos = sig.filter(d => d.real).length;
+    const falsePos = sig.filter(d => !d.real).length;
+
+    $('numSig').textContent = sig.length;
+    $('truePos').textContent = `${truePos} / 5`;
+    $('falsePos').textContent = falsePos;
+
+    let cls, interp;
+    if (curMethod === 'ttest') {
+      cls = 'naive';
+      interp = `Naive t-test reports ${sig.length} significant taxa, but ${falsePos} are false positives — driven by compositional bias from real shifts in 5 taxa changing the apparent abundance of the other 45.`;
+    } else if (curMethod === 'deseq') {
+      cls = 'deseq';
+      interp = `DESeq2 (built for RNA-seq) does better than naive t-test (${falsePos} false positives) but still doesn't fully account for compositional constraint.`;
+    } else {
+      cls = 'ancom';
+      interp = `ANCOM-BC correctly identifies the ${truePos} truly-differential taxa with minimal false positives — compositional bias absorbed by per-sample bias term.`;
+    }
+    $('verdict').className = 'verdict ' + cls;
+    $('verdict').textContent = interp;
+
+    drawVolcano(enriched);
+
+    let hint;
+    if (curMethod === 'ttest') hint = 'Compositional bias is the culprit: when 5 taxa truly increase, the relative abundance of all others decreases by definition. t-test mistakes these forced decreases for biology.';
+    else if (curMethod === 'deseq') hint = 'DESeq2 normalisation helps with sequencing-depth differences but still treats abundances as independent counts.';
+    else hint = 'ANCOM-BC models a sample-specific bias term that absorbs the compositional shift; only taxa with true biological change pass FDR.';
+    $('banner').innerHTML = `Method: <strong>${curMethod.toUpperCase()}</strong>. <strong>${sig.length}</strong> taxa pass FDR &lt; 0.05 (5 are real, ${falsePos} are false positives).<span class="hint">${hint}</span>`;
+  }
+
+  function drawVolcano(data) {
+    const svg = $('volcano');
+    svg.innerHTML = '';
+    // Frame
+    const fr = document.createElementNS(ns, 'rect');
+    fr.setAttribute('x', 60); fr.setAttribute('y', 30); fr.setAttribute('width', 880); fr.setAttribute('height', 280);
+    fr.setAttribute('fill', '#fff'); fr.setAttribute('stroke', '#d6d3d1');
+    svg.appendChild(fr);
+    // Axes
+    const xAt = lfc => 60 + (lfc + 4) / 8 * 880;
+    const yAt = neglogP => 310 - Math.min(15, neglogP) * 18;
+    // Reference lines
+    const lnX = document.createElementNS(ns, 'line');
+    lnX.setAttribute('x1', xAt(0)); lnX.setAttribute('y1', 30); lnX.setAttribute('x2', xAt(0)); lnX.setAttribute('y2', 310);
+    lnX.setAttribute('stroke', '#9ca3af'); lnX.setAttribute('stroke-dasharray', '3 3');
+    svg.appendChild(lnX);
+    const lnY = document.createElementNS(ns, 'line');
+    lnY.setAttribute('x1', 60); lnY.setAttribute('y1', yAt(-Math.log10(0.05))); lnY.setAttribute('x2', 940); lnY.setAttribute('y2', yAt(-Math.log10(0.05)));
+    lnY.setAttribute('stroke', '#dc2626'); lnY.setAttribute('stroke-dasharray', '3 3');
+    svg.appendChild(lnY);
+    const tlbl = document.createElementNS(ns, 'text');
+    tlbl.setAttribute('x', 940); tlbl.setAttribute('y', yAt(-Math.log10(0.05)) - 4); tlbl.setAttribute('text-anchor', 'end');
+    tlbl.setAttribute('font-size', 9); tlbl.setAttribute('fill', '#dc2626'); tlbl.setAttribute('font-family', 'JetBrains Mono, monospace');
+    tlbl.textContent = 'p_adj = 0.05';
+    svg.appendChild(tlbl);
+
+    // Axis labels
+    function ax(x, y, txt, anchor) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', x); t.setAttribute('y', y); t.setAttribute('text-anchor', anchor || 'start');
+      t.setAttribute('font-size', 10); t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.setAttribute('fill', '#525252'); t.textContent = txt;
+      svg.appendChild(t);
+    }
+    ax(60, 332, '−4', 'middle');
+    ax(280, 332, '−2', 'middle');
+    ax(500, 332, '0', 'middle');
+    ax(720, 332, '+2', 'middle');
+    ax(940, 332, '+4', 'middle');
+    ax(500, 352, 'log₂ fold change', 'middle');
+    ax(54, 312, '0', 'end');
+    ax(54, 218, '5', 'end');
+    ax(54, 128, '10', 'end');
+    ax(54, 38, '15+', 'end');
+    const yl = document.createElementNS(ns, 'text');
+    yl.setAttribute('x', 30); yl.setAttribute('y', 170); yl.setAttribute('text-anchor', 'middle');
+    yl.setAttribute('font-size', 11); yl.setAttribute('fill', '#525252');
+    yl.setAttribute('transform', 'rotate(-90 30 170)');
+    yl.textContent = '−log₁₀ p_adj';
+    svg.appendChild(yl);
+
+    data.forEach(d => {
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', xAt(d.lfc)); c.setAttribute('cy', yAt(-Math.log10(Math.max(d.padj, 1e-15))));
+      c.setAttribute('r', d.real ? 6 : 4);
+      const sig = d.padj < 0.05;
+      let fill;
+      if (sig && d.real) fill = '#065f46'; // true positive
+      else if (sig && !d.real) fill = '#dc2626'; // false positive
+      else if (!sig && d.real) fill = '#fdba74'; // false negative
+      else fill = '#9ca3af'; // true negative
+      c.setAttribute('fill', fill);
+      c.setAttribute('opacity', d.real ? 0.95 : 0.6);
+      svg.appendChild(c);
+    });
+
+    // Legend
+    const lg = document.createElementNS(ns, 'g');
+    lg.setAttribute('transform', 'translate(70,40)');
+    [['#065f46', 'true positive (real, sig)'], ['#dc2626', 'false positive (null, sig)'], ['#fdba74', 'false negative (real, ns)'], ['#9ca3af', 'true negative (null, ns)']].forEach(([col, lab], i) => {
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', 4); c.setAttribute('cy', i * 14); c.setAttribute('r', 4); c.setAttribute('fill', col);
+      lg.appendChild(c);
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', 14); t.setAttribute('y', i * 14 + 3);
+      t.setAttribute('font-size', 9); t.setAttribute('font-family', 'JetBrains Mono, monospace'); t.setAttribute('fill', '#525252');
+      t.textContent = lab;
+      lg.appendChild(t);
+    });
+    svg.appendChild(lg);
+  }
+
+  document.querySelectorAll('.tab').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      curMethod = b.dataset.method;
+      update();
+    });
+  });
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

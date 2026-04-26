@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAG Quality Assessment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .mag-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .mag-btn { padding: 0.7rem 0.6rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-family: var(--font-mono); font-size: 0.85rem; cursor: pointer; text-align: left; transition: all 0.15s; }
+  .mag-btn.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+  .mag-btn .num { font-size: 1.1rem; font-weight: 700; }
+  .mag-btn .qual { font-size: 0.7rem; color: #525252; margin-top: 0.2rem; }
+  .mag-btn.active .qual { color: #bfdbfe; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.4rem; font-weight: 800; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 1rem 1.2rem; font-family: var(--font-mono); font-size: 0.95rem; margin-bottom: 0.75rem; }
+  .verdict.high { border-color: #059669; background: #f0fdf4; color: #065f46; }
+  .verdict.medium { border-color: #b45309; background: #fffbeb; color: #92400e; }
+  .verdict.low { border-color: #c4342c; background: #fef2f2; color: #7f1d1d; }
+  .marker-grid { display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; margin-top: 0.5rem; }
+  .marker { aspect-ratio: 1; border-radius: 2px; }
+  .marker.present { background: #065f46; }
+  .marker.dup { background: #b45309; }
+  .marker.absent { background: #fee2e2; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .mag-list, .stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>MAG Quality Assessment</h1>
+    <p>5 simulated metagenome-assembled genomes scored against 120 single-copy marker genes (CheckM-style). Aha: MAG quality gates downstream usefulness; CheckM-style assessment is the standard.</p>
+  </div>
+
+  <div class="mag-list" id="magList"></div>
+
+  <div class="verdict" id="verdict">—</div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="completeness">—</div><div class="l">Completeness</div></div>
+    <div class="stat"><div class="v" id="contamination">—</div><div class="l">Contamination</div></div>
+    <div class="stat"><div class="v" id="genomeSize">—</div><div class="l">Total length</div></div>
+    <div class="stat"><div class="v" id="contigs">—</div><div class="l">Contigs / N50</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>120 single-copy marker gene presence (green) / duplication (amber) / absence (pink)</h3>
+    <div class="marker-grid" id="markers"></div>
+  </div>
+
+  <div class="panel">
+    <h3>Closest reference (GTDB-Tk)</h3>
+    <div id="taxonomy" style="font-family: var(--font-mono); font-size: 0.92rem; color: #374151; line-height: 1.7;"></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Generates marker-gene presence patterns matching MIMAG-defined quality categories. Real CheckM uses ~120 lineage-specific markers from Hug 2016 / Parks 2015; CheckM2 uses machine-learning-based estimates. GTDB-Tk taxonomic placement uses average nucleotide identity (ANI) + phylogenetic placement. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const MAGS = [
+    {
+      id: 1, name: 'MAG-001',
+      completeness: 95, contamination: 1, qual: 'high',
+      genomeSize: '4.8 Mb', contigs: '128 / 65 kb',
+      taxonomy: 'd__Bacteria; p__Bacteroidetes; c__Bacteroidia; o__Bacteroidales; f__Bacteroidaceae; g__Bacteroides; s__Bacteroides uniformis',
+      ani: '99.2% to GCF_000154205.1',
+      hint: 'High-quality MAG. Suitable for phylogenomics, comparative genomics, and metabolic-network reconstruction.'
+    },
+    {
+      id: 2, name: 'MAG-002',
+      completeness: 92, contamination: 2, qual: 'high',
+      genomeSize: '5.6 Mb', contigs: '96 / 102 kb',
+      taxonomy: 'd__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Ruminococcaceae; g__Faecalibacterium; s__Faecalibacterium prausnitzii',
+      ani: '97.8% to GCF_001423585.1',
+      hint: 'High-quality MAG. F. prausnitzii is an obligate anaerobe; depleted in IBD.'
+    },
+    {
+      id: 3, name: 'MAG-003',
+      completeness: 75, contamination: 3, qual: 'medium',
+      genomeSize: '3.4 Mb', contigs: '243 / 28 kb',
+      taxonomy: 'd__Bacteria; p__Verrucomicrobia; c__Verrucomicrobiae; o__Verrucomicrobiales; f__Akkermansiaceae; g__Akkermansia; s__Akkermansia muciniphila',
+      ani: '94.1% to GCF_000020225.1',
+      hint: 'Medium-quality MAG. Use with caution; manual review for missing essential genes; consider re-binning.'
+    },
+    {
+      id: 4, name: 'MAG-004',
+      completeness: 60, contamination: 6, qual: 'medium',
+      genomeSize: '2.8 Mb', contigs: '420 / 12 kb',
+      taxonomy: 'd__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__novel; s__sp_unclassified',
+      ani: '83.5% to GCF_002706385.1 (likely novel species)',
+      hint: 'Below "high-quality" threshold. May represent a novel species but needs more data; consider co-assembly.'
+    },
+    {
+      id: 5, name: 'MAG-005',
+      completeness: 45, contamination: 12, qual: 'low',
+      genomeSize: '1.9 Mb', contigs: '687 / 4 kb',
+      taxonomy: 'd__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; (uncertain placement)',
+      ani: '78.2% to GCF_003076215.1 (poor placement)',
+      hint: 'Low-quality MAG. Do not use for downstream analysis. Re-assemble with deeper sequencing or different binner.'
+    }
+  ];
+
+  let curMag = 0;
+
+  function rng(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+
+  function generateMarkers(mag) {
+    const r = rng(mag.id * 7919);
+    const N = 120;
+    const arr = [];
+    const presentTarget = Math.round(mag.completeness * 1.2); // some duplications
+    const dupTarget = Math.round(mag.contamination * 1.2);
+    let presents = 0, dups = 0;
+    for (let i = 0; i < N; i++) {
+      if (presents < presentTarget && r() < 0.85) { arr.push('present'); presents++; }
+      else if (dups < dupTarget && r() < 0.5) { arr.push('dup'); dups++; }
+      else arr.push('absent');
+    }
+    // Ensure right count
+    while (presents < Math.round(mag.completeness * 1.2 / 1.2)) {
+      const i = arr.findIndex(x => x === 'absent');
+      if (i >= 0) { arr[i] = 'present'; presents++; } else break;
+    }
+    return arr;
+  }
+
+  function update() {
+    let listHtml = '';
+    MAGS.forEach((m, i) => {
+      const qualLabel = m.qual === 'high' ? 'HIGH' : m.qual === 'medium' ? 'MED' : 'LOW';
+      listHtml += `<button class="mag-btn ${i === curMag ? 'active' : ''}" data-i="${i}">
+        <div class="num">${m.name}</div>
+        <div class="qual">${m.completeness}% / ${m.contamination}% · ${qualLabel}</div>
+      </button>`;
+    });
+    $('magList').innerHTML = listHtml;
+    document.querySelectorAll('.mag-btn').forEach(b => {
+      b.addEventListener('click', () => { curMag = parseInt(b.dataset.i, 10); update(); });
+    });
+
+    const m = MAGS[curMag];
+    $('completeness').textContent = `${m.completeness}%`;
+    $('contamination').textContent = `${m.contamination}%`;
+    $('genomeSize').textContent = m.genomeSize;
+    $('contigs').textContent = m.contigs;
+
+    let cls, verdictText;
+    if (m.qual === 'high') { cls = 'high'; verdictText = `✓ HIGH-QUALITY MAG — completeness ${m.completeness}% (≥ 90%) and contamination ${m.contamination}% (≤ 5%) meet MIMAG high-quality threshold.`; }
+    else if (m.qual === 'medium') { cls = 'medium'; verdictText = `△ MEDIUM-QUALITY MAG — completeness ${m.completeness}% and contamination ${m.contamination}%. Use with caution; manual review or re-binning recommended.`; }
+    else { cls = 'low'; verdictText = `✗ LOW-QUALITY MAG — completeness ${m.completeness}% and contamination ${m.contamination}% below MIMAG thresholds. Not suitable for downstream analysis.`; }
+    $('verdict').className = 'verdict ' + cls;
+    $('verdict').textContent = verdictText;
+
+    const markers = generateMarkers(m);
+    $('markers').innerHTML = markers.map(s => `<div class="marker ${s}"></div>`).join('');
+
+    $('taxonomy').innerHTML = `<div><strong>Lineage:</strong> ${m.taxonomy}</div><div style="margin-top:0.4rem;"><strong>ANI:</strong> ${m.ani}</div>`;
+
+    $('banner').innerHTML = `<strong>${m.name}</strong>: ${m.completeness}% complete · ${m.contamination}% contaminated.<span class="hint">${m.hint}</span>`;
+  }
+
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

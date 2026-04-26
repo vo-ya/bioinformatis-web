@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Target-Decoy FDR Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Target-Decoy FDR Explorer</h1>
+    <p>Slide the score threshold over a synthetic identification set (10,000 target + 10,000 decoy hits); see target IDs accepted, decoy IDs accepted, and computed FDR live. <strong>Aha</strong>: 1% FDR is not free — tightening the threshold trades sensitivity for specificity, and the trade is steepest near the score-distribution overlap.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="threshold">Score threshold: <span class="v" id="thrV">25.0</span></label>
+      <input type="range" id="threshold" min="100" max="500" value="250">
+    </div>
+    <div class="field">
+      <label for="separation">Target-decoy separation σ: <span class="v" id="sepV">3.0</span></label>
+      <input type="range" id="separation" min="100" max="500" value="300">
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="targetN" style="color:#1e3a8a">—</div><div class="l">target hits accepted</div></div>
+    <div class="stat"><div class="v" id="decoyN" style="color:#dc2626">—</div><div class="l">decoy hits accepted</div></div>
+    <div class="stat"><div class="v" id="fdr" style="color:#b45309">—</div><div class="l">FDR</div></div>
+    <div class="stat"><div class="v" id="qval" style="color:#7c3aed">—</div><div class="l">q-value</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Score histograms — target (cobalt) vs decoy (red)</h3>
+    <svg id="hist" viewBox="0 0 1040 380" width="100%" height="380"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulator. Generates 10,000 target + 10,000 decoy PSM scores from gaussian mixtures with adjustable mean separation; the FDR formula matches the standard target-decoy estimator: FDR = #decoys ≥ t / #targets ≥ t. Real distributions are skewed, often log-normal; modern tools (Percolator, MS2Rescore) use ML to widen the separation. Not for production use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  // Fixed seed — generate distributions once
+  let seed = 7;
+  function rand() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+  function randn() { let u = rand(); while (u === 0) u = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rand()); }
+
+  function generate(separationStd) {
+    seed = 7;
+    // Decoy: N(15, 3); target: 70% N(35-mean_shift, 4) good + 30% N(18, 4) bad
+    const sep = separationStd / 100; // 1.0–5.0
+    const decoy = [];
+    const target = [];
+    for (let i = 0; i < 10000; i++) decoy.push(15 + randn() * 3);
+    for (let i = 0; i < 7000; i++) target.push(15 + sep * 4 + 20 + randn() * 4);
+    for (let i = 0; i < 3000; i++) target.push(18 + randn() * 4);
+    return { decoy: decoy.sort((a, b) => a - b), target: target.sort((a, b) => a - b) };
+  }
+
+  let data = generate(parseFloat($('separation').value));
+
+  function update() {
+    const sep = parseFloat($('separation').value);
+    $('sepV').textContent = (sep / 100).toFixed(1);
+    data = generate(sep);
+
+    const thr = parseFloat($('threshold').value) / 10;
+    $('thrV').textContent = thr.toFixed(1);
+
+    // count above threshold
+    const tgtAcc = data.target.filter(x => x >= thr).length;
+    const decAcc = data.decoy.filter(x => x >= thr).length;
+    const fdr = tgtAcc > 0 ? decAcc / tgtAcc : 0;
+
+    $('targetN').textContent = tgtAcc.toLocaleString();
+    $('decoyN').textContent = decAcc.toLocaleString();
+    $('fdr').textContent = (fdr * 100).toFixed(2) + '%';
+    $('qval').textContent = (fdr * 100).toFixed(2) + '%';
+
+    drawHist(data, thr);
+
+    let v;
+    if (fdr < 0.01) v = `acceptable for publication-grade peptide IDs (1% FDR target).`;
+    else if (fdr < 0.05) v = `loose by classical peptide-FDR standards (target 1%); acceptable for some discovery work.`;
+    else v = `unacceptable for confident identifications — raise the threshold.`;
+    $('banner').innerHTML = `At score = <strong>${thr.toFixed(1)}</strong>: <strong>${tgtAcc.toLocaleString()}</strong> targets, <strong>${decAcc.toLocaleString()}</strong> decoys → FDR = <strong>${(fdr * 100).toFixed(2)}%</strong>. ${v}`;
+  }
+
+  function drawHist(d, thr) {
+    const svg = $('hist');
+    svg.innerHTML = '';
+    const ns = 'http://www.w3.org/2000/svg';
+    const w = 1040, h = 380, m = 50;
+    const pw = w - 2 * m, ph = h - 2 * m;
+    const minS = 5, maxS = 65;
+    const nBins = 50;
+    const binW = (maxS - minS) / nBins;
+
+    function binCount(arr) {
+      const bins = new Array(nBins).fill(0);
+      for (const v of arr) {
+        const idx = Math.floor((v - minS) / binW);
+        if (idx >= 0 && idx < nBins) bins[idx]++;
+      }
+      return bins;
+    }
+    const tBins = binCount(d.target);
+    const dBins = binCount(d.decoy);
+    const maxC = Math.max(...tBins, ...dBins);
+
+    // axes
+    for (const [x1, y1, x2, y2] of [[m, h - m, w - m, h - m], [m, m, m, h - m]]) {
+      const l = document.createElementNS(ns, 'line');
+      l.setAttribute('x1', x1); l.setAttribute('y1', y1); l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+      l.setAttribute('stroke', '#374151');
+      svg.appendChild(l);
+    }
+
+    const xLab = document.createElementNS(ns, 'text');
+    xLab.setAttribute('x', w / 2); xLab.setAttribute('y', h - 8); xLab.setAttribute('text-anchor', 'middle');
+    xLab.setAttribute('font-size', 11); xLab.setAttribute('fill', '#525252');
+    xLab.textContent = 'PSM score';
+    svg.appendChild(xLab);
+
+    const yLab = document.createElementNS(ns, 'text');
+    yLab.setAttribute('x', 14); yLab.setAttribute('y', h / 2); yLab.setAttribute('font-size', 11); yLab.setAttribute('fill', '#525252');
+    yLab.setAttribute('transform', `rotate(-90 14 ${h / 2})`);
+    yLab.textContent = 'PSM count';
+    svg.appendChild(yLab);
+
+    // histograms
+    function drawBars(bins, color, opacity) {
+      for (let i = 0; i < nBins; i++) {
+        const x = m + (i / nBins) * pw;
+        const bw = pw / nBins - 1;
+        const bh = (bins[i] / maxC) * ph;
+        const r = document.createElementNS(ns, 'rect');
+        r.setAttribute('x', x); r.setAttribute('y', h - m - bh); r.setAttribute('width', bw); r.setAttribute('height', bh);
+        r.setAttribute('fill', color); r.setAttribute('fill-opacity', opacity);
+        svg.appendChild(r);
+      }
+    }
+    drawBars(tBins, '#1e3a8a', 0.55);
+    drawBars(dBins, '#dc2626', 0.55);
+
+    // threshold line
+    const thrX = m + ((thr - minS) / (maxS - minS)) * pw;
+    const tline = document.createElementNS(ns, 'line');
+    tline.setAttribute('x1', thrX); tline.setAttribute('y1', m); tline.setAttribute('x2', thrX); tline.setAttribute('y2', h - m);
+    tline.setAttribute('stroke', '#b45309'); tline.setAttribute('stroke-width', 2.5); tline.setAttribute('stroke-dasharray', '5 3');
+    svg.appendChild(tline);
+    const tLab = document.createElementNS(ns, 'text');
+    tLab.setAttribute('x', thrX); tLab.setAttribute('y', m - 6); tLab.setAttribute('text-anchor', 'middle');
+    tLab.setAttribute('font-size', 11); tLab.setAttribute('font-weight', 700); tLab.setAttribute('fill', '#92400e');
+    tLab.textContent = `t = ${thr.toFixed(1)}`;
+    svg.appendChild(tLab);
+
+    // legend
+    const tg = document.createElementNS(ns, 'g');
+    tg.innerHTML = `<rect x="${w - 200}" y="20" width="14" height="14" fill="#1e3a8a" fill-opacity="0.55"/><text x="${w - 180}" y="32" font-size="11" fill="#1e3a8a">target hits (10,000)</text>` +
+                   `<rect x="${w - 200}" y="40" width="14" height="14" fill="#dc2626" fill-opacity="0.55"/><text x="${w - 180}" y="52" font-size="11" fill="#dc2626">decoy hits (10,000)</text>`;
+    svg.appendChild(tg);
+  }
+
+  $('threshold').addEventListener('input', update);
+  $('separation').addEventListener('input', update);
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

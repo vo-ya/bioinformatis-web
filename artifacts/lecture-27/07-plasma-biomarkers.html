@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plasma Proteome Biomarker Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  .field select { font-family: var(--font-mono); font-size: 0.85rem; padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .assayrow { display: grid; grid-template-columns: 180px 1fr 100px 90px; gap: 0.6rem; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+  .assayrow .name { font-family: var(--font-mono); font-weight: 700; }
+  .assayrow .bar { height: 14px; background: #f1f5f9; border-radius: 2px; position: relative; }
+  .assayrow .fill { height: 100%; border-radius: 2px; }
+  .assayrow .fill.full { background: linear-gradient(90deg, #065f46, #1e3a8a); }
+  .assayrow .fill.partial { background: linear-gradient(90deg, #b45309, #b45309); }
+  .assayrow .verdict { font-size: 0.78rem; font-weight: 700; text-align: right; }
+  .verdict.yes { color: #065f46; }
+  .verdict.no { color: #dc2626; }
+  .verdict.borderline { color: #b45309; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Plasma Proteome Biomarker Explorer</h1>
+    <p>Drag the abundance slider; see which detection technologies (LC-MS/MS untargeted, targeted PRM, Olink, SomaScan, Simoa) can quantify a protein at that level. <strong>Aha</strong>: assay choice depends on target abundance — routine LC-MS/MS untargeted bottoms out around $10^{-9}$ M; below that, you need affinity capture or single-molecule sensitivity.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="abundance">Target abundance: <span class="v" id="abundV">10⁻¹⁰ M</span></label>
+      <input type="range" id="abundance" min="-13" max="-3" step="1" value="-10">
+    </div>
+    <div class="field">
+      <label for="protein">Example proteins at this level</label>
+      <select id="protein"></select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="capable" style="color:#065f46">—</div><div class="l">capable assays</div></div>
+    <div class="stat"><div class="v" id="cheapest" style="color:#1e3a8a">—</div><div class="l">cheapest option</div></div>
+    <div class="stat"><div class="v" id="fastest" style="color:#7c3aed">—</div><div class="l">highest throughput</div></div>
+    <div class="stat"><div class="v" id="absolute" style="color:#dc2626">—</div><div class="l">absolute quant</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Assays at this abundance</h3>
+    <div id="assays"></div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational explorer. Detection limits approximate published values per platform; actual sensitivity depends on sample matrix, depletion strategy, and assay-specific factors. Olink ranges may overlap with SomaScan in practice. Cost / throughput estimates are 2024 ballpark. Not for clinical assay selection.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const examples = {
+    '-3': [{ name: 'Albumin', context: 'serum carrier protein' }],
+    '-4': [{ name: 'IgG', context: 'antibody isotype' }, { name: 'Fibrinogen', context: 'coagulation' }],
+    '-5': [{ name: 'Transferrin', context: 'iron transport' }, { name: 'C3 (complement)', context: 'innate immunity' }],
+    '-6': [{ name: 'Apolipoprotein A1', context: 'HDL' }, { name: 'Haptoglobin', context: 'acute phase' }],
+    '-7': [{ name: 'CRP', context: 'inflammation' }, { name: 'Ferritin', context: 'iron stores' }],
+    '-8': [{ name: 'IL-6', context: 'cytokine' }, { name: 'PSA', context: 'prostate' }],
+    '-9': [{ name: 'Insulin', context: 'metabolic' }, { name: 'TSH', context: 'thyroid' }],
+    '-10': [{ name: 'Troponin I', context: 'cardiac injury' }, { name: 'TNF-α', context: 'cytokine' }],
+    '-11': [{ name: 'BNP', context: 'heart failure' }, { name: 'Calcitonin', context: 'thyroid C-cell' }],
+    '-12': [{ name: 'CA 19-9', context: 'pancreatic' }, { name: 'Tau', context: 'neurodegeneration' }],
+    '-13': [{ name: 'Amyloid-β 42', context: 'Alzheimer\'s' }, { name: 'Neurofilament-L', context: 'CNS injury' }],
+  };
+
+  const assays = [
+    { name: 'LC-MS/MS untargeted', minLog: -9, throughput: 'medium (50–200/day)', cost: '$200–500/sample', absolute: false, color: '#b45309' },
+    { name: 'LC-MS/MS targeted (PRM)', minLog: -11, throughput: 'low (~30/day)', cost: '$500–1k/sample', absolute: true, color: '#1e3a8a' },
+    { name: 'Olink (PEA)', minLog: -10, throughput: 'high (3000+/day)', cost: '$200–400/sample', absolute: false, color: '#065f46' },
+    { name: 'SomaScan (aptamer)', minLog: -10, throughput: 'high (~1000/day)', cost: '$500–800/sample', absolute: false, color: '#065f46' },
+    { name: 'Simoa (single-molecule)', minLog: -13, throughput: 'medium (~500/day)', cost: '$80–200/marker', absolute: true, color: '#dc2626' },
+    { name: 'ELISA (immunoassay)', minLog: -11, throughput: 'medium (~96/plate)', cost: '$50–150/marker', absolute: true, color: '#7c3aed' },
+  ];
+
+  function update() {
+    const log = parseFloat($('abundance').value);
+    $('abundV').textContent = `10${log === -3 ? '⁻³' : log === -4 ? '⁻⁴' : log === -5 ? '⁻⁵' : log === -6 ? '⁻⁶' : log === -7 ? '⁻⁷' : log === -8 ? '⁻⁸' : log === -9 ? '⁻⁹' : log === -10 ? '⁻¹⁰' : log === -11 ? '⁻¹¹' : log === -12 ? '⁻¹²' : '⁻¹³'} M`;
+
+    // populate examples dropdown
+    const sel = $('protein');
+    sel.innerHTML = '';
+    const ex = examples[log.toString()] || [];
+    for (const e of ex) {
+      const opt = document.createElement('option');
+      opt.value = e.name;
+      opt.textContent = `${e.name} — ${e.context}`;
+      sel.appendChild(opt);
+    }
+
+    // capable assays
+    const capable = assays.filter(a => log >= a.minLog);
+    const incapable = assays.filter(a => log < a.minLog);
+
+    $('capable').textContent = capable.length + ' / ' + assays.length;
+
+    // cheapest
+    if (capable.length > 0) {
+      const c = capable.reduce((a, b) => parseInt(a.cost.match(/\d+/)[0]) < parseInt(b.cost.match(/\d+/)[0]) ? a : b);
+      $('cheapest').textContent = c.name.split(' ')[0];
+    } else $('cheapest').textContent = '—';
+
+    // highest throughput (pick by hard-coded preference order)
+    const tpOrder = ['Olink (PEA)', 'SomaScan (aptamer)', 'Simoa (single-molecule)', 'ELISA (immunoassay)', 'LC-MS/MS untargeted', 'LC-MS/MS targeted (PRM)'];
+    const fastest = tpOrder.find(n => capable.some(a => a.name === n));
+    $('fastest').textContent = fastest ? fastest.split(' ')[0] : '—';
+
+    // absolute quant
+    const absA = capable.filter(a => a.absolute).map(a => a.name.split(' ')[0]);
+    $('absolute').textContent = absA.length > 0 ? absA.join(', ').slice(0, 18) : '—';
+
+    // render assay rows
+    const box = $('assays');
+    box.innerHTML = '';
+    for (const a of assays) {
+      const div = document.createElement('div');
+      div.className = 'assayrow';
+      const range = a.minLog;
+      const canDetect = log >= a.minLog;
+      const fill = canDetect ? 'full' : 'partial';
+      const lowEnd = ((-3 - range) / 10) * 100;
+      div.innerHTML = `<div class="name">${a.name}</div>
+        <div class="bar"><div class="fill ${fill}" style="width:${Math.min(100, lowEnd)}%"></div></div>
+        <div style="font-size:0.78rem;color:#525252">down to 10<sup>${a.minLog}</sup> M</div>
+        <div class="verdict ${canDetect ? 'yes' : 'no'}">${canDetect ? 'YES' : 'NO'}</div>`;
+      box.appendChild(div);
+    }
+
+    // banner
+    let msg;
+    if (capable.length === 0) msg = `<strong>No assays</strong> reach ${$('abundV').textContent} — push for sample enrichment / immunoaffinity / Simoa-class single-molecule platforms.`;
+    else if (capable.length <= 2) msg = `Only ${capable.length} assay(s) reach ${$('abundV').textContent} — choose by absolute-quant / throughput needs (${capable.map(a => a.name.split(' ')[0]).join(', ')}).`;
+    else msg = `${capable.length} assays reach ${$('abundV').textContent}. For discovery, use ${capable[0].name}; for absolute clinical quant, use ${capable.find(a => a.absolute) ? capable.find(a => a.absolute).name : '—'}.`;
+    $('banner').innerHTML = msg;
+  }
+
+  $('abundance').addEventListener('input', update);
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

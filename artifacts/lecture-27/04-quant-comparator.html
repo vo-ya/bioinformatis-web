@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantification Method Comparator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; }
+  .stat.lfq .v { color: #525252; }
+  .stat.silac .v { color: #1e3a8a; }
+  .stat.tmt .v { color: #7c3aed; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Quantification Method Comparator</h1>
+    <p>Run a 30-protein, 6-sample case–control simulation under LFQ, SILAC, and TMT-6plex; compare CV, missing values, and statistical power. <strong>Aha</strong>: SILAC has lowest CV and highest TPR; TMT multiplexes well but compresses ratios; LFQ is cheapest but has the most missing values.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="effect">True log₂ fold-change: <span class="v" id="effectV">1.0</span></label>
+      <input type="range" id="effect" min="20" max="300" value="100">
+    </div>
+    <div class="field">
+      <label for="frac">Fraction true-DE: <span class="v" id="fracV">30%</span></label>
+      <input type="range" id="frac" min="10" max="60" value="30">
+    </div>
+    <div class="field">
+      <label for="n">Replicates per group: <span class="v" id="nV">3</span></label>
+      <input type="range" id="n" min="2" max="6" value="3">
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat lfq"><div class="v" id="lfqTPR">—</div><div class="l">LFQ TPR</div></div>
+    <div class="stat silac"><div class="v" id="silacTPR">—</div><div class="l">SILAC TPR</div></div>
+    <div class="stat tmt"><div class="v" id="tmtTPR">—</div><div class="l">TMT TPR</div></div>
+    <div class="stat"><div class="v" id="best">—</div><div class="l">best for this setting</div></div>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <h3>CV across samples (lower is better)</h3>
+      <svg id="cvBars" viewBox="0 0 480 240" width="100%" height="240"></svg>
+    </div>
+    <div class="panel">
+      <h3>Power curve — TPR vs effect size</h3>
+      <svg id="powerCurve" viewBox="0 0 480 240" width="100%" height="240"></svg>
+    </div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulator. Models LFQ (~12% CV, ~25% missing), SILAC (~5% CV, ~5% missing, paired), and TMT (~10% CV, ~3% missing, with 5–10% ratio compression). Numbers approximate published benchmarks (Plubell 2017, O'Brien 2018, Brenes 2019). Real datasets vary by sample type and run conditions. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  function pnorm(z) {
+    // approximation
+    const t = 1 / (1 + 0.2316419 * Math.abs(z));
+    const d = 0.3989423 * Math.exp(-z * z / 2);
+    let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    if (z > 0) p = 1 - p;
+    return p;
+  }
+
+  function expectedTPR(effect, n, sigma, missingFrac, compression) {
+    const eff = effect * (1 - compression);
+    const seDiff = sigma * Math.sqrt(2 / n);
+    const z = eff / seDiff;
+    // approximate two-sided power for alpha=0.05 with Bonferroni-ish correction (FDR 5% on 30 tests)
+    const alpha = 0.05 / 6; // approx scaling
+    const zCrit = 2.5;
+    const power = 1 - pnorm(zCrit - z) + pnorm(-zCrit - z);
+    // missingness reduces effective power (linearly proportional to undetected DE proteins)
+    return Math.max(0, Math.min(1, power * (1 - 0.6 * missingFrac)));
+  }
+
+  function update() {
+    const effect = parseFloat($('effect').value) / 100;
+    const frac = parseFloat($('frac').value);
+    const n = parseInt($('n').value);
+    $('effectV').textContent = effect.toFixed(2);
+    $('fracV').textContent = frac + '%';
+    $('nV').textContent = n;
+
+    const methods = {
+      LFQ:   { sigma: 0.30, missing: 0.25, compression: 0.00, color: '#525252' },
+      SILAC: { sigma: 0.12, missing: 0.05, compression: 0.00, color: '#1e3a8a' },
+      TMT:   { sigma: 0.20, missing: 0.03, compression: 0.10, color: '#7c3aed' },
+    };
+
+    const tprs = {};
+    for (const [k, m] of Object.entries(methods)) {
+      tprs[k] = expectedTPR(effect, n, m.sigma, m.missing, m.compression);
+    }
+    $('lfqTPR').textContent = (tprs.LFQ * 100).toFixed(0) + '%';
+    $('silacTPR').textContent = (tprs.SILAC * 100).toFixed(0) + '%';
+    $('tmtTPR').textContent = (tprs.TMT * 100).toFixed(0) + '%';
+
+    const best = Object.entries(tprs).sort((a, b) => b[1] - a[1])[0][0];
+    const bestEl = $('best');
+    bestEl.textContent = best;
+    bestEl.style.color = methods[best].color;
+
+    drawCV(methods);
+    drawPower(methods, n);
+
+    $('banner').innerHTML = `At log₂FC = <strong>${effect.toFixed(2)}</strong>, n = ${n}/group: LFQ ${(tprs.LFQ * 100).toFixed(0)}%, SILAC ${(tprs.SILAC * 100).toFixed(0)}%, TMT ${(tprs.TMT * 100).toFixed(0)}% TPR. <strong>${best}</strong> is highest-power; choose by question (cell-culture? → SILAC; cohort scale? → TMT; broad discovery? → LFQ).`;
+  }
+
+  function drawCV(methods) {
+    const svg = $('cvBars');
+    svg.innerHTML = '';
+    const ns = 'http://www.w3.org/2000/svg';
+    const w = 480, h = 240, m = 50;
+    const order = ['LFQ', 'SILAC', 'TMT'];
+
+    const bw = 70;
+    const gap = 30;
+    const startX = (w - 3 * bw - 2 * gap) / 2;
+
+    for (let i = 0; i < 3; i++) {
+      const k = order[i];
+      const cv = methods[k].sigma * 100;
+      const x = startX + i * (bw + gap);
+      const barH = (cv / 35) * (h - 2 * m);
+      const r = document.createElementNS(ns, 'rect');
+      r.setAttribute('x', x); r.setAttribute('y', h - m - barH);
+      r.setAttribute('width', bw); r.setAttribute('height', barH);
+      r.setAttribute('fill', methods[k].color); r.setAttribute('fill-opacity', 0.7);
+      r.setAttribute('stroke', methods[k].color); r.setAttribute('stroke-width', 2);
+      svg.appendChild(r);
+      const lab = document.createElementNS(ns, 'text');
+      lab.setAttribute('x', x + bw / 2); lab.setAttribute('y', h - m + 16);
+      lab.setAttribute('text-anchor', 'middle'); lab.setAttribute('font-size', 11); lab.setAttribute('font-weight', 700);
+      lab.setAttribute('fill', methods[k].color);
+      lab.textContent = k;
+      svg.appendChild(lab);
+      const num = document.createElementNS(ns, 'text');
+      num.setAttribute('x', x + bw / 2); num.setAttribute('y', h - m - barH - 6);
+      num.setAttribute('text-anchor', 'middle'); num.setAttribute('font-size', 11); num.setAttribute('font-weight', 700);
+      num.setAttribute('fill', methods[k].color); num.setAttribute('font-family', 'JetBrains Mono');
+      num.textContent = cv.toFixed(0) + '%';
+      svg.appendChild(num);
+    }
+
+    const ax = document.createElementNS(ns, 'line');
+    ax.setAttribute('x1', m); ax.setAttribute('y1', h - m); ax.setAttribute('x2', w - m); ax.setAttribute('y2', h - m);
+    ax.setAttribute('stroke', '#374151');
+    svg.appendChild(ax);
+
+    const yL = document.createElementNS(ns, 'text');
+    yL.setAttribute('x', 16); yL.setAttribute('y', h / 2); yL.setAttribute('font-size', 11); yL.setAttribute('fill', '#525252');
+    yL.setAttribute('transform', `rotate(-90 16 ${h / 2})`);
+    yL.textContent = 'CV (%)';
+    svg.appendChild(yL);
+  }
+
+  function drawPower(methods, n) {
+    const svg = $('powerCurve');
+    svg.innerHTML = '';
+    const ns = 'http://www.w3.org/2000/svg';
+    const w = 480, h = 240, m = 50;
+    const pw = w - 2 * m, ph = h - 2 * m;
+
+    const ax1 = document.createElementNS(ns, 'line');
+    ax1.setAttribute('x1', m); ax1.setAttribute('y1', h - m); ax1.setAttribute('x2', w - m); ax1.setAttribute('y2', h - m);
+    ax1.setAttribute('stroke', '#374151');
+    svg.appendChild(ax1);
+    const ax2 = document.createElementNS(ns, 'line');
+    ax2.setAttribute('x1', m); ax2.setAttribute('y1', m); ax2.setAttribute('x2', m); ax2.setAttribute('y2', h - m);
+    ax2.setAttribute('stroke', '#374151');
+    svg.appendChild(ax2);
+
+    const xLab = document.createElementNS(ns, 'text');
+    xLab.setAttribute('x', w / 2); xLab.setAttribute('y', h - 6); xLab.setAttribute('text-anchor', 'middle');
+    xLab.setAttribute('font-size', 10); xLab.setAttribute('fill', '#525252');
+    xLab.textContent = 'true log₂ fold-change';
+    svg.appendChild(xLab);
+
+    const yLab = document.createElementNS(ns, 'text');
+    yLab.setAttribute('x', 12); yLab.setAttribute('y', h / 2); yLab.setAttribute('font-size', 10); yLab.setAttribute('fill', '#525252');
+    yLab.setAttribute('transform', `rotate(-90 12 ${h / 2})`);
+    yLab.textContent = 'TPR';
+    svg.appendChild(yLab);
+
+    function pnormLocal(z) {
+      const t = 1 / (1 + 0.2316419 * Math.abs(z));
+      const d = 0.3989423 * Math.exp(-z * z / 2);
+      let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+      if (z > 0) p = 1 - p;
+      return p;
+    }
+
+    const points = 30;
+    for (const k of ['LFQ', 'SILAC', 'TMT']) {
+      const md = methods[k];
+      let path = '';
+      for (let i = 0; i <= points; i++) {
+        const eff = (i / points) * 3;
+        const tpr = (() => {
+          const eff2 = eff * (1 - md.compression);
+          const seDiff = md.sigma * Math.sqrt(2 / n);
+          const z = eff2 / seDiff;
+          const power = 1 - pnormLocal(2.5 - z) + pnormLocal(-2.5 - z);
+          return Math.max(0, Math.min(1, power * (1 - 0.6 * md.missing)));
+        })();
+        const x = m + (i / points) * pw;
+        const y = h - m - tpr * ph;
+        path += (i === 0 ? 'M ' : 'L ') + x + ' ' + y + ' ';
+      }
+      const p = document.createElementNS(ns, 'path');
+      p.setAttribute('d', path);
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', md.color);
+      p.setAttribute('stroke-width', 2);
+      svg.appendChild(p);
+    }
+
+    // legend
+    const colors = { LFQ: '#525252', SILAC: '#1e3a8a', TMT: '#7c3aed' };
+    let lx = w - 100, ly = 50;
+    for (const [k, c] of Object.entries(colors)) {
+      const li = document.createElementNS(ns, 'line');
+      li.setAttribute('x1', lx); li.setAttribute('y1', ly); li.setAttribute('x2', lx + 18); li.setAttribute('y2', ly);
+      li.setAttribute('stroke', c); li.setAttribute('stroke-width', 2);
+      svg.appendChild(li);
+      const lt = document.createElementNS(ns, 'text');
+      lt.setAttribute('x', lx + 22); lt.setAttribute('y', ly + 4); lt.setAttribute('font-size', 10); lt.setAttribute('fill', c);
+      lt.textContent = k;
+      svg.appendChild(lt);
+      ly += 18;
+    }
+  }
+
+  ['effect', 'frac', 'n'].forEach(id => $(id).addEventListener('input', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

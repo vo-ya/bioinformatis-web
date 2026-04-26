@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDA vs DIA Acquisition Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .modeRow { display: flex; gap: 1rem; align-items: center; margin-bottom: 0.4rem; font-size: 0.85rem; }
+  .modeRow input[type=radio] { margin-right: 0.4rem; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>DDA vs DIA Acquisition Simulator</h1>
+    <p>Simulate three replicate LC-MS/MS runs on a 1,000-peptide library; compare DDA top-N selection vs DIA window scanning. <strong>Aha</strong>: DDA's top-N stochastic selection produces ~70% replicate concordance; DIA's deterministic window scan jumps that to ~85%+.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label>Acquisition mode</label>
+      <div class="modeRow">
+        <label><input type="radio" name="mode" value="DDA" checked> DDA top-N</label>
+        <label><input type="radio" name="mode" value="DIA"> DIA windows</label>
+      </div>
+    </div>
+    <div class="field">
+      <label for="topN">Top-N (DDA): <span class="v" id="topNV">15</span></label>
+      <input type="range" id="topN" min="5" max="40" value="15">
+    </div>
+    <div class="field">
+      <label for="winN">Windows (DIA): <span class="v" id="winNV">40</span></label>
+      <input type="range" id="winN" min="20" max="80" value="40">
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="ids" style="color:#1e3a8a">—</div><div class="l">peptide IDs (avg)</div></div>
+    <div class="stat"><div class="v" id="overlap" style="color:#7c3aed">—</div><div class="l">3-rep overlap</div></div>
+    <div class="stat"><div class="v" id="cv" style="color:#065f46">—</div><div class="l">CV (median, %)</div></div>
+    <div class="stat"><div class="v" id="missing" style="color:#dc2626">—</div><div class="l">missing values</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Replicate concordance — peptide ID overlap (Venn-style)</h3>
+    <svg id="venn" viewBox="0 0 540 240" width="100%" height="240"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulator. Models a 1,000-peptide library with log-normal abundances and per-replicate sampling noise. The shape (DDA stochastic, DIA deterministic) and rough concordance numbers (~70% DDA, ~85% DIA) match published comparisons (Bruderer 2017; Demichev 2020). Not a substitute for actual instrument data. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const N_PEPTIDES = 1000;
+
+  // Generate peptide library: log-normal abundances seeded
+  let seed = 11;
+  function rand() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+  function randn() { let u = rand(); while (u === 0) u = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rand()); }
+
+  const peptides = [];
+  seed = 11;
+  for (let i = 0; i < N_PEPTIDES; i++) {
+    peptides.push({ id: i, abundance: Math.exp(randn() * 1.2 + 5) });
+  }
+
+  function simulate() {
+    const mode = document.querySelector('input[name=mode]:checked').value;
+    const topN = parseInt($('topN').value);
+    const winN = parseInt($('winN').value);
+    $('topNV').textContent = topN;
+    $('winNV').textContent = winN;
+
+    // 3 replicates each
+    const reps = [[], [], []];
+    for (let r = 0; r < 3; r++) {
+      seed = 1 + r * 7919 + (mode === 'DDA' ? topN : winN) * 13;
+      const detected = new Set();
+      if (mode === 'DDA') {
+        // Sample top-N at each "scan cycle"; cycle samples randomly
+        const cycles = 50;
+        for (let c = 0; c < cycles; c++) {
+          // pick topN highest abundance with stochastic noise
+          const ranked = peptides.map(p => ({ id: p.id, score: p.abundance * Math.exp(randn() * 0.6) })).sort((a, b) => b.score - a.score);
+          for (let i = 0; i < topN; i++) detected.add(ranked[i].id);
+        }
+      } else {
+        // DIA: every peptide sampled if it's in any window
+        // Detection probability = base rate + window coverage factor
+        const detRate = 0.55 + 0.40 * Math.min(1, winN / 80);
+        for (const p of peptides) {
+          const detP = detRate * (0.4 + 0.7 * (Math.log(p.abundance) - 3) / 6);
+          if (rand() < Math.max(0, Math.min(1, detP))) detected.add(p.id);
+        }
+      }
+      reps[r] = detected;
+    }
+
+    // intersection
+    const all3 = [...reps[0]].filter(x => reps[1].has(x) && reps[2].has(x));
+    const just12 = [...reps[0]].filter(x => reps[1].has(x) && !reps[2].has(x));
+    const just13 = [...reps[0]].filter(x => !reps[1].has(x) && reps[2].has(x));
+    const just23 = [...reps[1]].filter(x => reps[2].has(x) && !reps[0].has(x));
+    const only1 = [...reps[0]].filter(x => !reps[1].has(x) && !reps[2].has(x));
+    const only2 = [...reps[1]].filter(x => !reps[0].has(x) && !reps[2].has(x));
+    const only3 = [...reps[2]].filter(x => !reps[0].has(x) && !reps[1].has(x));
+
+    const totalUnion = new Set([...reps[0], ...reps[1], ...reps[2]]).size;
+    const concordance = all3.length / totalUnion;
+    const avgIDs = (reps[0].size + reps[1].size + reps[2].size) / 3;
+
+    const cv = mode === 'DDA' ? (12 + (40 - topN) * 0.2) : (5 + (80 - winN) * 0.05);
+    const missing = mode === 'DDA' ? Math.round((1 - reps[0].size / N_PEPTIDES) * 100) : Math.round((1 - reps[0].size / N_PEPTIDES) * 100);
+
+    $('ids').textContent = Math.round(avgIDs);
+    $('overlap').textContent = (concordance * 100).toFixed(0) + '%';
+    $('cv').textContent = cv.toFixed(1);
+    $('missing').textContent = missing + '%';
+
+    drawVenn({ all3: all3.length, ab: just12.length, ac: just13.length, bc: just23.length, a: only1.length, b: only2.length, c: only3.length, total: totalUnion }, mode);
+
+    let v;
+    if (mode === 'DDA') v = concordance >= 0.75 ? 'high concordance for DDA — saturated top-N' : concordance >= 0.6 ? 'typical DDA concordance' : 'low concordance — top-N too small';
+    else v = concordance >= 0.85 ? 'excellent — DIA at full coverage' : concordance >= 0.7 ? 'good concordance' : 'low for DIA — try wider windows or finer m/z grid';
+    $('banner').innerHTML = `${mode} mode (${mode === 'DDA' ? 'top-' + topN : winN + ' windows'}): <strong>${Math.round(avgIDs)}</strong> peptides per rep, <strong>${(concordance * 100).toFixed(0)}%</strong> 3-replicate overlap. ${v}.`;
+  }
+
+  function drawVenn(c, mode) {
+    const svg = $('venn');
+    svg.innerHTML = '';
+    const ns = 'http://www.w3.org/2000/svg';
+    const color = mode === 'DDA' ? '#b45309' : '#1e3a8a';
+    const opacity = 0.32;
+    const cx = 270, cy = 120, r = 75;
+
+    const circles = [
+      { cx: cx - 36, cy: cy - 22 },
+      { cx: cx + 36, cy: cy - 22 },
+      { cx: cx, cy: cy + 36 }
+    ];
+
+    for (const c0 of circles) {
+      const e = document.createElementNS(ns, 'circle');
+      e.setAttribute('cx', c0.cx); e.setAttribute('cy', c0.cy); e.setAttribute('r', r);
+      e.setAttribute('fill', color); e.setAttribute('fill-opacity', opacity);
+      e.setAttribute('stroke', color); e.setAttribute('stroke-width', 2);
+      svg.appendChild(e);
+    }
+
+    // labels
+    const labels = [
+      { x: cx - 76, y: cy - 60, t: 'rep 1' },
+      { x: cx + 76, y: cy - 60, t: 'rep 2' },
+      { x: cx, y: cy + 110, t: 'rep 3' },
+    ];
+    for (const l of labels) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', l.x); t.setAttribute('y', l.y); t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-size', 11); t.setAttribute('font-weight', 700); t.setAttribute('fill', color);
+      t.textContent = l.t;
+      svg.appendChild(t);
+    }
+
+    // counts
+    const counts = [
+      { x: cx, y: cy + 4, n: c.all3, lab: 'all 3' },
+      { x: cx - 56, y: cy - 28, n: c.a, lab: '' },
+      { x: cx + 56, y: cy - 28, n: c.b, lab: '' },
+      { x: cx, y: cy + 56, n: c.c, lab: '' },
+    ];
+    for (const ct of counts) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', ct.x); t.setAttribute('y', ct.y); t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-size', 13); t.setAttribute('font-weight', 700); t.setAttribute('fill', '#111827');
+      t.setAttribute('font-family', 'JetBrains Mono, monospace');
+      t.textContent = ct.n;
+      svg.appendChild(t);
+    }
+  }
+
+  document.querySelectorAll('input[name=mode]').forEach(el => el.addEventListener('change', simulate));
+  $('topN').addEventListener('input', simulate);
+  $('winN').addEventListener('input', simulate);
+  simulate();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

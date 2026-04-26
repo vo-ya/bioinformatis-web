@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 25 — Causal Inference and Mendelian Randomisation · Bioinformatics for EE</title>
+  <meta name="description" content="From GWAS associations to causal claims: instrumental variables, 2SLS, two-sample Mendelian Randomisation, MR-Egger / MR-PRESSO sensitivity tests, mediation analysis, drug-target validation via cis-MR.">
+
+  <meta property="og:title" content="Lecture 25 — Causal Inference and Mendelian Randomisation">
+  <meta property="og:description" content="Mendel's randomisation as nature's RCT · 2SLS as projection then OLS · IVW vs MR-Egger vs weighted median · cis-MR for drug-target validation · PCSK9, IL-6R worked examples.">
+  <meta property="og:type" content="article">
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo/favicon.svg">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+
+  <link rel="stylesheet" href="../assets/styles.css">
+  <link rel="stylesheet" href="../assets/lecture.css">
+</head>
+<body>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<div class="lecture-page">
+
+  <aside class="lecture-toc lecture-toc-desktop" aria-label="Table of contents">
+    <p class="lecture-toc-heading">Contents</p>
+    <ol>
+      <li><a href="#objectives">Learning objectives</a></li>
+
+      <li><a href="#part-1">Part 1 — Causation vs Correlation</a>
+        <ol>
+          <li><a href="#sec-1-1">1.1 The interpretation problem</a></li>
+          <li><a href="#sec-1-2">1.2 Why this matters for translation</a></li>
+          <li><a href="#sec-1-3">1.3 The RCT gold standard</a></li>
+          <li><a href="#sec-1-4">1.4 Mendelian Randomisation</a></li>
+          <li><a href="#sec-1-5">1.5 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-2">Part 2 — Instrumental Variables and 2SLS</a>
+        <ol>
+          <li><a href="#sec-2-1">2.1 The IV concept</a></li>
+          <li><a href="#sec-2-2">2.2 The Wald estimator</a></li>
+          <li><a href="#sec-2-3">2.3 Two-stage least squares</a></li>
+          <li><a href="#sec-2-4">2.4 Three IV assumptions</a></li>
+          <li><a href="#sec-2-5">2.5 Pleiotropy and types</a></li>
+          <li><a href="#sec-2-6">2.6 The deep dive</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-3">Part 3 — MR Methods and Sensitivity</a>
+        <ol>
+          <li><a href="#sec-3-1">3.1 Two-sample MR</a></li>
+          <li><a href="#sec-3-2">3.2 Inverse-variance weighted</a></li>
+          <li><a href="#sec-3-3">3.3 MR-Egger</a></li>
+          <li><a href="#sec-3-4">3.4 MR-PRESSO + weighted median</a></li>
+          <li><a href="#sec-3-5">3.5 Steiger directionality</a></li>
+          <li><a href="#sec-3-6">3.6 Multiple-testing in MR</a></li>
+          <li><a href="#sec-3-7">3.7 Worked example</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-4">Part 4 — Mediation Analysis</a>
+        <ol>
+          <li><a href="#sec-4-1">4.1 The mediation question</a></li>
+          <li><a href="#sec-4-2">4.2 Baron-Kenny</a></li>
+          <li><a href="#sec-4-3">4.3 Counterfactual mediation</a></li>
+          <li><a href="#sec-4-4">4.4 Two-step MR</a></li>
+          <li><a href="#sec-4-5">4.5 Worked example</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-5">Part 5 — Limitations and Pitfalls</a>
+        <ol>
+          <li><a href="#sec-5-1">5.1 Weak instruments</a></li>
+          <li><a href="#sec-5-2">5.2 Pleiotropy</a></li>
+          <li><a href="#sec-5-3">5.3 Population structure</a></li>
+          <li><a href="#sec-5-4">5.4 Selection bias</a></li>
+          <li><a href="#sec-5-5">5.5 The non-RCT caveat</a></li>
+          <li><a href="#sec-5-6">5.6 The 2024 frontier</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-6">Part 6 — Drug-Target Validation</a>
+        <ol>
+          <li><a href="#sec-6-1">6.1 The cis-MR concept</a></li>
+          <li><a href="#sec-6-2">6.2 Drug-target MR pipeline</a></li>
+          <li><a href="#sec-6-3">6.3 Famous examples</a></li>
+          <li><a href="#sec-6-4">6.4 The 2024 frontier</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#part-7">Part 7 — Beyond MR</a>
+        <ol>
+          <li><a href="#sec-7-1">7.1 Difference-in-differences</a></li>
+          <li><a href="#sec-7-2">7.2 Regression discontinuity</a></li>
+          <li><a href="#sec-7-3">7.3 Causal-DAG analysis</a></li>
+          <li><a href="#sec-7-4">7.4 Big-data methods</a></li>
+        </ol>
+      </li>
+
+      <li><a href="#wrapup">Wrap-up</a></li>
+    </ol>
+  </aside>
+
+  <main class="lecture-main">
+
+    <a class="lecture-brand" href="../index.html" aria-label="Bioinformatics for Engineers — back to course home">
+      <svg class="lecture-brand-mark" width="24" height="24" viewBox="0 0 72 72"
+           xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <path d="M 8 36 Q 18 14, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M 8 36 Q 18 58, 28 36 T 48 36 T 64 36" fill="none" stroke="#525252" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="30" x2="14" y2="42" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="22" y1="26" x2="22" y2="46" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="22" x2="30" y2="50" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+        <line x1="38" y1="22" x2="38" y2="50" stroke="#2d7a3e" stroke-width="3" stroke-linecap="round"/>
+        <line x1="46" y1="26" x2="46" y2="46" stroke="#c4342c" stroke-width="3" stroke-linecap="round"/>
+        <line x1="54" y1="30" x2="54" y2="42" stroke="#0d7377" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="lecture-brand-title">Bioinformatics for Engineers</span>
+    </a>
+
+    <header class="lecture-header">
+      <div class="lecture-kicker">Lecture 25</div>
+      <h1 class="lecture-title">Causal Inference and Mendelian Randomisation</h1>
+      <p class="lecture-subtitle">Association is not causation. A GWAS hit means $P(D \mid X)$ shifts; it does not say what happens if you intervene on $X$. Mendelian randomisation uses germline SNPs as instrumental variables — Mendel's laws provide the randomisation an RCT can't. Three IV assumptions; three sensitivity tests (MR-Egger, MR-PRESSO, weighted median); one Steiger directionality check. Cis-MR de-risks drug development before clinical trials. The whole field is partial-derivative-under-intervention machinery applied to genomics.</p>
+      <div class="lecture-meta">
+        <span class="lecture-duration">190 min</span>
+        <span>EE undergraduates &middot; minimal biology assumed</span>
+      </div>
+    </header>
+
+    <details class="lecture-toc lecture-toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#part-1">Part 1 — Causation vs correlation</a></li>
+        <li><a href="#part-2">Part 2 — IVs and 2SLS</a></li>
+        <li><a href="#part-3">Part 3 — MR methods</a></li>
+        <li><a href="#part-4">Part 4 — Mediation</a></li>
+        <li><a href="#part-5">Part 5 — Pitfalls</a></li>
+        <li><a href="#part-6">Part 6 — Drug-target MR</a></li>
+        <li><a href="#part-7">Part 7 — Beyond MR</a></li>
+        <li><a href="#wrapup">Wrap-up</a></li>
+      </ol>
+    </details>
+
+    <article class="lecture-prose">
+
+      <p class="lecture-tagline">
+        <em>Five moves:</em>
+        <span class="lecture-tagline-beat">distinguish $P(Y|X)$ from $P(Y|do(X))$</span>,
+        <span class="lecture-tagline-beat">use SNPs as instrumental variables</span>,
+        <span class="lecture-tagline-beat">2SLS to recover the causal effect</span>,
+        <span class="lecture-tagline-beat">test IV assumptions with MR-Egger / MR-PRESSO</span>,
+        <span class="lecture-tagline-beat">cis-MR to validate drug targets</span>.
+      </p>
+
+      <section class="objectives" id="objectives" aria-labelledby="objectives-heading">
+        <h2 class="objectives-heading" id="objectives-heading">Learning objectives</h2>
+        <ol>
+          <li>Distinguish association from causation; explain why naive observational studies cannot establish causality and what assumptions can rescue them.</li>
+          <li>Define an instrumental variable (IV); state the three core MR assumptions (relevance, independence, exclusion restriction); recognise when each fails.</li>
+          <li>Run a two-sample Mendelian randomisation analysis: from GWAS summary statistics → MR-IVW estimate → MR-Egger sensitivity test → reported causal effect.</li>
+          <li>Detect and adjust for horizontal pleiotropy via MR-Egger, MR-PRESSO, weighted median, and the Steiger directionality test.</li>
+          <li>Apply mediation analysis to decompose direct and indirect effects.</li>
+          <li>Interpret causal effect estimates with calibrated uncertainty; recognise when conclusions are too strong.</li>
+          <li>Frame causal inference in EE terms: causal effect as a partial derivative under intervention; confounding as colour bias in regression; instrumental variables as a 2SLS estimator.</li>
+        </ol>
+      </section>
+
+      <!-- ─── Part 1 ──────────────────────────────────────── -->
+      <section id="part-1">
+        <h2>
+          <span class="part-kicker">Part 1 · 25 min</span>
+          Causation vs Correlation in Genomics
+        </h2>
+
+        <section id="sec-1-1">
+          <h3>1.1 The interpretation problem</h3>
+          <p>A GWAS hit at SNP $X$ associated with disease $D$ tells you:</p>
+          <p>$$P(D = 1 \mid X = 1) > P(D = 1 \mid X = 0).$$</p>
+          <p>It does <strong>not</strong> tell you whether changing $X$ would change $D$. Three explanations are consistent with the same association:</p>
+          <ol>
+            <li><strong>Direct causation</strong>: $X \to D$ (the SNP affects the disease).</li>
+            <li><strong>Reverse causation</strong>: $D \to X$ (less common for germline SNPs but matters for somatic).</li>
+            <li><strong>Confounding</strong>: a third variable $C \to X$ and $C \to D$ (population structure, age, etc.).</li>
+          </ol>
+          <p>For somatic genomics, time-ordering rules out (2). For germline, time-ordering also helps (genotype is fixed at birth, before disease). But <strong>confounding via population structure</strong> remains the major confounder, partly addressed by GWAS PCA correction.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-25/01-three-explanations.svg"
+                 alt="Three causal-graph panels for the same observational association X correlated with D. Panel 1: direct causation (X arrow D). Panel 2: reverse causation (D arrow X). Panel 3: confounding (third variable C with arrows to both X and D). Annotation: an observational study cannot distinguish between the three from data alone.">
+            <figcaption>Figure 1. Three explanations for the same observed association. Causal claims require either intervention (RCT) or instrumental variables (MR).</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-25/01-causal-scenario.html" loading="lazy" title="Artifact 1 — Causal vs Correlational Scenario Explorer"></iframe>
+            <figcaption>
+              <strong>Artifact 1 — Causal vs Correlational Scenario Explorer.</strong> Toggle between three data-generating scenarios producing identical observational associations. Aha: from data alone, you cannot tell direct causation from reverse causation from confounding.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-1-2">
+          <h3>1.2 Why this matters for translation</h3>
+          <p>Suppose GWAS finds: SNPs in the <em>FTO</em> gene → BMI. Three possible interpretations:</p>
+          <ul>
+            <li><strong>Druggable</strong>: FTO inhibitors would reduce BMI (causal).</li>
+            <li><strong>Reverse</strong>: BMI somehow alters genotype (impossible — germline).</li>
+            <li><strong>Confounded</strong>: FTO is co-inherited with another causal variant; FTO itself is innocent.</li>
+          </ul>
+          <p>For drug development, the difference is everything. We need a tool to distinguish.</p>
+        </section>
+
+        <section id="sec-1-3">
+          <h3>1.3 The randomised controlled trial gold standard</h3>
+          <p>The gold standard for causal inference: randomly assign $X$ across patients; compare outcomes. RCTs eliminate confounding by design — randomisation breaks the $C \to X$ link.</p>
+          <p>Limitations:</p>
+          <ul>
+            <li>Expensive (hundreds of millions of dollars).</li>
+            <li>Slow (years).</li>
+            <li>Often unethical (can't randomise people to known-harmful exposures).</li>
+            <li>Sometimes infeasible (can't randomise a gene's lifelong expression level).</li>
+          </ul>
+          <p>We need a substitute for RCTs in genomics.</p>
+        </section>
+
+        <section id="sec-1-4">
+          <h3>1.4 Mendelian Randomisation: nature's RCT</h3>
+          <p><strong>MR</strong> (Davey Smith &amp; Ebrahim 2003): use germline SNPs as instrumental variables for an exposure of interest.</p>
+          <p>The argument:</p>
+          <ul>
+            <li>Germline genotype is randomly assigned by Mendel's laws (parental allele frequencies).</li>
+            <li>Therefore, individuals with different SNPs effectively received different "doses" of the gene's product, randomly.</li>
+            <li>If those individuals have different disease rates, the gene must be causally affecting the disease.</li>
+          </ul>
+          <p>It's an RCT randomised by Mendel rather than by a researcher.</p>
+        </section>
+
+        <section id="sec-1-5">
+          <h3>1.5 The deep dive</h3>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — causal inference as intervention semantics</span>
+            <p>A causal effect $\partial Y / \partial X$ is well-defined under the <strong>intervention semantics</strong> of Pearl's do-calculus: $do(X = x)$ sets $X$ to $x$ regardless of upstream causes. The observational $\partial P(Y \mid X = x) / \partial x$ is generally different — it includes confounding pathways. The whole problem is recovering $\partial Y / \partial X \mid do(X = x)$ from observational data $P(X, Y, \dots)$. MR does this via a clever trick: SNPs are upstream of confounders, so $X$ conditional on a SNP is essentially $do(X)$. The 2SLS regression formalises this.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 2 ──────────────────────────────────────── -->
+      <section id="part-2">
+        <h2>
+          <span class="part-kicker">Part 2 · 30 min</span>
+          Instrumental Variables and 2SLS
+        </h2>
+
+        <section id="sec-2-1">
+          <h3>2.1 The IV concept</h3>
+          <p>An <strong>instrumental variable</strong> $Z$ is a variable that:</p>
+          <ol>
+            <li>Affects $X$ (the exposure of interest).</li>
+            <li>Affects $Y$ (the outcome) <strong>only through $X$</strong>.</li>
+            <li>Is independent of confounders $C$ between $X$ and $Y$.</li>
+          </ol>
+          <p>If you have such a $Z$, you can recover the causal effect $\partial Y / \partial X$ even from observational data.</p>
+        </section>
+
+        <section id="sec-2-2">
+          <h3>2.2 The Wald estimator</h3>
+          <p>The simplest IV estimator:</p>
+          <p>$$\widehat{\beta}_{X \to Y} = \frac{\widehat{\beta}_{Z \to Y}}{\widehat{\beta}_{Z \to X}}$$</p>
+          <p>The "Wald ratio". Numerator: the effect of the IV on the outcome (estimable from data). Denominator: the effect of the IV on the exposure. Their ratio gives the causal effect of $X$ on $Y$.</p>
+          <p>Intuition: if a unit change in $Z$ moves $X$ by 0.5 and moves $Y$ by 0.3, then a unit change in $X$ (driven by $Z$) moves $Y$ by 0.6. The change-in-$Y$-per-change-in-$X$ ratio is the causal effect.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-25/07-wald-ratio.svg"
+                 alt="Per-SNP Wald ratio diagram. Three SNPs (Z₁, Z₂, Z₃) each with measured effect on exposure X (β_ZX) on the x-axis and effect on outcome Y (β_ZY) on the y-axis. Each SNP plotted as a point on the (β_ZX, β_ZY) plane; Wald ratio = β_ZY / β_ZX = slope from origin to point. Annotation showing all three slopes converging to the same line, indicating valid IV.">
+            <figcaption>Figure 7. Per-SNP Wald ratio. Each SNP's $\beta_{ZY} / \beta_{ZX}$ is an independent estimate of the causal effect; consistency across SNPs supports the IV assumptions.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-3">
+          <h3>2.3 Two-stage least squares (2SLS)</h3>
+          <p>Generalises the Wald estimator to multiple instruments + multiple confounders:</p>
+          <p><strong>Stage 1</strong>: Regress $X$ on the instrument $Z$ (and any controls $W$):</p>
+          <p>$$X = \pi_0 + \pi_1 Z + \mu W + e.$$</p>
+          <p>Get fitted $\widehat{X}$.</p>
+          <p><strong>Stage 2</strong>: Regress $Y$ on the fitted $\widehat{X}$ (and controls):</p>
+          <p>$$Y = \beta_0 + \beta_1 \widehat{X} + \gamma W + u.$$</p>
+          <p>$\beta_1$ is the causal-effect estimate. The trick: $\widehat{X}$ is the part of $X$ predicted by $Z$, which (under the IV assumptions) is uncorrelated with confounders.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-25/02-2sls.svg"
+                 alt="Two-stage least squares illustration. Stage 1: scatter of X vs Z with fitted regression line; X-hat = π₀ + π₁ Z + μ W. Stage 2: scatter of Y vs X-hat with fitted regression line; β_1 is the causal effect estimate. Confounder C shown as a separate cloud not affecting X-hat. Annotation: stage 1 projects X onto the IV space, removing the confounded component; stage 2 measures Y's response to that projection.">
+            <figcaption>Figure 2. The 2SLS estimator. Stage 1 projects $X$ onto the column space of $Z$; stage 2 regresses $Y$ on the projection. The projection is the debiasing step.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-25/02-2sls-simulator.html" loading="lazy" title="Artifact 2 — 2SLS Regression Simulator"></iframe>
+            <figcaption>
+              <strong>Artifact 2 — 2SLS Regression Simulator.</strong> Generate synthetic data with known causal effect + tunable confounding; compare naive OLS vs 2SLS recovery. Aha: OLS is biased by confounding; 2SLS recovers the true effect even when confounders are unmeasured.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-4">
+          <h3>2.4 The three core IV assumptions</h3>
+          <p><strong>1. Relevance</strong>: $Z$ predicts $X$. Quantified as the <strong>F-statistic of the first-stage regression</strong>. F &lt; 10 → "weak instrument", inflated bias.</p>
+          <p><strong>2. Independence (exchangeability)</strong>: $Z$ is independent of confounders between $X$ and $Y$. For germline SNPs, generally satisfied if you adjust for population structure (PCA).</p>
+          <p><strong>3. Exclusion restriction</strong>: $Z$ affects $Y$ only through $X$. The hardest to verify. If $Z$ has a direct path to $Y$ that doesn't go through $X$, the IV is invalid.</p>
+          <p>The hardest in practice. For SNPs as IVs: the SNP might affect $Y$ through pathways other than the gene of interest (horizontal pleiotropy).</p>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-25/07-iv-diagnostic.html" loading="lazy" title="Artifact 7 — IV-Assumption Diagnostic"></iframe>
+            <figcaption>
+              <strong>Artifact 7 — IV-Assumption Diagnostic.</strong> For five candidate instruments, check F-statistic (relevance), correlation with confounders (independence), and Steiger direction (exclusion). Aha: each assumption maps to a measurable test; violations are diagnosable.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-5">
+          <h3>2.5 Pleiotropy and its types</h3>
+          <p>A SNP affecting multiple traits is <strong>pleiotropic</strong>:</p>
+          <ul>
+            <li><strong>Vertical pleiotropy</strong> (OK): SNP → $X$ → $Y$ → other traits. The IV assumption is fine.</li>
+            <li><strong>Horizontal pleiotropy</strong> (NOT OK): SNP → $X$, SNP → $Y$ via independent paths. Violates exclusion restriction.</li>
+          </ul>
+          <p>MR's assumption: most SNPs only affect $X$ on the way to $Y$. With many SNPs, deviations from this can be detected statistically (Part 3).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-25/11-pleiotropy.svg"
+                 alt="Two side-by-side causal graphs. Left (vertical pleiotropy, valid): SNP Z → X → Y; SNP Z also reaches other traits but only through X. Right (horizontal pleiotropy, invalid): SNP Z → X and SNP Z → Y via a separate path through trait T. Annotation: vertical pleiotropy preserves the exclusion restriction; horizontal pleiotropy violates it.">
+            <figcaption>Figure 11. Vertical (allowed) vs horizontal (forbidden) pleiotropy. Only horizontal pleiotropy invalidates an IV.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-2-6">
+          <h3>2.6 The deep dive</h3>
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — 2SLS as projection then regression</span>
+            <p>Stage 1 of 2SLS projects $X$ onto the column space of $Z$, giving $\widehat{X}$ — the part of $X$ that's instrument-driven. Stage 2 regresses $Y$ on $\widehat{X}$ — measures the response to the instrument-driven variation. This is <strong>projection-and-then-OLS</strong> in the EE / signal-processing sense; the projection is the <strong>debiasing step</strong> that removes confounding-via-the-omitted-variable. When all assumptions hold, 2SLS recovers the unbiased causal effect.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 3 ──────────────────────────────────────── -->
+      <section id="part-3">
+        <h2>
+          <span class="part-kicker">Part 3 · 40 min</span>
+          MR Methods and Sensitivity Analyses
+        </h2>
+
+        <section id="sec-3-1">
+          <h3>3.1 Two-sample MR</h3>
+          <p>The most common modern setup: <strong>two-sample MR</strong>.</p>
+          <ul>
+            <li>Sample 1: gives summary stats $\widehat{\beta}_{Z \to X}$ (e.g., from a GWAS for the exposure).</li>
+            <li>Sample 2: gives $\widehat{\beta}_{Z \to Y}$ (e.g., from a GWAS for the outcome).</li>
+            <li>The samples can be entirely separate cohorts.</li>
+            <li>Estimate the causal effect via Wald or its multi-instrument generalisation.</li>
+          </ul>
+          <p>Enormously efficient: GWAS summary statistics for thousands of phenotypes are publicly available. Two-sample MR can be done with no individual-level data access.</p>
+        </section>
+
+        <section id="sec-3-2">
+          <h3>3.2 Inverse-variance weighted (IVW)</h3>
+          <p>The standard MR estimator with multiple instruments:</p>
+          <p>$$\widehat{\beta}_{IVW} = \frac{\sum_k w_k \cdot (\beta_{Z_k \to Y} / \beta_{Z_k \to X})}{\sum_k w_k}$$</p>
+          <p>where $w_k = (\sigma^2_{\beta_{Z_k \to Y}})^{-1}$ (inverse variance weights). This is the meta-analysis of per-SNP Wald estimators. Tighter SNPs (smaller standard error) get higher weight.</p>
+          <p>If all SNPs are valid instruments, IVW is consistent and minimally biased. But it's sensitive to invalid instruments — even one bad SNP can bias the estimate.</p>
+        </section>
+
+        <section id="sec-3-3">
+          <h3>3.3 MR-Egger</h3>
+          <p><strong>MR-Egger</strong> (Bowden 2015): allows <strong>systematic horizontal pleiotropy</strong> by estimating an intercept.</p>
+          <p>If all SNPs have a small systematic effect on $Y$ that doesn't go through $X$, the Wald-ratio plot has a non-zero intercept. The Egger regression:</p>
+          <p>$$\beta_{Z_k \to Y} = \alpha + \beta \cdot \beta_{Z_k \to X}.$$</p>
+          <ul>
+            <li>Slope $\beta$: causal effect estimate (corrected for systematic pleiotropy).</li>
+            <li>Intercept $\alpha$: estimate of average pleiotropy. $\alpha = 0$ → no systematic pleiotropy.</li>
+          </ul>
+          <p>If $\alpha \neq 0$ significantly: pleiotropy is present; IVW is biased; trust the Egger slope. If $\alpha \approx 0$ but Egger slope is far from IVW: instrument-specific outliers; MR-PRESSO might help.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-25/08-mr-egger.svg"
+                 alt="Two-panel MR-Egger plot. Left: Wald ratios on β_ZY vs β_ZX scatter; IVW fit forced through origin (slope = causal effect). Right: same scatter with MR-Egger fit allowing non-zero intercept α; α significantly different from zero indicates systematic pleiotropy. Annotation: Egger intercept is the test for systematic horizontal pleiotropy.">
+            <figcaption>Figure 8. MR-Egger detects systematic pleiotropy. A non-zero intercept means the IVW is biased; the Egger slope is the corrected estimate.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-4">
+          <h3>3.4 MR-PRESSO and weighted median</h3>
+          <p><strong>MR-PRESSO</strong> (Verbanck 2018): outlier-detection-based MR. Identifies and removes individual SNPs whose Wald ratio is inconsistent with the consensus.</p>
+          <p>Workflow:</p>
+          <ol>
+            <li>Run IVW.</li>
+            <li>Compute per-SNP residual = (Wald estimate − IVW estimate)².</li>
+            <li>Test each SNP's residual for significance.</li>
+            <li>Remove outliers; re-estimate IVW.</li>
+          </ol>
+          <p><strong>Weighted median</strong> (Bowden 2016): consistent if at least 50% of instrument weight is from valid SNPs. More robust to outliers than IVW.</p>
+          <p>For a careful MR analysis: report IVW + MR-Egger + weighted median + MR-PRESSO. Convergence across methods → confidence; divergence → flag for caution.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-25/09-mr-presso.svg"
+                 alt="MR-PRESSO outlier-detection scatter. 30 SNPs as Wald-ratio points; most cluster around the consensus IVW estimate, but 3 outliers sit far above. Highlighted residual-test boxes around the outliers. Annotation: outliers are removed; IVW is re-estimated on the remaining SNPs.">
+            <figcaption>Figure 9. MR-PRESSO outlier detection. Per-SNP Wald estimates are tested against the consensus; outliers (typically pleiotropic SNPs) are removed before re-estimation.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-25/03-mr-sensitivity.html" loading="lazy" title="Artifact 3 — Two-Sample MR with Sensitivity Panel"></iframe>
+            <figcaption>
+              <strong>Artifact 3 — Two-Sample MR with Sensitivity Panel.</strong> Tune number of instruments, pleiotropy fraction, outlier severity; see IVW vs MR-Egger vs weighted median vs MR-PRESSO estimates side-by-side. Aha: when methods agree, you trust the answer; when they disagree, the cause of disagreement tells you which instruments to drop.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-5">
+          <h3>3.5 The Steiger directionality test</h3>
+          <p>A causal claim should also pass directionality: $X \to Y$ and not $Y \to X$.</p>
+          <p><strong>Steiger test</strong> (Hemani 2017): for each candidate IV, compute "is the instrument's effect on the exposure stronger than its effect on the outcome?". If yes for most IVs, the causal direction is established.</p>
+          <p>Useful for cases where reverse causation is plausible (e.g., is BMI affecting depression, or vice versa?).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-25/10-steiger.svg"
+                 alt="Steiger test scatter showing per-SNP R²(Z, X) on x-axis and R²(Z, Y) on y-axis. Diagonal line marks equal explanatory power. Most SNPs sit above the diagonal in the X → Y direction (R²_ZX > R²_ZY), supporting that direction. A few outliers below the diagonal indicate reverse-direction concern. Annotation: the Steiger test directionality is asymmetric.">
+            <figcaption>Figure 10. Steiger directionality test. SNPs above the diagonal support $X \to Y$; SNPs below support $Y \to X$. The fraction above sets the directional confidence.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-3-6">
+          <h3>3.6 Multiple-testing in MR</h3>
+          <p>For "MR-PheWAS" — testing one exposure against many outcomes — multiple testing matters. Apply BH FDR or Bonferroni at the per-outcome level.</p>
+        </section>
+
+        <section id="sec-3-7">
+          <h3>3.7 Worked example</h3>
+          <p>A canonical MR study: LDL cholesterol → coronary artery disease.</p>
+          <ul>
+            <li>Instruments: 100 LDL-associated SNPs (mostly in lipid metabolism genes).</li>
+            <li>Exposure GWAS: GIANT consortium LDL.</li>
+            <li>Outcome GWAS: CARDIoGRAMplusC4D coronary disease.</li>
+            <li>Two-sample MR-IVW: $\beta = 0.55$ per SD LDL (95% CI 0.45-0.65).</li>
+            <li>MR-Egger intercept: ~0 (no systematic pleiotropy).</li>
+            <li>Conclusion: strong causal evidence for LDL → CAD. (This was the basis of the PCSK9-inhibitor drug development pathway.)</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-25/03-mr-flow.svg"
+                 alt="Top-to-bottom MR analysis flow. 1. Pick exposure-outcome pair. 2. Pull GWAS summary stats from MR-Base or local files. 3. Select genome-wide-significant SNPs as instruments. 4. Harmonise effect alleles. 5. Compute per-SNP Wald ratios. 6. Run IVW + MR-Egger + weighted median + MR-PRESSO. 7. Steiger directionality test. 8. Report converged estimate or flag divergence.">
+            <figcaption>Figure 3. The two-sample MR pipeline. Each stage has a tool (TwoSampleMR R package, MR-Base) and reports a check.</figcaption>
+          </figure>
+
+          <aside class="callout callout--info">
+            <span class="callout-label">EE framing — IVW as inverse-variance-weighted least squares</span>
+            <p>The IVW estimator is <strong>weighted least squares</strong> with weights = inverse variances of per-SNP effect estimates. It's the maximum-likelihood estimator under Gaussian errors and IV assumptions. MR-Egger generalises by adding an intercept term — it's a 2-parameter weighted-LS model. MR-PRESSO is robust regression with outlier rejection. All are well-known statistical estimators applied to a particular structural setting.</p>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ─── Part 4 ──────────────────────────────────────── -->
+      <section id="part-4">
+        <h2>
+          <span class="part-kicker">Part 4 · 25 min</span>
+          Mediation Analysis
+        </h2>
+
+        <section id="sec-4-1">
+          <h3>4.1 The mediation question</h3>
+          <p>Even if $X$ causes $Y$, the <strong>mechanism</strong> matters:</p>
+          <ul>
+            <li>Direct effect: $X \to Y$ (immediate).</li>
+            <li>Indirect effect: $X \to M \to Y$ (mediated by $M$).</li>
+          </ul>
+          <p>For drug development, mediator $M$ might be the actionable target. For pharmacology, knowing $M$ tells you which downstream pathway to target instead.</p>
+        </section>
+
+        <section id="sec-4-2">
+          <h3>4.2 Baron-Kenny mediation</h3>
+          <p>The classical (Baron &amp; Kenny 1986) test:</p>
+          <ol>
+            <li>Regress $M$ on $X$: significant?</li>
+            <li>Regress $Y$ on $X$: significant?</li>
+            <li>Regress $Y$ on $X$ + $M$: $X$'s coefficient should attenuate.</li>
+          </ol>
+          <p>If yes to 1, 2, and attenuation in 3 → $M$ mediates. This is the entry-level method. Modern mediation uses more rigorous frameworks.</p>
+        </section>
+
+        <section id="sec-4-3">
+          <h3>4.3 Counterfactual mediation</h3>
+          <p><strong>VanderWeele's framework</strong> (2014, 2015): decomposes total effect into:</p>
+          <ul>
+            <li><strong>Natural direct effect (NDE)</strong>: effect of $X$ on $Y$ when $M$ is held at its baseline value.</li>
+            <li><strong>Natural indirect effect (NIE)</strong>: effect of $X$ on $Y$ via $M$ (when $X$ changes from baseline to exposure).</li>
+          </ul>
+          <p>The total effect = NDE + NIE. This decomposition requires no-unmeasured-confounder assumptions for both $X$-$Y$ and $M$-$Y$. Strong but standard in modern mediation analysis.</p>
+        </section>
+
+        <section id="sec-4-4">
+          <h3>4.4 Two-step MR for mediation</h3>
+          <p>Combine mediation with MR:</p>
+          <ol>
+            <li>Estimate causal effect of $X$ on $M$ via MR (using SNPs for $X$).</li>
+            <li>Estimate causal effect of $M$ on $Y$ via MR (using SNPs for $M$).</li>
+            <li>Combine: indirect effect = effect₁ × effect₂.</li>
+          </ol>
+          <p>This is robust to confounders that would invalidate Baron-Kenny mediation. Used in modern epidemiology to test pathway hypotheses.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-25/04-mediation.svg"
+                 alt="Causal-graph diagram showing X with two arrows: a direct arrow to Y (NDE = natural direct effect) and an indirect path X → M → Y (NIE = natural indirect effect). The total effect = NDE + NIE; quantitative example: total 0.50 = direct 0.35 + indirect 0.15. Side panel: same decomposition implemented via two-step MR — first MR for X → M, second MR for M → Y, indirect = product.">
+            <figcaption>Figure 4. Mediation decomposition. Total effect = NDE + NIE; two-step MR estimates each leg with separate IVs and multiplies.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-25/04-mediation.html" loading="lazy" title="Artifact 4 — Mediation Analysis Decomposer"></iframe>
+            <figcaption>
+              <strong>Artifact 4 — Mediation Analysis Decomposer.</strong> Set total $X \to Y$ effect and indirect-pathway strength; see Baron-Kenny vs counterfactual decomposition; compare to two-step MR. Aha: NDE + NIE = total; the split is what tells you which target to drug.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-4-5">
+          <h3>4.5 Worked example</h3>
+          <p>A canonical study: BMI → coronary artery disease, mediated by LDL.</p>
+          <ul>
+            <li>MR for BMI → LDL: positive, modest.</li>
+            <li>MR for LDL → CAD: positive, strong.</li>
+            <li>Combined indirect effect: explains ~30% of BMI's CAD effect.</li>
+            <li>Direct (non-LDL) effect of BMI: 70%.</li>
+          </ul>
+          <p>Conclusion: most of BMI's CAD risk goes through pathways other than LDL; targeting LDL alone won't fully neutralise BMI's effect.</p>
+        </section>
+      </section>
+
+      <!-- ─── Part 5 ──────────────────────────────────────── -->
+      <section id="part-5">
+        <h2>
+          <span class="part-kicker">Part 5 · 25 min</span>
+          Limitations, Pitfalls, Best Practices
+        </h2>
+
+        <section id="sec-5-1">
+          <h3>5.1 Weak instruments</h3>
+          <p>If individual SNPs explain little of the exposure variance (low $\beta_{Z \to X}$), the Wald ratio has wide standard error → biased toward the null in two-sample MR.</p>
+          <p>Standard fix: use multiple instruments to combine. F-statistic &gt; 10 across instruments is the rule of thumb. Below 10, results are unreliable. For exposures where no genome-wide-significant SNPs exist, consider polygenic-score-based MR or skip MR entirely.</p>
+        </section>
+
+        <section id="sec-5-2">
+          <h3>5.2 Pleiotropy</h3>
+          <p>The biggest threat to MR validity. SNPs in lipid-related regions tend to affect multiple lipid traits, body composition, kidney function, etc. Most are vertically pleiotropic; some are horizontally pleiotropic.</p>
+          <p>Mitigation:</p>
+          <ul>
+            <li>Pre-screen instruments for known pleiotropy (HLA region notorious; exclude).</li>
+            <li>Use multiple sensitivity analyses (MR-Egger, weighted median, MR-PRESSO).</li>
+            <li>Report convergence; flag divergence.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-25/05-pleiotropy.html" loading="lazy" title="Artifact 5 — Pleiotropy Detector"></iframe>
+            <figcaption>
+              <strong>Artifact 5 — Pleiotropy Detector.</strong> For a set of candidate SNPs, identify which are pleiotropic via a PheWAS-style scan and Egger residual analysis. Aha: pleiotropy is detectable per-SNP; the goal is to drop the worst offenders before MR.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-5-3">
+          <h3>5.3 Population structure</h3>
+          <p>Subtle population stratification can violate IV assumptions. Always:</p>
+          <ul>
+            <li>Use within-ancestry GWAS summary stats (don't mix Europeans + East Asians).</li>
+            <li>Adjust for population structure in the GWAS itself (PCA correction).</li>
+            <li>Run MR within ancestry strata; meta-analyse if needed.</li>
+          </ul>
+        </section>
+
+        <section id="sec-5-4">
+          <h3>5.4 Selection bias</h3>
+          <p>If SNPs predict survival (e.g., severely disease-causing alleles cause early death), the population sampled in the GWAS is unrepresentative. This biases MR estimates. Mitigation: avoid MR for traits where genotype-conditional survival differs strongly.</p>
+        </section>
+
+        <section id="sec-5-5">
+          <h3>5.5 The non-RCT-equivalent caveat</h3>
+          <p>MR estimates the <strong>lifetime average effect</strong> of the exposure, not the effect of an immediate intervention. A drug that lowers LDL for 5 years may have a different effect than 50 years of lifetime variation in LDL.</p>
+          <p>→ MR confirms causality and rough magnitude, but doesn't directly substitute for RCT in dose-response or temporal-window questions.</p>
+        </section>
+
+        <section id="sec-5-6">
+          <h3>5.6 The 2024 frontier</h3>
+          <ul>
+            <li><strong>MR-CAUSE</strong> (Morrison 2020): Bayesian MR robust to correlated pleiotropy.</li>
+            <li><strong>Multi-trait MR</strong>: simultaneously estimate multiple causal effects.</li>
+            <li><strong>MR in non-European populations</strong>: as more diverse GWAS arrive, MR robustness across ancestries.</li>
+            <li><strong>Drug-target MR</strong>: using cis-acting SNPs near drug-target genes as instruments → "natural drug experiments" without trials.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Part 6 ──────────────────────────────────────── -->
+      <section id="part-6">
+        <h2>
+          <span class="part-kicker">Part 6 · 20 min</span>
+          Drug-Target Validation via MR
+        </h2>
+
+        <section id="sec-6-1">
+          <h3>6.1 The cis-MR concept</h3>
+          <p>For drug-target validation, use <strong>cis-acting SNPs</strong> near the target gene as IVs:</p>
+          <ul>
+            <li>These SNPs affect the target's expression / activity.</li>
+            <li>They are local — much less likely to be horizontally pleiotropic.</li>
+            <li>They're a "natural experiment" simulating the drug.</li>
+          </ul>
+          <p>Example: PCSK9 inhibitors reduce LDL → reduce CAD. Pre-RCT MR using PCSK9 cis-SNPs → predicted the effect → de-risked the clinical trial.</p>
+        </section>
+
+        <section id="sec-6-2">
+          <h3>6.2 Drug-target MR pipeline</h3>
+          <ol>
+            <li>Identify drug target gene.</li>
+            <li>Find cis-SNPs (within ±100 kb of TSS) associated with target's expression (eQTLs from GTEx) or activity.</li>
+            <li>Use these as instruments for an MR.</li>
+            <li>Estimate the causal effect of target inhibition on disease.</li>
+            <li>Estimate side-effect risks for other phenotypes (PheWAS-style).</li>
+          </ol>
+          <p>Now standard in pharma target-validation pipelines (Genentech, Pfizer, GSK).</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-25/05-drug-target-mr.svg"
+                 alt="Top-to-bottom drug-target MR pipeline: 1. Pick target gene (e.g., PCSK9). 2. Find cis-SNPs (within ±100 kb of TSS) that are eQTLs for the target in GTEx. 3. Use cis-SNPs as instruments. 4. Two-sample MR with disease GWAS as outcome. 5. Side-effect PheWAS scan. 6. De-risk the drug development decision. Side panel: PCSK9 example with concrete numbers — 6 cis-eQTL SNPs, IVW −0.42 LDL, CAD effect −0.55, no major adverse signals.">
+            <figcaption>Figure 5. The drug-target MR pipeline. Cis-eQTLs near the target gene act as natural drug experiments; PheWAS scan flags off-target effects before the RCT.</figcaption>
+          </figure>
+
+          <figure class="figure figure--wide">
+            <iframe class="artifact-frame" src="../artifacts/lecture-25/06-drug-target-mr.html" loading="lazy" title="Artifact 6 — Drug-Target MR Explorer"></iframe>
+            <figcaption>
+              <strong>Artifact 6 — Drug-Target MR Explorer.</strong> Pick a target (PCSK9, IL-6R, HMGCR, CETP, etc.); see cis-eQTL instruments, MR estimates per disease, and PheWAS side-effect scan. Aha: cis-MR de-risks drugs before clinical trials.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-3">
+          <h3>6.3 Famous examples</h3>
+          <ul>
+            <li><strong>PCSK9 → LDL → CAD</strong>: confirmed by MR; led to alirocumab / evolocumab (Repatha, Praluent, FDA-approved 2015).</li>
+            <li><strong>HMGCR → LDL → CAD</strong>: validated statins post-hoc; confirmed mechanism.</li>
+            <li><strong>CETP inhibitors</strong>: MR predicted modest CAD reduction; clinical trials confirmed (anacetrapib, REVEAL-trial 2017).</li>
+            <li><strong>IL-6 receptor → CAD</strong>: MR found protective effect; tocilizumab repurposing for cardiovascular disease in trials.</li>
+          </ul>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-25/12-cis-mr.svg"
+                 alt="Cis-MR locus zoom for PCSK9. Top: chromosome 1 region around PCSK9 gene with eQTL SNPs marked. Middle: per-SNP Wald-ratio scatter (β_ZX vs β_ZY). Bottom: side-effect PheWAS bar chart showing LDL, CAD, and other phenotypes. PCSK9 cis-MR cleanly recovers the LDL→CAD effect with no major off-target signals.">
+            <figcaption>Figure 12. Cis-MR for PCSK9 — locus zoom + Wald scatter + PheWAS. The basis for $4B/year of PCSK9-inhibitor revenue.</figcaption>
+          </figure>
+        </section>
+
+        <section id="sec-6-4">
+          <h3>6.4 The 2024 frontier</h3>
+          <ul>
+            <li><strong>Drug-target PheWAS</strong>: scan all phenotypes for evidence of target's effect. Identifies on-target side effects before trials.</li>
+            <li><strong>Cell-type-specific MR</strong>: use tissue-specific eQTLs to test mechanism.</li>
+            <li><strong>Open Targets Platform</strong>: integrates MR + DepMap + drug screens for systematic target validation.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ─── Part 7 ──────────────────────────────────────── -->
+      <section id="part-7">
+        <h2>
+          <span class="part-kicker">Part 7 · 15 min</span>
+          Beyond MR — Causal Inference at Scale
+        </h2>
+
+        <section id="sec-7-1">
+          <h3>7.1 Difference-in-differences</h3>
+          <p>Comparing exposed vs unexposed groups before vs after an intervention. Useful for natural experiments (policy changes, drug approvals). Limited use in genomics but common in epidemiology.</p>
+        </section>
+
+        <section id="sec-7-2">
+          <h3>7.2 Regression discontinuity</h3>
+          <p>If treatment is assigned by a threshold (e.g., genetic risk score above 95th percentile triggers screening), comparing just-above vs just-below provides quasi-randomisation.</p>
+        </section>
+
+        <section id="sec-7-3">
+          <h3>7.3 Causal-DAG-based analysis</h3>
+          <p><strong>Pearl's do-calculus</strong>: formal framework for causal reasoning given a graph. Identifies which conditional independencies imply causal effects. In genomics: useful for designing observational analyses around explicit causal hypotheses.</p>
+        </section>
+
+        <section id="sec-7-4">
+          <h3>7.4 Big-data methods</h3>
+          <ul>
+            <li><strong>Targeted-learning</strong> (TMLE): semi-parametric efficient estimators.</li>
+            <li><strong>Doubly-robust methods</strong>: estimators robust to mis-specification of either the exposure or outcome model.</li>
+            <li><strong>Causal forests</strong> (Athey 2019): heterogeneous-effect estimation.</li>
+          </ul>
+          <p>These are emerging in genomics; standard in econometrics.</p>
+
+          <figure class="figure figure--wide">
+            <img src="../diagrams/lecture-25/06-toolkit.svg"
+                 alt="Causal inference toolkit map. Five quadrants showing techniques by data type and assumption strength: RCT (top right, gold standard), Mendelian Randomisation (top middle, IV-based), Difference-in-differences (bottom right, time-based), Regression Discontinuity (bottom middle, threshold-based), Causal Forests / TMLE (top left, machine-learning). Each labelled with typical use, key assumption, software.">
+            <figcaption>Figure 6. The causal inference toolkit. MR is one tool; choice depends on the data structure and which assumptions you can defend.</figcaption>
+          </figure>
+        </section>
+      </section>
+
+      <!-- ─── Wrap-up ──────────────────────────────────────── -->
+      <section id="wrapup">
+        <h2>Wrap-up</h2>
+
+        <h3>What you should take away</h3>
+        <ul>
+          <li><strong>Association ≠ causation</strong>. Naive observational studies cannot establish causal direction; confounding is the rule, not the exception.</li>
+          <li><strong>MR uses germline SNPs as instrumental variables</strong> — Mendel's laws provide nature's randomisation.</li>
+          <li><strong>Three core IV assumptions</strong>: relevance, independence, exclusion. The third is the hardest; sensitivity analyses (MR-Egger, MR-PRESSO, weighted median) test for violations.</li>
+          <li><strong>Two-sample MR is the modern workhorse</strong>: combines GWAS summary stats from separate cohorts via inverse-variance-weighted regression.</li>
+          <li><strong>Mediation analysis</strong> decomposes effects into direct + indirect; combines naturally with MR for pathway dissection.</li>
+          <li><strong>Drug-target MR</strong> uses cis-SNPs near targets as natural experiments; pre-validates drug effects before RCTs.</li>
+          <li><strong>EE framings</strong>: causal effect as partial derivative under intervention; 2SLS as projection then OLS; IVW as weighted least squares; mediation as indirect-path decomposition.</li>
+        </ul>
+
+        <h3>Next lecture</h3>
+        <p>CRISPR functional screens. MR establishes population-scale causal direction; CRISPR screens test cell-scale gene dependencies. Both inform drug-target validation; MR works on humans, CRISPR on cell lines.</p>
+
+        <h3>Homework</h3>
+        <ol>
+          <li>Pick a published two-sample MR study (e.g., LDL → CAD). Reproduce the IVW and MR-Egger estimates from public GWAS summary stats. Report convergence vs divergence.</li>
+          <li>For one drug target of your choice (e.g., IL-6R, PCSK9), build a cis-MR analysis using GTEx eQTLs. Identify candidate diseases the target might affect.</li>
+          <li>Implement the Wald estimator and IVW in Python. Test on synthetic data with known causal effect; verify recovery and bias under various pleiotropy levels.</li>
+          <li>Use Steiger directionality test to investigate a controversial direction (e.g., depression → BMI vs BMI → depression). Report the answer.</li>
+          <li>From an MR analysis with significant heterogeneity, run MR-PRESSO outlier detection. Identify the outlier SNPs; investigate whether they belong to a known pleiotropic pathway.</li>
+        </ol>
+
+        <h3>Recommended reading</h3>
+        <ul>
+          <li>Davey Smith, G., &amp; Ebrahim, S. (2003). 'Mendelian randomization': can genetic epidemiology contribute to understanding environmental determinants of disease? <em>International Journal of Epidemiology</em> 32, 1–22.</li>
+          <li>Bowden, J., Davey Smith, G., &amp; Burgess, S. (2015). Mendelian randomization with invalid instruments: effect estimation and bias detection through Egger regression. <em>International Journal of Epidemiology</em> 44, 512–525.</li>
+          <li>Bowden, J., Davey Smith, G., Haycock, P. C., &amp; Burgess, S. (2016). Consistent estimation in Mendelian randomization with some invalid instruments using a weighted median estimator. <em>Genetic Epidemiology</em> 40, 304–314.</li>
+          <li>Verbanck, M., Chen, C. Y., Neale, B., &amp; Do, R. (2018). Detection of widespread horizontal pleiotropy in causal relationships inferred from Mendelian randomization between complex traits and diseases. <em>Nature Genetics</em> 50, 693–698.</li>
+          <li>Hemani, G., et al. (2017). The MR-Base platform supports systematic causal inference across the human phenome. <em>eLife</em> 7, e34408.</li>
+          <li>Pearl, J. (2009). <em>Causality: Models, Reasoning, and Inference</em>, 2nd ed. Cambridge University Press.</li>
+          <li>VanderWeele, T. J. (2015). <em>Explanation in Causal Inference: Methods for Mediation and Interaction</em>. Oxford University Press.</li>
+          <li>Holmes, M. V., et al. (2017). Mendelian randomization in cardiometabolic disease: challenges in evaluating causality. <em>Nature Reviews Cardiology</em> 14, 577–590.</li>
+          <li>MR-Base: <a href="https://www.mrbase.org/" target="_blank" rel="noopener">mrbase.org</a></li>
+          <li>TwoSampleMR R package: <a href="https://mrcieu.github.io/TwoSampleMR/" target="_blank" rel="noopener">mrcieu.github.io/TwoSampleMR</a></li>
+          <li>Open Targets Platform: <a href="https://platform.opentargets.org/" target="_blank" rel="noopener">platform.opentargets.org</a></li>
+        </ul>
+
+        <h3>Appendix — timing summary</h3>
+        <table>
+          <thead><tr><th>Block</th><th>Time</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>Part 1 — Causation vs Correlation in Genomics</td>      <td>25&nbsp;min</td><td>0:25</td></tr>
+            <tr><td>Part 2 — Instrumental Variables and 2SLS</td>          <td>30&nbsp;min</td><td>0:55</td></tr>
+            <tr><td>Part 3 — MR Methods and Sensitivity Analyses</td>      <td>40&nbsp;min</td><td>1:35</td></tr>
+            <tr><td>Part 4 — Mediation Analysis</td>                       <td>25&nbsp;min</td><td>2:00</td></tr>
+            <tr><td>Part 5 — Limitations, Pitfalls, Best Practices</td>    <td>25&nbsp;min</td><td>2:25</td></tr>
+            <tr><td>Part 6 — Drug-Target Validation via MR</td>            <td>20&nbsp;min</td><td>2:45</td></tr>
+            <tr><td>Part 7 — Beyond MR: Causal Inference at Scale</td>     <td>15&nbsp;min</td><td>3:00</td></tr>
+            <tr><td>Wrap-up</td>                                              <td>10&nbsp;min</td><td>3:10</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total:</strong> ~3h 10min of content.</p>
+      </section>
+
+    </article>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight) || 1;
+      const pct = Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100));
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  (function () {
+    const tocLinks = Array.from(document.querySelectorAll('.lecture-toc-desktop a[href^="#"]'));
+    if (!tocLinks.length) return;
+    const byId = new Map();
+    tocLinks.forEach(a => byId.set(a.getAttribute('href').slice(1), a));
+    const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = byId.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('is-current'));
+          link.classList.add('is-current');
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 });
+    targets.forEach(t => io.observe(t));
+  })();
+
+  (function () {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || d.type !== 'artifact-resize' || typeof d.height !== 'number') return;
+      document.querySelectorAll('iframe.artifact-frame').forEach(f => {
+        if (f.contentWindow === e.source) f.style.height = d.height + 'px';
+      });
+    });
+  })();
+
+  (function () {
+    function tryRender() {
+      if (typeof renderMathInElement !== 'function') return false;
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false,
+      });
+      return true;
+    }
+    if (!tryRender()) {
+      const poll = setInterval(() => { if (tryRender()) clearInterval(poll); }, 50);
+      setTimeout(() => clearInterval(poll), 4000);
+    }
+  })();
+
+  (function () {
+    const headings = document.querySelectorAll('.lecture-prose h2[id], .lecture-prose h3[id], section[id] > h2, section[id] > h3');
+    headings.forEach(h => {
+      const section = h.closest('section[id]');
+      const id = h.id || (section && section.id);
+      if (!id) return;
+      const a = document.createElement('a');
+      a.className = 'heading-anchor';
+      a.href = '#' + id;
+      a.textContent = '¶';
+      a.title = 'Copy link to this section';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = location.origin + location.pathname + '#' + id;
+        history.replaceState(null, '', '#' + id);
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      });
+      h.appendChild(a);
+    });
+  })();
+</script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" font-family="Inter, sans-serif">
+  <defs><style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }</style></defs>
+  <rect width="1200" height="600" fill="#fafaf9" rx="6"/>
+  <text x="600" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">MR-PRESSO — outlier detection: per-SNP residuals flag pleiotropic instruments</text>
+
+  <!-- Left: scatter with outliers -->
+  <g transform="translate(60,80)">
+    <rect width="660" height="380" fill="#fff" stroke="#d6d3d1" rx="6"/>
+    <text x="330" y="24" text-anchor="middle" font-size="12" font-weight="700" fill="#374151">Per-SNP Wald ratios with consensus IVW line and outliers</text>
+
+    <g transform="translate(60,60)">
+      <line x1="0" y1="240" x2="540" y2="240" stroke="#374151"/>
+      <line x1="0" y1="0" x2="0" y2="240" stroke="#374151"/>
+      <line x1="0" y1="120" x2="540" y2="120" stroke="#9ca3af" stroke-dasharray="3 3"/>
+
+      <!-- Consensus IVW line: slope ~ 0.5 -->
+      <line x1="0" y1="120" x2="540" y2="60" stroke="#1e3a8a" stroke-width="2.5" stroke-dasharray="6 4"/>
+      <text x="430" y="80" font-size="11" font-weight="700" fill="#1e3a8a" class="mono">IVW consensus</text>
+
+      <!-- Most SNPs near the line -->
+      <g fill="#9ca3af" fill-opacity="0.7">
+        <circle cx="40" cy="115" r="5"/>
+        <circle cx="80" cy="108" r="5"/>
+        <circle cx="120" cy="103" r="5"/>
+        <circle cx="160" cy="98" r="5"/>
+        <circle cx="200" cy="92" r="5"/>
+        <circle cx="240" cy="86" r="5"/>
+        <circle cx="280" cy="80" r="5"/>
+        <circle cx="320" cy="76" r="5"/>
+        <circle cx="360" cy="72" r="5"/>
+        <circle cx="400" cy="68" r="5"/>
+        <circle cx="440" cy="64" r="5"/>
+        <circle cx="480" cy="60" r="5"/>
+        <circle cx="520" cy="56" r="5"/>
+        <circle cx="60" cy="105" r="5"/>
+        <circle cx="100" cy="98" r="5"/>
+        <circle cx="180" cy="100" r="5"/>
+        <circle cx="220" cy="88" r="5"/>
+        <circle cx="260" cy="76" r="5"/>
+        <circle cx="300" cy="74" r="5"/>
+        <circle cx="340" cy="70" r="5"/>
+        <circle cx="380" cy="66" r="5"/>
+        <circle cx="420" cy="60" r="5"/>
+        <circle cx="460" cy="56" r="5"/>
+      </g>
+
+      <!-- Three outliers -->
+      <g fill="#dc2626">
+        <circle cx="100" cy="40" r="8" stroke="#7f1d1d" stroke-width="2"/>
+        <circle cx="240" cy="20" r="8" stroke="#7f1d1d" stroke-width="2"/>
+        <circle cx="400" cy="160" r="8" stroke="#7f1d1d" stroke-width="2"/>
+      </g>
+      <text x="100" y="34" font-size="10" font-weight="700" fill="#dc2626" class="mono">SNP 7</text>
+      <text x="240" y="14" font-size="10" font-weight="700" fill="#dc2626" class="mono">SNP 18</text>
+      <text x="400" y="180" font-size="10" font-weight="700" fill="#dc2626" class="mono">SNP 23</text>
+
+      <text x="270" y="276" text-anchor="middle" font-size="10" fill="#525252">β_{Z → X}</text>
+      <text x="-30" y="120" text-anchor="middle" font-size="10" fill="#525252" transform="rotate(-90 -30 120)">β_{Z → Y}</text>
+
+      <!-- Mark consensus line position more clearly -->
+      <text x="270" y="296" text-anchor="middle" font-size="10" font-style="italic" fill="#525252">3 SNPs sit far from the consensus → flagged as outliers</text>
+    </g>
+  </g>
+
+  <!-- Right: workflow + result -->
+  <g transform="translate(740,80)">
+    <rect width="400" height="380" fill="#fff" stroke="#d6d3d1" rx="6"/>
+    <text x="200" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#374151">MR-PRESSO workflow</text>
+    <line x1="20" y1="32" x2="380" y2="32" stroke="#e7e5e4"/>
+
+    <g transform="translate(40,52)" font-size="11" fill="#374151">
+      <text x="0" y="0" font-weight="700">1. Run IVW on all SNPs.</text>
+      <text x="14" y="16" font-style="italic" fill="#525252">→ initial estimate β̂₀</text>
+
+      <text x="0" y="40" font-weight="700">2. Compute per-SNP residuals.</text>
+      <text x="14" y="56" class="mono" fill="#525252">rₖ = (β̂ₖ − β̂₀)² / σ²ₖ</text>
+
+      <text x="0" y="80" font-weight="700">3. Test each rₖ for significance.</text>
+      <text x="14" y="96" class="mono" fill="#525252">global heterogeneity test (Q)</text>
+      <text x="14" y="110" class="mono" fill="#525252">+ per-SNP outlier test</text>
+
+      <text x="0" y="134" font-weight="700">4. Remove outliers; re-estimate.</text>
+      <text x="14" y="150" class="mono" fill="#525252">→ corrected β̂′</text>
+
+      <text x="0" y="174" font-weight="700">5. Distortion test.</text>
+      <text x="14" y="190" class="mono" fill="#525252">P(β̂₀ vs β̂′ different) → confirms outliers</text>
+    </g>
+
+    <g transform="translate(20,260)">
+      <rect width="360" height="100" fill="#dcfce7" stroke="#065f46" rx="4"/>
+      <text x="180" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#065f46">Result for the example</text>
+      <line x1="20" y1="32" x2="340" y2="32" stroke="#065f46" opacity="0.4"/>
+      <g transform="translate(20,52)" font-size="10" fill="#374151">
+        <text x="0" y="0" class="mono">Initial IVW (with outliers): β = 0.62 ± 0.08</text>
+        <text x="0" y="16" class="mono">Outliers removed (3 SNPs): SNP 7, 18, 23</text>
+        <text x="0" y="32" class="mono">Corrected IVW: β = 0.50 ± 0.04</text>
+        <text x="0" y="48" font-style="italic" fill="#065f46">Distortion test: p = 0.04 → outliers were biasing</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Bottom banner -->
+  <g transform="translate(60,490)">
+    <rect width="1080" height="80" fill="#fef3c7" stroke="#b45309" rx="4"/>
+    <text x="540" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#92400e">MR-PRESSO is robust regression for MR — outlier rejection then re-estimation</text>
+    <text x="540" y="42" text-anchor="middle" font-size="10" fill="#374151">Removes individual pleiotropic SNPs that bias IVW. Standard practice: report initial IVW + outlier-corrected IVW + distortion test.</text>
+    <text x="540" y="60" text-anchor="middle" font-size="10" font-style="italic" fill="#525252">Paired with MR-Egger (systematic pleiotropy) it covers most invalid-IV regimes.</text>
+  </g>
+</svg>

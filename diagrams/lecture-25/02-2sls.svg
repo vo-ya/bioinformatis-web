@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" font-family="Inter, sans-serif">
+  <defs>
+    <style>text { font-family: Inter, sans-serif; } .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; }</style>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#525252"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="600" fill="#fafaf9" rx="6"/>
+  <text x="600" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">2SLS — stage 1 projects X onto IV space, stage 2 regresses Y on the projection</text>
+
+  <!-- Stage 1 -->
+  <g transform="translate(60,80)">
+    <rect width="500" height="380" fill="#fff" stroke="#1e3a8a" stroke-width="2" rx="6"/>
+    <text x="250" y="24" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3a8a">Stage 1: project X onto Z</text>
+    <text x="250" y="40" text-anchor="middle" font-size="11" font-family="JetBrains Mono, monospace" fill="#525252">X = π₀ + π₁ Z + μ W + e</text>
+    <line x1="20" y1="52" x2="480" y2="52" stroke="#dbeafe"/>
+
+    <!-- Scatter -->
+    <g transform="translate(60,80)">
+      <line x1="0" y1="240" x2="380" y2="240" stroke="#374151"/>
+      <line x1="0" y1="0" x2="0" y2="240" stroke="#374151"/>
+      <text x="190" y="262" text-anchor="middle" font-size="11" fill="#525252">instrument Z</text>
+      <text x="-46" y="120" text-anchor="middle" font-size="11" fill="#525252" transform="rotate(-90 -46 120)">exposure X</text>
+
+      <!-- Confounded scatter (grey) -->
+      <g fill="#9ca3af" fill-opacity="0.5">
+        <circle cx="40" cy="200" r="3"/><circle cx="60" cy="180" r="3"/><circle cx="80" cy="190" r="3"/>
+        <circle cx="100" cy="170" r="3"/><circle cx="120" cy="160" r="3"/><circle cx="140" cy="180" r="3"/>
+        <circle cx="160" cy="140" r="3"/><circle cx="180" cy="150" r="3"/><circle cx="200" cy="130" r="3"/>
+        <circle cx="220" cy="120" r="3"/><circle cx="240" cy="100" r="3"/><circle cx="260" cy="110" r="3"/>
+        <circle cx="280" cy="90" r="3"/><circle cx="300" cy="80" r="3"/><circle cx="320" cy="70" r="3"/>
+        <circle cx="340" cy="60" r="3"/><circle cx="160" cy="200" r="3"/><circle cx="220" cy="180" r="3"/>
+        <circle cx="80" cy="220" r="3"/><circle cx="280" cy="50" r="3"/>
+      </g>
+
+      <!-- Stage 1 fit line: predicting X from Z -->
+      <line x1="0" y1="220" x2="380" y2="40" stroke="#1e3a8a" stroke-width="2.5"/>
+
+      <text x="280" y="60" font-size="11" font-weight="700" fill="#1e3a8a" class="mono">X̂ = π₁ · Z</text>
+      <text x="280" y="76" font-size="9" fill="#525252">(IV-driven part)</text>
+    </g>
+
+    <text x="250" y="354" text-anchor="middle" font-size="10" fill="#374151">→ store X̂ for stage 2</text>
+  </g>
+
+  <!-- Stage 2 -->
+  <g transform="translate(620,80)">
+    <rect width="520" height="380" fill="#fff" stroke="#065f46" stroke-width="2" rx="6"/>
+    <text x="260" y="24" text-anchor="middle" font-size="13" font-weight="700" fill="#065f46">Stage 2: regress Y on X̂</text>
+    <text x="260" y="40" text-anchor="middle" font-size="11" font-family="JetBrains Mono, monospace" fill="#525252">Y = β₀ + β₁ X̂ + γ W + u</text>
+    <line x1="20" y1="52" x2="500" y2="52" stroke="#dcfce7"/>
+
+    <g transform="translate(60,80)">
+      <line x1="0" y1="240" x2="400" y2="240" stroke="#374151"/>
+      <line x1="0" y1="0" x2="0" y2="240" stroke="#374151"/>
+      <text x="200" y="262" text-anchor="middle" font-size="11" fill="#525252">fitted X̂</text>
+      <text x="-46" y="120" text-anchor="middle" font-size="11" fill="#525252" transform="rotate(-90 -46 120)">outcome Y</text>
+
+      <!-- IV-driven scatter (clean, projected) -->
+      <g fill="#065f46" fill-opacity="0.7">
+        <circle cx="20" cy="200" r="4"/><circle cx="60" cy="180" r="4"/><circle cx="100" cy="160" r="4"/>
+        <circle cx="140" cy="140" r="4"/><circle cx="180" cy="120" r="4"/><circle cx="220" cy="100" r="4"/>
+        <circle cx="260" cy="80" r="4"/><circle cx="300" cy="60" r="4"/><circle cx="340" cy="40" r="4"/>
+        <circle cx="380" cy="30" r="4"/>
+        <circle cx="40" cy="195" r="4"/><circle cx="80" cy="170" r="4"/><circle cx="120" cy="150" r="4"/>
+        <circle cx="160" cy="130" r="4"/><circle cx="200" cy="110" r="4"/>
+      </g>
+
+      <!-- Stage 2 fit -->
+      <line x1="0" y1="220" x2="400" y2="20" stroke="#065f46" stroke-width="2.5"/>
+      <text x="240" y="60" font-size="11" font-weight="700" fill="#065f46" class="mono">β₁ = causal effect</text>
+    </g>
+
+    <text x="260" y="354" text-anchor="middle" font-size="10" fill="#374151">β₁ recovers ∂Y/∂X | do(X) — unbiased by C</text>
+  </g>
+
+  <!-- Bottom banner -->
+  <g transform="translate(60,490)">
+    <rect width="1080" height="80" fill="#dcfce7" stroke="#065f46" rx="4"/>
+    <text x="540" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">2SLS = projection step + OLS step</text>
+    <text x="540" y="42" text-anchor="middle" font-size="10" fill="#374151">Stage 1 projects X onto the column space of Z, removing the confounded component. Stage 2 measures Y's response to that projection.</text>
+    <text x="540" y="60" text-anchor="middle" font-size="10" font-style="italic" fill="#525252">Same EE technique as projection-then-regression in signal processing — debiasing via known covariates.</text>
+  </g>
+</svg>

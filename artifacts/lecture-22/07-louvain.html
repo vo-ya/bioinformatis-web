@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module Detection (Louvain)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { display: flex; gap: 0.6rem; margin-bottom: 1rem; align-items: center; flex-wrap: wrap; }
+  .btn { padding: 0.55rem 1rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-family: var(--font-mono); font-size: 0.85rem; cursor: pointer; }
+  .btn:hover { background: #f5f5f4; }
+  .btn.primary { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+  .stepinfo { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg-muted); margin-left: auto; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Module Detection (Louvain)</h1>
+    <p>Run Louvain step by step on a 50-node network with 4 ground-truth communities. Watch communities emerge from greedy local-optimisation of modularity $Q$. Aha: Louvain greedily improves $Q$; converges fast in practice; produces interpretable communities.</p>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="reset">Reset</button>
+    <button class="btn primary" id="step">Step ×1</button>
+    <button class="btn" id="step10">Step ×10</button>
+    <button class="btn" id="run">Run to convergence</button>
+    <span class="stepinfo" id="stepinfo">iter 0</span>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="iter">0</div><div class="l">Iteration</div></div>
+    <div class="stat"><div class="v" id="modul">—</div><div class="l">Modularity Q</div></div>
+    <div class="stat"><div class="v" id="ncomm">—</div><div class="l">Communities</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Network with current community assignment</h3>
+    <svg id="svg" viewBox="0 0 1000 480" width="100%" height="480"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Implements the local-moving phase of Louvain on a 50-node toy network. Real Louvain (and the improved Leiden algorithm) iterates phase-1 (local moving) + phase-2 (community aggregation) until Q stops improving; networkx and igraph provide production implementations that scale to millions of nodes. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const N = 50;
+  // 4 communities of ~12 each
+  const COMMUNITIES = [];
+  for (let i = 0; i < 50; i++) COMMUNITIES.push(Math.floor(i / 13));
+  COMMUNITIES[12] = 0; COMMUNITIES[25] = 1; COMMUNITIES[38] = 2; COMMUNITIES[49] = 3;
+
+  // Node positions: 4 clusters
+  const POSITIONS = [];
+  const CENTERS = [[200, 130], [700, 130], [200, 380], [700, 380]];
+  COMMUNITIES.forEach((c, i) => {
+    const a = (i / 13) * 2 * Math.PI;
+    POSITIONS.push([CENTERS[c][0] + 80 * Math.cos(a), CENTERS[c][1] + 80 * Math.sin(a)]);
+  });
+
+  // Edges: dense within community, sparse between
+  const EDGES = [];
+  for (let i = 0; i < N; i++) {
+    for (let j = i + 1; j < N; j++) {
+      const sameCommunity = COMMUNITIES[i] === COMMUNITIES[j];
+      const prob = sameCommunity ? 0.55 : 0.02;
+      // Use deterministic hash
+      const hash = ((i * 31 + j) * 7919) % 100;
+      if (hash / 100 < prob) EDGES.push([i, j]);
+    }
+  }
+
+  const adj = Array.from({ length: N }, () => new Array(N).fill(0));
+  EDGES.forEach(([i, j]) => { adj[i][j] = 1; adj[j][i] = 1; });
+  const deg = new Array(N).fill(0);
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) deg[i] += adj[i][j];
+  let m = 0;
+  EDGES.forEach(() => m++);
+
+  // Initial: each node in its own community
+  let community = new Array(N).fill(0).map((_, i) => i);
+  let iter = 0;
+
+  function modularity() {
+    let Q = 0;
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+      if (community[i] === community[j]) Q += adj[i][j] - (deg[i] * deg[j]) / (2 * m);
+    }
+    return Q / (2 * m);
+  }
+
+  function init() {
+    community = new Array(N).fill(0).map((_, i) => i);
+    iter = 0;
+    render();
+  }
+
+  function stepOnce() {
+    // Pick the next node (round-robin) and check if moving it to a neighbour's community improves Q
+    let improved = false;
+    for (let trial = 0; trial < N; trial++) {
+      const i = (iter * N + trial) % N;
+      // Compute community of best neighbour
+      const candidates = new Set();
+      candidates.add(community[i]);
+      for (let j = 0; j < N; j++) if (adj[i][j]) candidates.add(community[j]);
+      let bestQ = modularity(), bestC = community[i];
+      const orig = community[i];
+      for (const c of candidates) {
+        if (c === orig) continue;
+        community[i] = c;
+        const Q = modularity();
+        if (Q > bestQ) { bestQ = Q; bestC = c; }
+        community[i] = orig;
+      }
+      if (bestC !== orig) {
+        community[i] = bestC;
+        improved = true;
+        break;
+      }
+    }
+    iter++;
+    if (!improved) {
+      // No more moves possible — converged
+    }
+    render();
+  }
+
+  function runAll() {
+    for (let k = 0; k < 200; k++) {
+      const before = modularity();
+      stepOnce();
+      const after = modularity();
+      if (after === before && k > 30) break;
+    }
+  }
+
+  function render() {
+    const svg = $('svg');
+    svg.innerHTML = '';
+    const COLORS = ['#1e3a8a', '#b45309', '#065f46', '#7c3aed', '#0d7377', '#dc2626', '#525252', '#7c2d12'];
+
+    EDGES.forEach(([i, j]) => {
+      const ln = document.createElementNS(ns, 'line');
+      ln.setAttribute('x1', POSITIONS[i][0]); ln.setAttribute('y1', POSITIONS[i][1]);
+      ln.setAttribute('x2', POSITIONS[j][0]); ln.setAttribute('y2', POSITIONS[j][1]);
+      const sameClus = community[i] === community[j];
+      ln.setAttribute('stroke', sameClus ? '#9ca3af' : '#dc2626');
+      ln.setAttribute('stroke-width', sameClus ? 0.6 : 1);
+      ln.setAttribute('opacity', sameClus ? 0.5 : 0.7);
+      svg.appendChild(ln);
+    });
+
+    POSITIONS.forEach((pos, i) => {
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', pos[0]); c.setAttribute('cy', pos[1]); c.setAttribute('r', 7);
+      c.setAttribute('fill', COLORS[community[i] % COLORS.length]);
+      c.setAttribute('stroke', '#fff'); c.setAttribute('stroke-width', 1);
+      svg.appendChild(c);
+    });
+
+    const Q = modularity();
+    const ncomm = new Set(community).size;
+    $('iter').textContent = iter;
+    $('modul').textContent = Q.toFixed(3);
+    $('ncomm').textContent = ncomm;
+    $('stepinfo').textContent = `iter ${iter}`;
+
+    let hint;
+    if (iter === 0) hint = `Initial state: each node in its own community. Q ≈ 0; ${N} singleton communities.`;
+    else if (ncomm > 10) hint = `Early phase: many small communities. Q rising as nodes merge with their neighbours.`;
+    else if (Math.abs(Q - 0.5) < 0.1) hint = `Mid-convergence. Communities forming; Q ≈ 0.5 typical for biological networks.`;
+    else if (ncomm <= 5 && Q > 0.6) hint = `Converged. ${ncomm} communities; Q = ${Q.toFixed(2)}. Should match ground truth (4 clusters).`;
+    else hint = `Step or run to advance. Each step picks one node and moves it to the neighbour community that improves Q most.`;
+    $('banner').innerHTML = `Iter <strong>${iter}</strong>, Q = <strong>${Q.toFixed(3)}</strong>, ${ncomm} communities.<span class="hint">${hint}</span>`;
+  }
+
+  $('reset').addEventListener('click', init);
+  $('step').addEventListener('click', stepOnce);
+  $('step10').addEventListener('click', () => { for (let k = 0; k < 10; k++) stepOnce(); });
+  $('run').addEventListener('click', runAll);
+  init();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

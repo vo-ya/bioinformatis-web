@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spectral Clustering Visualizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range] { width: 100%; }
+  .tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
+  .tab { padding: 0.55rem 1rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-family: var(--font-mono); font-size: 0.85rem; cursor: pointer; }
+  .tab.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Spectral Clustering Visualizer</h1>
+    <p>On a 30-node network with 3 ground-truth communities, project onto the 2nd and 3rd smallest eigenvectors of the Laplacian; k-means cluster in eigenspace. Aha: low-frequency eigenvectors separate communities; k-means in eigenspace recovers them.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="k">k (number of clusters): <span class="v" id="kV">3</span></label>
+      <input type="range" id="k" min="2" max="6" value="3">
+    </div>
+    <div class="field">
+      <label for="noise">Inter-cluster edge density: <span class="v" id="noiseV">low</span></label>
+      <input type="range" id="noise" min="0" max="100" value="10">
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-tab="network">Network</button>
+    <button class="tab" data-tab="laplacian">Laplacian L</button>
+    <button class="tab" data-tab="eigen">Eigenspace v₂ × v₃</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="nmi">—</div><div class="l">NMI vs ground truth</div></div>
+    <div class="stat"><div class="v" id="modul">—</div><div class="l">Modularity Q</div></div>
+    <div class="stat"><div class="v" id="cuts">—</div><div class="l">Inter-cluster edges</div></div>
+  </div>
+
+  <div class="panel">
+    <svg id="svg" viewBox="0 0 1000 480" width="100%" height="480"></svg>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. The Laplacian eigendecomposition is computed in-browser via simple power iteration on the small (30×30) matrix. Real spectral clustering uses ARPACK / scipy.sparse.linalg for large sparse Laplacians; networkx and scikit-learn provide production implementations. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const N = 30;
+  // 3 communities of 10 each
+  const TRUTH = [
+    0,0,0,0,0,0,0,0,0,0,
+    1,1,1,1,1,1,1,1,1,1,
+    2,2,2,2,2,2,2,2,2,2
+  ];
+  const POSITIONS_NETWORK = [];
+  // Cluster 0 top-left, cluster 1 top-right, cluster 2 bottom-center
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * 2 * Math.PI;
+    POSITIONS_NETWORK.push([200 + 70 * Math.cos(a), 130 + 70 * Math.sin(a)]);
+  }
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * 2 * Math.PI;
+    POSITIONS_NETWORK.push([700 + 70 * Math.cos(a), 130 + 70 * Math.sin(a)]);
+  }
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * 2 * Math.PI;
+    POSITIONS_NETWORK.push([450 + 70 * Math.cos(a), 360 + 70 * Math.sin(a)]);
+  }
+
+  function buildEdges(noiseLevel) {
+    const edges = [];
+    // Dense within each cluster
+    for (let cl = 0; cl < 3; cl++) {
+      const start = cl * 10;
+      for (let i = start; i < start + 10; i++) {
+        for (let j = i + 1; j < start + 10; j++) {
+          if (Math.random() < 0.5) edges.push([i, j]);
+        }
+      }
+    }
+    // Sparse between clusters, controlled by noiseLevel (0-100)
+    const interCount = Math.floor(noiseLevel / 100 * 30);
+    for (let k = 0; k < interCount; k++) {
+      const c1 = Math.floor(Math.random() * 3);
+      let c2 = Math.floor(Math.random() * 3);
+      while (c2 === c1) c2 = Math.floor(Math.random() * 3);
+      const i = c1 * 10 + Math.floor(Math.random() * 10);
+      const j = c2 * 10 + Math.floor(Math.random() * 10);
+      edges.push([i, j]);
+    }
+    return edges;
+  }
+
+  let edges = [];
+  let seedNoise = -1;
+
+  // Eigendecomposition by simple deflation + power iteration
+  function multiply(M, v) {
+    const out = new Array(N).fill(0);
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) out[i] += M[i][j] * v[j];
+    return out;
+  }
+  function dot(a, b) { let s = 0; for (let i = 0; i < N; i++) s += a[i] * b[i]; return s; }
+  function norm(v) { return Math.sqrt(dot(v, v)); }
+  function scale(v, s) { return v.map(x => x * s); }
+
+  function buildLaplacian() {
+    const A = Array.from({ length: N }, () => new Array(N).fill(0));
+    edges.forEach(([i, j]) => { A[i][j] = 1; A[j][i] = 1; });
+    const D = new Array(N).fill(0);
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) D[i] += A[i][j];
+    const L = Array.from({ length: N }, () => new Array(N).fill(0));
+    for (let i = 0; i < N; i++) {
+      L[i][i] = D[i];
+      for (let j = 0; j < N; j++) if (i !== j) L[i][j] = -A[i][j];
+    }
+    return { A, D, L };
+  }
+
+  function eigvecsLowest(L, kk) {
+    // Use Lmax * I - L; power iter recovers largest eigenvalues which correspond to smallest of L
+    let lambdaMax = 0;
+    for (let i = 0; i < N; i++) lambdaMax = Math.max(lambdaMax, L[i][i] + 5);
+    const M = Array.from({ length: N }, (_, i) => L[i].map((v, j) => (i === j ? lambdaMax : 0) - v));
+    const eigs = [];
+    let workM = M.map(row => row.slice());
+    for (let e = 0; e < kk; e++) {
+      let v = new Array(N).fill(0).map(() => Math.random() - 0.5);
+      // Orthogonalise against earlier
+      for (let it = 0; it < 200; it++) {
+        v = multiply(workM, v);
+        eigs.forEach(prev => { const c = dot(v, prev.vec); for (let i = 0; i < N; i++) v[i] -= c * prev.vec[i]; });
+        const nv = norm(v);
+        if (nv > 0) v = scale(v, 1 / nv);
+      }
+      const lambdaShift = dot(multiply(workM, v), v);
+      const lambdaL = lambdaMax - lambdaShift;
+      eigs.push({ vec: v, lambda: lambdaL });
+    }
+    eigs.sort((a, b) => a.lambda - b.lambda);
+    return eigs;
+  }
+
+  function kmeans(points, kk) {
+    const centers = [];
+    for (let c = 0; c < kk; c++) centers.push(points[Math.floor(c * points.length / kk)].slice());
+    let assign = new Array(points.length).fill(0);
+    for (let it = 0; it < 30; it++) {
+      // Assign
+      for (let i = 0; i < points.length; i++) {
+        let best = 0, bd = Infinity;
+        for (let c = 0; c < kk; c++) {
+          let d = 0;
+          for (let dd = 0; dd < points[i].length; dd++) {
+            const x = points[i][dd] - centers[c][dd];
+            d += x * x;
+          }
+          if (d < bd) { bd = d; best = c; }
+        }
+        assign[i] = best;
+      }
+      // Update
+      const newCenters = Array.from({ length: kk }, () => new Array(points[0].length).fill(0));
+      const counts = new Array(kk).fill(0);
+      for (let i = 0; i < points.length; i++) {
+        for (let dd = 0; dd < points[i].length; dd++) newCenters[assign[i]][dd] += points[i][dd];
+        counts[assign[i]]++;
+      }
+      for (let c = 0; c < kk; c++) if (counts[c] > 0) for (let dd = 0; dd < points[i] && dd < newCenters[c].length; dd++) newCenters[c][dd] /= counts[c];
+      for (let c = 0; c < kk; c++) if (counts[c] > 0) {
+        for (let dd = 0; dd < newCenters[c].length; dd++) centers[c] = newCenters[c];
+      }
+    }
+    return assign;
+  }
+
+  function NMI(a, b) {
+    const N = a.length;
+    const ka = new Set(a).size;
+    const kb = new Set(b).size;
+    const cont = Array.from({ length: ka }, () => new Array(kb).fill(0));
+    for (let i = 0; i < N; i++) cont[a[i]][b[i]]++;
+    let mi = 0, ha = 0, hb = 0;
+    const pa = new Array(ka).fill(0);
+    const pb = new Array(kb).fill(0);
+    for (let i = 0; i < ka; i++) for (let j = 0; j < kb; j++) { pa[i] += cont[i][j]; pb[j] += cont[i][j]; }
+    for (let i = 0; i < ka; i++) for (let j = 0; j < kb; j++) {
+      const pij = cont[i][j] / N;
+      if (pij > 0) mi += pij * Math.log(pij / ((pa[i] / N) * (pb[j] / N)));
+    }
+    for (let i = 0; i < ka; i++) if (pa[i] > 0) ha -= (pa[i] / N) * Math.log(pa[i] / N);
+    for (let j = 0; j < kb; j++) if (pb[j] > 0) hb -= (pb[j] / N) * Math.log(pb[j] / N);
+    return 2 * mi / (ha + hb);
+  }
+
+  function modularity(adj, partition) {
+    let m = 0;
+    for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) m += adj[i][j];
+    if (m === 0) return 0;
+    const deg = new Array(N).fill(0);
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) deg[i] += adj[i][j];
+    let Q = 0;
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+      if (partition[i] === partition[j]) Q += adj[i][j] - (deg[i] * deg[j]) / (2 * m);
+    }
+    return Q / (2 * m);
+  }
+
+  let curTab = 'network';
+
+  function update() {
+    const k = parseInt($('k').value, 10);
+    const noiseLevel = parseInt($('noise').value, 10);
+    $('kV').textContent = k;
+    $('noiseV').textContent = noiseLevel < 20 ? 'low' : noiseLevel < 60 ? 'medium' : 'high';
+    if (noiseLevel !== seedNoise) {
+      edges = buildEdges(noiseLevel);
+      seedNoise = noiseLevel;
+    }
+    const { A, L } = buildLaplacian();
+    const eigs = eigvecsLowest(L, Math.max(k, 4));
+    // Use eigvecs 1..k (skip the 0th, which is constant)
+    const points = [];
+    for (let i = 0; i < N; i++) {
+      const pt = [];
+      for (let e = 1; e <= Math.min(k, eigs.length - 1); e++) pt.push(eigs[e].vec[i]);
+      points.push(pt);
+    }
+    const assign = kmeans(points, k);
+    const nmi = NMI(TRUTH, assign);
+    const Q = modularity(A, assign);
+
+    let interEdges = 0;
+    edges.forEach(([i, j]) => { if (assign[i] !== assign[j]) interEdges++; });
+
+    $('nmi').textContent = nmi.toFixed(2);
+    $('modul').textContent = Q.toFixed(3);
+    $('cuts').textContent = interEdges;
+
+    drawTab(curTab, A, L, eigs, points, assign);
+
+    let hint;
+    if (nmi > 0.9) hint = `Excellent recovery: NMI = ${nmi.toFixed(2)}. Spectral clustering matches ground truth.`;
+    else if (nmi > 0.7) hint = `Good recovery: NMI = ${nmi.toFixed(2)}. Most communities recovered; a few misassigned nodes.`;
+    else if (k !== 3) hint = `Wrong k: ground truth has 3 clusters; you set k = ${k}. NMI suffers.`;
+    else hint = `Recovery degraded by inter-cluster noise. Higher noise → harder to separate communities cleanly.`;
+    $('banner').innerHTML = `k = <strong>${k}</strong>, NMI = <strong>${nmi.toFixed(2)}</strong>, Q = <strong>${Q.toFixed(3)}</strong>.<span class="hint">${hint}</span>`;
+  }
+
+  function drawTab(tab, A, L, eigs, points, assign) {
+    const svg = $('svg');
+    svg.innerHTML = '';
+    const COLORS = ['#1e3a8a', '#b45309', '#065f46', '#7c3aed', '#0d7377', '#dc2626'];
+
+    if (tab === 'network') {
+      // Draw edges
+      edges.forEach(([i, j]) => {
+        const ln = document.createElementNS(ns, 'line');
+        ln.setAttribute('x1', POSITIONS_NETWORK[i][0]); ln.setAttribute('y1', POSITIONS_NETWORK[i][1]);
+        ln.setAttribute('x2', POSITIONS_NETWORK[j][0]); ln.setAttribute('y2', POSITIONS_NETWORK[j][1]);
+        const sameCluster = assign[i] === assign[j];
+        ln.setAttribute('stroke', sameCluster ? '#9ca3af' : '#dc2626');
+        ln.setAttribute('stroke-width', sameCluster ? 0.6 : 1);
+        ln.setAttribute('opacity', sameCluster ? 0.5 : 0.8);
+        svg.appendChild(ln);
+      });
+      POSITIONS_NETWORK.forEach((pos, i) => {
+        const c = document.createElementNS(ns, 'circle');
+        c.setAttribute('cx', pos[0]); c.setAttribute('cy', pos[1]); c.setAttribute('r', 7);
+        c.setAttribute('fill', COLORS[assign[i]]);
+        c.setAttribute('stroke', TRUTH[i] === assign[i] ? '#fff' : '#dc2626');
+        c.setAttribute('stroke-width', TRUTH[i] === assign[i] ? 1 : 2);
+        svg.appendChild(c);
+      });
+    } else if (tab === 'laplacian') {
+      // 30x30 heatmap
+      const cell = 12;
+      const x0 = 320, y0 = 60;
+      let maxVal = 0;
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) maxVal = Math.max(maxVal, Math.abs(L[i][j]));
+      for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+          const r = document.createElementNS(ns, 'rect');
+          r.setAttribute('x', x0 + j * cell); r.setAttribute('y', y0 + i * cell);
+          r.setAttribute('width', cell); r.setAttribute('height', cell);
+          const val = L[i][j];
+          if (i === j) r.setAttribute('fill', `rgba(30, 58, 138, ${val / maxVal})`);
+          else r.setAttribute('fill', val < 0 ? `rgba(220, 38, 38, ${-val / maxVal * 0.8})` : '#fff');
+          svg.appendChild(r);
+        }
+      }
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', 500); t.setAttribute('y', 440);
+      t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', 11);
+      t.setAttribute('fill', '#525252');
+      t.textContent = 'L = D − A · diagonal blocks visible at row/col groups 0-9, 10-19, 20-29';
+      svg.appendChild(t);
+    } else if (tab === 'eigen') {
+      // 2D scatter on eigvecs 1, 2 (skipping 0)
+      const xVals = points.map(p => p[0]);
+      const yVals = points.map(p => p.length > 1 ? p[1] : 0);
+      const xMin = Math.min(...xVals), xMax = Math.max(...xVals);
+      const yMin = Math.min(...yVals), yMax = Math.max(...yVals);
+      const px = (v) => 100 + ((v - xMin) / (xMax - xMin || 1)) * 800;
+      const py = (v) => 60 + (1 - (v - yMin) / (yMax - yMin || 1)) * 360;
+      // Axes
+      const ln1 = document.createElementNS(ns, 'line');
+      ln1.setAttribute('x1', 100); ln1.setAttribute('y1', 420); ln1.setAttribute('x2', 900); ln1.setAttribute('y2', 420);
+      ln1.setAttribute('stroke', '#374151');
+      svg.appendChild(ln1);
+      const ln2 = document.createElementNS(ns, 'line');
+      ln2.setAttribute('x1', 100); ln2.setAttribute('y1', 60); ln2.setAttribute('x2', 100); ln2.setAttribute('y2', 420);
+      ln2.setAttribute('stroke', '#374151');
+      svg.appendChild(ln2);
+      const t1 = document.createElementNS(ns, 'text');
+      t1.setAttribute('x', 500); t1.setAttribute('y', 440);
+      t1.setAttribute('text-anchor', 'middle'); t1.setAttribute('font-size', 11);
+      t1.setAttribute('fill', '#525252'); t1.textContent = 'v₂ (2nd smallest non-zero eigenvector)';
+      svg.appendChild(t1);
+      const t2 = document.createElementNS(ns, 'text');
+      t2.setAttribute('x', 60); t2.setAttribute('y', 240);
+      t2.setAttribute('text-anchor', 'middle'); t2.setAttribute('font-size', 11);
+      t2.setAttribute('fill', '#525252'); t2.setAttribute('transform', 'rotate(-90 60 240)');
+      t2.textContent = 'v₃';
+      svg.appendChild(t2);
+      points.forEach((pt, i) => {
+        const c = document.createElementNS(ns, 'circle');
+        c.setAttribute('cx', px(pt[0])); c.setAttribute('cy', py(pt.length > 1 ? pt[1] : 0)); c.setAttribute('r', 6);
+        c.setAttribute('fill', COLORS[assign[i]]);
+        c.setAttribute('stroke', '#fff'); c.setAttribute('stroke-width', 1);
+        svg.appendChild(c);
+      });
+    }
+  }
+
+  $('k').addEventListener('input', update);
+  $('noise').addEventListener('input', update);
+  document.querySelectorAll('.tab').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      curTab = b.dataset.tab;
+      update();
+    });
+  });
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

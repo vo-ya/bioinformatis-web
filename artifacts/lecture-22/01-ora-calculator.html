@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORA Enrichment Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+  input[type=range], input[type=number] { width: 100%; }
+  input[type=number] { padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.9rem; background: #fff; }
+  .verdict { background: #fff; border: 2px solid var(--border); border-radius: 6px; padding: 1rem 1.2rem; margin-bottom: 0.75rem; }
+  .verdict.sig { border-color: #059669; background: #f0fdf4; }
+  .verdict.marg { border-color: #b45309; background: #fffbeb; }
+  .verdict.ns { border-color: #525252; background: #fafaf9; }
+  .verdict .p { font-family: var(--font-mono); font-size: 1.8rem; font-weight: 800; }
+  .verdict.sig .p { color: #059669; }
+  .verdict.marg .p { color: #b45309; }
+  .verdict.ns .p { color: #525252; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .ctable { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.95rem; }
+  .ctable th, .ctable td { padding: 0.6rem 0.8rem; border: 1px solid #e7e5e4; text-align: center; }
+  .ctable th { background: #f5f5f4; color: var(--fg-muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .ctable .observed { background: #fef3c7; font-weight: 700; color: #92400e; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>ORA Enrichment Calculator</h1>
+    <p>Compute a hypergeometric / Fisher's exact p-value for over-representation. Adjust list size, set size, overlap, and universe; see how the p-value changes. Aha: bigger overlap given $|L|$ and $|G|$ → smaller p-value; universe size matters; gene-set background doesn't fix bias.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="L">Gene list |L|: <span class="v" id="LV">200</span></label>
+      <input type="range" id="L" min="20" max="2000" step="10" value="200">
+    </div>
+    <div class="field">
+      <label for="G">Set size |G|: <span class="v" id="GV">50</span></label>
+      <input type="range" id="G" min="10" max="500" step="5" value="50">
+    </div>
+    <div class="field">
+      <label for="a">Overlap a: <span class="v" id="aV">12</span></label>
+      <input type="range" id="a" min="0" max="100" step="1" value="12">
+    </div>
+    <div class="field">
+      <label for="U">Universe |U|: <span class="v" id="UV">20000</span></label>
+      <input type="range" id="U" min="5000" max="40000" step="1000" value="20000">
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <div style="font-size: 0.7rem; letter-spacing: 0.14em; color: #6b7280; text-transform: uppercase;">Hypergeometric p-value</div>
+    <div class="p" id="pval">—</div>
+    <div style="font-size: 0.85rem; margin-top: 0.4rem; color: #374151;" id="interp">—</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="fold">—</div><div class="l">Fold enrichment</div></div>
+    <div class="stat"><div class="v" id="expected">—</div><div class="l">Expected overlap</div></div>
+    <div class="stat"><div class="v" id="bonf">—</div><div class="l">Bonferroni (1000 tests)</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>2 × 2 contingency table</h3>
+    <table class="ctable">
+      <thead><tr><th></th><th>In gene set G</th><th>Not in G</th><th>Total</th></tr></thead>
+      <tbody>
+        <tr><td><strong>In list L</strong></td><td class="observed" id="cell_a">—</td><td id="cell_b">—</td><td id="row_L">—</td></tr>
+        <tr><td><strong>Not in L</strong></td><td id="cell_c">—</td><td id="cell_d">—</td><td id="row_NL">—</td></tr>
+        <tr><td><strong>Total</strong></td><td id="col_G">—</td><td id="col_NG">—</td><td id="N">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. Computes the exact hypergeometric p-value via log-gamma (no Stirling approximation). Real ORA in production uses clusterProfiler, g:Profiler, Enrichr, or DAVID with FDR correction across thousands of pathways. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  function logGamma(x) {
+    const c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+    let y = x, t = x + 5.5;
+    t -= (x + 0.5) * Math.log(t);
+    let ser = 1.000000000190015;
+    for (let j = 0; j < 6; j++) { y += 1; ser += c[j] / y; }
+    return -t + Math.log(2.5066282746310005 * ser / x);
+  }
+
+  function logBinom(n, k) {
+    if (k < 0 || k > n) return -Infinity;
+    return logGamma(n + 1) - logGamma(k + 1) - logGamma(n - k + 1);
+  }
+
+  function logHyperPMF(k, K, N, n) {
+    return logBinom(K, k) + logBinom(N - K, n - k) - logBinom(N, n);
+  }
+
+  function hyperUpperTail(a, K, N, n) {
+    let sum = -Infinity;
+    const maxK = Math.min(K, n);
+    for (let k = a; k <= maxK; k++) {
+      const lp = logHyperPMF(k, K, N, n);
+      if (sum === -Infinity) sum = lp;
+      else if (lp > sum) sum = lp + Math.log1p(Math.exp(sum - lp));
+      else sum = sum + Math.log1p(Math.exp(lp - sum));
+    }
+    return Math.exp(sum);
+  }
+
+  function update() {
+    let L = parseInt($('L').value, 10);
+    let G = parseInt($('G').value, 10);
+    let a = parseInt($('a').value, 10);
+    let U = parseInt($('U').value, 10);
+    // Constrain a
+    a = Math.min(a, Math.min(L, G));
+
+    $('LV').textContent = L;
+    $('GV').textContent = G;
+    $('aV').textContent = a;
+    $('UV').textContent = U.toLocaleString();
+    $('a').max = Math.min(L, G);
+
+    const b = L - a;
+    const c = G - a;
+    const d = U - L - G + a;
+
+    $('cell_a').textContent = a;
+    $('cell_b').textContent = b;
+    $('cell_c').textContent = c;
+    $('cell_d').textContent = d.toLocaleString();
+    $('row_L').textContent = L;
+    $('row_NL').textContent = (U - L).toLocaleString();
+    $('col_G').textContent = G;
+    $('col_NG').textContent = (U - G).toLocaleString();
+    $('N').textContent = U.toLocaleString();
+
+    // Hypergeometric p (one-sided upper)
+    const p = hyperUpperTail(a, G, U, L);
+    const expected = (L * G) / U;
+    const fold = expected > 0 ? a / expected : 0;
+    const bonf = Math.min(1, p * 1000);
+
+    $('pval').textContent = p < 1e-4 ? p.toExponential(2) : p.toFixed(4);
+    $('expected').textContent = expected.toFixed(2);
+    $('fold').textContent = `${fold.toFixed(1)}×`;
+    $('bonf').textContent = bonf < 1e-4 ? bonf.toExponential(2) : bonf.toFixed(4);
+
+    let cls, interp;
+    if (p < 0.001) { cls = 'sig'; interp = 'Highly significant — strong over-representation. Pathway is enriched in your gene list.'; }
+    else if (p < 0.05) { cls = 'marg'; interp = 'Marginally significant — modest over-representation. Reproduce on independent data before claiming.'; }
+    else { cls = 'ns'; interp = 'Not significant — overlap consistent with chance. Gene list shows no enrichment for this pathway.'; }
+    $('verdict').className = 'verdict ' + cls;
+    $('interp').textContent = interp;
+
+    let hint;
+    if (a === 0) hint = 'Zero overlap → p = 1; no enrichment by definition.';
+    else if (fold > 10) hint = `${fold.toFixed(1)}× enrichment is dramatic; verify the universe is correct (background should be all genes tested, not all genes in the genome).`;
+    else if (U < 10000) hint = 'Small universe inflates significance. Use the actual universe of tested genes (~20,000 for human DE).';
+    else if (L > 1000) hint = 'Large gene list dilutes signal. Tighten the DE threshold or split into up/down-regulated subsets.';
+    else if (a < expected) hint = 'Overlap is below expected → no enrichment (could test for under-representation if relevant).';
+    else hint = `Expected overlap ${expected.toFixed(1)}; observed ${a}. Bigger ratio = stronger signal.`;
+    $('banner').innerHTML = `Hypergeometric p = <strong>${p < 1e-4 ? p.toExponential(2) : p.toFixed(4)}</strong>, ${fold.toFixed(1)}× enrichment.<span class="hint">${hint}</span>`;
+  }
+
+  ['L', 'G', 'a', 'U'].forEach(id => $(id).addEventListener('input', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drug-Target Prediction with RWR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.9rem; }
+  .stat .v { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: #1e3a8a; }
+  .stat .l { font-size: 0.7rem; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .ranking { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.85rem; }
+  .ranking th, .ranking td { padding: 0.5rem 0.7rem; border-bottom: 1px solid #e7e5e4; text-align: left; }
+  .ranking th { background: #f5f5f4; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); }
+  .ranking .seed { color: #525252; }
+  .ranking .known { background: #dcfce7; }
+  .ranking .novel { background: #fef3c7; font-weight: 700; color: #92400e; }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .controls, .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Drug-Target Prediction with RWR</h1>
+    <p>Run RWR on a heterogeneous drug-target-disease network from a known drug. Top non-known targets are predicted off-target / repurposing candidates. Aha: RWR predicts plausible novel drug-target associations from network structure alone.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="drug">Drug</label>
+      <select id="drug">
+        <option value="imatinib" selected>imatinib (BCR-ABL inhibitor)</option>
+        <option value="aspirin">aspirin (COX inhibitor)</option>
+        <option value="metformin">metformin (AMPK activator)</option>
+        <option value="atorvastatin">atorvastatin (HMG-CoA reductase inhibitor)</option>
+        <option value="sildenafil">sildenafil (PDE5 inhibitor)</option>
+        <option value="dexamethasone">dexamethasone (glucocorticoid receptor agonist)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="show">Validation</label>
+      <select id="show">
+        <option value="hide" selected>Hide held-out known targets</option>
+        <option value="show">Show held-out known targets</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="seedTargets">—</div><div class="l">Seed (known) targets</div></div>
+    <div class="stat"><div class="v" id="topNovel">—</div><div class="l">Top predicted novel</div></div>
+    <div class="stat"><div class="v" id="recall">—</div><div class="l">Recall (held-out)</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Top 10 ranked targets (RWR score)</h3>
+    <table class="ranking">
+      <thead><tr><th>Rank</th><th>Target</th><th>Type</th><th>Score</th><th>Evidence</th></tr></thead>
+      <tbody id="rankBody"></tbody>
+    </table>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational simulation. Drug-target rankings are precomputed via RWR on a hand-built heterogeneous toy network (~50 drugs, ~100 targets, ~30 diseases). Held-out targets are real published drug-target associations excluded from the seed set for the validation demo. Real production uses STITCH, DrugBank, and STRING + RWR or GNN-based methods. Not for clinical use.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const RESULTS = {
+    imatinib: {
+      seedTargets: ['ABL1', 'BCR'],
+      ranking: [
+        { name: 'ABL1', score: 0.42, type: 'kinase', evidence: 'seed' },
+        { name: 'BCR', score: 0.41, type: 'fusion partner', evidence: 'seed' },
+        { name: 'KIT', score: 0.36, type: 'kinase', evidence: 'known (held-out)' },
+        { name: 'PDGFRA', score: 0.34, type: 'kinase', evidence: 'known (held-out)' },
+        { name: 'FGR', score: 0.31, type: 'kinase (Src family)', evidence: 'novel' },
+        { name: 'PDGFRB', score: 0.30, type: 'kinase', evidence: 'known (held-out)' },
+        { name: 'LCK', score: 0.27, type: 'kinase (Src family)', evidence: 'novel' },
+        { name: 'CSF1R', score: 0.25, type: 'kinase', evidence: 'known (held-out)' },
+        { name: 'YES1', score: 0.23, type: 'kinase (Src family)', evidence: 'novel' },
+        { name: 'NQO2', score: 0.21, type: 'oxidoreductase', evidence: 'novel' }
+      ],
+      hint: 'imatinib has 4 well-known off-targets (KIT, PDGFRA/B, CSF1R) recovered by RWR. FGR/LCK/YES1 are kinase-family relatives and plausible novel candidates.'
+    },
+    aspirin: {
+      seedTargets: ['PTGS1', 'PTGS2'],
+      ranking: [
+        { name: 'PTGS1', score: 0.45, type: 'COX-1', evidence: 'seed' },
+        { name: 'PTGS2', score: 0.44, type: 'COX-2', evidence: 'seed' },
+        { name: 'AKR1C1', score: 0.31, type: 'reductase', evidence: 'novel' },
+        { name: 'NFKB1', score: 0.28, type: 'transcription factor', evidence: 'novel (anti-inflammatory)' },
+        { name: 'IKBKB', score: 0.27, type: 'kinase', evidence: 'known (held-out)' },
+        { name: 'ALOX5', score: 0.25, type: 'lipoxygenase', evidence: 'novel' },
+        { name: 'PLA2G2A', score: 0.23, type: 'phospholipase', evidence: 'novel' },
+        { name: 'GAPDH', score: 0.21, type: 'metabolic enzyme', evidence: 'hub-effect' },
+        { name: 'TP53', score: 0.20, type: 'transcription factor', evidence: 'hub-effect' },
+        { name: 'PIK3CA', score: 0.18, type: 'kinase', evidence: 'novel' }
+      ],
+      hint: 'aspirin\'s NFKB1 ranking reflects its anti-inflammatory mechanism via COX inhibition → PG reduction → reduced NFKB activation. Hub-effect candidates (TP53, GAPDH) should be discounted.'
+    },
+    metformin: {
+      seedTargets: ['PRKAA1', 'PRKAA2'],
+      ranking: [
+        { name: 'PRKAA1', score: 0.40, type: 'AMPK alpha 1', evidence: 'seed' },
+        { name: 'PRKAA2', score: 0.39, type: 'AMPK alpha 2', evidence: 'seed' },
+        { name: 'PRKAB1', score: 0.32, type: 'AMPK beta 1', evidence: 'known (held-out)' },
+        { name: 'STK11', score: 0.30, type: 'LKB1 kinase', evidence: 'known (held-out)' },
+        { name: 'CAMKK2', score: 0.27, type: 'kinase', evidence: 'novel' },
+        { name: 'TXNIP', score: 0.25, type: 'thioredoxin-interacting', evidence: 'novel' },
+        { name: 'MTOR', score: 0.23, type: 'kinase', evidence: 'known (held-out, downstream)' },
+        { name: 'TSC1', score: 0.22, type: 'tuberous sclerosis', evidence: 'novel' },
+        { name: 'PIK3CA', score: 0.21, type: 'kinase', evidence: 'novel' },
+        { name: 'INS', score: 0.20, type: 'hormone', evidence: 'hub-effect' }
+      ],
+      hint: 'metformin activates AMPK; downstream STK11/LKB1 and mTOR pathway components rank high. Novel candidates (CAMKK2) reflect AMPK-pathway crosstalk.'
+    },
+    atorvastatin: {
+      seedTargets: ['HMGCR'],
+      ranking: [
+        { name: 'HMGCR', score: 0.48, type: 'HMG-CoA reductase', evidence: 'seed' },
+        { name: 'SREBF1', score: 0.32, type: 'SREBP-1', evidence: 'novel (cholesterol regulator)' },
+        { name: 'SREBF2', score: 0.31, type: 'SREBP-2', evidence: 'novel' },
+        { name: 'LDLR', score: 0.28, type: 'LDL receptor', evidence: 'known (held-out)' },
+        { name: 'PCSK9', score: 0.26, type: 'cholesterol regulator', evidence: 'known (held-out)' },
+        { name: 'APOB', score: 0.24, type: 'apolipoprotein', evidence: 'novel' },
+        { name: 'ABCA1', score: 0.22, type: 'cholesterol transporter', evidence: 'novel' },
+        { name: 'CETP', score: 0.20, type: 'cholesteryl ester transfer', evidence: 'novel' },
+        { name: 'NR1H3', score: 0.18, type: 'LXR alpha', evidence: 'novel' },
+        { name: 'PPARG', score: 0.17, type: 'transcription factor', evidence: 'hub-effect' }
+      ],
+      hint: 'statin\'s LDLR/PCSK9 hits are clinically known. SREBF/APOB/ABCA1 are cholesterol-pathway nodes ranked plausibly by network proximity.'
+    },
+    sildenafil: {
+      seedTargets: ['PDE5A'],
+      ranking: [
+        { name: 'PDE5A', score: 0.50, type: 'PDE5', evidence: 'seed' },
+        { name: 'PDE6A', score: 0.34, type: 'PDE6 (retinal)', evidence: 'known (held-out, side effect)' },
+        { name: 'PDE6B', score: 0.32, type: 'PDE6 (retinal)', evidence: 'known (held-out)' },
+        { name: 'PDE1A', score: 0.27, type: 'PDE1', evidence: 'novel' },
+        { name: 'PDE1B', score: 0.26, type: 'PDE1', evidence: 'novel' },
+        { name: 'NOS3', score: 0.24, type: 'eNOS', evidence: 'novel (downstream)' },
+        { name: 'GUCY1A1', score: 0.22, type: 'guanylate cyclase', evidence: 'novel (downstream)' },
+        { name: 'PDE9A', score: 0.20, type: 'PDE9', evidence: 'novel' },
+        { name: 'PDE3A', score: 0.19, type: 'PDE3', evidence: 'novel' },
+        { name: 'CNGB1', score: 0.18, type: 'cation channel', evidence: 'novel' }
+      ],
+      hint: 'sildenafil\'s retinal side effects (blue-tint vision) are explained by PDE6 cross-reactivity, recovered by RWR. PDE1/3/9 family hits suggest other potential off-targets.'
+    },
+    dexamethasone: {
+      seedTargets: ['NR3C1'],
+      ranking: [
+        { name: 'NR3C1', score: 0.46, type: 'glucocorticoid receptor', evidence: 'seed' },
+        { name: 'HSD11B1', score: 0.30, type: '11β-HSD type 1', evidence: 'novel' },
+        { name: 'HSD11B2', score: 0.29, type: '11β-HSD type 2', evidence: 'known (held-out)' },
+        { name: 'NR3C2', score: 0.27, type: 'mineralocorticoid receptor', evidence: 'known (held-out)' },
+        { name: 'HSP90AA1', score: 0.25, type: 'chaperone', evidence: 'novel (chaperone complex)' },
+        { name: 'NCOA1', score: 0.23, type: 'co-activator', evidence: 'novel' },
+        { name: 'NCOR1', score: 0.22, type: 'co-repressor', evidence: 'novel' },
+        { name: 'NFKB1', score: 0.20, type: 'transcription factor', evidence: 'novel (anti-inflammatory)' },
+        { name: 'CYP3A4', score: 0.18, type: 'cytochrome P450', evidence: 'novel (metabolism)' },
+        { name: 'AR', score: 0.17, type: 'androgen receptor', evidence: 'hub-effect' }
+      ],
+      hint: 'dexamethasone\'s HSP90 hit reflects the GR-HSP90 chaperone complex; NFKB1 ranking captures the anti-inflammatory mechanism via GR-mediated NFKB inhibition.'
+    }
+  };
+
+  function update() {
+    const drug = $('drug').value;
+    const show = $('show').value;
+    const data = RESULTS[drug];
+
+    let html = '';
+    let novel = 0, recallNum = 0, recallDen = 0;
+    data.ranking.forEach((t, i) => {
+      let rowClass = '';
+      let evidenceText = t.evidence;
+      let isHeldOut = t.evidence.includes('held-out');
+      if (t.evidence === 'seed') rowClass = 'seed';
+      else if (isHeldOut) {
+        rowClass = show === 'show' ? 'known' : 'novel';
+        if (show === 'hide') evidenceText = '?';
+        recallDen++;
+        if (i < 10) recallNum++;
+      } else if (t.evidence.includes('novel')) { rowClass = 'novel'; novel++; }
+      else if (t.evidence.includes('hub')) rowClass = '';
+      html += `<tr class="${rowClass}"><td>${i + 1}</td><td>${t.name}</td><td>${t.type}</td><td>${t.score.toFixed(3)}</td><td>${evidenceText}</td></tr>`;
+    });
+    $('rankBody').innerHTML = html;
+    $('seedTargets').textContent = data.seedTargets.join(', ');
+    const topNovel = data.ranking.find(t => t.evidence.includes('novel'));
+    $('topNovel').textContent = topNovel ? `${topNovel.name} (${topNovel.score.toFixed(2)})` : '—';
+    $('recall').textContent = recallDen > 0 ? `${recallNum}/${recallDen}` : '—';
+
+    $('banner').innerHTML = `<strong>${drug}</strong>: ${data.seedTargets.length} seed targets; recall ${recallNum}/${recallDen} held-out targets in top 10.<span class="hint">${data.hint}</span>`;
+  }
+
+  ['drug', 'show'].forEach(id => $(id).addEventListener('change', update));
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

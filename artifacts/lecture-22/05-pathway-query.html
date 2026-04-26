@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pathway Database Query</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opt_size,wght@0,8..60,400;0,8..60,500&display=swap">
+<link rel="stylesheet" href="../_shared/artifact-theme.css">
+<style>
+  body { padding: 2rem; }
+  .artifact { max-width: 1080px; margin: 0 auto; }
+  .artifact-head h1 { font-family: var(--font-serif); font-size: var(--text-3xl); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+  .artifact-head p { color: var(--fg-muted); font-size: var(--text-sm); margin: 0 0 1.2rem; max-width: 80ch; }
+  .controls { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  select { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; background: #fff; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; }
+  .panel h3 { margin: 0 0 0.6rem; font-size: var(--text-sm); font-weight: 700; }
+  .pathway-list { font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.7; max-height: 240px; overflow-y: auto; }
+  .pathway-list .item { padding: 2px 4px; border-radius: 3px; }
+  .pathway-list .item.shared { background: #fef3c7; color: #92400e; font-weight: 700; }
+  .panel.kegg { border-color: #1e3a8a; }
+  .panel.reactome { border-color: #b45309; }
+  .panel.go-bp { border-color: #065f46; }
+  .panel.msigdb { border-color: #7c3aed; }
+  .panel h3 .count { float: right; font-family: var(--font-mono); font-size: 0.7rem; color: var(--fg-muted); }
+  .banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #b45309; border-radius: 6px; padding: 0.9rem 1.1rem; font-size: var(--text-sm); color: #78350f; line-height: 1.55; }
+  .banner .hint { display: block; margin-top: 0.4rem; font-size: 0.82rem; color: #92400e; font-family: var(--font-mono); }
+  .disclaimer { font-size: 0.72rem; color: var(--fg-subtle); margin-top: 1rem; line-height: 1.5; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="artifact">
+  <div class="artifact-head">
+    <h1>Pathway Database Query</h1>
+    <p>Pick a gene; see what pathways it appears in across KEGG, Reactome, GO BP, MSigDB Hallmark. Aha: gene-set sources differ in granularity; the same gene appears in different "pathways" across databases. Pick the database that matches your question.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="gene">Gene</label>
+      <select id="gene">
+        <option value="TP53" selected>TP53 (p53 tumour suppressor — hub)</option>
+        <option value="BRCA1">BRCA1 (DNA repair)</option>
+        <option value="MYC">MYC (proto-oncogene — hub)</option>
+        <option value="EGFR">EGFR (receptor tyrosine kinase)</option>
+        <option value="KRAS">KRAS (small GTPase)</option>
+        <option value="HK2">HK2 (hexokinase 2 — metabolic)</option>
+        <option value="INS">INS (insulin)</option>
+        <option value="TNF">TNF (inflammatory cytokine)</option>
+        <option value="TLR4">TLR4 (innate immunity)</option>
+        <option value="IL6">IL6 (cytokine)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="panel kegg">
+      <h3 style="color:#1e3a8a">KEGG <span class="count" id="kegg-count">—</span></h3>
+      <div class="pathway-list" id="kegg-list"></div>
+    </div>
+    <div class="panel reactome">
+      <h3 style="color:#b45309">Reactome <span class="count" id="reactome-count">—</span></h3>
+      <div class="pathway-list" id="reactome-list"></div>
+    </div>
+    <div class="panel go-bp">
+      <h3 style="color:#065f46">GO BP <span class="count" id="go-count">—</span></h3>
+      <div class="pathway-list" id="go-list"></div>
+    </div>
+    <div class="panel msigdb">
+      <h3 style="color:#7c3aed">MSigDB Hallmark <span class="count" id="msig-count">—</span></h3>
+      <div class="pathway-list" id="msig-list"></div>
+    </div>
+  </div>
+
+  <div class="banner" id="banner">—</div>
+
+  <div class="disclaimer">Educational tool. Pathway hits are precomputed lookups for 10 example genes against curated subsets of each database. Real production queries hit the live APIs (KEGG REST, Reactome ContentService, EBI QuickGO, GSEA-MSigDB). Counts shown reflect typical numbers but are simplified. Not a benchmark.</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  const DATA = {
+    TP53: {
+      kegg: [
+        ['hsa04115', 'p53 signaling pathway'],
+        ['hsa04110', 'Cell cycle'],
+        ['hsa04210', 'Apoptosis'],
+        ['hsa05200', 'Pathways in cancer'],
+        ['hsa05202', 'Transcriptional misregulation'],
+        ['hsa05206', 'MicroRNAs in cancer'],
+        ['hsa05222', 'Small cell lung cancer'],
+        ['hsa05225', 'Hepatocellular carcinoma'],
+        ['hsa05226', 'Gastric cancer'],
+        ['hsa05230', 'Central carbon metab. in cancer'],
+        ['hsa04068', 'FoxO signaling'],
+        ['hsa04722', 'Neurotrophin signaling'],
+        ['hsa04915', 'Estrogen signaling'],
+        ['hsa04934', 'Cushing syndrome']
+      ],
+      reactome: [
+        ['R-HSA-3700989', 'Transcriptional regulation by TP53'],
+        ['R-HSA-69541', 'Stabilization of p53'],
+        ['R-HSA-69620', 'Cell cycle checkpoints'],
+        ['R-HSA-5633007', 'Regulation of TP53 activity'],
+        ['R-HSA-6804760', 'Regulation of TP53 activity through methylation'],
+        ['R-HSA-6804757', 'Regulation of TP53 degradation'],
+        ['R-HSA-6803204', 'TP53 regulates transcription of several DNA repair genes'],
+        ['R-HSA-2559586', 'DNA Damage / Telomere stress induced senescence']
+      ],
+      go: [
+        ['GO:0006978', 'DNA-damage response, p53 class'],
+        ['GO:0006977', 'DNA damage cell cycle arrest'],
+        ['GO:0042771', 'intrinsic apoptotic signaling'],
+        ['GO:0008156', 'negative regulation of DNA replication'],
+        ['GO:0007050', 'cell cycle arrest'],
+        ['GO:0006915', 'apoptotic process'],
+        ['GO:0006281', 'DNA repair'],
+        ['GO:0006974', 'cellular response to DNA damage'],
+        ['GO:0030308', 'negative regulation of cell growth']
+      ],
+      msig: [
+        ['HALLMARK_P53_PATHWAY', 'p53 pathway'],
+        ['HALLMARK_DNA_REPAIR', 'DNA repair'],
+        ['HALLMARK_APOPTOSIS', 'apoptosis'],
+        ['HALLMARK_G2M_CHECKPOINT', 'G2/M checkpoint'],
+        ['HALLMARK_E2F_TARGETS', 'E2F targets'],
+        ['HALLMARK_HYPOXIA', 'hypoxia response']
+      ],
+      counts: { kegg: 14, reactome: 87, go: 198, msig: 76 }
+    },
+    BRCA1: {
+      kegg: [['hsa03460', 'Fanconi anemia pathway'], ['hsa05206', 'MicroRNAs in cancer'], ['hsa05224', 'Breast cancer'], ['hsa04068', 'FoxO signaling'], ['hsa04915', 'Estrogen signaling']],
+      reactome: [['R-HSA-5685942', 'HDR through Homologous Recombination'], ['R-HSA-1500620', 'Meiotic synapsis'], ['R-HSA-69620', 'Cell cycle checkpoints'], ['R-HSA-5693568', 'Resolution of D-loop structures'], ['R-HSA-5685938', 'HDR through MMEJ']],
+      go: [['GO:0006281', 'DNA repair'], ['GO:0035825', 'homologous DNA recombination'], ['GO:0000724', 'double-strand break repair'], ['GO:0006978', 'p53-mediated DNA damage response'], ['GO:0007049', 'cell cycle']],
+      msig: [['HALLMARK_DNA_REPAIR', 'DNA repair'], ['HALLMARK_E2F_TARGETS', 'E2F targets'], ['HALLMARK_G2M_CHECKPOINT', 'G2/M checkpoint']],
+      counts: { kegg: 5, reactome: 23, go: 87, msig: 8 }
+    },
+    MYC: {
+      kegg: [['hsa05200', 'Pathways in cancer'], ['hsa04110', 'Cell cycle'], ['hsa04068', 'FoxO signaling'], ['hsa04340', 'Hedgehog signaling'], ['hsa04550', 'Signaling by Wnt'], ['hsa05202', 'Transcriptional misregulation in cancer']],
+      reactome: [['R-HSA-380108', 'Chromatin modifications during the response to DNA damage'], ['R-HSA-201722', 'Formation of beta-catenin/TCF complex'], ['R-HSA-194315', 'Signaling by Rho GTPases'], ['R-HSA-1268020', 'Mitochondrial protein import']],
+      go: [['GO:0006357', 'regulation of transcription by RNA Pol II'], ['GO:0008283', 'cell population proliferation'], ['GO:0007049', 'cell cycle'], ['GO:0006954', 'inflammatory response']],
+      msig: [['HALLMARK_MYC_TARGETS_V1', 'MYC targets v1'], ['HALLMARK_MYC_TARGETS_V2', 'MYC targets v2'], ['HALLMARK_E2F_TARGETS', 'E2F targets'], ['HALLMARK_G2M_CHECKPOINT', 'G2/M checkpoint']],
+      counts: { kegg: 18, reactome: 45, go: 156, msig: 41 }
+    },
+    EGFR: {
+      kegg: [['hsa04012', 'ErbB signaling pathway'], ['hsa04010', 'MAPK signaling'], ['hsa04014', 'Ras signaling'], ['hsa04015', 'Rap1 signaling'], ['hsa05223', 'Non-small cell lung cancer'], ['hsa05206', 'MicroRNAs in cancer']],
+      reactome: [['R-HSA-177929', 'Signaling by EGFR'], ['R-HSA-1227986', 'Signaling by ERBB2'], ['R-HSA-179812', 'GRB2 events in EGFR signaling'], ['R-HSA-180292', 'GAB1 signalosome']],
+      go: [['GO:0007173', 'epidermal growth factor receptor signaling'], ['GO:0007169', 'transmembrane receptor protein tyrosine kinase activity'], ['GO:0007275', 'multicellular organism development']],
+      msig: [['HALLMARK_KRAS_SIGNALING_UP', 'KRAS signaling up'], ['HALLMARK_TGF_BETA_SIGNALING', 'TGF beta signaling'], ['HALLMARK_PI3K_AKT_MTOR_SIGNALING', 'PI3K/AKT/mTOR signaling']],
+      counts: { kegg: 12, reactome: 38, go: 124, msig: 22 }
+    },
+    KRAS: {
+      kegg: [['hsa04014', 'Ras signaling pathway'], ['hsa04010', 'MAPK signaling'], ['hsa04015', 'Rap1 signaling'], ['hsa05210', 'Colorectal cancer'], ['hsa05223', 'Non-small cell lung cancer'], ['hsa05225', 'Hepatocellular carcinoma']],
+      reactome: [['R-HSA-5658442', 'KRAS oncogenic signaling'], ['R-HSA-9648002', 'RAS-RAF-MEK-ERK signaling'], ['R-HSA-179812', 'GRB2 events in EGFR signaling']],
+      go: [['GO:0007264', 'small GTPase mediated signal transduction'], ['GO:0007265', 'Ras protein signal transduction'], ['GO:0035556', 'intracellular signal transduction']],
+      msig: [['HALLMARK_KRAS_SIGNALING_UP', 'KRAS signaling up'], ['HALLMARK_KRAS_SIGNALING_DN', 'KRAS signaling down'], ['HALLMARK_PI3K_AKT_MTOR_SIGNALING', 'PI3K/AKT/mTOR signaling']],
+      counts: { kegg: 10, reactome: 22, go: 78, msig: 18 }
+    },
+    HK2: {
+      kegg: [['hsa00010', 'Glycolysis / gluconeogenesis'], ['hsa00500', 'Starch and sucrose metabolism'], ['hsa00520', 'Amino sugar / nucleotide sugar metab.'], ['hsa05230', 'Central carbon metabolism in cancer']],
+      reactome: [['R-HSA-70171', 'Glycolysis'], ['R-HSA-5628897', 'TP53 regulates metabolic genes'], ['R-HSA-9711097', 'Cellular response to hypoxia']],
+      go: [['GO:0006096', 'glycolytic process'], ['GO:0001678', 'cellular glucose homeostasis'], ['GO:0005536', 'glucose binding']],
+      msig: [['HALLMARK_GLYCOLYSIS', 'glycolysis'], ['HALLMARK_HYPOXIA', 'hypoxia response'], ['HALLMARK_MTORC1_SIGNALING', 'mTORC1 signaling']],
+      counts: { kegg: 5, reactome: 12, go: 35, msig: 5 }
+    },
+    INS: {
+      kegg: [['hsa04910', 'Insulin signaling'], ['hsa04911', 'Insulin secretion'], ['hsa04930', 'Type II diabetes'], ['hsa04931', 'Insulin resistance']],
+      reactome: [['R-HSA-74752', 'Signaling by Insulin receptor'], ['R-HSA-422085', 'Synthesis, secretion of insulin']],
+      go: [['GO:0008286', 'insulin receptor signaling'], ['GO:0046628', 'positive regulation of insulin receptor signaling'], ['GO:0046889', 'positive regulation of lipid biosynthetic process']],
+      msig: [['HALLMARK_PI3K_AKT_MTOR_SIGNALING', 'PI3K/AKT/mTOR signaling']],
+      counts: { kegg: 6, reactome: 14, go: 28, msig: 3 }
+    },
+    TNF: {
+      kegg: [['hsa04668', 'TNF signaling'], ['hsa04210', 'Apoptosis'], ['hsa04060', 'Cytokine-cytokine receptor interaction'], ['hsa05140', 'Leishmaniasis']],
+      reactome: [['R-HSA-75893', 'TNF signaling'], ['R-HSA-5357956', 'TNFR1-induced NF-kappaB signaling'], ['R-HSA-9020702', 'Interleukin-1 signaling']],
+      go: [['GO:0006954', 'inflammatory response'], ['GO:0032760', 'positive regulation of TNF production'], ['GO:0051092', 'positive regulation of NF-kappaB']],
+      msig: [['HALLMARK_TNFA_SIGNALING_VIA_NFKB', 'TNFa signaling via NFkB'], ['HALLMARK_INFLAMMATORY_RESPONSE', 'inflammatory response']],
+      counts: { kegg: 8, reactome: 18, go: 52, msig: 6 }
+    },
+    TLR4: {
+      kegg: [['hsa04620', 'Toll-like receptor signaling'], ['hsa04060', 'Cytokine-cytokine receptor'], ['hsa04621', 'NOD-like receptor signaling']],
+      reactome: [['R-HSA-166016', 'Toll-Like Receptor 4 (TLR4) Cascade'], ['R-HSA-168138', 'Toll-Like Receptors Cascades'], ['R-HSA-9020702', 'Interleukin-1 signaling']],
+      go: [['GO:0034134', 'toll-like receptor signaling'], ['GO:0002250', 'adaptive immune response'], ['GO:0006954', 'inflammatory response']],
+      msig: [['HALLMARK_INFLAMMATORY_RESPONSE', 'inflammatory response'], ['HALLMARK_TNFA_SIGNALING_VIA_NFKB', 'TNFa signaling via NFkB']],
+      counts: { kegg: 6, reactome: 14, go: 41, msig: 5 }
+    },
+    IL6: {
+      kegg: [['hsa04060', 'Cytokine-cytokine receptor'], ['hsa04630', 'JAK-STAT signaling'], ['hsa04668', 'TNF signaling'], ['hsa05323', 'Rheumatoid arthritis']],
+      reactome: [['R-HSA-1059683', 'Interleukin-6 family signaling'], ['R-HSA-110056', 'MAPK1/MAPK3 signaling']],
+      go: [['GO:0006954', 'inflammatory response'], ['GO:0007259', 'JAK-STAT signaling'], ['GO:0050729', 'positive regulation of inflammatory response']],
+      msig: [['HALLMARK_IL6_JAK_STAT3_SIGNALING', 'IL6/JAK/STAT3 signaling'], ['HALLMARK_INFLAMMATORY_RESPONSE', 'inflammatory response'], ['HALLMARK_TNFA_SIGNALING_VIA_NFKB', 'TNFa signaling via NFkB']],
+      counts: { kegg: 9, reactome: 17, go: 48, msig: 7 }
+    }
+  };
+
+  function update() {
+    const gene = $('gene').value;
+    const data = DATA[gene];
+
+    function render(target, items, allShared) {
+      let html = '';
+      items.forEach(([id, name]) => {
+        const isShared = allShared.has(name.toLowerCase().replace(/[^a-z0-9]/g, ''));
+        html += `<div class="item${isShared ? ' shared' : ''}"><strong>${id}</strong> — ${name}</div>`;
+      });
+      target.innerHTML = html;
+    }
+
+    // Find shared (cross-database) themes by simple name normalisation
+    const allNames = [...data.kegg, ...data.reactome, ...data.go, ...data.msig].map(([_, n]) => n.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    const counts = {};
+    allNames.forEach(n => { counts[n] = (counts[n] || 0) + 1; });
+    const shared = new Set(Object.entries(counts).filter(([_, c]) => c >= 2).map(([n]) => n));
+
+    render($('kegg-list'), data.kegg, shared);
+    render($('reactome-list'), data.reactome, shared);
+    render($('go-list'), data.go, shared);
+    render($('msig-list'), data.msig, shared);
+
+    $('kegg-count').textContent = `${data.kegg.length} shown / ${data.counts.kegg} total`;
+    $('reactome-count').textContent = `${data.reactome.length} shown / ${data.counts.reactome} total`;
+    $('go-count').textContent = `${data.go.length} shown / ${data.counts.go} total`;
+    $('msig-count').textContent = `${data.msig.length} shown / ${data.counts.msig} total`;
+
+    let hint;
+    if (gene === 'TP53' || gene === 'MYC') hint = 'Hub gene → many pathway hits across all databases. Hub-centrality bias likely; correct before claiming biological significance.';
+    else if (gene === 'HK2' || gene === 'INS') hint = 'Specialised metabolic / signalling gene → fewer pathway hits but more focussed; databases agree on the core function.';
+    else hint = 'Pathway counts grow with database granularity: KEGG (broad) &lt; MSigDB Hallmark &lt; Reactome &lt; GO BP (deepest).';
+    $('banner').innerHTML = `Gene <strong>${gene}</strong>: KEGG <strong>${data.counts.kegg}</strong>, Reactome <strong>${data.counts.reactome}</strong>, GO BP <strong>${data.counts.go}</strong>, MSigDB Hallmark <strong>${data.counts.msig}</strong>.<span class="hint">${hint}</span>`;
+  }
+
+  $('gene').addEventListener('change', update);
+  update();
+})();
+</script>
+<script src="../_shared/resize.js" defer></script>
+</body>
+</html>

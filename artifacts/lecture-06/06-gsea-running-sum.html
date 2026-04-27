@@ -1008,11 +1008,18 @@
     yt.textContent = 'count';
     nullSvg.appendChild(yt);
 
-    // p-value annotation
+    // p-value annotation, anchored to the corner OPPOSITE the observed-ES label
+    // so the two never collide (observed ES sits near the arrow at obsX).
     const pLbl = document.createElementNS(SVG_NS, 'text');
-    pLbl.setAttribute('x', plotX1 - 6);
-    pLbl.setAttribute('y', plotY0 + 14);
-    pLbl.setAttribute('text-anchor', 'end');
+    if (observedES >= 0) {
+      pLbl.setAttribute('x', plotX0 + 6);
+      pLbl.setAttribute('y', plotY0 + 14);
+      pLbl.setAttribute('text-anchor', 'start');
+    } else {
+      pLbl.setAttribute('x', plotX1 - 6);
+      pLbl.setAttribute('y', plotY0 + 14);
+      pLbl.setAttribute('text-anchor', 'end');
+    }
     pLbl.setAttribute('class', 'peak-label');
     pLbl.textContent = `p = ${formatP(pValue)}`;
     nullSvg.appendChild(pLbl);

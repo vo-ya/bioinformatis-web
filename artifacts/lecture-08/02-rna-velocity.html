@@ -1090,62 +1090,54 @@
     if (state.running) return;
     state.running = true;
     setButtonsDisabled(true);
-    setStatus('simulating…', true);
+    setStatus('working…', true);
     checkWarnings();
 
+    // Run the full pipeline in one rAF tick wrapped in try/finally. Previously
+    // the stages were chained across multiple rAF callbacks with no error
+    // handling — any thrown error would skip the final setButtonsDisabled(false)
+    // and leave every control permanently greyed out (the symptom users hit on
+    // first load if any stage threw).
     requestAnimationFrame(() => {
-      const sim = simulateDataset({
-        nCell: state.nCell,
-        nGene: state.nGene,
-        noise: state.noise,
-        trajectory: state.trajectory,
-        cellCycle: state.cellCycle,
-        seed: state.seed,
-      });
-      state.U = sim.U; state.S = sim.S;
-      state.times = sim.times; state.branch = sim.branch;
-      state.gammasTrue = sim.gammas; state.isCC = sim.isCC;
-
-      rebuildGeneDropdown();
-
-      setStatus('fitting gamma…', true);
-      requestAnimationFrame(() => {
-        state.gammasFit = fitGammaPerGene(state.S, state.U, state.nCell, state.nGene)
-          // Wait — u on s: we want u = gamma * s, fit gamma = sum(u*s)/sum(s*s).
-          // The helper is called with (U, S) positional args; fix order.
-          ;
-        // Recompute with correct arg order
-        state.gammasFit = fitGammaPerGene(state.U, state.S, state.nCell, state.nGene);
-
-        setStatus('computing velocity…', true);
-        requestAnimationFrame(() => {
-          state.V = computeVelocity(state.U, state.S, state.gammasFit, state.nCell, state.nGene, state.model);
-
-          setStatus('running PCA…', true);
-          requestAnimationFrame(() => {
-            const { scores } = pcaTop2(state.S, state.nCell, state.nGene);
-            state.pca2 = scores;
-
-            setStatus('projecting velocity…', true);
-            requestAnimationFrame(() => {
-              const k = Math.min(20, Math.max(3, Math.floor(state.nCell * 0.05)));
-              const nbrs = knnGeneSpace(state.S, state.nCell, state.nGene, k);
-              state.arrows = projectVelocity(state.V, state.S, state.pca2, nbrs, state.nCell, state.nGene, k);
-
-              // Accuracy
-              state.acc = arrowAccuracy(state.pca2, state.arrows, state.times, state.branch, state.trajectory, state.nCell);
-
-              renderPhase(state);
-              renderVelocity(state);
-              updateBanner();
-
-              state.running = false;
-              setButtonsDisabled(false);
-              setStatus('idle', false);
-            });
-          });
+      try {
+        const sim = simulateDataset({
+          nCell: state.nCell,
+          nGene: state.nGene,
+          noise: state.noise,
+          trajectory: state.trajectory,
+          cellCycle: state.cellCycle,
+          seed: state.seed,
         });
-      });
+        state.U = sim.U; state.S = sim.S;
+        state.times = sim.times; state.branch = sim.branch;
+        state.gammasTrue = sim.gammas; state.isCC = sim.isCC;
+
+        rebuildGeneDropdown();
+
+        // fitGammaPerGene takes (U, S, ...) — only one call is needed.
+        state.gammasFit = fitGammaPerGene(state.U, state.S, state.nCell, state.nGene);
+        state.V = computeVelocity(state.U, state.S, state.gammasFit, state.nCell, state.nGene, state.model);
+
+        const { scores } = pcaTop2(state.S, state.nCell, state.nGene);
+        state.pca2 = scores;
+
+        const k = Math.min(20, Math.max(3, Math.floor(state.nCell * 0.05)));
+        const nbrs = knnGeneSpace(state.S, state.nCell, state.nGene, k);
+        state.arrows = projectVelocity(state.V, state.S, state.pca2, nbrs, state.nCell, state.nGene, k);
+
+        state.acc = arrowAccuracy(state.pca2, state.arrows, state.times, state.branch, state.trajectory, state.nCell);
+
+        renderPhase(state);
+        renderVelocity(state);
+        updateBanner();
+        setStatus('idle', false);
+      } catch (err) {
+        console.error('RNA velocity pipeline failed:', err);
+        setStatus('error: ' + (err && err.message ? err.message : 'see console'), false);
+      } finally {
+        state.running = false;
+        setButtonsDisabled(false);
+      }
     });
   }
 

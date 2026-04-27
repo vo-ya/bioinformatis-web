@@ -966,9 +966,20 @@
     tri.setAttribute('d', `M ${obsX - 5} ${plotY0 - 4} L ${obsX + 5} ${plotY0 - 4} L ${obsX} ${plotY0 + 4} Z`);
     tri.setAttribute('fill', 'var(--error)');
     nullSvg.appendChild(tri);
+    // Place the observed-ES label on whichever side of the arrow points
+    // INWARD (toward plot center). This guarantees the label always fits
+    // inside the plot regardless of where the arrow lands. The label is in
+    // mono 11 (~140px wide for "observed ES = -0.500"), so a fixed cap like
+    // plotX1-90 was insufficient and the right edge got cropped.
     const obsLbl = document.createElementNS(SVG_NS, 'text');
-    const lblX = observedES >= 0 ? Math.min(obsX + 8, plotX1 - 90) : Math.max(obsX - 90, plotX0 + 4);
-    obsLbl.setAttribute('x', lblX);
+    const plotMid = (plotX0 + plotX1) / 2;
+    if (obsX >= plotMid) {
+      obsLbl.setAttribute('x', obsX - 8);
+      obsLbl.setAttribute('text-anchor', 'end');
+    } else {
+      obsLbl.setAttribute('x', obsX + 8);
+      obsLbl.setAttribute('text-anchor', 'start');
+    }
     obsLbl.setAttribute('y', plotY0 + 12);
     obsLbl.setAttribute('class', 'hist-obs-label');
     obsLbl.textContent = `observed ES = ${observedES.toFixed(3)}`;

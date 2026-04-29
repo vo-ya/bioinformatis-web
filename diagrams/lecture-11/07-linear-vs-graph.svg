@@ -16,7 +16,10 @@
   <!-- ── LEFT PANEL: linear ── -->
   <g>
     <rect x="30" y="50" width="500" height="320" rx="6" fill="#ffffff" stroke="#c4c1b6"/>
-    <text x="280" y="72" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#0a0a0a">Linear reference · one string</text>
+    <!-- Title raised from y=72 to y=64 so it does not sit underneath
+         the V2 variant box at y=70-90 (which previously hid part of
+         the title text). -->
+    <text x="280" y="64" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#0a0a0a">Linear reference · one string</text>
 
     <!-- Reference string -->
     <line x1="70" y1="180" x2="490" y2="180" stroke="#525252" stroke-width="2"/>
@@ -67,7 +70,20 @@
   <!-- ── RIGHT PANEL: graph ── -->
   <g>
     <rect x="590" y="50" width="460" height="320" rx="6" fill="#ffffff" stroke="#c4c1b6"/>
-    <text x="820" y="72" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#0a0a0a">Pangenome graph · variation first-class</text>
+    <!-- Title raised from y=72 to y=64 to mirror the left-panel title
+         change. -->
+    <text x="820" y="64" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#0a0a0a">Pangenome graph · variation first-class</text>
+
+    <!-- Overlay haplotype paths drawn FIRST so they sit BEHIND the
+         node boxes; previously the red hap1 stroke (width 3) clipped
+         through the "A" letter at (715, 164) and through the
+         "+20 bp ins" label at (865, 160). With the paths underneath,
+         node fills cover any path stroke that crosses inside a node,
+         and the labels stay legible. -->
+    <!-- hap1: N1 → N2(A) → N4 → N5(ins) → N6 -->
+    <path d="M 640 178 L 700 155 L 780 175 L 863 155 L 940 178" fill="none" stroke="#c4342c" stroke-width="3" opacity="0.7"/>
+    <!-- hap2: N1 → N3(G) → N4 → skip → N6 -->
+    <path d="M 640 183 L 700 215 L 780 183 L 890 185 L 940 183" fill="none" stroke="#1e3a8a" stroke-width="3" opacity="0.7"/>
 
     <!-- Graph nodes and edges -->
     <g>
@@ -109,12 +125,6 @@
       <path d="M 895 160 L 915 178" fill="none" stroke="#8a8a85" stroke-width="1" marker-end="url(#arr-cobalt)"/>
       <path d="M 890 185 L 915 185" fill="none" stroke="#8a8a85" stroke-width="1" marker-end="url(#arr-cobalt)"/>
     </g>
-
-    <!-- Overlay haplotype paths -->
-    <!-- hap1: N1 → N2(A) → N4 → N5(ins) → N6 -->
-    <path d="M 640 178 L 700 155 L 780 175 L 863 155 L 940 178" fill="none" stroke="#c4342c" stroke-width="3" opacity="0.7"/>
-    <!-- hap2: N1 → N3(G) → N4 → skip → N6 -->
-    <path d="M 640 183 L 700 215 L 780 183 L 890 185 L 940 183" fill="none" stroke="#1e3a8a" stroke-width="3" opacity="0.7"/>
 
     <!-- Path legend -->
     <g transform="translate(610 255)">

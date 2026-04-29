@@ -366,9 +366,9 @@ Alignment output shown at the bottom: the read's aligned path as a sequence of (
 
 ---
 
-## Figure 10 — Viterbi on a linear chain vs DAG
+## Figure 11 — Viterbi on a linear chain vs DAG
 
-**File**: `diagrams/lecture-11/10-viterbi-linear-vs-dag.svg`
+**File**: `diagrams/lecture-11/11-viterbi-linear-vs-dag.svg`
 **Lecture anchor**: §5.2 Generalising Viterbi to a DAG
 **ViewBox**: `0 0 1080 460`
 
@@ -409,9 +409,9 @@ Annotation: "only $\text{pred}(s)$ changes between linear and graph cases".
 
 ---
 
-## Figure 11 — vg toolchain workflow
+## Figure 10 — vg toolchain workflow
 
-**File**: `diagrams/lecture-11/11-vg-toolchain.svg`
+**File**: `diagrams/lecture-11/10-vg-toolchain.svg`
 **Lecture anchor**: §4.2 The graph-alignment toolchain
 **ViewBox**: `0 0 1080 400`
 

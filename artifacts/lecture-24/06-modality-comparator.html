@@ -94,7 +94,9 @@
   function rng(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 
   function generateGenes(scenario, duration) {
-    const r = rng(scenario.length(0) + duration);
+    // Deterministic seed — original `scenario.length(0)` threw TypeError
+    // (.length is a number, not a function) so update() bailed before draw.
+    const r = rng(scenario.charCodeAt(0) * 100 + parseInt(duration, 10));
     const genes = [];
     const dur = duration === '14' ? 0.7 : duration === '21' ? 1 : 1.2;
     if (scenario === 'dropout' || scenario === 'both') {

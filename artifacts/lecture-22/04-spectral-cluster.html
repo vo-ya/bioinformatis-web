@@ -198,9 +198,17 @@
         for (let dd = 0; dd < points[i].length; dd++) newCenters[assign[i]][dd] += points[i][dd];
         counts[assign[i]]++;
       }
-      for (let c = 0; c < kk; c++) if (counts[c] > 0) for (let dd = 0; dd < points[i] && dd < newCenters[c].length; dd++) newCenters[c][dd] /= counts[c];
-      for (let c = 0; c < kk; c++) if (counts[c] > 0) {
-        for (let dd = 0; dd < newCenters[c].length; dd++) centers[c] = newCenters[c];
+      // Divide each centre by its count to turn the running sum into the
+      // mean. The previous version's outer guard used `points[i]` with `i`
+      // out of scope from the preceding for-let — under strict mode this
+      // threw a ReferenceError on every k-means iteration, so update() never
+      // reached drawTab() and the SVG rendered blank.
+      for (let c = 0; c < kk; c++) {
+        if (counts[c] === 0) continue;
+        for (let dd = 0; dd < newCenters[c].length; dd++) {
+          newCenters[c][dd] /= counts[c];
+        }
+        centers[c] = newCenters[c];
       }
     }
     return assign;

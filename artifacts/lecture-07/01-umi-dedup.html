@@ -551,11 +551,15 @@
     cycles: 5,
     sampling: 0.30,
     rafId: 0,
+    // runSalt is mixed into the seed so clicking "Run pipeline" with unchanged
+    // sliders still yields a different stochastic outcome (was previously
+    // deterministic on inputs, so the button felt like a no-op).
+    runSalt: 1,
   };
 
   // ── Simulation ─────────────────────────────────────────
   function simulate() {
-    const seed = (state.cells * 9973) ^ (state.mrnas * 271) ^ (state.cycles * 41) ^ Math.floor(state.sampling * 1000);
+    const seed = (state.cells * 9973) ^ (state.mrnas * 271) ^ (state.cycles * 41) ^ Math.floor(state.sampling * 1000) ^ state.runSalt;
     const rnd = mulberry32(seed || 1);
 
     const molecules = [];
@@ -928,6 +932,9 @@
     });
   });
   $('run-btn').addEventListener('click', () => {
+    // Re-shuffle stochastic outcomes per click so the button is meaningful even
+    // when inputs are unchanged.
+    state.runSalt = (Math.floor(Math.random() * 0x7fffffff) || 1) >>> 0;
     readControls();
     schedule();
   });

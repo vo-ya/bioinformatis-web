@@ -272,14 +272,14 @@
 
           <p>The sequencing instrument (Illumina NovaSeq, typically) emits <strong>BCL</strong> (Binary Base-Call) files directly from the flow cell. A complete pipeline from BCL to a scRNA-seq count matrix:</p>
 
-          <pre class="sequence-block">BCL files (Illumina flow cell)
+          <pre class="sequence-block">BCL files                                       (Illumina flow cell)
     ↓ bcl2fastq
-FASTQ files (reads split by sample, barcodes on Read 1, transcript on Read 2)
-    ↓ cellranger count  (or STARsolo / alevin-fry / kb-python)
-BAM (aligned reads)  +  filtered_feature_bc_matrix.h5 (the count matrix)
-    ↓ QC + normalisation (§2.3-§3)
-AnnData / Seurat object (cells × genes, with metadata)
-    ↓ clustering + annotation (§4-§5)
+FASTQ files                                     (R1: barcode+UMI · R2: transcript)
+    ↓ cellranger count · STARsolo · alevin-fry
+BAM + filtered_feature_bc_matrix.h5             (BAM optional with alevin-fry)
+    ↓ QC + normalisation                        (§2.3-§3)
+AnnData / Seurat object                         (cells × genes + metadata)
+    ↓ clustering + annotation                   (§4-§5)
 Cell-type-labeled expression atlas</pre>
 
           <p>Each stage has well-defined outputs. A clean pipeline records intermediate artefacts (BCL → FASTQ, FASTQ → BAM, BAM → matrix) so you can re-run any downstream step without re-sequencing or re-aligning.</p>

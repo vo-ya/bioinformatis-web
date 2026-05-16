@@ -193,12 +193,21 @@
     const snvM = metrics(c.SNV), indM = metrics(c.INDEL);
     svg.appendChild(el('circle', { cx: xScale(snvM.R), cy: yScale(snvM.P), r: 6, fill: '#1d4ed8', stroke: '#fff', 'stroke-width': 2 }));
     svg.appendChild(el('circle', { cx: xScale(indM.R), cy: yScale(indM.P), r: 6, fill: '#b45309', stroke: '#fff', 'stroke-width': 2 }));
-    // legend
-    svg.appendChild(el('rect', { x: W - 120, y: pad.t + 6, width: 104, height: 48, fill: '#fff', stroke: '#e5e7eb' }));
-    svg.appendChild(el('line', { x1: W - 112, y1: pad.t + 20, x2: W - 90, y2: pad.t + 20, stroke: '#2563eb', 'stroke-width': 2 }));
-    svg.appendChild(el('text', { x: W - 84, y: pad.t + 23, 'font-size': 10, fill: '#1d4ed8' }, `SNV  F1 ${snvM.F1.toFixed(3)}`));
-    svg.appendChild(el('line', { x1: W - 112, y1: pad.t + 40, x2: W - 90, y2: pad.t + 40, stroke: '#b45309', 'stroke-width': 2 }));
-    svg.appendChild(el('text', { x: W - 84, y: pad.t + 43, 'font-size': 10, fill: '#b45309' }, `INDEL F1 ${indM.F1.toFixed(3)}`));
+    // legend — moved from upper-right (x=W-120, y=pad.t+6) to the
+    // lower-left of the plot, where neither the SNV nor the INDEL
+    // PR curve dwells (both stay near the top edge for a competent
+    // caller). Previously the SNV polyline cut straight across the
+    // legend rect at upper-right.
+    const lx = pad.l + 8, ly = H - pad.b - 58;
+    // Legend rect widened from 104 to 130 because "INDEL F1 0.xxx"
+    // (~77 px in Inter fs 10) was spilling past the previous right
+    // edge — only ~68 px of text room was available after the line
+    // marker and the x=lx+36 text origin.
+    svg.appendChild(el('rect', { x: lx, y: ly, width: 130, height: 48, fill: '#fff', stroke: '#e5e7eb' }));
+    svg.appendChild(el('line', { x1: lx + 8, y1: ly + 14, x2: lx + 30, y2: ly + 14, stroke: '#2563eb', 'stroke-width': 2 }));
+    svg.appendChild(el('text', { x: lx + 36, y: ly + 17, 'font-size': 10, fill: '#1d4ed8' }, `SNV  F1 ${snvM.F1.toFixed(3)}`));
+    svg.appendChild(el('line', { x1: lx + 8, y1: ly + 34, x2: lx + 30, y2: ly + 34, stroke: '#b45309', 'stroke-width': 2 }));
+    svg.appendChild(el('text', { x: lx + 36, y: ly + 37, 'font-size': 10, fill: '#b45309' }, `INDEL F1 ${indM.F1.toFixed(3)}`));
   }
 
   function render() {

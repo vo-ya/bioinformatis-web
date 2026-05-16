@@ -19,12 +19,12 @@ Open <http://localhost:8000/>. Alternatives: `npx serve .` if you have Node, or 
 .
 ├── index.html                            # Landing page
 ├── lectures/
-│   ├── lecture-01.html ... lecture-24.html   # Long-form lecture pages (24 shipped)
+│   ├── lecture-01.html ... lecture-27.html   # Long-form lecture pages (27 shipped)
 ├── artifacts/
 │   ├── _shared/                          # Shared design tokens + postMessage resizer
-│   ├── lecture-01/ ... lecture-24/       # 6–8 interactive HTML artifacts per lecture
+│   ├── lecture-01/ ... lecture-27/       # 6–8 interactive HTML artifacts per lecture
 ├── diagrams/
-│   ├── lecture-01/ ... lecture-24/       # Static SVG figures (10–13 per lecture)
+│   ├── lecture-01/ ... lecture-27/       # Static SVG figures (10–13 per lecture)
 ├── assets/
 │   ├── styles.css                        # Site-wide tokens + homepage
 │   ├── lecture.css                       # Lecture-page layout, callouts, figures
@@ -71,7 +71,7 @@ These are the sources of truth when adding content. Read the relevant one before
 
 ## Current status
 
-**Shipped: 24 of 27 planned lectures · 165 interactive tools · 283 figures · ~86 contact hours.**
+**Shipped: all 27 lectures · 186 interactive tools · 320 figures · ~96 contact hours.**
 
 | # | Lecture | Time | Figures | Tools |
 |---|---|---|---|---|
@@ -99,8 +99,9 @@ These are the sources of truth when adding content. Read the relevant one before
 | 22 | Network Biology and Pathway Analysis | 3h 15m | 12 | 7 |
 | 23 | Metagenomics and the Microbiome | 3h 30m | 12 | 7 |
 | 24 | CRISPR Functional Screens and DepMap | 3h 20m | 12 | 7 |
-
-**In the spec'd queue (Phase A complete, Phase B pending):** L25 Causal Inference and Mendelian Randomisation · L26 Proteomics and Protein Structure · L27 Imaging-omics and Pathology AI.
+| 25 | Causal Inference and Mendelian Randomisation | 3h 10m | 12 | 7 |
+| 26 | Drug Discovery and Chemoinformatics | 3h 25m | 12 | 7 |
+| 27 | Mass-Spectrometry Proteomics + Metabolomics | 3h 25m | 13 | 7 |
 
 ## Adding a new lecture
 

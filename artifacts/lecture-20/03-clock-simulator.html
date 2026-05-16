@@ -144,8 +144,12 @@
       return rates;
     }
     const rates = genRates();
-    const maxRate = Math.max(...rates) * 1.2;
+    // Fixed scale (covers the full slider range μ = 0…2 × 10⁻⁹ plus a 25 %
+    // headroom for relaxed-clock outliers). Was `Math.max(...rates) * 1.2`
+    // which auto-normalised the bars and made the rate slider visually a
+    // no-op in strict mode — every bar always rendered at ~83 % of width.
     const xMax = 800;
+    const maxRate = 2.5e-9;
 
     // Axis
     const ax = document.createElementNS(ns, 'line');

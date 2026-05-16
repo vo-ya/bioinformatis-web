@@ -200,7 +200,7 @@ Before a caller runs, three pre-processing steps clean up the BAM. Each removes 
 
 Historically, GATK's `IndelRealigner` was a required step. Modern callers (GATK4 HaplotypeCaller, DeepVariant) do local re-assembly internally and don't need a separate realignment pass — they look at the reads in windows and construct candidate haplotypes on the fly, effectively doing the realignment inside the caller. If you're running an older pipeline or a simpler caller (bcftools), explicit INDEL realignment still matters.
 
-**FIGURE — Figure #7: INDEL misalignment and local realignment** → `diagrams/lecture-04/07-indel-realignment.svg`
+**FIGURE — Figure #6: INDEL misalignment and local realignment** → `diagrams/lecture-04/06-indel-realignment.svg`
 *Top: reads aligned around a true 2-bp deletion, with most reads expressing the deletion as a cluster of 5–6 fake SNVs. Bottom: after local realignment, reads show a clean 2-bp gap and no false SNVs.*
 
 **EMBED — Artifact #2: INDEL Realignment Demo** → `artifacts/lecture-04/02-indel-realignment.html`
@@ -228,7 +228,7 @@ where `G` ranges over possible genotypes (`0/0, 0/1, 1/1`), `D` is the observed 
 
 bcftools and GATK UnifiedGenotyper are second-generation callers. GATK HaplotypeCaller is the modern workhorse — local de-novo assembly of reads in a window, candidate haplotype scoring, and a pair-HMM likelihood for each read against each haplotype. Gives up pure per-position independence for local context.
 
-**FIGURE — Figure #6: Bayesian genotyping at a position** → `diagrams/lecture-04/06-bayesian-genotyping.svg`
+**FIGURE — Figure #7: Bayesian genotyping at a position** → `diagrams/lecture-04/07-bayesian-genotyping.svg`
 *A pileup column; three likelihood curves P(D|0/0), P(D|0/1), P(D|1/1) plotted as functions of read depth; a prior bar; and the resulting posterior with the MAP genotype highlighted.*
 
 **EMBED — Artifact #3: Genotype Likelihood Calculator** → `artifacts/lecture-04/03-genotype-likelihoods.html`
@@ -294,7 +294,7 @@ The three signal channels every SV caller uses:
 - **Split reads.** A single read spanning a breakpoint aligns to the reference with the first half matching one location and the second half matching a distant location. The aligner reports both alignment segments; the break in between is the breakpoint itself. Split reads give **single-base-resolution** breakpoints — the gold standard for SV calls.
 - **Read depth.** A homozygous deletion drops the coverage inside the deleted region to zero. A heterozygous deletion halves it. A duplication doubles it. Depth-based calling alone can detect large CNVs from a single sample; combined with discordant pairs and split reads, it disambiguates tough cases (inversions vs translocations).
 
-**FIGURE — Figure #9: The three SV detection signals** → `diagrams/lecture-04/09-sv-detection-signals.svg`
+**FIGURE — Figure #8: The three SV detection signals** → `diagrams/lecture-04/08-sv-detection-signals.svg`
 *A deletion breakpoint shown with: (a) discordant pairs with larger-than-expected insert size clustering at the breakpoint, (b) split reads mapping half-left, half-right, (c) read depth dropping to zero between the breakpoints.*
 
 > **Intuition box**: SNV calling looks at one column of the pileup at a time. SV calling looks at patterns that span thousands or millions of columns. Different scales, different algorithms. The algorithmic bottleneck is clustering: a thousand discordant pairs near the same ~500 bp region collectively imply a single SV event, and the caller has to group them correctly.
@@ -324,7 +324,7 @@ Structural variants are classified by what they do to the genome, not by their s
 - **Copy-number variant (CNV).** The specific case of a DEL or DUP where the number of copies changes. Not a distinct biological mechanism — a CNV is a deletion or duplication measured as a copy-number shift rather than as two breakpoints.
 - **Translocation (TRA or BND).** A piece of one chromosome is joined to a different chromosome. Reciprocal translocations swap arms; non-reciprocal translocations insert one chromosome's material into another unidirectionally. Represented in VCFs as breakend ("BND") records rather than as simple deletions/duplications.
 
-**FIGURE — Figure #8: The five canonical SV types** → `diagrams/lecture-04/08-sv-types.svg`
+**FIGURE — Figure #9: The five canonical SV types** → `diagrams/lecture-04/09-sv-types.svg`
 *Five side-by-side panels showing a reference region and the SV-altered version: deletion, insertion, inversion, duplication (tandem), translocation between two chromosomes.*
 
 Two details worth knowing:

@@ -132,16 +132,23 @@
   $('variant').innerHTML = VARIANTS.map(v => `<option value="${v.id}">${v.label}</option>`).join('');
   $('cancer').innerHTML  = CANCERS.map(c => `<option>${c}</option>`).join('');
 
-  function classify() {
+  function classify(syncFromKb) {
     const vId = $('variant').value;
     const cancer = $('cancer').value;
-    const userEvidence = $('evidence').value;
 
     const key = `${vId}|${cancer}`;
     const kb = KB[key];
 
-    // Determine effective evidence: KB auto or user override (whichever is more specific)
-    const evidence = kb ? kb.auto : userEvidence;
+    // syncFromKb=true means the user changed variant or cancer (or this is
+    // the initial render) — snap the Evidence dropdown to the KB default so
+    // it shows the canonical answer. If the user then changes Evidence
+    // directly, syncFromKb=false and we keep their override. The previous
+    // version always took kb.auto over userEvidence, so the Evidence dropdown
+    // looked broken — picking "preclinical" still produced Tier I-A.
+    if (syncFromKb && kb && kb.auto) {
+      $('evidence').value = kb.auto;
+    }
+    const evidence = $('evidence').value;
 
     let tier, head, body, cite;
     const v = $('verdict');
@@ -204,8 +211,9 @@
     $('banner').innerHTML = `<strong>${VARIANTS.find(x => x.id === vId).label}</strong> in <strong>${cancer}</strong> → ${head.split(' — ')[0]}.<span class="hint">${hint}</span>`;
   }
 
-  ['variant', 'cancer', 'evidence'].forEach(id => $(id).addEventListener('change', classify));
-  classify();
+  ['variant', 'cancer'].forEach(id => $(id).addEventListener('change', () => classify(true)));
+  $('evidence').addEventListener('change', () => classify(false));
+  classify(true);
 })();
 </script>
 <script src="../_shared/resize.js" defer></script>

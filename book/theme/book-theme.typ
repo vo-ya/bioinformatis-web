@@ -125,13 +125,18 @@
   }
 
   // ── Figures ────────────────────────────────────────────────────────
-  show figure: set block(breakable: false)
+  // Keep each figure on one page (no break between image and caption),
+  // and add a clear breathing gap after the whole figure before body
+  // prose resumes.
+  show figure: it => {
+    block(breakable: false, it)
+    v(1em, weak: true)
+  }
   show figure.caption: it => {
     set text(size: 9.5pt, fill: muted, style: "italic", font: ("Inter", "Helvetica Neue", "Arial"))
-    set par(first-line-indent: 0pt, justify: false, leading: 0.55em)
+    set par(first-line-indent: 0pt, justify: false)
     pad(left: 2em, right: 2em)[
-      #text(weight: "semibold", fill: accent)[Figure #it.counter.display("1.1")] \
-      #it.body
+      *Figure #it.counter.display("1.1")*  #h(0.5em) #it.body
     ]
   }
 

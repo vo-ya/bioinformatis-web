@@ -31,6 +31,12 @@ Open <http://localhost:8000/>. Alternatives: `npx serve .` if you have Node, or 
 │   ├── lecture-01/ ... lecture-27/       # exercise.ipynb + build_notebook.py
 │   ├── apply_colab_form.py               # Patcher: wires hidden solutions to Colab's #@title form pattern
 │   └── tests/                            # Structural + endpoint + execution test suites
+├── book/                                 # Print edition (Typst, A4) — currently 15/27 chapters drafted
+│   ├── book.typ                          # Top-level: frontmatter, TOC, chapter includes
+│   ├── theme/book-theme.typ              # Page geometry, type, admonitions
+│   ├── chapters/chNN-<slug>.typ          # One chapter per lecture
+│   ├── figures/chNN/                     # Print-only SVGs that replace web artifacts
+│   └── README.md                         # Build instructions (`typst compile --root .`)
 ├── assets/
 │   ├── styles.css                        # Site-wide tokens + homepage
 │   ├── lecture.css                       # Lecture-page layout, callouts, figures
@@ -61,6 +67,7 @@ These are the sources of truth when adding content. Read the relevant one before
 | `markdown_resources/logo-spec.md` | Course mark and wordmark |
 | `markdown_resources/lecture-style-guide.md` | Voice, structure, callout types, formatting for lecture prose |
 | `markdown_resources/diagram-style-guide.md` | House style for SVG diagrams (colour, stroke, typography, arrows) |
+| `markdown_resources/book-style-guide.md` | Typography, structure, and authoring conventions for the print edition |
 | `markdown_resources/generate_new_lesson_flow.md` | End-to-end recipe for generating a new lecture (phases, steps, validations) |
 | `scripts/phase-a-check.py` | Automated runner for the Phase A exit check — run before every Phase B |
 | `markdown_resources/lessonN_md_files/` | Per-lecture sources (lesson1 through lesson27) |
@@ -101,9 +108,33 @@ hand-edit the `.ipynb`. Three test suites live in `coding_exercises/tests/`:
 
 All three pass under `python -m pytest coding_exercises/tests/`.
 
+## Print edition (book)
+
+A separate Typst project under `book/` compiles the 27 lectures into an A4
+trade-paperback book. The book **expands** on the lectures — longer prose,
+deeper history, math derivations, sidebar admonitions, end-of-chapter
+exercises, and further-reading references — and **replaces** the website's
+interactive artifacts with additional static figures designed for print
+(under `book/figures/chNN/`). Visually it inherits the website's typography
+(Source Serif 4 body, Inter heads, JetBrains Mono code) and cobalt accent.
+
+Build with Typst (single binary, no LaTeX needed):
+
+```
+brew install typst
+typst compile --root . book/book.typ book/build/book.pdf
+typst watch   --root . book/book.typ book/build/book.pdf   # auto-rebuild
+```
+
+Status: **15 / 27 chapters drafted** (Chapters 1–15). Compiles to a 378-page
+A4 PDF as of this commit. Authoring conventions live in
+`markdown_resources/book-style-guide.md`; the executable typographic source
+of truth lives in `book/theme/book-theme.typ`.
+
 ## Current status
 
 **Shipped: all 27 lectures · 186 interactive tools · 320 figures · 27 Colab coding exercises · ~96 contact hours.**
+**Book: 15 / 27 chapters drafted · ~125,000 words · 61 new print-only figures · 378-page A4 PDF.**
 
 | # | Lecture | Time | Figures | Tools |
 |---|---|---|---|---|

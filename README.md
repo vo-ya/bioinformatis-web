@@ -2,6 +2,8 @@
 
 Lecture material and companion website for a bioinformatics course taught at a School of Electrical Engineering. Each lecture is a long scrollable HTML page with inline interactive artifacts and static figures — it's the same document the lecturer projects in class and the students read afterwards.
 
+**Live site:** <https://vo-ya.github.io/bioinformatis-web/>
+
 ## Run it locally
 
 No build step. Any static file server works:
@@ -25,6 +27,10 @@ Open <http://localhost:8000/>. Alternatives: `npx serve .` if you have Node, or 
 │   ├── lecture-01/ ... lecture-27/       # 6–8 interactive HTML artifacts per lecture
 ├── diagrams/
 │   ├── lecture-01/ ... lecture-27/       # Static SVG figures (10–13 per lecture)
+├── coding_exercises/                     # One 60-min Colab notebook per lecture
+│   ├── lecture-01/ ... lecture-27/       # exercise.ipynb + build_notebook.py
+│   ├── apply_colab_form.py               # Patcher: wires hidden solutions to Colab's #@title form pattern
+│   └── tests/                            # Structural + endpoint + execution test suites
 ├── assets/
 │   ├── styles.css                        # Site-wide tokens + homepage
 │   ├── lecture.css                       # Lecture-page layout, callouts, figures
@@ -69,32 +75,58 @@ These are the sources of truth when adding content. Read the relevant one before
 - **Base colours are locked.** `--base-a`/`--base-t`/`--base-g`/`--base-c`/`--base-u`/`--base-n` — students build visual memory across artifacts.
 - **Zero build step.** Plain HTML, CSS, vanilla JS. Chart.js and KaTeX via CDN where needed.
 
+## Coding exercises (Colab)
+
+Every lecture has a companion 60-minute Jupyter notebook under
+`coding_exercises/lecture-NN/exercise.ipynb`. The lecture page exposes them
+via the "Open in Colab" badge in its meta strip — students click it, Colab
+spins up a free CPU session pointing at the notebook on `main`, and they
+hit File → Save a copy in Drive if they want to edit and keep their work.
+
+Each notebook has the same 5-step structure: a markdown step prompt, a
+visible `# TODO` scaffold, and a hidden reference solution (rendered in
+Colab as a collapsible "🔓 Reference solution — click to reveal" form).
+Data is either synthetic-in-cell (NumPy seeded, 17 lectures) or fetched
+from public endpoints with a deterministic synthetic fallback when the
+network call fails (10 lectures, covering NCBI / UniProt / Ensembl /
+InterPro–Pfam / AlphaFold-DB / HuggingFace / Scanpy / ClinVar / gnomAD /
+ChEMBL).
+
+Re-generation is from `build_notebook.py` in each lecture folder — never
+hand-edit the `.ipynb`. Three test suites live in `coding_exercises/tests/`:
+
+- `test_structure.py`           — static cell + syntax check on all 27 (<1 s)
+- `test_fetches.py`             — probes every public endpoint (~15 s)
+- `test_execute_synthetic.py`   — actually runs the 17 synthetic notebooks end-to-end (~70 s)
+
+All three pass under `python -m pytest coding_exercises/tests/`.
+
 ## Current status
 
-**Shipped: all 27 lectures · 186 interactive tools · 320 figures · ~96 contact hours.**
+**Shipped: all 27 lectures · 186 interactive tools · 320 figures · 27 Colab coding exercises · ~96 contact hours.**
 
 | # | Lecture | Time | Figures | Tools |
 |---|---|---|---|---|
 | 01 | Foundations: From Cells to Sequences to FASTQ | 3h 35m | 12 | 6 |
 | 02 | Read Alignment: From Brute Force to FM Index and Back | 3h 50m | 10 | 6 |
-| 03 | DNA Sequence Assembly: From Reads to Reconstructed Genomes | 3h 25m | 11 | 6 |
+| 03 | DNA Sequence Assembly: From Reads to Genomes | 3h 25m | 11 | 6 |
 | 04 | Variant Calling: From Aligned Reads to Called Differences | 3h 30m | 11 | 6 |
-| 05 | Bulk RNA-seq: Quantification + Differential Expression | 3h 30m | 12 | 7 |
-| 06 | Single-cell RNA-seq Fundamentals | 3h 30m | 12 | 7 |
-| 07 | Single-cell Trajectories and Cell Communication | 3h 25m | 12 | 7 |
-| 08 | ChIP-seq, ATAC-seq, and the Regulatory Genome | 3h 30m | 13 | 7 |
-| 09 | Long Reads, Pangenomes, and Telomere-to-Telomere Assembly | 3h 35m | 12 | 7 |
-| 10 | DNA Methylation and the Epigenome | 3h 25m | 12 | 7 |
-| 11 | Spatial Transcriptomics and Spatial Omics | 3h 30m | 12 | 7 |
-| 12 | Population Genetics: Drift, Selection, Admixture | 3h 25m | 12 | 7 |
-| 13 | GWAS and Polygenic Risk Scores | 3h 35m | 12 | 7 |
-| 14 | Data Engineering for Bioinformatics | 3h 25m | 12 | 7 |
-| 15 | Deep Learning Foundations for Genomics | 3h 30m | 12 | 7 |
-| 16 | Genomic Foundation Models and AI Pipelines | 3h 30m | 12 | 7 |
-| 17 | Clinical Genomics: Variant Interpretation in Practice | 3h 30m | 12 | 7 |
-| 18 | Cancer Genomics: Mutational Signatures and Tumour Evolution | 3h 30m | 12 | 7 |
+| 05 | Bulk RNA-seq: From Reads to Transcript Abundances | 3h 50m | 12 | 6 |
+| 06 | Differential Expression and Count Statistics | 3h 30m | 11 | 6 |
+| 07 | Single-Cell RNA-seq Fundamentals | 3h 30m | 11 | 6 |
+| 08 | Advanced Single-Cell: Trajectories, Integration, Multi-Modal | 3h 30m | 10 | 6 |
+| 09 | ChIP-seq, ATAC-seq, and Peak Calling | 3h 30m | 12 | 7 |
+| 10 | Methylation, Hi-C, and 3D Genome Organisation | 3h 30m | 12 | 8 |
+| 11 | Long Reads and the Pangenome | 3h 30m | 12 | 8 |
+| 12 | Population Genetics Fundamentals | 3h 30m | 12 | 7 |
+| 13 | GWAS and Statistical Genetics | 3h 30m | 12 | 7 |
+| 14 | Data Engineering, File Formats, and Reproducibility | 3h 30m | 12 | 7 |
+| 15 | Protein Structure Prediction in the AlphaFold Era | 3h 30m | 12 | 7 |
+| 16 | ML in Genomics: Architectures, Pitfalls, Frontiers | 3h 55m | 13 | 8 |
+| 17 | Clinical Genomics, Variant Interpretation, and Ethics | 4h 00m | 13 | 8 |
+| 18 | Cancer Genomics: Integrated Capstone | 3h 30m | 12 | 7 |
 | 19 | BLAST and Sequence Search Statistics | 3h 30m | 12 | 7 |
-| 20 | Multiple Sequence Alignment, Phylogenetics, Comparative Genomics | 3h 55m | 13 | 8 |
+| 20 | Multiple Sequence Alignment, Phylogenetics, and Comparative Genomics | 3h 55m | 13 | 8 |
 | 21 | HMMs, Profile HMMs, and Gene Finding | 3h 45m | 12 | 7 |
 | 22 | Network Biology and Pathway Analysis | 3h 15m | 12 | 7 |
 | 23 | Metagenomics and the Microbiome | 3h 30m | 12 | 7 |

@@ -52,7 +52,8 @@
 #include "chapters/ch13-gwas.typ"
 #include "chapters/ch14-data-engineering.typ"
 #include "chapters/ch15-protein-structure.typ"
+#include "chapters/ch16-ml-in-genomics.typ"
 
 // Future chapters get included here as they are authored.
-// #include "chapters/ch16-ml-in-genomics.typ"
+// #include "chapters/ch17-clinical-genomics.typ"
 // ...

@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" role="img" aria-labelledby="t d">
+  <title id="t">Five-question design-review checklist for genomics ML projects</title>
+  <desc id="d">A two-column reference card. The left column lists five design-review questions with example diagnostics: architecture match, likelihood match, split protocol, baseline strength, and calibration plus error analysis. The right column lists, for each question, the typical failure mode the question is meant to prevent. A header summarises the move; a footer points to the relevant chapter sections for each question.</desc>
+
+  <rect x="0" y="0" width="1200" height="660" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <text x="60" y="40" font-family="Inter, Helvetica Neue, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">GENOMICS ML DESIGN REVIEW — FIVE QUESTIONS, FIVE FAILURE MODES</text>
+  <text x="60" y="60" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-style="italic" fill="#525252">Run before the experiment; re-run before trusting another paper's headline number.</text>
+
+  <!-- Column headers -->
+  <line x1="60" y1="90" x2="1140" y2="90" stroke="#374151" stroke-width="1"/>
+  <text x="80" y="110" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">QUESTION TO ASK</text>
+  <text x="630" y="110" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#dc2626" letter-spacing="0.06em">FAILURE MODE IT PREVENTS</text>
+  <line x1="60" y1="118" x2="1140" y2="118" stroke="#374151" stroke-width="0.5"/>
+
+  <!-- Row 1: Architecture -->
+  <g transform="translate(60, 134)">
+    <!-- numbered bullet -->
+    <circle cx="20" cy="30" r="16" fill="#1e3a8a"/>
+    <text x="20" y="35" font-family="JetBrains Mono, monospace" font-size="14" font-weight="600" fill="#fafaf9" text-anchor="middle">1</text>
+
+    <text x="48" y="22" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#374151">Does the architecture's inductive bias match the data's structural property?</text>
+    <text x="48" y="40" font-family="Inter, sans-serif" font-size="10" fill="#525252">2-D image → CNN.  Long 1-D + sparse range → dilated conv + attention.</text>
+    <text x="48" y="54" font-family="Inter, sans-serif" font-size="10" fill="#525252">Counts → VAE with discrete likelihood.  Graph → message-passing GNN.  3-D → equivariant attention.</text>
+
+    <!-- Right column failure mode -->
+    <g transform="translate(570, 0)">
+      <rect x="0" y="14" width="510" height="48" fill="#dc2626" opacity="0.08" rx="2"/>
+      <text x="14" y="34" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#dc2626">Mismatched prior — 10 — 100 × more data needed</text>
+      <text x="14" y="52" font-family="Inter, sans-serif" font-size="10" fill="#525252">Transformer on a small pileup task, MLP on protein structure, vanilla CNN on a graph.</text>
+    </g>
+  </g>
+
+  <line x1="80" y1="216" x2="1120" y2="216" stroke="#e5e3dc" stroke-width="0.5"/>
+
+  <!-- Row 2: Likelihood -->
+  <g transform="translate(60, 230)">
+    <circle cx="20" cy="30" r="16" fill="#1e3a8a"/>
+    <text x="20" y="35" font-family="JetBrains Mono, monospace" font-size="14" font-weight="600" fill="#fafaf9" text-anchor="middle">2</text>
+
+    <text x="48" y="22" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#374151">Is the output likelihood matched to the target distribution?</text>
+    <text x="48" y="40" font-family="Inter, sans-serif" font-size="10" fill="#525252">Gaussian for continuous;  categorical cross-entropy for discrete;  Poisson for low counts;</text>
+    <text x="48" y="54" font-family="Inter, sans-serif" font-size="10" fill="#525252">negative binomial for over-dispersed counts;  ZINB for over-dispersed + zero-inflated.</text>
+
+    <g transform="translate(570, 0)">
+      <rect x="0" y="14" width="510" height="48" fill="#dc2626" opacity="0.08" rx="2"/>
+      <text x="14" y="34" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#dc2626">Wrong likelihood — silent statistical bias</text>
+      <text x="14" y="52" font-family="Inter, sans-serif" font-size="10" fill="#525252">MSE on counts; Gaussian on heavy-tailed data; ignoring zero-inflation in 10×-Chromium data.</text>
+    </g>
+  </g>
+
+  <line x1="80" y1="312" x2="1120" y2="312" stroke="#e5e3dc" stroke-width="0.5"/>
+
+  <!-- Row 3: Split -->
+  <g transform="translate(60, 326)">
+    <circle cx="20" cy="30" r="16" fill="#1e3a8a"/>
+    <text x="20" y="35" font-family="JetBrains Mono, monospace" font-size="14" font-weight="600" fill="#fafaf9" text-anchor="middle">3</text>
+
+    <text x="48" y="22" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#374151">Does the train / test split control for the dataset's correlation structure?</text>
+    <text x="48" y="40" font-family="Inter, sans-serif" font-size="10" fill="#525252">Cluster splits for protein tasks (CD-HIT / MMseqs2);  chromosome splits for regulation;</text>
+    <text x="48" y="54" font-family="Inter, sans-serif" font-size="10" fill="#525252">kinship-aware splits for biobanks;  leave-one-study-out for cross-study single-cell.</text>
+
+    <g transform="translate(570, 0)">
+      <rect x="0" y="14" width="510" height="48" fill="#dc2626" opacity="0.08" rx="2"/>
+      <text x="14" y="34" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#dc2626">Data leakage — inflated 20 — 30 pp on the headline number</text>
+      <text x="14" y="52" font-family="Inter, sans-serif" font-size="10" fill="#525252">Random 80/20 on homologous proteins; per-SNP random splits; ignoring kinship in biobanks.</text>
+    </g>
+  </g>
+
+  <line x1="80" y1="408" x2="1120" y2="408" stroke="#e5e3dc" stroke-width="0.5"/>
+
+  <!-- Row 4: Baselines -->
+  <g transform="translate(60, 422)">
+    <circle cx="20" cy="30" r="16" fill="#1e3a8a"/>
+    <text x="20" y="35" font-family="JetBrains Mono, monospace" font-size="14" font-weight="600" fill="#fafaf9" text-anchor="middle">4</text>
+
+    <text x="48" y="22" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#374151">Is the best available specialised baseline included in the comparison?</text>
+    <text x="48" y="40" font-family="Inter, sans-serif" font-size="10" fill="#525252">For cells: scVI, Harmony, CellTypist.  For regulation: Basenji / Enformer.  For variants: GATK + DeepVariant.</text>
+    <text x="48" y="54" font-family="Inter, sans-serif" font-size="10" fill="#525252">Same data, same split, same evaluation metric — not a hand-picked easy comparator.</text>
+
+    <g transform="translate(570, 0)">
+      <rect x="0" y="14" width="510" height="48" fill="#dc2626" opacity="0.08" rx="2"/>
+      <text x="14" y="34" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#dc2626">Weak-baseline win — apparent improvement is comparator-induced</text>
+      <text x="14" y="52" font-family="Inter, sans-serif" font-size="10" fill="#525252">Beating a logistic-regression baseline; beating an outdated specialised tool; no baseline at all.</text>
+    </g>
+  </g>
+
+  <line x1="80" y1="504" x2="1120" y2="504" stroke="#e5e3dc" stroke-width="0.5"/>
+
+  <!-- Row 5: Calibration -->
+  <g transform="translate(60, 518)">
+    <circle cx="20" cy="30" r="16" fill="#1e3a8a"/>
+    <text x="20" y="35" font-family="JetBrains Mono, monospace" font-size="14" font-weight="600" fill="#fafaf9" text-anchor="middle">5</text>
+
+    <text x="48" y="22" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#374151">Is the model calibrated and is its error analysed across sub-populations?</text>
+    <text x="48" y="40" font-family="Inter, sans-serif" font-size="10" fill="#525252">Reliability diagram; expected calibration error; stratified accuracy by ancestry, batch, cell type.</text>
+    <text x="48" y="54" font-family="Inter, sans-serif" font-size="10" fill="#525252">A clinically useful model needs more than one accuracy number on a homogeneous test set.</text>
+
+    <g transform="translate(570, 0)">
+      <rect x="0" y="14" width="510" height="48" fill="#dc2626" opacity="0.08" rx="2"/>
+      <text x="14" y="34" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#dc2626">Mis-calibrated or sub-group failures hidden</text>
+      <text x="14" y="52" font-family="Inter, sans-serif" font-size="10" fill="#525252">Confident wrong answers; ancestry-biased GWAS PRS; poor accuracy on rare cell types.</text>
+    </g>
+  </g>
+
+  <!-- Footer -->
+  <line x1="60" y1="618" x2="1140" y2="618" stroke="#374151" stroke-width="0.5"/>
+  <text x="60" y="638" font-family="Inter, sans-serif" font-size="10" fill="#525252">Sections: 1 → §16.1 — §16.2;   2 → §16.2;   3 → §16.5;   4 → §16.6 — §16.7;   5 → §16.8.</text>
+  <text x="60" y="652" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#8a8a85">Most genomics ML controversies reduce to a failure on one of these five questions.</text>
+</svg>

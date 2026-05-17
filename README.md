@@ -31,11 +31,14 @@ Open <http://localhost:8000/>. Alternatives: `npx serve .` if you have Node, or 
 │   ├── lecture-01/ ... lecture-27/       # exercise.ipynb + build_notebook.py
 │   ├── apply_colab_form.py               # Patcher: wires hidden solutions to Colab's #@title form pattern
 │   └── tests/                            # Structural + endpoint + execution test suites
-├── book/                                 # Print edition (Typst, A4) — complete (27/27 chapters)
-│   ├── book.typ                          # Top-level: frontmatter, TOC, chapter includes
-│   ├── theme/book-theme.typ              # Page geometry, type, admonitions
+├── book/                                 # Print edition (Typst, A4) — complete (27/27 chapters, 714 pp)
+│   ├── book.typ                          # Top-level: cover, frontmatter, TOC, chapter includes, index, back cover
+│   ├── theme/book-theme.typ              # Page geometry, type, admonitions, covers, index renderer
 │   ├── chapters/chNN-<slug>.typ          # One chapter per lecture
 │   ├── figures/chNN/                     # Print-only SVGs that replace web artifacts
+│   ├── figures/cover-mark.svg            # DNA-ladder mark used on both covers
+│   ├── index/terms.txt                   # Curated terms for the back-of-book index
+│   ├── index/tag.py                      # Tagger that inserts #idx() markers into chapter prose
 │   └── README.md                         # Build instructions (`typst compile --root .`)
 ├── assets/
 │   ├── styles.css                        # Site-wide tokens + homepage
@@ -126,15 +129,18 @@ typst compile --root . book/book.typ book/build/book.pdf
 typst watch   --root . book/book.typ book/build/book.pdf   # auto-rebuild
 ```
 
-Status: **all 27 chapters drafted.** Compiles to a 706-page A4 PDF.
-Authoring conventions live in `markdown_resources/book-style-guide.md`;
-the executable typographic source of truth lives in
-`book/theme/book-theme.typ`.
+Status: **all 27 chapters drafted, with front + back cover and a
+back-of-book index.** Compiles to a 714-page A4 PDF. The index is
+generated automatically from `book/index/terms.txt` by
+`book/index/tag.py`, which scans each chapter for first-occurrence
+terms and inserts invisible `#idx()` markers. Authoring conventions
+live in `markdown_resources/book-style-guide.md`; the executable
+typographic source of truth lives in `book/theme/book-theme.typ`.
 
 ## Current status
 
 **Shipped: all 27 lectures · 186 interactive tools · 320 figures · 27 Colab coding exercises · ~96 contact hours.**
-**Book: all 27 chapters drafted · ~245,000 words · 109 new print-only figures · 706-page A4 PDF.**
+**Book: all 27 chapters · ~245,000 words · 109 new print-only figures · 483-term back-of-book index · front + back cover · 714-page A4 PDF.**
 
 | # | Lecture | Time | Figures | Tools |
 |---|---|---|---|---|

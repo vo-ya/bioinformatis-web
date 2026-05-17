@@ -677,7 +677,7 @@ for r in RESTART_PROBS:
     lam_half = r / (1.0 - r)
     if lam_half <= 2:
         ax.axvline(lam_half, color="grey", linestyle=":", alpha=0.5)
-        ax.text(lam_half, 0.55, f"$\\lambda_{{1/2}}={lam_half:.2f}$",
+        ax.text(lam_half, 0.55, rf"$\\lambda_{{1/2}}={lam_half:.2f}$",
                 rotation=90, va="bottom", ha="right", fontsize=8)
 
 # Overlay the actual eigenvalue spectrum as a rug.
@@ -687,8 +687,8 @@ ax.scatter(eigvals, np.full_like(eigvals, -0.04), s=3, color="black", alpha=0.4,
 ax.axhline(0.5, color="black", linestyle="--", alpha=0.4)
 ax.set_xlim(0, 2)
 ax.set_ylim(-0.05, 1.05)
-ax.set_xlabel("Laplacian eigenvalue $\\lambda$  (graph frequency)")
-ax.set_ylabel("$H(\\lambda) = r / (r + (1-r)\\lambda)$")
+ax.set_xlabel(r"Laplacian eigenvalue $\\lambda$  (graph frequency)")
+ax.set_ylabel(r"$H(\\lambda) = r / (r + (1-r)\\lambda)$")
 ax.set_title("RWR as a low-pass filter on the graph Laplacian")
 ax.legend(loc="upper right")
 plt.tight_layout()

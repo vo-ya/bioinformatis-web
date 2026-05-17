@@ -197,10 +197,26 @@ UNIPROT_FASTA = "https://rest.uniprot.org/uniprotkb/{acc}.fasta"
 
 
 def _http_get(url: str, timeout: float = 30.0) -> bytes | None:
+    """GET ``url`` and gunzip the body if needed.
+
+    The InterPro Pfam endpoint serves alignments with ``Content-Encoding: gzip``
+    even when the client doesn't advertise gzip support, and HMM files with
+    ``Content-Type: application/gzip``. ``urllib`` does not transparently
+    decompress either, so we do it here.
+    """
+    import gzip
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "L15-exercise/1.0"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return resp.read()
+            data = resp.read()
+            ctype = (resp.headers.get("Content-Type") or "").lower()
+            cenc = (resp.headers.get("Content-Encoding") or "").lower()
+        if data[:2] == b"\\x1f\\x8b" or cenc == "gzip" or "gzip" in ctype:
+            try:
+                data = gzip.decompress(data)
+            except OSError:
+                pass
+        return data
     except Exception as exc:
         print(f"  network error on {url[:80]}...: {exc}")
         return None
@@ -526,8 +542,9 @@ $$\\mathrm{Conf}_{ij} = \\exp(-\\mathrm{PAE}_{ij} / \\tau)$$
 with $\\tau$ chosen so the score peaks at confidently-paired residues.
 
 The AlphaFold team publishes the PAE for every UniProt protein at
-`https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-predicted_aligned_error_v4.json`.
-This is a free, public JSON; nothing to run.
+`https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-predicted_aligned_error_<ver>.json`,
+where `<ver>` is the current release suffix (v6 as of 2026). The solution walks
+v6 → v5 → v4 so the notebook survives the periodic version rotation.
 
 For PF00042 / haemoglobin alpha the PAE matrix is `(142, 142)` (the
 reference-protein length). For comparison with DCA we have to **align the MSA
@@ -543,14 +560,16 @@ STEP3_TODO = '''# --------------------------------------------------------------
 # Step 3 — Fetch the AlphaFold-DB PAE for the reference protein.
 # ----------------------------------------------------------------------
 
-PAE_URL = "https://alphafold.ebi.ac.uk/files/AF-{acc}-F1-predicted_aligned_error_v4.json"
+PAE_URL_TMPL = "https://alphafold.ebi.ac.uk/files/AF-{acc}-F1-predicted_aligned_error_{ver}.json"
+PAE_VERSIONS = ("v6", "v5", "v4")  # current release first; fall back if 404.
 
 
 def fetch_alphafold_pae(accession: str) -> np.ndarray | None:
     """Return the (L_ref, L_ref) PAE matrix from AlphaFold DB, or None on failure."""
-    # TODO: GET the JSON, parse the {'predicted_aligned_error': [[..], [..], ...]}
-    # field, return a numpy float array. Note: some versions wrap it in a list,
-    # i.e. the top-level JSON is a list of length 1 with the matrix inside.
+    # TODO: try each version in PAE_VERSIONS in order, GET the JSON, parse the
+    # {'predicted_aligned_error': [[..], [..], ...]} field, return a numpy
+    # float array. Note: older versions wrap the matrix in a single-element
+    # list, i.e. the top-level JSON is a list of length 1 with the dict inside.
     raise NotImplementedError
 
 
@@ -582,11 +601,20 @@ conf = None
 
 STEP3_SOLUTION = '''# Reference solution — Step 3.
 
-PAE_URL = "https://alphafold.ebi.ac.uk/files/AF-{acc}-F1-predicted_aligned_error_v4.json"
+# AlphaFold-DB rotates the version suffix on each release (~yearly). We try the
+# current release first and fall back through older versions so the notebook
+# survives release transitions.
+PAE_URL_TMPL = "https://alphafold.ebi.ac.uk/files/AF-{acc}-F1-predicted_aligned_error_{ver}.json"
+PAE_VERSIONS = ("v6", "v5", "v4")
 
 
 def fetch_alphafold_pae(accession: str) -> np.ndarray | None:
-    raw = _http_get(PAE_URL.format(acc=accession))
+    raw = None
+    for ver in PAE_VERSIONS:
+        raw = _http_get(PAE_URL_TMPL.format(acc=accession, ver=ver))
+        if raw is not None:
+            print(f"  AlphaFold-DB PAE: fetched {ver}")
+            break
     if raw is None:
         return None
     try:
@@ -594,7 +622,7 @@ def fetch_alphafold_pae(accession: str) -> np.ndarray | None:
     except Exception as exc:
         print(f"  PAE JSON parse failed: {exc}")
         return None
-    # The v4 JSON is a list with a single dict.
+    # Older versions wrap the matrix in a single-element list.
     if isinstance(payload, list) and payload:
         payload = payload[0]
     if not isinstance(payload, dict):

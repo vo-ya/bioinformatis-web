@@ -101,11 +101,25 @@ print(f"BLOSUM62 loaded: {BLOSUM62.shape} entries; A/A={int(BLOSUM62['A','A'])},
 
 
 def _http_get(url: str, timeout: float = 30.0) -> str | None:
-    \"\"\"Minimal GET wrapper; returns None on network failure.\"\"\"
+    \"\"\"Minimal GET wrapper; gunzips the body if needed. None on failure.
+
+    The InterPro Pfam alignment endpoint sets ``Content-Encoding: gzip`` even
+    when the client does not advertise gzip support, and ``urllib`` does not
+    transparently decompress.
+    \"\"\"
+    import gzip
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "L20-exercise/1.0"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return resp.read().decode("utf-8", errors="replace")
+            data = resp.read()
+            ctype = (resp.headers.get("Content-Type") or "").lower()
+            cenc = (resp.headers.get("Content-Encoding") or "").lower()
+        if data[:2] == b"\\x1f\\x8b" or cenc == "gzip" or "gzip" in ctype:
+            try:
+                data = gzip.decompress(data)
+            except OSError:
+                pass
+        return data.decode("utf-8", errors="replace")
     except Exception as exc:
         print(f"  network error on {url[:80]}...: {exc}")
         return None

@@ -257,7 +257,7 @@ c = np.median(width * np.sqrt(depth))
 axes[1].plot(xs, c / np.sqrt(xs), "r--", lw=2, label=r"$c/\\sqrt{n}$ guide")
 axes[1].set_xlabel("read depth (M+U)")
 axes[1].set_ylabel("95% CI width")
-axes[1].set_title("Posterior CI shrinks as $1/\\sqrt{n}$")
+axes[1].set_title(r"Posterior CI shrinks as $1/\\sqrt{n}$")
 axes[1].legend()
 
 plt.tight_layout()

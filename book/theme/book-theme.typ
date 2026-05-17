@@ -89,8 +89,8 @@
   }
 
   show heading.where(level: 2): it => {
-    v(22pt, weak: true)
-    block[
+    v(32pt, weak: true)
+    block(width: 100%)[
       #text(font: ("Source Serif 4", "Charter", "Georgia"),
             size: 18pt, weight: "medium")[
         #text(fill: accent)[#counter(heading).display("1.1")]
@@ -98,14 +98,16 @@
         #it.body
       ]
     ]
-    v(4pt, weak: true)
+    v(14pt)
   }
 
   show heading.where(level: 3): it => {
-    v(14pt, weak: true)
-    text(font: ("Source Serif 4", "Charter", "Georgia"),
-         size: 13pt, weight: "medium", style: "italic", it.body)
-    v(2pt, weak: true)
+    v(20pt, weak: true)
+    block(width: 100%)[
+      #text(font: ("Source Serif 4", "Charter", "Georgia"),
+            size: 13pt, weight: "medium", style: "italic", it.body)
+    ]
+    v(8pt)
   }
 
   // ── Inline code ────────────────────────────────────────────────────

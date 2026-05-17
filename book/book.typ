@@ -11,9 +11,13 @@
   author: "Vojislav Varjačić",
 )
 
+// Title is set as content (not a string) so the same explicit line
+// break renders identically on the cover and the title page.
+#let TITLE_CONTENT = [Bioinformatics for \ Engineers]
+
 // ─── Cover ───────────────────────────────────────────────────────────
 #book-cover(
-  "Bioinformatics for Engineers",
+  TITLE_CONTENT,
   "How biology became a data problem.",
   "Vojislav Varjačić",
   "First edition",
@@ -22,7 +26,7 @@
 
 // ─── Front matter ────────────────────────────────────────────────────
 #book-title-page(
-  "Bioinformatics for Engineers",
+  TITLE_CONTENT,
   "How biology became a data problem.",
   "Vojislav Varjačić",
   "First edition",

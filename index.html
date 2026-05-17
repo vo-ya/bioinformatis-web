@@ -50,12 +50,13 @@
   <p class="homepage-description">A one-semester tour of the instrumentation, signal processing, and algorithms that turned biology into an engineering discipline. From the physical structure of the genome to the algorithms that read it — sequencers as microscopes, basecallers as signal processors, the central dogma as a pipeline. Everything framed for engineers: where the signal is, where the noise is, and how the instrument was designed.</p>
 
   <!-- ─── Course stats at a glance ──────────────────────── -->
-  <ul class="homepage-stats" aria-label="Course at a glance">
-    <li><span class="homepage-stats-value">27</span><span class="homepage-stats-label">lectures</span></li>
-    <li><span class="homepage-stats-value">27</span><span class="homepage-stats-label">coding exercises</span></li>
-    <li><span class="homepage-stats-value">186</span><span class="homepage-stats-label">interactive tools</span></li>
-    <li><span class="homepage-stats-value">320</span><span class="homepage-stats-label">figures</span></li>
-    <li><span class="homepage-stats-value">~96</span><span class="homepage-stats-label">contact hours</span></li>
+  <!-- Values track the lecture-track toggle below; see <script> at bottom. -->
+  <ul class="homepage-stats" id="homepage-stats" aria-label="Course at a glance">
+    <li><span class="homepage-stats-value" data-student="15"  data-all="27">15</span><span class="homepage-stats-label">lectures</span></li>
+    <li><span class="homepage-stats-value" data-student="15"  data-all="27">15</span><span class="homepage-stats-label">coding exercises</span></li>
+    <li><span class="homepage-stats-value" data-student="100" data-all="186">100</span><span class="homepage-stats-label">interactive tools</span></li>
+    <li><span class="homepage-stats-value" data-student="176" data-all="320">176</span><span class="homepage-stats-label">figures</span></li>
+    <li><span class="homepage-stats-value" data-student="~54" data-all="~96">~54</span><span class="homepage-stats-label">contact hours</span></li>
   </ul>
 
   <!-- ─── Mini-rungs — echoes the mark's rung geometry ─── -->
@@ -472,12 +473,20 @@
     var tabs = document.querySelectorAll('#track-tabs .track-tab');
     if (!list || tabs.length === 0) return;
 
+    var statValues = document.querySelectorAll('#homepage-stats .homepage-stats-value');
+
     function apply(mode) {
       list.classList.toggle('show-student-only', mode === 'student');
       tabs.forEach(function (t) {
         var active = t.getAttribute('data-show') === mode;
         t.classList.toggle('is-active', active);
         t.setAttribute('aria-selected', String(active));
+      });
+      // Mirror the track choice in the at-a-glance stats strip.
+      var attr = mode === 'student' ? 'data-student' : 'data-all';
+      statValues.forEach(function (v) {
+        var next = v.getAttribute(attr);
+        if (next !== null) v.textContent = next;
       });
     }
 

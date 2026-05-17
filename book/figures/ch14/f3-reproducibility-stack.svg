@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 580" role="img" aria-labelledby="t d">
+  <title id="t">The six-layer reproducibility stack for a bioinformatics analysis</title>
+  <desc id="d">A vertical stack diagram. Six layers from top to bottom: pipeline code (git SHA), random seeds (explicit constants), reference data (MD5-pinned FASTA, dbSNP, GTF), tool dependencies (pip / conda lock), language runtime (Python or R version), and OS / container image (Docker digest). Each layer has a left-side label, a centre "what to pin" specifier, and a right-side checklist symbol with the canonical pinning artefact. A right column lists what breaks if you forget each layer.</desc>
+
+  <rect x="0" y="0" width="1200" height="580" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <g>
+    <text x="60" y="40" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">THE REPRODUCIBILITY STACK &#8212; SIX LAYERS, EACH TO BE PINNED</text>
+    <text x="60" y="58" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">A container alone gets you two layers. Reproducible analysis requires all six.</text>
+  </g>
+
+  <!-- column headers -->
+  <g transform="translate(60, 90)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">LAYER</text>
+    <text x="280" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">WHAT YOU PIN</text>
+    <text x="600" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">PINNING ARTEFACT</text>
+    <text x="880" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">WHAT BREAKS IF YOU DON'T</text>
+  </g>
+
+  <!-- Layer rows. Each row is 60 px tall, starting at y=110 -->
+
+  <!-- Row 1: Pipeline code -->
+  <g transform="translate(60, 110)">
+    <rect x="0" y="0" width="1080" height="60" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1"/>
+    <text x="20" y="22" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a">1.  Pipeline code</text>
+    <text x="20" y="40" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">the workflow itself</text>
+    <text x="280" y="32" font-family="Inter, sans-serif" font-size="10.5" fill="#0a0a0a">Git commit SHA  &#183;  release tag</text>
+    <text x="600" y="32" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">git rev-parse HEAD  /  v2.4.0</text>
+    <text x="880" y="32" font-family="Inter, sans-serif" font-size="10" fill="#525252">Pipeline drifts between samples</text>
+  </g>
+
+  <!-- Row 2: Tool dependencies -->
+  <g transform="translate(60, 180)">
+    <rect x="0" y="0" width="1080" height="60" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1" opacity="0.85"/>
+    <text x="20" y="22" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a">2.  Tool versions</text>
+    <text x="20" y="40" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">BWA, samtools, GATK&#8230;</text>
+    <text x="280" y="32" font-family="Inter, sans-serif" font-size="10.5" fill="#0a0a0a">Exact package versions</text>
+    <text x="600" y="32" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">conda-lock.yml, requirements.txt</text>
+    <text x="880" y="32" font-family="Inter, sans-serif" font-size="10" fill="#525252">Caller behaviour shifts silently</text>
+  </g>
+
+  <!-- Row 3: Language runtime -->
+  <g transform="translate(60, 250)">
+    <rect x="0" y="0" width="1080" height="60" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1" opacity="0.7"/>
+    <text x="20" y="22" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a">3.  Language runtime</text>
+    <text x="20" y="40" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">Python, R, JVM</text>
+    <text x="280" y="32" font-family="Inter, sans-serif" font-size="10.5" fill="#0a0a0a">Major + minor + patch  (3.11.4)</text>
+    <text x="600" y="32" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">pyproject.toml  /  renv.lock</text>
+    <text x="880" y="32" font-family="Inter, sans-serif" font-size="10" fill="#525252">Floating-point summaries diverge</text>
+  </g>
+
+  <!-- Row 4: OS + container -->
+  <g transform="translate(60, 320)">
+    <rect x="0" y="0" width="1080" height="60" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1" opacity="0.55"/>
+    <text x="20" y="22" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a">4.  OS  &#183;  container image</text>
+    <text x="20" y="40" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">glibc, libhts, kernel ABI</text>
+    <text x="280" y="32" font-family="Inter, sans-serif" font-size="10.5" fill="#0a0a0a">Image digest, not just a tag</text>
+    <text x="600" y="32" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">quay.io/&#8230;@sha256:1f3c7&#8230;</text>
+    <text x="880" y="32" font-family="Inter, sans-serif" font-size="10" fill="#525252">Tag moves; ":latest" rots</text>
+  </g>
+
+  <!-- Row 5: Reference data -->
+  <g transform="translate(60, 390)">
+    <rect x="0" y="0" width="1080" height="60" fill="#fff7e6" stroke="#b45309" stroke-width="1.5"/>
+    <text x="20" y="22" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#b45309">5.  Reference data</text>
+    <text x="20" y="40" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">FASTA, dbSNP, GTF, models</text>
+    <text x="280" y="32" font-family="Inter, sans-serif" font-size="10.5" fill="#0a0a0a">MD5 of every file used</text>
+    <text x="600" y="32" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">samtools view -H | grep M5  /  refgenie</text>
+    <text x="880" y="32" font-family="Inter, sans-serif" font-size="10" fill="#525252">Coordinates and calls misalign</text>
+  </g>
+
+  <!-- Row 6: seeds -->
+  <g transform="translate(60, 460)">
+    <rect x="0" y="0" width="1080" height="60" fill="#ffefef" stroke="#b91c1c" stroke-width="1.5"/>
+    <text x="20" y="22" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#b91c1c">6.  Random seeds  &#183;  hardware non-determinism</text>
+    <text x="20" y="40" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">MCMC, imputation, CUDA</text>
+    <text x="280" y="32" font-family="Inter, sans-serif" font-size="10.5" fill="#0a0a0a">Explicit seed constants  &#183;  GPU model</text>
+    <text x="600" y="32" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">numpy.random.seed(...)  &#183;  CUDA_VISIBLE_DEVICES</text>
+    <text x="880" y="32" font-family="Inter, sans-serif" font-size="10" fill="#525252">Output drifts run-to-run</text>
+  </g>
+
+  <!-- footnote -->
+  <text x="60" y="548" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#8a8a85">A container alone covers layers 2 - 4. Layers 1, 5, 6 must be pinned separately &#8212; in the pipeline manifest, the reference manifest, and the script source.</text>
+</svg>

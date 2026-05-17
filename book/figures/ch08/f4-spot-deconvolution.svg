@@ -1,0 +1,210 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="t d">
+  <title id="t">Visium spot deconvolution as constrained non-negative unmixing</title>
+  <desc id="d">A three-panel figure laying out the mixed-pixel unmixing problem for one Visium spot. The left panel shows a circular spot containing five small coloured cells of three types (T cells, B cells, macrophages) with the spot's diameter labelled as 55 microns; below the spot a horizontal stacked bar visualises the observed gene-expression count vector x_i as a weighted sum of contributions. The middle panel shows three reference profiles mu_T, mu_B, mu_Mac drawn as small stylised expression histograms over a panel of marker genes (CD3, CD20, CD68, and a few others), each in a different colour. The right panel shows the inferred per-spot proportions w as a stacked bar with the three colour-coded segments at 40 percent T cell, 40 percent B cell, 20 percent macrophage. Below the panels a centered equation reads x_i approximately equals sum over k of w_ik times mu_k subject to w_ik greater than or equal to zero and sum over k of w_ik equals one, with a label "constrained non-negative least squares" and a side annotation noting that this is the same math as remote-sensing spectral unmixing.</desc>
+
+  <defs>
+    <marker id="arrow-cobalt-2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="620" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <g>
+    <text x="60" y="38" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">SPOT DECONVOLUTION = MIXED-PIXEL UNMIXING</text>
+    <text x="60" y="56" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">Same math as the remote-sensing spectral-unmixing problem — endmembers replaced by cell-type profiles.</text>
+  </g>
+
+  <!-- ============ PANEL A: Spot with mixed cells ============ -->
+  <g transform="translate(60, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(A)  ONE VISIUM SPOT  ·  MIXED CELLS</text>
+
+    <!-- Spot background -->
+    <circle cx="170" cy="160" r="120" fill="#f4f3ee" stroke="#1e3a8a" stroke-width="2" stroke-dasharray="6 4"/>
+    <text x="170" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" text-anchor="middle">55 µm diameter spot</text>
+
+    <!-- Cells -->
+    <!-- T cells (cobalt) -->
+    <circle cx="120" cy="120" r="20" fill="#1e3a8a" opacity="0.85"/>
+    <text x="120" y="125" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#ffffff" text-anchor="middle">T</text>
+
+    <circle cx="200" cy="120" r="18" fill="#1e3a8a" opacity="0.85"/>
+    <text x="200" y="125" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#ffffff" text-anchor="middle">T</text>
+
+    <!-- B cells (amber) -->
+    <circle cx="140" cy="200" r="20" fill="#b45309" opacity="0.85"/>
+    <text x="140" y="205" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#ffffff" text-anchor="middle">B</text>
+
+    <circle cx="220" cy="190" r="19" fill="#b45309" opacity="0.85"/>
+    <text x="220" y="195" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#ffffff" text-anchor="middle">B</text>
+
+    <!-- Macrophage (green) -->
+    <circle cx="180" cy="240" r="22" fill="#065f46" opacity="0.85"/>
+    <text x="180" y="246" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#ffffff" text-anchor="middle">M</text>
+
+    <!-- Scale bar -->
+    <line x1="60" y1="290" x2="100" y2="290" stroke="#374151" stroke-width="2"/>
+    <text x="80" y="306" font-family="Inter, sans-serif" font-size="9" fill="#525252" text-anchor="middle">~20 µm</text>
+
+    <!-- Observed counts bar (stacked) -->
+    <text x="0" y="340" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">OBSERVED COUNTS  x_i</text>
+    <g transform="translate(0, 350)">
+      <!-- Stacked bar: T 40%, B 40%, M 20% over 320 px width -->
+      <rect x="0"   y="0" width="128" height="22" fill="#1e3a8a"/>
+      <rect x="128" y="0" width="128" height="22" fill="#b45309"/>
+      <rect x="256" y="0" width="64"  height="22" fill="#065f46"/>
+      <rect x="0"   y="0" width="320" height="22" fill="none" stroke="#374151" stroke-width="1"/>
+      <text x="64"  y="14" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#ffffff" text-anchor="middle">T</text>
+      <text x="192" y="14" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#ffffff" text-anchor="middle">B</text>
+      <text x="288" y="14" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#ffffff" text-anchor="middle">Mac</text>
+    </g>
+    <text x="0" y="392" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252">weighted sum of cell-type contributions, observed without labels</text>
+  </g>
+
+  <!-- ============ PANEL B: Reference profiles ============ -->
+  <g transform="translate(440, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(B)  REFERENCE PROFILES  µ_k  (FROM scRNA-seq ATLAS)</text>
+
+    <!-- T-cell profile -->
+    <g transform="translate(0, 30)">
+      <rect x="0" y="0" width="280" height="80" fill="#ffffff" stroke="#e5e3dc" stroke-width="1"/>
+      <text x="14" y="18" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a">µ_T  ·  T cell</text>
+      <!-- bars: 6 gene markers - taller in CD3, mid CD8 etc -->
+      <g>
+        <rect x="20" y="40" width="20" height="32" fill="#1e3a8a"/>
+        <rect x="48" y="56" width="20" height="16" fill="#1e3a8a"/>
+        <rect x="76" y="62" width="20" height="10" fill="#1e3a8a"/>
+        <rect x="104" y="48" width="20" height="24" fill="#1e3a8a"/>
+        <rect x="132" y="68" width="20" height="4" fill="#1e3a8a"/>
+        <rect x="160" y="66" width="20" height="6" fill="#1e3a8a"/>
+        <rect x="188" y="64" width="20" height="8" fill="#1e3a8a"/>
+        <line x1="14" y1="72" x2="220" y2="72" stroke="#374151" stroke-width="0.8"/>
+      </g>
+      <text x="30"  y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 30, 78)">CD3</text>
+      <text x="58"  y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 58, 78)">CD8</text>
+      <text x="86"  y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 86, 78)">CD4</text>
+      <text x="114" y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 114, 78)">TRBC</text>
+      <text x="142" y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 142, 78)">CD20</text>
+      <text x="170" y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 170, 78)">CD68</text>
+      <text x="198" y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 198, 78)">LYZ</text>
+    </g>
+
+    <!-- B-cell profile -->
+    <g transform="translate(0, 130)">
+      <rect x="0" y="0" width="280" height="80" fill="#ffffff" stroke="#e5e3dc" stroke-width="1"/>
+      <text x="14" y="18" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b45309">µ_B  ·  B cell</text>
+      <g>
+        <rect x="20"  y="66" width="20" height="6"  fill="#b45309"/>
+        <rect x="48"  y="68" width="20" height="4"  fill="#b45309"/>
+        <rect x="76"  y="64" width="20" height="8"  fill="#b45309"/>
+        <rect x="104" y="60" width="20" height="12" fill="#b45309"/>
+        <rect x="132" y="40" width="20" height="32" fill="#b45309"/>
+        <rect x="160" y="64" width="20" height="8"  fill="#b45309"/>
+        <rect x="188" y="62" width="20" height="10" fill="#b45309"/>
+        <line x1="14" y1="72" x2="220" y2="72" stroke="#374151" stroke-width="0.8"/>
+      </g>
+      <text x="30"  y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 30, 78)">CD3</text>
+      <text x="58"  y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 58, 78)">CD8</text>
+      <text x="86"  y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 86, 78)">CD4</text>
+      <text x="114" y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 114, 78)">TRBC</text>
+      <text x="142" y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 142, 78)">CD20</text>
+      <text x="170" y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 170, 78)">CD68</text>
+      <text x="198" y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 198, 78)">LYZ</text>
+    </g>
+
+    <!-- Macrophage profile -->
+    <g transform="translate(0, 230)">
+      <rect x="0" y="0" width="280" height="80" fill="#ffffff" stroke="#e5e3dc" stroke-width="1"/>
+      <text x="14" y="18" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#065f46">µ_Mac  ·  Macrophage</text>
+      <g>
+        <rect x="20"  y="68" width="20" height="4"  fill="#065f46"/>
+        <rect x="48"  y="66" width="20" height="6"  fill="#065f46"/>
+        <rect x="76"  y="60" width="20" height="12" fill="#065f46"/>
+        <rect x="104" y="60" width="20" height="12" fill="#065f46"/>
+        <rect x="132" y="64" width="20" height="8"  fill="#065f46"/>
+        <rect x="160" y="40" width="20" height="32" fill="#065f46"/>
+        <rect x="188" y="44" width="20" height="28" fill="#065f46"/>
+        <line x1="14" y1="72" x2="220" y2="72" stroke="#374151" stroke-width="0.8"/>
+      </g>
+      <text x="30"  y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 30, 78)">CD3</text>
+      <text x="58"  y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 58, 78)">CD8</text>
+      <text x="86"  y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 86, 78)">CD4</text>
+      <text x="114" y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 114, 78)">TRBC</text>
+      <text x="142" y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 142, 78)">CD20</text>
+      <text x="170" y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 170, 78)">CD68</text>
+      <text x="198" y="73" font-family="JetBrains Mono, monospace" font-size="7" fill="#525252" text-anchor="middle" transform="rotate(-45, 198, 78)">LYZ</text>
+    </g>
+  </g>
+
+  <!-- ============ PANEL C: Inferred proportions ============ -->
+  <g transform="translate(780, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(C)  INFERRED PROPORTIONS  w_i</text>
+
+    <!-- Vertical bar chart -->
+    <g transform="translate(20, 40)">
+      <rect x="0" y="0" width="300" height="260" fill="#ffffff" stroke="#e5e3dc" stroke-width="1"/>
+
+      <!-- y axis -->
+      <line x1="50" y1="20" x2="50" y2="220" stroke="#374151" stroke-width="1"/>
+      <line x1="50" y1="220" x2="270" y2="220" stroke="#374151" stroke-width="1"/>
+
+      <text x="14" y="120" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252" transform="rotate(-90, 14, 120)" text-anchor="middle">proportion w_ik</text>
+
+      <!-- gridlines -->
+      <g stroke="#e5e3dc" stroke-width="0.5" stroke-dasharray="2 3">
+        <line x1="50" y1="180" x2="270" y2="180"/>
+        <line x1="50" y1="140" x2="270" y2="140"/>
+        <line x1="50" y1="100" x2="270" y2="100"/>
+        <line x1="50" y1="60"  x2="270" y2="60"/>
+      </g>
+      <g font-family="JetBrains Mono, monospace" font-size="9" fill="#8a8a85">
+        <text x="44" y="224" text-anchor="end">0.0</text>
+        <text x="44" y="184" text-anchor="end">0.2</text>
+        <text x="44" y="144" text-anchor="end">0.4</text>
+        <text x="44" y="104" text-anchor="end">0.6</text>
+        <text x="44" y="64"  text-anchor="end">0.8</text>
+        <text x="44" y="24"  text-anchor="end">1.0</text>
+      </g>
+
+      <!-- Bars: T 0.40 -> 80 px, B 0.40 -> 80 px, Mac 0.20 -> 40 px. Baseline y=220. -->
+      <!-- T at x=80, B at x=150, Mac at x=220 -->
+      <rect x="78"  y="140" width="44" height="80" fill="#1e3a8a"/>
+      <text x="100" y="234" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#1e3a8a" text-anchor="middle">T</text>
+      <text x="100" y="134" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700" fill="#1e3a8a" text-anchor="middle">0.40</text>
+
+      <rect x="148" y="140" width="44" height="80" fill="#b45309"/>
+      <text x="170" y="234" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#b45309" text-anchor="middle">B</text>
+      <text x="170" y="134" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700" fill="#b45309" text-anchor="middle">0.40</text>
+
+      <rect x="218" y="180" width="44" height="40" fill="#065f46"/>
+      <text x="240" y="234" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#065f46" text-anchor="middle">Mac</text>
+      <text x="240" y="174" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700" fill="#065f46" text-anchor="middle">0.20</text>
+
+      <!-- Ground-truth ticks -->
+      <line x1="80"  y1="138" x2="124" y2="138" stroke="#0a0a0a" stroke-width="2"/>
+      <line x1="150" y1="138" x2="194" y2="138" stroke="#0a0a0a" stroke-width="2"/>
+      <line x1="220" y1="178" x2="264" y2="178" stroke="#0a0a0a" stroke-width="2"/>
+
+      <text x="160" y="252" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252" text-anchor="middle">— ground-truth ticks overlaid</text>
+    </g>
+
+    <!-- constraint reminder -->
+    <g transform="translate(20, 320)">
+      <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">CONSTRAINTS</text>
+      <text x="0" y="20" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">w_ik ≥ 0</text>
+      <text x="0" y="40" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">Σ_k w_ik = 1</text>
+    </g>
+  </g>
+
+  <!-- ============ Bottom equation strip ============ -->
+  <g transform="translate(60, 510)">
+    <rect x="0" y="0" width="1080" height="76" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5"/>
+    <text x="14" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">THE UNMIXING PROBLEM  ·  CONSTRAINED NON-NEGATIVE LEAST SQUARES</text>
+
+    <text x="540" y="52" font-family="JetBrains Mono, monospace" font-size="18" font-weight="700" fill="#0a0a0a" text-anchor="middle">x_i  ≈  Σ_k  w_ik  ·  µ_k    s.t.  w_ik ≥ 0,   Σ_k w_ik = 1</text>
+
+    <text x="14" y="68" font-family="Inter, sans-serif" font-size="9" fill="#525252">RCTD (Poisson MLE) and cell2location (Bayesian) are the two dominant solvers in 2024.</text>
+    <text x="1066" y="68" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252" text-anchor="end">Same algebra as remote-sensing spectral unmixing — replace endmember spectra with cell-type profiles.</text>
+  </g>
+</svg>

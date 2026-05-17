@@ -1,0 +1,304 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="t d">
+  <title id="t">PCA to UMAP — two reductions that do different jobs</title>
+  <desc id="d">A three-panel pipeline diagram showing the geometric content of dimensionality reduction in single-cell analysis. Panel A shows a sketch of 2000 highly variable genes per cell as a sparse cells-by-genes matrix at high dimension where pairwise distances become uninformative — the curse of dimensionality. Panel B shows PCA producing a linear 30-component projection with a scree plot to the right; the first few principal components capture most of the variance and already partly separate the cell types. Panel C shows UMAP taking the 30-dimensional PCA coordinates and embedding them into a 2D plane that preserves local neighbourhood structure; the cells fall into a handful of discrete clusters with cell-type labels.</desc>
+
+  <defs>
+    <marker id="tri-cobalt-f3" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="640" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <g>
+    <text x="60" y="36" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">PCA → UMAP — TWO REDUCTIONS, TWO PURPOSES</text>
+    <text x="60" y="54" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">PCA is a linear decorrelator that suppresses noise. UMAP is a nonlinear embedder that preserves local topology for visualisation.</text>
+  </g>
+
+  <!-- ============= PANEL A: 2000-D HVG matrix ============= -->
+  <g transform="translate(40, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(A)  CELLS × 2000 HVGs</text>
+    <text x="0" y="18" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">sparse high-D — the curse of dimensionality</text>
+
+    <!-- Matrix sketch -->
+    <g transform="translate(0, 34)">
+      <rect x="0" y="0" width="280" height="240" fill="#ffffff" stroke="#1e3a8a" stroke-width="1"/>
+
+      <!-- Column header -->
+      <text x="140" y="-6" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">2 000 genes  →</text>
+      <text x="-6" y="120" text-anchor="end" font-family="Inter, sans-serif" font-size="9" fill="#525252" transform="rotate(-90, -6, 120)">10 000 cells  ↓</text>
+
+      <!-- Sparse pattern — irregular blocks of nonzero entries -->
+      <g fill="#1e3a8a" opacity="0.85">
+        <!-- cluster 1 block -->
+        <rect x="14"  y="14"  width="3" height="2"/>
+        <rect x="22"  y="14"  width="3" height="2"/>
+        <rect x="46"  y="14"  width="3" height="2"/>
+        <rect x="14"  y="22"  width="3" height="2"/>
+        <rect x="36"  y="22"  width="3" height="2"/>
+        <rect x="50"  y="22"  width="3" height="2"/>
+        <rect x="22"  y="30"  width="3" height="2"/>
+        <rect x="44"  y="30"  width="3" height="2"/>
+        <rect x="18"  y="38"  width="3" height="2"/>
+        <rect x="40"  y="38"  width="3" height="2"/>
+        <rect x="14"  y="46"  width="3" height="2"/>
+        <rect x="58"  y="46"  width="3" height="2"/>
+        <rect x="34"  y="54"  width="3" height="2"/>
+        <rect x="50"  y="54"  width="3" height="2"/>
+        <rect x="24"  y="62"  width="3" height="2"/>
+        <!-- cluster 2 block -->
+        <rect x="100" y="74"  width="3" height="2"/>
+        <rect x="124" y="74"  width="3" height="2"/>
+        <rect x="106" y="82"  width="3" height="2"/>
+        <rect x="132" y="82"  width="3" height="2"/>
+        <rect x="118" y="90"  width="3" height="2"/>
+        <rect x="140" y="90"  width="3" height="2"/>
+        <rect x="112" y="98"  width="3" height="2"/>
+        <rect x="128" y="98"  width="3" height="2"/>
+        <rect x="104" y="106" width="3" height="2"/>
+        <rect x="146" y="106" width="3" height="2"/>
+        <rect x="120" y="114" width="3" height="2"/>
+        <!-- cluster 3 block -->
+        <rect x="180" y="134" width="3" height="2"/>
+        <rect x="200" y="134" width="3" height="2"/>
+        <rect x="216" y="142" width="3" height="2"/>
+        <rect x="240" y="142" width="3" height="2"/>
+        <rect x="190" y="150" width="3" height="2"/>
+        <rect x="226" y="150" width="3" height="2"/>
+        <rect x="208" y="158" width="3" height="2"/>
+        <rect x="244" y="158" width="3" height="2"/>
+        <rect x="180" y="166" width="3" height="2"/>
+        <rect x="216" y="166" width="3" height="2"/>
+        <rect x="232" y="174" width="3" height="2"/>
+        <rect x="252" y="174" width="3" height="2"/>
+        <!-- noise scatter -->
+        <rect x="78"  y="20"  width="3" height="2"/>
+        <rect x="232" y="40"  width="3" height="2"/>
+        <rect x="166" y="60"  width="3" height="2"/>
+        <rect x="86"  y="140" width="3" height="2"/>
+        <rect x="170" y="184" width="3" height="2"/>
+        <rect x="68"  y="200" width="3" height="2"/>
+        <rect x="200" y="100" width="3" height="2"/>
+        <rect x="92"  y="180" width="3" height="2"/>
+        <rect x="50"  y="160" width="3" height="2"/>
+        <rect x="248" y="60"  width="3" height="2"/>
+      </g>
+
+      <!-- "95% zero" callout -->
+      <text x="140" y="226" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#525252">~95% zeros · noise dominates</text>
+    </g>
+
+    <!-- Curse-of-dim note -->
+    <g transform="translate(0, 304)">
+      <rect x="0" y="0" width="280" height="76" rx="3" fill="#fef3c7" stroke="#b45309" stroke-width="1"/>
+      <text x="10" y="18" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b45309" letter-spacing="0.06em">CURSE OF DIMENSIONALITY</text>
+      <text x="10" y="36" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">In 2 000-D Euclidean space</text>
+      <text x="10" y="52" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">all pairwise distances</text>
+      <text x="10" y="68" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">converge to the same value.</text>
+    </g>
+  </g>
+
+  <!-- Arrow from A to B -->
+  <line x1="332" y1="220" x2="392" y2="220" stroke="#1e3a8a" stroke-width="1.4" marker-end="url(#tri-cobalt-f3)"/>
+  <text x="362" y="208" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a">PCA</text>
+  <text x="362" y="236" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">SVD · linear</text>
+
+  <!-- ============= PANEL B: PCA scree + scatter ============= -->
+  <g transform="translate(400, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(B)  CELLS × 30 PCs</text>
+    <text x="0" y="18" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">first ~30 SVD components capture 60–75% of variance</text>
+
+    <!-- Scree plot -->
+    <g transform="translate(0, 34)">
+      <rect x="0" y="0" width="280" height="160" fill="#ffffff" stroke="#e5e3dc" stroke-width="1"/>
+      <text x="140" y="-6" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">scree plot</text>
+
+      <!-- Bars -->
+      <g fill="#1e3a8a">
+        <rect x="10"  y="20"  width="6" height="120"/>
+        <rect x="20"  y="34"  width="6" height="106"/>
+        <rect x="30"  y="50"  width="6" height="90"/>
+        <rect x="40"  y="62"  width="6" height="78"/>
+        <rect x="50"  y="72"  width="6" height="68"/>
+        <rect x="60"  y="80"  width="6" height="60"/>
+        <rect x="70"  y="88"  width="6" height="52"/>
+        <rect x="80"  y="95"  width="6" height="45"/>
+        <rect x="90"  y="100" width="6" height="40"/>
+        <rect x="100" y="105" width="6" height="35"/>
+        <rect x="110" y="110" width="6" height="30"/>
+        <rect x="120" y="114" width="6" height="26"/>
+        <rect x="130" y="117" width="6" height="23"/>
+        <rect x="140" y="120" width="6" height="20"/>
+        <rect x="150" y="122" width="6" height="18"/>
+        <rect x="160" y="124" width="6" height="16"/>
+        <rect x="170" y="126" width="6" height="14"/>
+        <rect x="180" y="128" width="6" height="12"/>
+        <rect x="190" y="129" width="6" height="11"/>
+        <rect x="200" y="130" width="6" height="10"/>
+      </g>
+      <g fill="#8a8a85">
+        <rect x="210" y="131" width="6" height="9"/>
+        <rect x="220" y="132" width="6" height="8"/>
+        <rect x="230" y="133" width="6" height="7"/>
+        <rect x="240" y="134" width="6" height="6"/>
+        <rect x="250" y="135" width="6" height="5"/>
+        <rect x="260" y="136" width="6" height="4"/>
+      </g>
+
+      <!-- Elbow line -->
+      <line x1="206" y1="20" x2="206" y2="140" stroke="#b45309" stroke-width="1" stroke-dasharray="4 3"/>
+      <text x="210" y="32" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#b45309">elbow ≈ PC 30</text>
+
+      <line x1="0" y1="140" x2="280" y2="140" stroke="#525252" stroke-width="1"/>
+      <text x="0" y="155" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">PC1</text>
+      <text x="200" y="155" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">PC30</text>
+      <text x="270" y="155" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">PC50</text>
+    </g>
+
+    <!-- PC1 vs PC2 scatter -->
+    <g transform="translate(0, 220)">
+      <rect x="0" y="0" width="280" height="160" fill="#ffffff" stroke="#e5e3dc" stroke-width="1"/>
+      <text x="140" y="-6" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">PC1 vs PC2 — partial separation</text>
+
+      <!-- Three loose blobs -->
+      <g fill="#1e3a8a" opacity="0.7">
+        <!-- blob 1 (top left) -->
+        <circle cx="70"  cy="40" r="2.2"/>
+        <circle cx="80"  cy="36" r="2.2"/>
+        <circle cx="90"  cy="44" r="2.2"/>
+        <circle cx="76"  cy="50" r="2.2"/>
+        <circle cx="84"  cy="56" r="2.2"/>
+        <circle cx="68"  cy="58" r="2.2"/>
+        <circle cx="94"  cy="38" r="2.2"/>
+        <circle cx="98"  cy="50" r="2.2"/>
+        <circle cx="86"  cy="46" r="2.2"/>
+        <circle cx="72"  cy="46" r="2.2"/>
+      </g>
+      <g fill="#b45309" opacity="0.7">
+        <!-- blob 2 (right) -->
+        <circle cx="200" cy="76"  r="2.2"/>
+        <circle cx="208" cy="80"  r="2.2"/>
+        <circle cx="216" cy="72"  r="2.2"/>
+        <circle cx="194" cy="84"  r="2.2"/>
+        <circle cx="200" cy="90"  r="2.2"/>
+        <circle cx="222" cy="86"  r="2.2"/>
+        <circle cx="212" cy="92"  r="2.2"/>
+        <circle cx="204" cy="98"  r="2.2"/>
+        <circle cx="218" cy="78"  r="2.2"/>
+        <circle cx="196" cy="74"  r="2.2"/>
+      </g>
+      <g fill="#065f46" opacity="0.7">
+        <!-- blob 3 (bottom) -->
+        <circle cx="110" cy="120" r="2.2"/>
+        <circle cx="116" cy="126" r="2.2"/>
+        <circle cx="124" cy="118" r="2.2"/>
+        <circle cx="106" cy="128" r="2.2"/>
+        <circle cx="120" cy="132" r="2.2"/>
+        <circle cx="132" cy="124" r="2.2"/>
+        <circle cx="114" cy="136" r="2.2"/>
+        <circle cx="126" cy="130" r="2.2"/>
+        <circle cx="118" cy="138" r="2.2"/>
+        <circle cx="108" cy="116" r="2.2"/>
+      </g>
+      <!-- scattered overlap noise -->
+      <g fill="#525252" opacity="0.4">
+        <circle cx="140" cy="80" r="1.6"/>
+        <circle cx="150" cy="100" r="1.6"/>
+        <circle cx="160" cy="90" r="1.6"/>
+        <circle cx="100" cy="86" r="1.6"/>
+        <circle cx="170" cy="120" r="1.6"/>
+      </g>
+
+      <!-- Axes -->
+      <line x1="0" y1="140" x2="280" y2="140" stroke="#525252" stroke-width="1"/>
+      <line x1="0" y1="0" x2="0" y2="140" stroke="#525252" stroke-width="1"/>
+      <text x="270" y="153" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">PC1</text>
+      <text x="6" y="14" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">PC2</text>
+    </g>
+  </g>
+
+  <!-- Arrow B to C -->
+  <line x1="692" y1="320" x2="752" y2="320" stroke="#1e3a8a" stroke-width="1.4" marker-end="url(#tri-cobalt-f3)"/>
+  <text x="722" y="308" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a">UMAP</text>
+  <text x="722" y="336" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252">k-NN graph · nonlinear</text>
+
+  <!-- ============= PANEL C: UMAP 2-D embedding ============= -->
+  <g transform="translate(760, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(C)  CELLS × 2  (UMAP)</text>
+    <text x="0" y="18" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">local-neighbour-preserving embedding for visualisation only</text>
+
+    <g transform="translate(0, 34)">
+      <rect x="0" y="0" width="380" height="380" fill="#ffffff" stroke="#e5e3dc" stroke-width="1"/>
+
+      <!-- Cluster blobs -->
+      <!-- Cluster A: T cells -->
+      <g fill="#1e3a8a" opacity="0.85">
+        <circle cx="80" cy="60" r="2.4"/><circle cx="86" cy="66" r="2.4"/><circle cx="92" cy="58" r="2.4"/><circle cx="78" cy="72" r="2.4"/>
+        <circle cx="100" cy="64" r="2.4"/><circle cx="92" cy="74" r="2.4"/><circle cx="76" cy="64" r="2.4"/><circle cx="106" cy="72" r="2.4"/>
+        <circle cx="84" cy="76" r="2.4"/><circle cx="98" cy="80" r="2.4"/><circle cx="74" cy="78" r="2.4"/><circle cx="112" cy="68" r="2.4"/>
+        <circle cx="88" cy="84" r="2.4"/><circle cx="104" cy="60" r="2.4"/><circle cx="68" cy="68" r="2.4"/><circle cx="118" cy="76" r="2.4"/>
+        <circle cx="120" cy="64" r="2.4"/><circle cx="64" cy="76" r="2.4"/>
+      </g>
+      <text x="90" y="50" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a">T cells</text>
+      <text x="90" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">CD3D · CD3E</text>
+
+      <!-- Cluster B: B cells -->
+      <g fill="#b45309" opacity="0.85">
+        <circle cx="290" cy="80" r="2.4"/><circle cx="296" cy="86" r="2.4"/><circle cx="302" cy="78" r="2.4"/><circle cx="284" cy="92" r="2.4"/>
+        <circle cx="310" cy="84" r="2.4"/><circle cx="302" cy="94" r="2.4"/><circle cx="288" cy="100" r="2.4"/><circle cx="316" cy="92" r="2.4"/>
+        <circle cx="282" cy="84" r="2.4"/><circle cx="306" cy="100" r="2.4"/><circle cx="278" cy="98" r="2.4"/><circle cx="316" cy="78" r="2.4"/>
+        <circle cx="294" cy="106" r="2.4"/><circle cx="320" cy="100" r="2.4"/>
+      </g>
+      <text x="305" y="72" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b45309">B cells</text>
+      <text x="300" y="124" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">MS4A1 · CD79A</text>
+
+      <!-- Cluster C: Monocytes -->
+      <g fill="#065f46" opacity="0.85">
+        <circle cx="140" cy="200" r="2.4"/><circle cx="148" cy="206" r="2.4"/><circle cx="154" cy="198" r="2.4"/><circle cx="136" cy="212" r="2.4"/>
+        <circle cx="162" cy="204" r="2.4"/><circle cx="154" cy="214" r="2.4"/><circle cx="140" cy="220" r="2.4"/><circle cx="168" cy="212" r="2.4"/>
+        <circle cx="132" cy="204" r="2.4"/><circle cx="160" cy="220" r="2.4"/><circle cx="128" cy="218" r="2.4"/><circle cx="172" cy="198" r="2.4"/>
+        <circle cx="146" cy="226" r="2.4"/><circle cx="174" cy="220" r="2.4"/><circle cx="124" cy="210" r="2.4"/>
+      </g>
+      <text x="148" y="192" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#065f46">Monocytes</text>
+      <text x="150" y="244" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">CD14 · LYZ</text>
+
+      <!-- Cluster D: NK cells -->
+      <g fill="#7c3aed" opacity="0.85">
+        <circle cx="310" cy="230" r="2.4"/><circle cx="316" cy="236" r="2.4"/><circle cx="304" cy="222" r="2.4"/><circle cx="298" cy="232" r="2.4"/>
+        <circle cx="322" cy="240" r="2.4"/><circle cx="306" cy="244" r="2.4"/><circle cx="292" cy="244" r="2.4"/><circle cx="320" cy="226" r="2.4"/>
+      </g>
+      <text x="310" y="218" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#7c3aed">NK</text>
+      <text x="312" y="258" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">GNLY · NKG7</text>
+
+      <!-- Cluster E: Dendritic -->
+      <g fill="#c4342c" opacity="0.85">
+        <circle cx="80" cy="300" r="2.4"/><circle cx="88" cy="306" r="2.4"/><circle cx="94" cy="298" r="2.4"/><circle cx="76" cy="312" r="2.4"/>
+        <circle cx="100" cy="304" r="2.4"/><circle cx="92" cy="314" r="2.4"/><circle cx="74" cy="304" r="2.4"/><circle cx="104" cy="316" r="2.4"/>
+      </g>
+      <text x="88" y="292" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#c4342c">Dendritic</text>
+      <text x="90" y="332" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">FCER1A</text>
+
+      <!-- Cluster F: Platelets -->
+      <g fill="#0d7377" opacity="0.85">
+        <circle cx="250" cy="320" r="2.4"/><circle cx="258" cy="326" r="2.4"/><circle cx="264" cy="318" r="2.4"/><circle cx="246" cy="332" r="2.4"/>
+        <circle cx="270" cy="328" r="2.4"/><circle cx="252" cy="338" r="2.4"/><circle cx="266" cy="338" r="2.4"/>
+      </g>
+      <text x="258" y="312" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#0d7377">Platelets</text>
+      <text x="258" y="354" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">PPBP · PF4</text>
+
+      <!-- Axes -->
+      <line x1="0" y1="370" x2="380" y2="370" stroke="#525252" stroke-width="1"/>
+      <line x1="0" y1="0" x2="0" y2="370" stroke="#525252" stroke-width="1"/>
+      <text x="368" y="362" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">UMAP-1</text>
+      <text x="8" y="14" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">UMAP-2</text>
+    </g>
+  </g>
+
+  <!-- Bottom note bar -->
+  <g transform="translate(60, 600)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">RULE OF THUMB</text>
+    <text x="100" y="0" font-family="Inter, sans-serif" font-size="10" fill="#525252">Cluster on the PCA coordinates (Panel B). Plot on the UMAP coordinates (Panel C). Never the other way around — UMAP distances above the local-neighbour scale are not metric.</text>
+  </g>
+</svg>

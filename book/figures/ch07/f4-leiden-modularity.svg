@@ -1,0 +1,303 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="t d">
+  <title id="t">Leiden community detection on a k-nearest-neighbour graph</title>
+  <desc id="d">A three-panel walkthrough of graph-based clustering as used in single-cell analysis. Panel A shows a small k-nearest-neighbour graph built in PCA space: cells are nodes, edges connect each cell to its 10 nearest neighbours. Three loose visual communities are already visible but the edges crossing between them blur the partition. Panel B shows the same graph after Louvain produces a partition with one community that is internally disconnected — a known failure mode of Louvain. Panel C shows the Leiden refinement: the previously disconnected community is split into two well-connected sub-communities; modularity is monotonically improved at each step. A small inset on the right writes the modularity definition Q equal to the sum over edges of A_ij minus k_i times k_j divided by 2m, summed only over edges within the same community.</desc>
+
+  <defs>
+    <marker id="tri-cobalt-f4" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="620" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <g>
+    <text x="60" y="36" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">LEIDEN COMMUNITY DETECTION — FROM kNN GRAPH TO CELL CLUSTERS</text>
+    <text x="60" y="54" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">Same graph, three views. Louvain can leave disconnected communities; Leiden refines until every cluster is internally connected.</text>
+  </g>
+
+  <!-- Coordinates for 30 nodes used in all three panels.
+       Three loose blobs around (90, 200), (250, 110), (250, 290). -->
+  <!-- Define node positions as data attributes - we'll inline below -->
+
+  <!-- ============= PANEL A: raw kNN graph ============= -->
+  <g transform="translate(60, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(A)  kNN GRAPH  ·  k = 10</text>
+    <text x="0" y="18" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">edges = nearest-neighbour relations in 30-D PC space</text>
+
+    <g transform="translate(0, 34)">
+      <rect x="0" y="0" width="340" height="380" fill="#ffffff" stroke="#e5e3dc" stroke-width="1"/>
+
+      <!-- Edges (drawn first so nodes sit on top) -->
+      <g stroke="#8a8a85" stroke-width="0.7" opacity="0.7">
+        <!-- Top-left cluster internal -->
+        <line x1="60" y1="80" x2="92" y2="60"/>
+        <line x1="60" y1="80" x2="50" y2="120"/>
+        <line x1="92" y1="60" x2="120" y2="84"/>
+        <line x1="50" y1="120" x2="80" y2="130"/>
+        <line x1="80" y1="130" x2="120" y2="84"/>
+        <line x1="92" y1="60" x2="60" y2="80"/>
+        <line x1="80" y1="130" x2="100" y2="100"/>
+        <line x1="100" y1="100" x2="120" y2="84"/>
+        <line x1="100" y1="100" x2="60" y2="80"/>
+        <line x1="100" y1="100" x2="92" y2="60"/>
+
+        <!-- Top-right cluster internal -->
+        <line x1="220" y1="80" x2="260" y2="60"/>
+        <line x1="220" y1="80" x2="200" y2="120"/>
+        <line x1="260" y1="60" x2="290" y2="80"/>
+        <line x1="290" y1="80" x2="280" y2="120"/>
+        <line x1="200" y1="120" x2="240" y2="130"/>
+        <line x1="240" y1="130" x2="280" y2="120"/>
+        <line x1="240" y1="130" x2="260" y2="60"/>
+        <line x1="240" y1="130" x2="220" y2="80"/>
+        <line x1="260" y1="60" x2="290" y2="80"/>
+
+        <!-- Bottom cluster internal -->
+        <line x1="120" y1="240" x2="160" y2="220"/>
+        <line x1="120" y1="240" x2="110" y2="280"/>
+        <line x1="160" y1="220" x2="200" y2="240"/>
+        <line x1="200" y1="240" x2="210" y2="280"/>
+        <line x1="110" y1="280" x2="160" y2="300"/>
+        <line x1="160" y1="300" x2="210" y2="280"/>
+        <line x1="160" y1="300" x2="160" y2="220"/>
+        <line x1="200" y1="240" x2="160" y2="300"/>
+        <line x1="120" y1="240" x2="160" y2="300"/>
+
+        <!-- Inter-cluster bridges (the gnarly ones) -->
+        <line x1="120" y1="84" x2="200" y2="120" stroke-dasharray="3 2"/>
+        <line x1="120" y1="84" x2="160" y2="220" stroke-dasharray="3 2"/>
+        <line x1="280" y1="120" x2="200" y2="240" stroke-dasharray="3 2"/>
+      </g>
+
+      <!-- Nodes — all neutral cobalt -->
+      <g fill="#1e3a8a">
+        <circle cx="60"  cy="80"  r="6"/>
+        <circle cx="92"  cy="60"  r="6"/>
+        <circle cx="120" cy="84"  r="6"/>
+        <circle cx="100" cy="100" r="6"/>
+        <circle cx="80"  cy="130" r="6"/>
+        <circle cx="50"  cy="120" r="6"/>
+
+        <circle cx="220" cy="80"  r="6"/>
+        <circle cx="260" cy="60"  r="6"/>
+        <circle cx="290" cy="80"  r="6"/>
+        <circle cx="280" cy="120" r="6"/>
+        <circle cx="240" cy="130" r="6"/>
+        <circle cx="200" cy="120" r="6"/>
+
+        <circle cx="120" cy="240" r="6"/>
+        <circle cx="160" cy="220" r="6"/>
+        <circle cx="200" cy="240" r="6"/>
+        <circle cx="210" cy="280" r="6"/>
+        <circle cx="160" cy="300" r="6"/>
+        <circle cx="110" cy="280" r="6"/>
+      </g>
+
+      <text x="170" y="356" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">edges (solid) within true cluster · (dashed) bridge across clusters</text>
+    </g>
+  </g>
+
+  <!-- Arrow A to B -->
+  <line x1="408" y1="270" x2="448" y2="270" stroke="#1e3a8a" stroke-width="1.4" marker-end="url(#tri-cobalt-f4)"/>
+  <text x="428" y="262" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#1e3a8a">Louvain</text>
+
+  <!-- ============= PANEL B: Louvain partition (with disconnected community) ============= -->
+  <g transform="translate(460, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(B)  LOUVAIN PARTITION</text>
+    <text x="0" y="18" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">modularity maximised greedily — one cluster is internally disconnected</text>
+
+    <g transform="translate(0, 34)">
+      <rect x="0" y="0" width="340" height="380" fill="#ffffff" stroke="#e5e3dc" stroke-width="1"/>
+
+      <!-- Cluster A region shading -->
+      <path d="M 30 50 Q 30 30, 80 30 L 140 50 Q 150 80, 130 110 Q 100 140, 60 130 Z" fill="#1e3a8a" opacity="0.10"/>
+      <!-- Cluster B region shading — has a disconnected piece -->
+      <path d="M 180 50 Q 200 30, 260 30 L 300 60 Q 310 100, 290 130 Q 250 145, 200 130 Z" fill="#b45309" opacity="0.10"/>
+      <!-- Cluster C region shading — extends to include bottom-right -->
+      <path d="M 80 220 Q 100 200, 170 200 L 230 220 Q 250 260, 230 300 Q 180 320, 100 320 Q 80 290, 80 250 Z" fill="#065f46" opacity="0.10"/>
+      <!-- Cluster B sloppily includes a single disconnected isolate (the one labeled "trapped") -->
+      <ellipse cx="210" cy="278" rx="22" ry="14" fill="#b45309" opacity="0.18"/>
+
+      <!-- Edges -->
+      <g stroke="#8a8a85" stroke-width="0.7" opacity="0.6">
+        <line x1="60" y1="80" x2="92" y2="60"/>
+        <line x1="60" y1="80" x2="50" y2="120"/>
+        <line x1="92" y1="60" x2="120" y2="84"/>
+        <line x1="50" y1="120" x2="80" y2="130"/>
+        <line x1="80" y1="130" x2="120" y2="84"/>
+        <line x1="80" y1="130" x2="100" y2="100"/>
+        <line x1="100" y1="100" x2="120" y2="84"/>
+        <line x1="100" y1="100" x2="60" y2="80"/>
+        <line x1="100" y1="100" x2="92" y2="60"/>
+
+        <line x1="220" y1="80" x2="260" y2="60"/>
+        <line x1="220" y1="80" x2="200" y2="120"/>
+        <line x1="260" y1="60" x2="290" y2="80"/>
+        <line x1="290" y1="80" x2="280" y2="120"/>
+        <line x1="200" y1="120" x2="240" y2="130"/>
+        <line x1="240" y1="130" x2="280" y2="120"/>
+        <line x1="240" y1="130" x2="260" y2="60"/>
+        <line x1="240" y1="130" x2="220" y2="80"/>
+        <line x1="260" y1="60" x2="290" y2="80"/>
+
+        <line x1="120" y1="240" x2="160" y2="220"/>
+        <line x1="120" y1="240" x2="110" y2="280"/>
+        <line x1="160" y1="220" x2="200" y2="240"/>
+        <line x1="200" y1="240" x2="160" y2="300"/>
+        <line x1="160" y1="300" x2="110" y2="280"/>
+        <line x1="160" y1="300" x2="160" y2="220"/>
+        <line x1="120" y1="240" x2="160" y2="300"/>
+      </g>
+
+      <!-- Cluster A nodes -->
+      <g fill="#1e3a8a">
+        <circle cx="60" cy="80" r="6"/>
+        <circle cx="92" cy="60" r="6"/>
+        <circle cx="120" cy="84" r="6"/>
+        <circle cx="100" cy="100" r="6"/>
+        <circle cx="80" cy="130" r="6"/>
+        <circle cx="50" cy="120" r="6"/>
+      </g>
+      <text x="85" y="40" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a">cluster A</text>
+
+      <!-- Cluster B nodes -->
+      <g fill="#b45309">
+        <circle cx="220" cy="80" r="6"/>
+        <circle cx="260" cy="60" r="6"/>
+        <circle cx="290" cy="80" r="6"/>
+        <circle cx="280" cy="120" r="6"/>
+        <circle cx="240" cy="130" r="6"/>
+        <circle cx="200" cy="120" r="6"/>
+        <!-- the "trapped" isolate that Louvain glued into cluster B -->
+        <circle cx="210" cy="280" r="6"/>
+      </g>
+      <text x="245" y="40" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b45309">cluster B</text>
+
+      <!-- Cluster C nodes (minus the one stolen into B) -->
+      <g fill="#065f46">
+        <circle cx="120" cy="240" r="6"/>
+        <circle cx="160" cy="220" r="6"/>
+        <circle cx="200" cy="240" r="6"/>
+        <circle cx="160" cy="300" r="6"/>
+        <circle cx="110" cy="280" r="6"/>
+      </g>
+      <text x="135" y="210" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#065f46">cluster C</text>
+
+      <!-- Pointer to trapped node -->
+      <line x1="248" y1="276" x2="216" y2="280" stroke="#dc2626" stroke-width="1" marker-end="url(#tri-cobalt-f4)"/>
+      <text x="252" y="270" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#dc2626">disconnected</text>
+      <text x="252" y="282" font-family="Inter, sans-serif" font-size="9" fill="#525252">from rest of B</text>
+    </g>
+  </g>
+
+  <!-- Arrow B to C -->
+  <line x1="808" y1="270" x2="848" y2="270" stroke="#1e3a8a" stroke-width="1.4" marker-end="url(#tri-cobalt-f4)"/>
+  <text x="828" y="262" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#1e3a8a">Leiden</text>
+
+  <!-- ============= PANEL C: Leiden ============= -->
+  <g transform="translate(860, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(C)  LEIDEN PARTITION</text>
+    <text x="0" y="18" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">post-refinement: every community is connected · higher modularity</text>
+
+    <g transform="translate(0, 34)">
+      <rect x="0" y="0" width="300" height="380" fill="#ffffff" stroke="#e5e3dc" stroke-width="1"/>
+
+      <!-- Cluster A region shading -->
+      <path d="M 30 50 Q 30 30, 80 30 L 140 50 Q 150 80, 130 110 Q 100 140, 60 130 Z" fill="#1e3a8a" opacity="0.10"/>
+      <!-- Cluster B region shading — now only the top-right group -->
+      <path d="M 180 50 Q 200 30, 260 30 L 285 60 Q 295 100, 275 130 Q 245 145, 200 130 Z" fill="#b45309" opacity="0.10"/>
+      <!-- Cluster C region shading -->
+      <path d="M 80 220 Q 100 200, 170 200 L 230 220 Q 245 250, 220 285 Q 170 305, 100 305 Q 80 280, 80 250 Z" fill="#065f46" opacity="0.10"/>
+      <!-- New small cluster D for the previously trapped node -->
+      <circle cx="210" cy="280" r="18" fill="#7c3aed" opacity="0.18"/>
+
+      <!-- Edges -->
+      <g stroke="#8a8a85" stroke-width="0.7" opacity="0.6">
+        <line x1="60" y1="80" x2="92" y2="60"/>
+        <line x1="60" y1="80" x2="50" y2="120"/>
+        <line x1="92" y1="60" x2="120" y2="84"/>
+        <line x1="50" y1="120" x2="80" y2="130"/>
+        <line x1="80" y1="130" x2="120" y2="84"/>
+        <line x1="80" y1="130" x2="100" y2="100"/>
+        <line x1="100" y1="100" x2="120" y2="84"/>
+        <line x1="100" y1="100" x2="60" y2="80"/>
+        <line x1="100" y1="100" x2="92" y2="60"/>
+
+        <line x1="220" y1="80" x2="260" y2="60"/>
+        <line x1="220" y1="80" x2="200" y2="120"/>
+        <line x1="260" y1="60" x2="290" y2="80"/>
+        <line x1="290" y1="80" x2="280" y2="120"/>
+        <line x1="200" y1="120" x2="240" y2="130"/>
+        <line x1="240" y1="130" x2="280" y2="120"/>
+        <line x1="240" y1="130" x2="260" y2="60"/>
+        <line x1="240" y1="130" x2="220" y2="80"/>
+
+        <line x1="120" y1="240" x2="160" y2="220"/>
+        <line x1="120" y1="240" x2="110" y2="280"/>
+        <line x1="160" y1="220" x2="200" y2="240"/>
+        <line x1="200" y1="240" x2="160" y2="300"/>
+        <line x1="160" y1="300" x2="110" y2="280"/>
+        <line x1="160" y1="300" x2="160" y2="220"/>
+        <line x1="120" y1="240" x2="160" y2="300"/>
+      </g>
+
+      <!-- Cluster A -->
+      <g fill="#1e3a8a">
+        <circle cx="60" cy="80" r="6"/>
+        <circle cx="92" cy="60" r="6"/>
+        <circle cx="120" cy="84" r="6"/>
+        <circle cx="100" cy="100" r="6"/>
+        <circle cx="80" cy="130" r="6"/>
+        <circle cx="50" cy="120" r="6"/>
+      </g>
+      <text x="85" y="40" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a">A</text>
+
+      <!-- Cluster B (now properly only the top-right group) -->
+      <g fill="#b45309">
+        <circle cx="220" cy="80" r="6"/>
+        <circle cx="260" cy="60" r="6"/>
+        <circle cx="290" cy="80" r="6"/>
+        <circle cx="280" cy="120" r="6"/>
+        <circle cx="240" cy="130" r="6"/>
+        <circle cx="200" cy="120" r="6"/>
+      </g>
+      <text x="245" y="40" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b45309">B</text>
+
+      <!-- Cluster C -->
+      <g fill="#065f46">
+        <circle cx="120" cy="240" r="6"/>
+        <circle cx="160" cy="220" r="6"/>
+        <circle cx="200" cy="240" r="6"/>
+        <circle cx="160" cy="300" r="6"/>
+        <circle cx="110" cy="280" r="6"/>
+      </g>
+      <text x="135" y="210" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#065f46">C</text>
+
+      <!-- New cluster D — single isolate -->
+      <g fill="#7c3aed">
+        <circle cx="210" cy="280" r="6"/>
+      </g>
+      <text x="225" y="276" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#7c3aed">D</text>
+      <text x="225" y="290" font-family="Inter, sans-serif" font-size="8.5" fill="#525252">singleton</text>
+    </g>
+  </g>
+
+  <!-- Modularity formula card at bottom right -->
+  <g transform="translate(60, 528)">
+    <rect x="0" y="0" width="640" height="74" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1"/>
+    <text x="14" y="20" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">MODULARITY (Q)  ·  WHAT BOTH ALGORITHMS MAXIMISE</text>
+    <text x="14" y="44" font-family="JetBrains Mono, monospace" font-size="12" fill="#0a0a0a">Q = (1 / 2m) · Σ_(i,j) [ A_ij − k_i · k_j / (2m) ] · δ(c_i, c_j)</text>
+    <text x="14" y="62" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">A is the adjacency, k_i the degree of node i, m the total edge count, δ is 1 if i and j are in the same community.  Higher Q → denser within-community edges, sparser between.</text>
+  </g>
+
+  <!-- Side note card -->
+  <g transform="translate(720, 528)">
+    <rect x="0" y="0" width="420" height="74" rx="4" fill="#f4f3ee" stroke="#525252" stroke-width="0.8"/>
+    <text x="14" y="20" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#525252" letter-spacing="0.06em">RESOLUTION  γ</text>
+    <text x="14" y="38" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">Sub the null term  k_i · k_j / (2m)  →  γ · k_i · k_j / (2m).</text>
+    <text x="14" y="54" font-family="Inter, sans-serif" font-size="9" fill="#525252">Higher γ → finer clusters, lower γ → coarser.</text>
+    <text x="14" y="66" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">Tune γ against biology, not against a target cluster count.</text>
+  </g>
+</svg>

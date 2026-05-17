@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 540" role="img" aria-labelledby="t2 d2">
+  <title id="t2">Viterbi update on a linear chain versus on a DAG</title>
+  <desc id="d2">Two side-by-side trellis schematics with a shared update equation at the bottom. On the left, a linear-chain trellis with read time on the x-axis and a single column of reference states per time step. Each state has one incoming predecessor edge; one optimal path is traced as a thick cobalt line. On the right, a DAG trellis with branching states at two time steps. Multiple predecessor edges converge on each downstream state; the update takes the maximum over predecessors. The optimal path is drawn as the same cobalt line, this time taking a branch at one of the DAG forks. Below both panels, the Viterbi update equation is written out: V of s at time t equals the maximum over s prime in predecessors of s of V of s prime at t minus one plus match score of s and the read base at time t. An annotation states that only the predecessor set changes between the two cases.</desc>
+
+  <rect x="0" y="0" width="1100" height="540" fill="#fafaf9"/>
+
+  <!-- Title strip -->
+  <g>
+    <text x="60" y="36" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">VITERBI ON A CHAIN  vs  ON A DAG</text>
+    <text x="60" y="54" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">Same update equation. Only the predecessor structure of each state changes.</text>
+  </g>
+
+  <defs>
+    <marker id="vsmall" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#525252"/>
+    </marker>
+    <marker id="vbold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+  </defs>
+
+  <!-- ============ LEFT PANEL: linear chain ============ -->
+  <g transform="translate(60, 90)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.10em">(A)  LINEAR-CHAIN VITERBI</text>
+    <text x="0" y="18" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">single predecessor per state  ·  O(N · T) DP</text>
+
+    <!-- Trellis grid: 5 columns (time t=1..5) x 4 rows (states s1..s4) -->
+    <!-- column width 72, row height 60, origin (40, 60) -->
+    <g font-family="JetBrains Mono, monospace" font-size="10" fill="#525252">
+      <text x="40"  y="50" text-anchor="middle">t = 1</text>
+      <text x="112" y="50" text-anchor="middle">t = 2</text>
+      <text x="184" y="50" text-anchor="middle">t = 3</text>
+      <text x="256" y="50" text-anchor="middle">t = 4</text>
+      <text x="328" y="50" text-anchor="middle">t = 5</text>
+    </g>
+    <g font-family="JetBrains Mono, monospace" font-size="10" fill="#525252">
+      <text x="-6" y="64"  text-anchor="end">s₁</text>
+      <text x="-6" y="124" text-anchor="end">s₂</text>
+      <text x="-6" y="184" text-anchor="end">s₃</text>
+      <text x="-6" y="244" text-anchor="end">s₄</text>
+    </g>
+
+    <!-- All edges (single predecessor: same row, prev column) -->
+    <g stroke="#c4c1b6" stroke-width="0.8" fill="none">
+      <!-- row 1: s1@t→s1@t+1 -->
+      <line x1="50" y1="60" x2="102" y2="60"/>
+      <line x1="122" y1="60" x2="174" y2="60"/>
+      <line x1="194" y1="60" x2="246" y2="60"/>
+      <line x1="266" y1="60" x2="318" y2="60"/>
+      <!-- row 2 -->
+      <line x1="50" y1="120" x2="102" y2="120"/>
+      <line x1="122" y1="120" x2="174" y2="120"/>
+      <line x1="194" y1="120" x2="246" y2="120"/>
+      <line x1="266" y1="120" x2="318" y2="120"/>
+      <!-- row 3 -->
+      <line x1="50" y1="180" x2="102" y2="180"/>
+      <line x1="122" y1="180" x2="174" y2="180"/>
+      <line x1="194" y1="180" x2="246" y2="180"/>
+      <line x1="266" y1="180" x2="318" y2="180"/>
+      <!-- row 4 -->
+      <line x1="50" y1="240" x2="102" y2="240"/>
+      <line x1="122" y1="240" x2="174" y2="240"/>
+      <line x1="194" y1="240" x2="246" y2="240"/>
+      <line x1="266" y1="240" x2="318" y2="240"/>
+    </g>
+
+    <!-- Optimal path: chosen row evolves; for this linear case stay on s2 throughout -->
+    <g stroke="#1e3a8a" stroke-width="3" fill="none" stroke-linecap="round">
+      <line x1="50"  y1="120" x2="102" y2="120"/>
+      <line x1="122" y1="120" x2="174" y2="120"/>
+      <line x1="194" y1="120" x2="246" y2="120"/>
+      <line x1="266" y1="120" x2="318" y2="120"/>
+    </g>
+
+    <!-- State nodes -->
+    <g>
+      <g><circle cx="40"  cy="60"  r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="112" cy="60"  r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="184" cy="60"  r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="256" cy="60"  r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="328" cy="60"  r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+
+      <!-- s2 row — the optimal path. Filled cobalt -->
+      <g><circle cx="40"  cy="120" r="10" fill="#1e3a8a" stroke="#1e3a8a" stroke-width="1.5"/></g>
+      <g><circle cx="112" cy="120" r="10" fill="#1e3a8a"/></g>
+      <g><circle cx="184" cy="120" r="10" fill="#1e3a8a"/></g>
+      <g><circle cx="256" cy="120" r="10" fill="#1e3a8a"/></g>
+      <g><circle cx="328" cy="120" r="10" fill="#1e3a8a"/></g>
+
+      <g><circle cx="40"  cy="180" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="112" cy="180" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="184" cy="180" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="256" cy="180" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="328" cy="180" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+
+      <g><circle cx="40"  cy="240" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="112" cy="240" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="184" cy="240" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="256" cy="240" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="328" cy="240" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+    </g>
+
+    <!-- Annotation: one predecessor -->
+    <g transform="translate(0, 290)">
+      <rect x="0" y="0" width="380" height="56" rx="3" fill="#ffffff" stroke="#c4c1b6" stroke-width="0.7"/>
+      <text x="14" y="20" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">PREDECESSOR SET</text>
+      <text x="14" y="40" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">pred(s) = { the one state at t−1 below s }</text>
+    </g>
+  </g>
+
+  <!-- ============ RIGHT PANEL: DAG ============ -->
+  <g transform="translate(620, 90)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.10em">(B)  DAG VITERBI</text>
+    <text x="0" y="18" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">multiple predecessors at branches  ·  O(|E| · T) DP</text>
+
+    <g font-family="JetBrains Mono, monospace" font-size="10" fill="#525252">
+      <text x="40"  y="50" text-anchor="middle">t = 1</text>
+      <text x="112" y="50" text-anchor="middle">t = 2</text>
+      <text x="184" y="50" text-anchor="middle">t = 3</text>
+      <text x="256" y="50" text-anchor="middle">t = 4</text>
+      <text x="328" y="50" text-anchor="middle">t = 5</text>
+    </g>
+
+    <!-- DAG with branches at t=2 (s2 → s2 and s3) and at t=4 (s3 → s2 and s3) -->
+    <!-- All edges -->
+    <g stroke="#c4c1b6" stroke-width="0.8" fill="none">
+      <!-- t1 → t2: chain entries -->
+      <line x1="50" y1="60"  x2="102" y2="60"/>
+      <line x1="50" y1="120" x2="102" y2="120"/>
+      <line x1="50" y1="180" x2="102" y2="180"/>
+      <line x1="50" y1="240" x2="102" y2="240"/>
+
+      <!-- t2 → t3: branches -->
+      <line x1="122" y1="60"  x2="174" y2="60"/>
+      <line x1="122" y1="120" x2="174" y2="60"/>  <!-- s2 branches to s1 -->
+      <line x1="122" y1="120" x2="174" y2="120"/>
+      <line x1="122" y1="120" x2="174" y2="180"/> <!-- s2 branches to s3 -->
+      <line x1="122" y1="180" x2="174" y2="180"/>
+      <line x1="122" y1="240" x2="174" y2="240"/>
+
+      <!-- t3 → t4 -->
+      <line x1="194" y1="60"  x2="246" y2="60"/>
+      <line x1="194" y1="120" x2="246" y2="120"/>
+      <line x1="194" y1="180" x2="246" y2="120"/> <!-- s3 → s2 -->
+      <line x1="194" y1="180" x2="246" y2="180"/>
+      <line x1="194" y1="180" x2="246" y2="240"/> <!-- s3 → s4 -->
+      <line x1="194" y1="240" x2="246" y2="240"/>
+
+      <!-- t4 → t5 -->
+      <line x1="266" y1="60"  x2="318" y2="60"/>
+      <line x1="266" y1="120" x2="318" y2="120"/>
+      <line x1="266" y1="180" x2="318" y2="180"/>
+      <line x1="266" y1="240" x2="318" y2="240"/>
+    </g>
+
+    <!-- Optimal path through DAG: s2 → s2 → s3 → s3 → s3 (takes a branch at t3) -->
+    <g stroke="#1e3a8a" stroke-width="3" fill="none" stroke-linecap="round">
+      <line x1="50"  y1="120" x2="102" y2="120"/>
+      <line x1="122" y1="120" x2="174" y2="180"/>
+      <line x1="194" y1="180" x2="246" y2="180"/>
+      <line x1="266" y1="180" x2="318" y2="180"/>
+    </g>
+
+    <!-- Highlight branch zoom -->
+    <circle cx="184" cy="180" r="22" fill="none" stroke="#b45309" stroke-width="1.2" stroke-dasharray="3 2"/>
+    <text x="184" y="216" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#b45309" text-anchor="middle">|pred(s)| &gt; 1</text>
+
+    <!-- State nodes -->
+    <g>
+      <g><circle cx="40"  cy="60"  r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="112" cy="60"  r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="184" cy="60"  r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="256" cy="60"  r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="328" cy="60"  r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+
+      <g><circle cx="40"  cy="120" r="10" fill="#1e3a8a"/></g>
+      <g><circle cx="112" cy="120" r="10" fill="#1e3a8a"/></g>
+      <g><circle cx="184" cy="120" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="256" cy="120" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="328" cy="120" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+
+      <g><circle cx="40"  cy="180" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="112" cy="180" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="184" cy="180" r="10" fill="#1e3a8a"/></g>
+      <g><circle cx="256" cy="180" r="10" fill="#1e3a8a"/></g>
+      <g><circle cx="328" cy="180" r="10" fill="#1e3a8a"/></g>
+
+      <g><circle cx="40"  cy="240" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="112" cy="240" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="184" cy="240" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="256" cy="240" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+      <g><circle cx="328" cy="240" r="9" fill="#fafaf9" stroke="#0a0a0a" stroke-width="1.2"/></g>
+    </g>
+
+    <!-- Annotation: multiple predecessors -->
+    <g transform="translate(0, 290)">
+      <rect x="0" y="0" width="380" height="56" rx="3" fill="#ffffff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <text x="14" y="20" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">PREDECESSOR SET</text>
+      <text x="14" y="40" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">pred(s) = { every node with an in-edge to s }</text>
+    </g>
+  </g>
+
+  <!-- ============ Equation bar ============ -->
+  <g transform="translate(60, 460)">
+    <rect x="0" y="0" width="980" height="60" rx="3" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.0"/>
+    <text x="14" y="20" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">VITERBI UPDATE — SAME EQUATION, BOTH CASES</text>
+    <text x="490" y="46" font-family="JetBrains Mono, monospace" font-size="14" fill="#0a0a0a" text-anchor="middle">V(s, t)  =  max  [ V(s′, t−1) + score(s, read[t]) ]   over  s′ ∈ pred(s)</text>
+  </g>
+</svg>

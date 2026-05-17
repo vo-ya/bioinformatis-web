@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" role="img" aria-labelledby="t d">
+  <title id="t">ADMIXTURE as unsupervised mixture-model decomposition</title>
+  <desc id="d">A three-panel figure. Panel A: the generative model — each individual genome is a mixture of K ancestral source populations with their own allele frequencies. Panel B: the EM iterations that recover both ancestry proportions Q and source frequencies F. Panel C: the K-selection problem — how cross-validation error changes with K and why no single K is a truth claim.</desc>
+
+  <rect x="0" y="0" width="1200" height="660" fill="#fafaf9"/>
+
+  <defs>
+    <marker id="arr-c" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+  </defs>
+
+  <!-- Header -->
+  <g>
+    <text x="60" y="40" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">ADMIXTURE  AS  EM  ON  A  MIXTURE  MODEL</text>
+    <text x="60" y="58" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">Each genome is a convex combination of K latent source frequencies — recover Q and F jointly</text>
+  </g>
+
+  <!-- ============ PANEL A: generative model ============ -->
+  <g transform="translate(60, 90)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(A)  GENERATIVE  MODEL</text>
+    <rect x="0" y="14" width="500" height="320" rx="4" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1"/>
+
+    <!-- K source populations, each a vertical strip of frequencies -->
+    <g font-family="Inter, sans-serif" font-size="10" fill="#525252">
+      <text x="20" y="38" font-weight="700" letter-spacing="0.06em">K = 3 SOURCES, EACH WITH AN ALLELE-FREQ VECTOR F_k</text>
+
+      <!-- F1 (red-ish) -->
+      <rect x="20" y="48" width="40" height="160" fill="#ffffff" stroke="#c4342c" stroke-width="1.2"/>
+      <rect x="20" y="48"  width="40" height="28" fill="#c4342c" opacity="0.85"/>
+      <rect x="20" y="76"  width="40" height="18" fill="#c4342c" opacity="0.55"/>
+      <rect x="20" y="94"  width="40" height="36" fill="#c4342c" opacity="0.7"/>
+      <rect x="20" y="130" width="40" height="24" fill="#c4342c" opacity="0.4"/>
+      <rect x="20" y="154" width="40" height="32" fill="#c4342c" opacity="0.6"/>
+      <rect x="20" y="186" width="40" height="22" fill="#c4342c" opacity="0.45"/>
+      <text x="40" y="226" text-anchor="middle" font-weight="700" font-family="JetBrains Mono, monospace">F₁</text>
+
+      <!-- F2 (blue) -->
+      <rect x="80" y="48" width="40" height="160" fill="#ffffff" stroke="#1e3a8a" stroke-width="1.2"/>
+      <rect x="80" y="48"  width="40" height="24" fill="#1e3a8a" opacity="0.4"/>
+      <rect x="80" y="72"  width="40" height="32" fill="#1e3a8a" opacity="0.7"/>
+      <rect x="80" y="104" width="40" height="22" fill="#1e3a8a" opacity="0.55"/>
+      <rect x="80" y="126" width="40" height="34" fill="#1e3a8a" opacity="0.85"/>
+      <rect x="80" y="160" width="40" height="18" fill="#1e3a8a" opacity="0.5"/>
+      <rect x="80" y="178" width="40" height="30" fill="#1e3a8a" opacity="0.65"/>
+      <text x="100" y="226" text-anchor="middle" font-weight="700" font-family="JetBrains Mono, monospace">F₂</text>
+
+      <!-- F3 (green) -->
+      <rect x="140" y="48" width="40" height="160" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.2"/>
+      <rect x="140" y="48"  width="40" height="30" fill="#2d7a3e" opacity="0.6"/>
+      <rect x="140" y="78"  width="40" height="22" fill="#2d7a3e" opacity="0.4"/>
+      <rect x="140" y="100" width="40" height="34" fill="#2d7a3e" opacity="0.85"/>
+      <rect x="140" y="134" width="40" height="20" fill="#2d7a3e" opacity="0.5"/>
+      <rect x="140" y="154" width="40" height="28" fill="#2d7a3e" opacity="0.7"/>
+      <rect x="140" y="182" width="40" height="26" fill="#2d7a3e" opacity="0.55"/>
+      <text x="160" y="226" text-anchor="middle" font-weight="700" font-family="JetBrains Mono, monospace">F₃</text>
+
+      <!-- mix arrow -->
+      <line x1="200" y1="128" x2="252" y2="128" stroke="#1e3a8a" stroke-width="1.5" marker-end="url(#arr-c)"/>
+      <text x="226" y="120" font-family="Inter, sans-serif" font-size="10" fill="#1e3a8a" font-weight="700" text-anchor="middle">mix by Q_i</text>
+
+      <!-- observed individual i -->
+      <rect x="260" y="48" width="40" height="160" fill="#ffffff" stroke="#0a0a0a" stroke-width="1.2"/>
+      <!-- Q_i = (0.5, 0.3, 0.2) -->
+      <rect x="260" y="48"  width="40" height="80" fill="#c4342c" opacity="0.6"/>
+      <rect x="260" y="128" width="40" height="48" fill="#1e3a8a" opacity="0.6"/>
+      <rect x="260" y="176" width="40" height="32" fill="#2d7a3e" opacity="0.6"/>
+      <text x="280" y="226" text-anchor="middle" font-weight="700" font-family="JetBrains Mono, monospace" fill="#0a0a0a">G_i</text>
+
+      <!-- Q vector display -->
+      <rect x="320" y="48" width="160" height="160" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.8"/>
+      <text x="330" y="68" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">Q_i  (individual ancestry)</text>
+      <g font-family="JetBrains Mono, monospace" font-size="11">
+        <text x="332" y="90" fill="#c4342c">Q_{i,1} = 0.50</text>
+        <text x="332" y="110" fill="#1e3a8a">Q_{i,2} = 0.30</text>
+        <text x="332" y="130" fill="#2d7a3e">Q_{i,3} = 0.20</text>
+      </g>
+      <line x1="330" y1="140" x2="470" y2="140" stroke="#c4c1b6" stroke-width="0.5"/>
+      <text x="332" y="160" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">Σ_k Q_{i,k} = 1</text>
+      <text x="332" y="180" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">P(SNP j) = Σ Q_{i,k}·F_{k,j}</text>
+    </g>
+
+    <text x="20" y="270" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">Generative claim: at every SNP j, the allele dosage in individual i is sampled from the mixture distribution above.</text>
+    <text x="20" y="288" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">Inference: invert the mixing — given only the G_i, recover Q and F simultaneously.</text>
+  </g>
+
+  <!-- ============ PANEL B: EM iterations ============ -->
+  <g transform="translate(620, 90)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(B)  EM  ALGORITHM  SKETCH</text>
+    <rect x="0" y="14" width="520" height="320" rx="4" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1"/>
+
+    <rect x="16" y="32" width="488" height="56" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.8"/>
+    <text x="28" y="48" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">OBJECTIVE</text>
+    <text x="28" y="68" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">argmax  L(Q, F)  =  Σ_{i,j}  log Σ_k  Q_{i,k} · F_{k,j}^{g_{i,j}} · (1−F_{k,j})^{2−g_{i,j}}</text>
+    <text x="28" y="86" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">g_{i,j} ∈ {0, 1, 2} is the allele dosage in individual i at SNP j.</text>
+
+    <!-- E step / M step alternation -->
+    <g transform="translate(16, 110)">
+      <rect x="0" y="0" width="234" height="180" rx="4" fill="#ffffff" stroke="#e5e3dc" stroke-width="0.8"/>
+      <text x="12" y="20" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#525252" letter-spacing="0.06em">E STEP</text>
+      <text x="12" y="44" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">Hold (Q, F) fixed.</text>
+      <text x="12" y="62" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">For every (i, j, k), compute the</text>
+      <text x="12" y="80" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">posterior responsibility that</text>
+      <text x="12" y="98" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">source k explains individual i's</text>
+      <text x="12" y="116" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">allele at SNP j:</text>
+      <text x="12" y="142" font-family="JetBrains Mono, monospace" font-size="11" fill="#1e3a8a">γ_{i,j,k} ∝ Q_{i,k}·F_{k,j}</text>
+      <text x="12" y="162" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">Normalise across k.</text>
+    </g>
+
+    <g transform="translate(270, 110)">
+      <rect x="0" y="0" width="234" height="180" rx="4" fill="#ffffff" stroke="#e5e3dc" stroke-width="0.8"/>
+      <text x="12" y="20" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#525252" letter-spacing="0.06em">M STEP</text>
+      <text x="12" y="44" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">Hold γ fixed.</text>
+      <text x="12" y="62" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">Update each (Q, F) by maximum-</text>
+      <text x="12" y="80" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">likelihood given responsibilities:</text>
+      <text x="12" y="106" font-family="JetBrains Mono, monospace" font-size="11" fill="#1e3a8a">Q_{i,k}  ∝  Σ_j γ_{i,j,k}</text>
+      <text x="12" y="128" font-family="JetBrains Mono, monospace" font-size="11" fill="#1e3a8a">F_{k,j}  =  weighted MLE</text>
+      <text x="12" y="156" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">Renormalise Q rows to sum to 1.</text>
+    </g>
+
+    <!-- arrow loop -->
+    <path d="M 250 200 Q 260 240 280 200" fill="none" stroke="#1e3a8a" stroke-width="1.5" marker-end="url(#arr-c)"/>
+    <path d="M 280 200 Q 290 160 250 200" fill="none" stroke="#1e3a8a" stroke-width="1.5"/>
+
+    <text x="20" y="312" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">Alexander, Novembre &amp; Lange (2009) replace EM with block-coordinate quasi-Newton for 10–100× speed-up.</text>
+  </g>
+
+  <!-- ============ PANEL C: K selection ============ -->
+  <g transform="translate(60, 430)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(C)  K-SELECTION  IS  MODEL-ORDER  SELECTION</text>
+    <rect x="0" y="14" width="1080" height="200" rx="4" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1"/>
+
+    <!-- chart on left -->
+    <g transform="translate(20, 32)">
+      <text x="0" y="0" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#525252" letter-spacing="0.06em">CROSS-VALIDATION ERROR vs K</text>
+      <!-- axes -->
+      <line x1="40" y1="140" x2="450" y2="140" stroke="#0a0a0a" stroke-width="1"/>
+      <line x1="40" y1="140" x2="40" y2="20" stroke="#0a0a0a" stroke-width="1"/>
+      <!-- ticks -->
+      <g font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">
+        <text x="36" y="144" text-anchor="end">low</text>
+        <text x="36" y="40" text-anchor="end">high</text>
+        <text x="40" y="156" text-anchor="middle">K=1</text>
+        <text x="110" y="156" text-anchor="middle">K=2</text>
+        <text x="180" y="156" text-anchor="middle">K=3</text>
+        <text x="250" y="156" text-anchor="middle">K=4</text>
+        <text x="320" y="156" text-anchor="middle">K=5</text>
+        <text x="390" y="156" text-anchor="middle">K=6</text>
+        <text x="450" y="156" text-anchor="middle">K=7</text>
+      </g>
+      <!-- CV curve: drops to K=3 then slight rise -->
+      <polyline points="40,40 110,75 180,118 250,108 320,100 390,98 450,96" fill="none" stroke="#1e3a8a" stroke-width="2"/>
+      <circle cx="180" cy="118" r="4.5" fill="#1e3a8a"/>
+      <text x="186" y="116" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a">CV minimum</text>
+      <!-- likelihood curve: monotone increasing -->
+      <polyline points="40,140 110,108 180,80 250,68 320,60 390,55 450,52" fill="none" stroke="#b45309" stroke-width="2" stroke-dasharray="5 3"/>
+      <text x="390" y="40" font-family="Inter, sans-serif" font-size="10" fill="#b45309" font-weight="700">log-likelihood (always rises)</text>
+      <text x="380" y="52" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" font-style="italic">(BIC penalty needed)</text>
+    </g>
+
+    <!-- commentary -->
+    <g transform="translate(540, 36)">
+      <rect x="0" y="0" width="520" height="148" rx="4" fill="#ffffff" stroke="#e5e3dc" stroke-width="0.8"/>
+      <text x="14" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#525252" letter-spacing="0.06em">WHAT THE FIGURE SAYS</text>
+      <text x="14" y="46" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">• Cross-validation error has a clear minimum at the K that</text>
+      <text x="14" y="62" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">  matches the true number of sources (here, K = 3).</text>
+      <text x="14" y="86" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">• The training log-likelihood keeps increasing with K —</text>
+      <text x="14" y="102" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">  reporting "best K = the K with highest likelihood" is wrong.</text>
+      <text x="14" y="126" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">• In real cohorts the CV curve is often flat across several K.</text>
+      <text x="14" y="142" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">  K is a model-order parameter, not a count of populations.</text>
+    </g>
+  </g>
+</svg>

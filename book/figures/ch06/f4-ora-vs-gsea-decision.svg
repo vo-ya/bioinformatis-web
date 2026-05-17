@@ -1,0 +1,246 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="t d">
+  <title id="t">Over-representation analysis and gene-set enrichment analysis on the same DE result</title>
+  <desc id="d">Two-panel comparison of ORA and GSEA. Left panel shows the ORA workflow: take only DE-thresholded genes, build a two-by-two contingency table against a curated gene set, compute the Fisher's exact p-value. Right panel shows the GSEA workflow: rank all 20,000 genes by a signed test statistic, walk down the list maintaining a running sum that adds positive weight for set members and subtracts negative weight for non-members, and report the maximum deviation as the enrichment score. A decision flow at the bottom summarises when to choose each method.</desc>
+
+  <rect x="0" y="0" width="1200" height="640" fill="#fafaf9"/>
+
+  <!-- Title -->
+  <g>
+    <text x="60" y="36" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">ORA VS GSEA — TWO ROUTES TO THE SAME GENE SET</text>
+    <text x="60" y="54" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">ORA tests a thresholded subset; GSEA walks the full ranked list. They answer related but different questions.</text>
+  </g>
+
+  <!-- ============ LEFT PANEL: ORA ============ -->
+  <g transform="translate(60, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(A)  OVER-REPRESENTATION ANALYSIS</text>
+    <text x="0" y="18" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">DE-thresholded list  →  2x2 contingency  →  Fisher's exact</text>
+
+    <!-- Step 1: ranked list with threshold cutoff -->
+    <g transform="translate(0, 40)">
+      <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">STEP 1  ·  THRESHOLD</text>
+
+      <!-- Vertical list visualisation: 20 columns representing 20,000 genes, ranked by padj -->
+      <g transform="translate(0, 14)">
+        <rect x="0" y="0" width="500" height="34" fill="#f4f3ee" stroke="#c4c1b6" stroke-width="0.6"/>
+        <!-- Below threshold (DE list, 500 genes) -->
+        <rect x="0" y="0" width="13" height="34" fill="#1e3a8a" opacity="0.85"/>
+        <!-- Above threshold (rest, 19500 genes) -->
+        <text x="6" y="48" font-family="JetBrains Mono, monospace" font-size="9" fill="#1e3a8a" text-anchor="middle">DE</text>
+        <text x="6" y="58" font-family="JetBrains Mono, monospace" font-size="9" fill="#1e3a8a" text-anchor="middle">500</text>
+        <line x1="13" y1="-2" x2="13" y2="36" stroke="#dc2626" stroke-width="1.5"/>
+        <text x="20" y="-4" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#dc2626">padj &lt; 0.05</text>
+        <text x="245" y="22" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#525252">non-DE  ·  19,500 genes (discarded by ORA)</text>
+      </g>
+    </g>
+
+    <!-- Step 2: contingency table -->
+    <g transform="translate(0, 130)">
+      <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">STEP 2  ·  2x2 CONTINGENCY</text>
+
+      <g transform="translate(0, 14)" font-family="Inter, sans-serif" font-size="10">
+        <!-- Header row -->
+        <rect x="0" y="0" width="500" height="22" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.6"/>
+        <text x="120" y="14" text-anchor="middle" font-weight="700" fill="#1e3a8a">in set</text>
+        <text x="220" y="14" text-anchor="middle" font-weight="700" fill="#1e3a8a">not in set</text>
+        <text x="340" y="14" text-anchor="middle" font-weight="700" fill="#1e3a8a">total</text>
+
+        <!-- Row: DE -->
+        <rect x="0" y="22" width="500" height="22" fill="#ffffff" stroke="#c4c1b6" stroke-width="0.6"/>
+        <text x="10" y="36" font-weight="600" fill="#0a0a0a">DE gene</text>
+        <text x="120" y="36" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="700" fill="#065f46">42</text>
+        <text x="220" y="36" text-anchor="middle" font-family="JetBrains Mono, monospace" fill="#0a0a0a">458</text>
+        <text x="340" y="36" text-anchor="middle" font-family="JetBrains Mono, monospace" fill="#0a0a0a">500</text>
+
+        <!-- Row: non-DE -->
+        <rect x="0" y="44" width="500" height="22" fill="#ffffff" stroke="#c4c1b6" stroke-width="0.6"/>
+        <text x="10" y="58" font-weight="600" fill="#0a0a0a">not DE</text>
+        <text x="120" y="58" text-anchor="middle" font-family="JetBrains Mono, monospace" fill="#0a0a0a">85</text>
+        <text x="220" y="58" text-anchor="middle" font-family="JetBrains Mono, monospace" fill="#0a0a0a">19,415</text>
+        <text x="340" y="58" text-anchor="middle" font-family="JetBrains Mono, monospace" fill="#0a0a0a">19,500</text>
+
+        <!-- Row: totals -->
+        <rect x="0" y="66" width="500" height="22" fill="#f4f3ee" stroke="#c4c1b6" stroke-width="0.6"/>
+        <text x="10" y="80" font-weight="700" fill="#0a0a0a">total</text>
+        <text x="120" y="80" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="600" fill="#0a0a0a">127</text>
+        <text x="220" y="80" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="600" fill="#0a0a0a">19,873</text>
+        <text x="340" y="80" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="600" fill="#0a0a0a">20,000</text>
+      </g>
+    </g>
+
+    <!-- Step 3: math + result -->
+    <g transform="translate(0, 250)">
+      <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">STEP 3  ·  FISHER'S EXACT</text>
+
+      <g transform="translate(0, 14)">
+        <rect x="0" y="0" width="500" height="106" rx="4" fill="#ffffff" stroke="#1e3a8a" stroke-width="1"/>
+        <text x="14" y="20" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">Expected overlap (null):</text>
+        <text x="14" y="36" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">  E = 500 × 127 / 20000 = 3.18 genes</text>
+
+        <text x="14" y="58" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">Observed overlap:</text>
+        <text x="14" y="74" font-family="JetBrains Mono, monospace" font-size="11" fill="#065f46" font-weight="700">  k = 42  (13.2× expected)</text>
+
+        <text x="14" y="94" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">Fisher's exact:  p ≈ 1.4 × 10^-32</text>
+      </g>
+    </g>
+
+    <!-- Step 4: pros/cons box -->
+    <g transform="translate(0, 392)">
+      <rect x="0" y="0" width="500" height="100" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.8"/>
+      <text x="14" y="18" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">WHAT ORA GIVES YOU</text>
+      <g font-family="Inter, sans-serif" font-size="10" fill="#525252">
+        <text x="14" y="36">+ Cheap, intuitive, easy to explain</text>
+        <text x="14" y="52">+ Works with any DE tool's gene list</text>
+        <text x="14" y="68">−  Throws away sub-threshold information</text>
+        <text x="14" y="84">−  Sensitive to the threshold you pick</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ============ RIGHT PANEL: GSEA ============ -->
+  <g transform="translate(620, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(B)  GENE-SET ENRICHMENT ANALYSIS</text>
+    <text x="0" y="18" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">full ranked list  →  running sum  →  enrichment score + permutation</text>
+
+    <!-- Step 1: ranked list, all 20k genes -->
+    <g transform="translate(0, 40)">
+      <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">STEP 1  ·  RANK ALL 20K GENES</text>
+
+      <g transform="translate(0, 14)">
+        <rect x="0" y="0" width="500" height="20" fill="#f4f3ee" stroke="#c4c1b6" stroke-width="0.6"/>
+        <!-- Set member ticks — concentrated at left (top of ranked list) -->
+        <g stroke="#065f46" stroke-width="1.2">
+          <line x1="6"   y1="0" x2="6"   y2="20"/>
+          <line x1="12"  y1="0" x2="12"  y2="20"/>
+          <line x1="20"  y1="0" x2="20"  y2="20"/>
+          <line x1="28"  y1="0" x2="28"  y2="20"/>
+          <line x1="35"  y1="0" x2="35"  y2="20"/>
+          <line x1="42"  y1="0" x2="42"  y2="20"/>
+          <line x1="50"  y1="0" x2="50"  y2="20"/>
+          <line x1="58"  y1="0" x2="58"  y2="20"/>
+          <line x1="68"  y1="0" x2="68"  y2="20"/>
+          <line x1="78"  y1="0" x2="78"  y2="20"/>
+          <line x1="92"  y1="0" x2="92"  y2="20"/>
+          <line x1="106" y1="0" x2="106" y2="20"/>
+          <line x1="122" y1="0" x2="122" y2="20"/>
+          <line x1="148" y1="0" x2="148" y2="20"/>
+          <line x1="178" y1="0" x2="178" y2="20"/>
+          <line x1="210" y1="0" x2="210" y2="20"/>
+          <line x1="260" y1="0" x2="260" y2="20"/>
+          <line x1="320" y1="0" x2="320" y2="20"/>
+        </g>
+        <!-- Tail/non-set spaces just left blank -->
+
+        <text x="0" y="34" font-family="Inter, sans-serif" font-size="9" fill="#525252">most up-regulated</text>
+        <text x="500" y="34" text-anchor="end" font-family="Inter, sans-serif" font-size="9" fill="#525252">most down-regulated</text>
+        <text x="0" y="-4" font-family="JetBrains Mono, monospace" font-size="9" fill="#065f46">| = set member</text>
+      </g>
+    </g>
+
+    <!-- Step 2: running sum curve -->
+    <g transform="translate(0, 130)">
+      <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">STEP 2  ·  RUNNING SUM</text>
+
+      <g transform="translate(0, 14)">
+        <!-- Axes -->
+        <line x1="0" y1="120" x2="500" y2="120" stroke="#c4c1b6" stroke-width="0.6"/>
+        <line x1="0" y1="0" x2="0" y2="120" stroke="#374151" stroke-width="1"/>
+
+        <text x="-4" y="4" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">+1</text>
+        <text x="-4" y="122" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">0</text>
+
+        <!-- Running-sum curve: rises sharply (set members early), peaks, then drops to zero -->
+        <path d="
+          M 0   120
+          L 6   108
+          L 12  98
+          L 20  88
+          L 28  80
+          L 35  73
+          L 42  66
+          L 50  60
+          L 58  54
+          L 68  48
+          L 78  44
+          L 92  40
+          L 106 36
+          L 122 33
+          L 148 32
+          L 178 35
+          L 210 41
+          L 260 53
+          L 320 75
+          L 380 95
+          L 440 110
+          L 500 120
+        " fill="none" stroke="#1e3a8a" stroke-width="2"/>
+
+        <!-- Peak marker -->
+        <circle cx="148" cy="32" r="4" fill="#b45309"/>
+        <line x1="148" y1="32" x2="148" y2="120" stroke="#b45309" stroke-width="0.8" stroke-dasharray="3 2"/>
+        <text x="156" y="30" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b45309">ES = 0.74</text>
+        <text x="156" y="44" font-family="Inter, sans-serif" font-size="9" fill="#b45309">at rank ≈ 700</text>
+      </g>
+    </g>
+
+    <!-- Step 3: permutation null + p-value -->
+    <g transform="translate(0, 290)">
+      <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">STEP 3  ·  PERMUTATION NULL</text>
+
+      <g transform="translate(0, 14)">
+        <rect x="0" y="0" width="500" height="80" rx="4" fill="#ffffff" stroke="#1e3a8a" stroke-width="1"/>
+        <!-- Mini histogram of null ES values -->
+        <g transform="translate(40, 8)">
+          <line x1="0" y1="60" x2="300" y2="60" stroke="#374151" stroke-width="0.8"/>
+          <line x1="0" y1="10" x2="0" y2="60" stroke="#374151" stroke-width="0.8"/>
+          <!-- Histogram bars (null ES distribution, peaking near 0) -->
+          <g fill="#8a8a85" opacity="0.7">
+            <rect x="20" y="56" width="14" height="4"/>
+            <rect x="36" y="50" width="14" height="10"/>
+            <rect x="52" y="40" width="14" height="20"/>
+            <rect x="68" y="25" width="14" height="35"/>
+            <rect x="84" y="14" width="14" height="46"/>
+            <rect x="100" y="10" width="14" height="50"/>
+            <rect x="116" y="14" width="14" height="46"/>
+            <rect x="132" y="25" width="14" height="35"/>
+            <rect x="148" y="40" width="14" height="20"/>
+            <rect x="164" y="50" width="14" height="10"/>
+            <rect x="180" y="56" width="14" height="4"/>
+          </g>
+          <!-- Observed ES marker -->
+          <line x1="270" y1="6" x2="270" y2="60" stroke="#dc2626" stroke-width="1.8"/>
+          <text x="270" y="0" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#dc2626" text-anchor="middle">observed ES</text>
+          <text x="0" y="74" font-family="Inter, sans-serif" font-size="9" fill="#525252">−0.5</text>
+          <text x="150" y="74" font-family="Inter, sans-serif" font-size="9" fill="#525252" text-anchor="middle">0.0</text>
+          <text x="270" y="74" font-family="Inter, sans-serif" font-size="9" fill="#525252" text-anchor="middle">0.74</text>
+        </g>
+
+        <text x="362" y="38" font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">1000 perms</text>
+        <text x="362" y="52" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#065f46">p &lt; 0.001</text>
+      </g>
+    </g>
+
+    <!-- Step 4: pros/cons -->
+    <g transform="translate(0, 392)">
+      <rect x="0" y="0" width="500" height="100" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.8"/>
+      <text x="14" y="18" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">WHAT GSEA GIVES YOU</text>
+      <g font-family="Inter, sans-serif" font-size="10" fill="#525252">
+        <text x="14" y="36">+ No threshold — uses the full ranked list</text>
+        <text x="14" y="52">+ Catches diffuse, low-amplitude signal</text>
+        <text x="14" y="68">−  Permutation cost can be high on big sets</text>
+        <text x="14" y="84">−  Inter-gene correlation inflates Type I (use CAMERA)</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Bottom decision -->
+  <g transform="translate(60, 540)">
+    <rect x="0" y="0" width="1080" height="76" rx="6" fill="#fefce8" stroke="#b45309" stroke-width="1.2"/>
+    <text x="14" y="22" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#b45309" letter-spacing="0.06em">DECISION RULE</text>
+
+    <g font-family="Inter, sans-serif" font-size="11" fill="#0a0a0a">
+      <text x="14" y="42">•  Strong DE signal, clear thresholds  →  ORA is fine; the numbers are easier to defend.</text>
+      <text x="14" y="58">•  Diffuse signal, many sub-threshold genes pointing the same way  →  GSEA recovers what ORA throws away.</text>
+      <text x="14" y="74">•  Co-regulated gene sets (developmental, cell-cycle, immune programmes)  →  CAMERA over naive GSEA permutations.</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,196 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="t d">
+  <title id="t">Empirical mean-variance scatter from RNA-seq counts versus Poisson and negative-binomial expectations</title>
+  <desc id="d">A log-log scatter plot of gene-wise mean count versus gene-wise variance across biological replicates. The Poisson identity line where variance equals mean is drawn in muted grey; the cloud of points sits systematically above it. Three negative-binomial curves with dispersion parameters 0.01, 0.1, and 0.3 are overlaid, fanning out from the Poisson line at higher means. A side legend lists the dispersion values and a callout explains that the upward deviation is the biological overdispersion the NB term captures.</desc>
+
+  <rect x="0" y="0" width="1200" height="640" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <g>
+    <text x="60" y="38" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">MEAN-VARIANCE RELATIONSHIP · WHY POISSON ISN'T ENOUGH</text>
+    <text x="60" y="56" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">~18,000 genes · 6 biological replicates · log-log scale · NB curves: var = μ + α·μ²</text>
+  </g>
+
+  <!-- ============ Main scatter plot ============ -->
+  <g transform="translate(120, 110)">
+    <!-- plot area: 720 wide, 460 tall -->
+    <rect x="0" y="0" width="720" height="460" fill="#ffffff" stroke="#c4c1b6" stroke-width="0.7"/>
+
+    <!-- gridlines (log decades) -->
+    <g stroke="#ebeae3" stroke-width="0.5">
+      <!-- x at 1, 10, 100, 1000, 10000 -->
+      <line x1="0" y1="0" x2="0" y2="460"/>
+      <line x1="144" y1="0" x2="144" y2="460"/>
+      <line x1="288" y1="0" x2="288" y2="460"/>
+      <line x1="432" y1="0" x2="432" y2="460"/>
+      <line x1="576" y1="0" x2="576" y2="460"/>
+      <line x1="720" y1="0" x2="720" y2="460"/>
+
+      <!-- y at 1, 10, 100, 1000, 10000, 100000 -->
+      <line x1="0" y1="460" x2="720" y2="460"/>
+      <line x1="0" y1="368" x2="720" y2="368"/>
+      <line x1="0" y1="276" x2="720" y2="276"/>
+      <line x1="0" y1="184" x2="720" y2="184"/>
+      <line x1="0" y1="92" x2="720" y2="92"/>
+      <line x1="0" y1="0" x2="720" y2="0"/>
+    </g>
+
+    <!-- axes -->
+    <line x1="0" y1="460" x2="720" y2="460" stroke="#374151" stroke-width="1.2"/>
+    <line x1="0" y1="0" x2="0" y2="460" stroke="#374151" stroke-width="1.2"/>
+
+    <!-- x labels: log10(mean) maps 0→0, 4→720, so each decade is 144 px -->
+    <g font-family="Inter, sans-serif" font-size="10" fill="#525252">
+      <text x="0" y="478" text-anchor="middle">1</text>
+      <text x="144" y="478" text-anchor="middle">10</text>
+      <text x="288" y="478" text-anchor="middle">100</text>
+      <text x="432" y="478" text-anchor="middle">1,000</text>
+      <text x="576" y="478" text-anchor="middle">10,000</text>
+      <text x="720" y="478" text-anchor="middle">100,000</text>
+    </g>
+    <text x="360" y="500" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a" text-anchor="middle">mean count μ across replicates  (log scale)</text>
+
+    <!-- y labels: log10(var) maps 0→460, 5→0, each decade is 92 px -->
+    <g font-family="Inter, sans-serif" font-size="10" fill="#525252">
+      <text x="-10" y="464" text-anchor="end">1</text>
+      <text x="-10" y="372" text-anchor="end">10</text>
+      <text x="-10" y="280" text-anchor="end">100</text>
+      <text x="-10" y="188" text-anchor="end">1k</text>
+      <text x="-10" y="96" text-anchor="end">10k</text>
+      <text x="-10" y="4" text-anchor="end">100k</text>
+    </g>
+    <text x="-60" y="230" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a" text-anchor="middle" transform="rotate(-90, -60, 230)">variance across replicates  (log scale)</text>
+
+    <!-- Poisson line: var = mean → log var = log mean. Goes from (0,460) to (720, -64), so clipped at top -->
+    <line x1="0" y1="460" x2="720" y2="92" stroke="#525252" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="700" y="86" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-weight="600" text-anchor="end">var = μ  (Poisson)</text>
+
+    <!-- NB curve, α = 0.01 : var = μ + 0.01 μ². -->
+    <!-- At μ=1: var=1.01 → log10=0.004 → y=458; μ=10: var=11 → y=460-92*1.04=364; μ=100: var=200 → y=460-92*2.301=248; μ=1000: var=11000 → y=460-92*4.04=88; μ=10000: var=1010000 → y=460-92*6.004=-92 (clip) -->
+    <path d="M 0 458 L 144 364 L 288 248 L 432 88 L 576 0" fill="none" stroke="#065f46" stroke-width="2" stroke-dasharray="3 2"/>
+    <text x="585" y="14" font-family="Inter, sans-serif" font-size="10" fill="#065f46" font-weight="600">α = 0.01</text>
+
+    <!-- NB curve, α = 0.1: var = μ + 0.1μ². μ=1→var=1.1→y=456; μ=10→var=20→y=460-92*1.301=340; μ=100→var=1100→y=460-92*3.04=180; μ=1000→var=100100→y=460-92*5.0=0 -->
+    <path d="M 0 456 L 144 340 L 288 180 L 432 0" fill="none" stroke="#b45309" stroke-width="2" stroke-dasharray="3 2"/>
+    <text x="420" y="-2" font-family="Inter, sans-serif" font-size="10" fill="#b45309" font-weight="600">α = 0.1</text>
+
+    <!-- NB curve, α = 0.3: var = μ + 0.3μ². μ=1→var=1.3→y=448; μ=10→var=40→y=460-92*1.602=313; μ=100→var=3100→y=460-92*3.49=139 -->
+    <path d="M 0 448 L 144 313 L 288 139 L 360 0" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="3 2"/>
+    <text x="370" y="-2" font-family="Inter, sans-serif" font-size="10" fill="#b91c1c" font-weight="600">α = 0.3</text>
+
+    <!-- Scatter cloud: ~80 points emulating real data -->
+    <g fill="#1e3a8a" fill-opacity="0.55">
+      <!-- low-count, near-Poisson -->
+      <circle cx="14" cy="455" r="2.3"/>
+      <circle cx="22" cy="450" r="2.3"/>
+      <circle cx="36" cy="442" r="2.3"/>
+      <circle cx="48" cy="438" r="2.3"/>
+      <circle cx="60" cy="430" r="2.3"/>
+      <circle cx="68" cy="426" r="2.3"/>
+      <circle cx="82" cy="418" r="2.3"/>
+      <circle cx="94" cy="410" r="2.3"/>
+      <circle cx="108" cy="402" r="2.3"/>
+      <circle cx="122" cy="394" r="2.3"/>
+      <circle cx="138" cy="384" r="2.3"/>
+      <!-- mid range -->
+      <circle cx="160" cy="370" r="2.3"/>
+      <circle cx="172" cy="356" r="2.3"/>
+      <circle cx="190" cy="346" r="2.3"/>
+      <circle cx="204" cy="332" r="2.3"/>
+      <circle cx="218" cy="324" r="2.3"/>
+      <circle cx="232" cy="312" r="2.3"/>
+      <circle cx="246" cy="296" r="2.3"/>
+      <circle cx="260" cy="288" r="2.3"/>
+      <circle cx="274" cy="278" r="2.3"/>
+      <circle cx="294" cy="262" r="2.3"/>
+      <circle cx="310" cy="254" r="2.3"/>
+      <circle cx="324" cy="240" r="2.3"/>
+      <circle cx="338" cy="226" r="2.3"/>
+      <circle cx="354" cy="212" r="2.3"/>
+      <circle cx="368" cy="200" r="2.3"/>
+      <circle cx="384" cy="186" r="2.3"/>
+      <circle cx="398" cy="170" r="2.3"/>
+      <circle cx="414" cy="156" r="2.3"/>
+      <circle cx="428" cy="140" r="2.3"/>
+      <circle cx="442" cy="128" r="2.3"/>
+      <circle cx="456" cy="112" r="2.3"/>
+      <circle cx="470" cy="98" r="2.3"/>
+      <circle cx="486" cy="84" r="2.3"/>
+      <circle cx="500" cy="70" r="2.3"/>
+      <circle cx="514" cy="58" r="2.3"/>
+      <circle cx="530" cy="48" r="2.3"/>
+      <!-- high-count, very overdispersed -->
+      <circle cx="546" cy="38" r="2.3"/>
+      <circle cx="560" cy="32" r="2.3"/>
+      <circle cx="576" cy="22" r="2.3"/>
+      <circle cx="590" cy="20" r="2.3"/>
+      <circle cx="606" cy="14" r="2.3"/>
+      <!-- jitter -->
+      <circle cx="60" cy="438" r="2"/>
+      <circle cx="120" cy="402" r="2"/>
+      <circle cx="180" cy="360" r="2"/>
+      <circle cx="240" cy="316" r="2"/>
+      <circle cx="300" cy="270" r="2"/>
+      <circle cx="360" cy="222" r="2"/>
+      <circle cx="420" cy="176" r="2"/>
+      <circle cx="480" cy="124" r="2"/>
+      <circle cx="540" cy="80" r="2"/>
+      <circle cx="80" cy="430" r="2"/>
+      <circle cx="150" cy="392" r="2"/>
+      <circle cx="220" cy="346" r="2"/>
+      <circle cx="290" cy="296" r="2"/>
+      <circle cx="360" cy="246" r="2"/>
+      <circle cx="430" cy="192" r="2"/>
+      <circle cx="500" cy="142" r="2"/>
+      <circle cx="570" cy="92" r="2"/>
+      <!-- outliers far above Poisson line -->
+      <circle cx="380" cy="160" r="2.6" fill="#7c3aed" fill-opacity="0.8"/>
+      <circle cx="420" cy="124" r="2.6" fill="#7c3aed" fill-opacity="0.8"/>
+      <circle cx="460" cy="92" r="2.6" fill="#7c3aed" fill-opacity="0.8"/>
+      <circle cx="500" cy="64" r="2.6" fill="#7c3aed" fill-opacity="0.8"/>
+      <circle cx="540" cy="40" r="2.6" fill="#7c3aed" fill-opacity="0.8"/>
+    </g>
+
+    <!-- Callout arrow -->
+    <g>
+      <path d="M 560 250 L 620 200" stroke="#7c3aed" stroke-width="1.2" marker-end="url(#arrow-violet)" fill="none"/>
+      <rect x="440" y="240" width="160" height="60" rx="3" fill="#f4f3ee" stroke="#7c3aed" stroke-width="0.8"/>
+      <text x="450" y="260" font-family="Inter, sans-serif" font-size="10" fill="#7c3aed" font-weight="700">empirical points</text>
+      <text x="450" y="276" font-family="Inter, sans-serif" font-size="10" fill="#7c3aed">sit above the Poisson</text>
+      <text x="450" y="292" font-family="Inter, sans-serif" font-size="10" fill="#7c3aed">line — this is α·μ²</text>
+    </g>
+  </g>
+
+  <defs>
+    <marker id="arrow-violet" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <!-- Side legend -->
+  <g transform="translate(880, 110)">
+    <rect x="0" y="0" width="280" height="240" rx="4" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1"/>
+    <text x="16" y="24" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">NB · var = μ + α·μ²</text>
+    <line x1="16" y1="32" x2="264" y2="32" stroke="#c4c1b6" stroke-width="0.5"/>
+
+    <line x1="16" y1="56" x2="50" y2="56" stroke="#525252" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="58" y="60" font-family="Inter, sans-serif" font-size="10" fill="#525252">Poisson · α = 0</text>
+
+    <line x1="16" y1="80" x2="50" y2="80" stroke="#065f46" stroke-width="2" stroke-dasharray="3 2"/>
+    <text x="58" y="84" font-family="Inter, sans-serif" font-size="10" fill="#065f46">α = 0.01 · technical replicates</text>
+
+    <line x1="16" y1="104" x2="50" y2="104" stroke="#b45309" stroke-width="2" stroke-dasharray="3 2"/>
+    <text x="58" y="108" font-family="Inter, sans-serif" font-size="10" fill="#b45309">α = 0.1 · clean bio replicates</text>
+
+    <line x1="16" y1="128" x2="50" y2="128" stroke="#b91c1c" stroke-width="2" stroke-dasharray="3 2"/>
+    <text x="58" y="132" font-family="Inter, sans-serif" font-size="10" fill="#b91c1c">α = 0.3 · noisy clinical samples</text>
+
+    <line x1="16" y1="152" x2="264" y2="152" stroke="#c4c1b6" stroke-width="0.5"/>
+
+    <text x="16" y="172" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">READ-OFF</text>
+    <text x="16" y="190" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">At μ = 100, Poisson gives</text>
+    <text x="16" y="204" font-family="Inter, sans-serif" font-size="10" fill="#0a0a0a">σ ≈ 10; real data σ ≈ 30–60.</text>
+    <text x="16" y="222" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252">Pretending data is Poisson</text>
+    <text x="16" y="234" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252">inflates p-values 3–10×.</text>
+  </g>
+</svg>

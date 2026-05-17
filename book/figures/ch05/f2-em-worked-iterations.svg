@@ -1,0 +1,245 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" role="img" aria-labelledby="t d">
+  <title id="t">Worked EM iterations for transcript abundance estimation</title>
+  <desc id="d">Five panels walking three EM iterations on a toy problem: three transcripts with lengths 500, 1500, and 2000 bases, and five reads with the compatibility classes T1 T2, T2, T1 T2 T3, T3, and T1. Panel A states the setup. Panels B, C, and D show iterations 0, 1, and 2 as a matrix of fractional votes per read per transcript and the resulting abundance vector. Panel E plots the abundance trajectory across iterations and marks convergence after about ten iterations.</desc>
+
+  <rect x="0" y="0" width="1200" height="700" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <g>
+    <text x="60" y="38" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">EM ITERATIONS · WORKED EXAMPLE</text>
+    <text x="60" y="56" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">5 reads · 3 transcripts · lengths (500, 1500, 2000) · θ initialised uniform · convergence in ~10 iterations</text>
+  </g>
+
+  <!-- ============ PANEL A: setup ============ -->
+  <g transform="translate(60, 80)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(A)  SETUP</text>
+    <rect x="0" y="14" width="500" height="180" rx="4" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1"/>
+
+    <!-- transcripts column -->
+    <text x="20" y="38" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#0a0a0a">Transcripts (length in nt)</text>
+    <rect x="20" y="50" width="40" height="14" fill="#1e3a8a"/>
+    <text x="70" y="61" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">T1 · 500</text>
+    <rect x="20" y="68" width="120" height="14" fill="#b45309"/>
+    <text x="150" y="79" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">T2 · 1500</text>
+    <rect x="20" y="86" width="160" height="14" fill="#065f46"/>
+    <text x="190" y="97" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">T3 · 2000</text>
+
+    <!-- reads column -->
+    <text x="280" y="38" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#0a0a0a">Reads &amp; compatibility classes</text>
+    <g font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">
+      <text x="280" y="56">r1 → {T1, T2}</text>
+      <text x="280" y="74">r2 → {T2}</text>
+      <text x="280" y="92">r3 → {T1, T2, T3}</text>
+      <text x="280" y="110">r4 → {T3}</text>
+      <text x="280" y="128">r5 → {T1}</text>
+    </g>
+
+    <text x="20" y="124" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252">Unique-mapping reads anchor abundance;</text>
+    <text x="20" y="138" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252">shared reads vote fractionally.</text>
+
+    <!-- EM equations -->
+    <text x="20" y="166" font-family="JetBrains Mono, monospace" font-size="10" fill="#1e3a8a">E:  z_{r,t} = (θ_t / ℓ_t) / Σ_{t'∈cls(r)} (θ_{t'} / ℓ_{t'})</text>
+    <text x="20" y="184" font-family="JetBrains Mono, monospace" font-size="10" fill="#1e3a8a">M:  θ_t  =  (Σ_r z_{r,t}) / N</text>
+  </g>
+
+  <!-- Helper macros: render a vote matrix as a small panel -->
+  <!-- ============ PANEL B: iteration 0 ============ -->
+  <g transform="translate(580, 80)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(B)  ITER 0  ·  θ = (0.333, 0.333, 0.333)</text>
+    <rect x="0" y="14" width="540" height="180" rx="4" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1"/>
+
+    <!-- header row -->
+    <g font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#1e3a8a">
+      <text x="40" y="38" letter-spacing="0.06em">READ</text>
+      <text x="120" y="38" text-anchor="middle" letter-spacing="0.06em">T1</text>
+      <text x="200" y="38" text-anchor="middle" letter-spacing="0.06em">T2</text>
+      <text x="280" y="38" text-anchor="middle" letter-spacing="0.06em">T3</text>
+    </g>
+    <line x1="20" y1="44" x2="320" y2="44" stroke="#c4c1b6" stroke-width="0.7"/>
+
+    <g font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">
+      <text x="40" y="60">r1</text><text x="120" y="60" text-anchor="middle">0.750</text><text x="200" y="60" text-anchor="middle">0.250</text><text x="280" y="60" text-anchor="middle">—</text>
+      <text x="40" y="78">r2</text><text x="120" y="78" text-anchor="middle">—</text><text x="200" y="78" text-anchor="middle">1.000</text><text x="280" y="78" text-anchor="middle">—</text>
+      <text x="40" y="96">r3</text><text x="120" y="96" text-anchor="middle">0.632</text><text x="200" y="96" text-anchor="middle">0.211</text><text x="280" y="96" text-anchor="middle">0.158</text>
+      <text x="40" y="114">r4</text><text x="120" y="114" text-anchor="middle">—</text><text x="200" y="114" text-anchor="middle">—</text><text x="280" y="114" text-anchor="middle">1.000</text>
+      <text x="40" y="132">r5</text><text x="120" y="132" text-anchor="middle">1.000</text><text x="200" y="132" text-anchor="middle">—</text><text x="280" y="132" text-anchor="middle">—</text>
+    </g>
+    <line x1="20" y1="142" x2="320" y2="142" stroke="#c4c1b6" stroke-width="0.7"/>
+    <text x="40" y="160" font-family="Inter, sans-serif" font-size="9" fill="#1e3a8a" font-weight="700">Σ vote</text>
+    <text x="120" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">2.382</text>
+    <text x="200" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#b45309">1.461</text>
+    <text x="280" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#065f46">1.158</text>
+
+    <!-- abundance bar -->
+    <text x="360" y="60" font-family="Inter, sans-serif" font-size="9" fill="#0a0a0a" font-weight="600">θ′</text>
+    <g transform="translate(360, 70)">
+      <rect x="0" y="0" width="120" height="14" fill="#e5e3dc"/>
+      <rect x="0" y="0" width="57" height="14" fill="#1e3a8a"/>
+      <text x="60" y="11" font-family="JetBrains Mono, monospace" font-size="9" fill="#ffffff" text-anchor="middle" font-weight="700">0.476</text>
+    </g>
+    <g transform="translate(360, 90)">
+      <rect x="0" y="0" width="120" height="14" fill="#e5e3dc"/>
+      <rect x="0" y="0" width="35" height="14" fill="#b45309"/>
+      <text x="60" y="11" font-family="JetBrains Mono, monospace" font-size="9" fill="#0a0a0a" text-anchor="middle" font-weight="700">0.292</text>
+    </g>
+    <g transform="translate(360, 110)">
+      <rect x="0" y="0" width="120" height="14" fill="#e5e3dc"/>
+      <rect x="0" y="0" width="28" height="14" fill="#065f46"/>
+      <text x="60" y="11" font-family="JetBrains Mono, monospace" font-size="9" fill="#0a0a0a" text-anchor="middle" font-weight="700">0.232</text>
+    </g>
+  </g>
+
+  <!-- ============ PANEL C: iteration 1 ============ -->
+  <g transform="translate(60, 290)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(C)  ITER 1  ·  θ = (0.476, 0.292, 0.232)</text>
+    <rect x="0" y="14" width="540" height="180" rx="4" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1"/>
+
+    <g font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#1e3a8a">
+      <text x="40" y="38" letter-spacing="0.06em">READ</text>
+      <text x="120" y="38" text-anchor="middle" letter-spacing="0.06em">T1</text>
+      <text x="200" y="38" text-anchor="middle" letter-spacing="0.06em">T2</text>
+      <text x="280" y="38" text-anchor="middle" letter-spacing="0.06em">T3</text>
+    </g>
+    <line x1="20" y1="44" x2="320" y2="44" stroke="#c4c1b6" stroke-width="0.7"/>
+
+    <g font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">
+      <text x="40" y="60">r1</text><text x="120" y="60" text-anchor="middle">0.831</text><text x="200" y="60" text-anchor="middle">0.169</text><text x="280" y="60" text-anchor="middle">—</text>
+      <text x="40" y="78">r2</text><text x="120" y="78" text-anchor="middle">—</text><text x="200" y="78" text-anchor="middle">1.000</text><text x="280" y="78" text-anchor="middle">—</text>
+      <text x="40" y="96">r3</text><text x="120" y="96" text-anchor="middle">0.776</text><text x="200" y="96" text-anchor="middle">0.158</text><text x="280" y="96" text-anchor="middle">0.066</text>
+      <text x="40" y="114">r4</text><text x="120" y="114" text-anchor="middle">—</text><text x="200" y="114" text-anchor="middle">—</text><text x="280" y="114" text-anchor="middle">1.000</text>
+      <text x="40" y="132">r5</text><text x="120" y="132" text-anchor="middle">1.000</text><text x="200" y="132" text-anchor="middle">—</text><text x="280" y="132" text-anchor="middle">—</text>
+    </g>
+    <line x1="20" y1="142" x2="320" y2="142" stroke="#c4c1b6" stroke-width="0.7"/>
+    <text x="40" y="160" font-family="Inter, sans-serif" font-size="9" fill="#1e3a8a" font-weight="700">Σ vote</text>
+    <text x="120" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">2.607</text>
+    <text x="200" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#b45309">1.327</text>
+    <text x="280" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#065f46">1.066</text>
+
+    <text x="360" y="60" font-family="Inter, sans-serif" font-size="9" fill="#0a0a0a" font-weight="600">θ″</text>
+    <g transform="translate(360, 70)">
+      <rect x="0" y="0" width="120" height="14" fill="#e5e3dc"/>
+      <rect x="0" y="0" width="63" height="14" fill="#1e3a8a"/>
+      <text x="60" y="11" font-family="JetBrains Mono, monospace" font-size="9" fill="#ffffff" text-anchor="middle" font-weight="700">0.521</text>
+    </g>
+    <g transform="translate(360, 90)">
+      <rect x="0" y="0" width="120" height="14" fill="#e5e3dc"/>
+      <rect x="0" y="0" width="32" height="14" fill="#b45309"/>
+      <text x="60" y="11" font-family="JetBrains Mono, monospace" font-size="9" fill="#0a0a0a" text-anchor="middle" font-weight="700">0.265</text>
+    </g>
+    <g transform="translate(360, 110)">
+      <rect x="0" y="0" width="120" height="14" fill="#e5e3dc"/>
+      <rect x="0" y="0" width="26" height="14" fill="#065f46"/>
+      <text x="60" y="11" font-family="JetBrains Mono, monospace" font-size="9" fill="#0a0a0a" text-anchor="middle" font-weight="700">0.213</text>
+    </g>
+  </g>
+
+  <!-- ============ PANEL D: iteration 10 (converged) ============ -->
+  <g transform="translate(580, 290)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(D)  ITER 10  ·  θ = (0.557, 0.243, 0.200)  ·  CONVERGED</text>
+    <rect x="0" y="14" width="540" height="180" rx="4" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1"/>
+
+    <g font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#1e3a8a">
+      <text x="40" y="38" letter-spacing="0.06em">READ</text>
+      <text x="120" y="38" text-anchor="middle" letter-spacing="0.06em">T1</text>
+      <text x="200" y="38" text-anchor="middle" letter-spacing="0.06em">T2</text>
+      <text x="280" y="38" text-anchor="middle" letter-spacing="0.06em">T3</text>
+    </g>
+    <line x1="20" y1="44" x2="320" y2="44" stroke="#c4c1b6" stroke-width="0.7"/>
+
+    <g font-family="JetBrains Mono, monospace" font-size="10" fill="#0a0a0a">
+      <text x="40" y="60">r1</text><text x="120" y="60" text-anchor="middle">0.872</text><text x="200" y="60" text-anchor="middle">0.128</text><text x="280" y="60" text-anchor="middle">—</text>
+      <text x="40" y="78">r2</text><text x="120" y="78" text-anchor="middle">—</text><text x="200" y="78" text-anchor="middle">1.000</text><text x="280" y="78" text-anchor="middle">—</text>
+      <text x="40" y="96">r3</text><text x="120" y="96" text-anchor="middle">0.824</text><text x="200" y="96" text-anchor="middle">0.120</text><text x="280" y="96" text-anchor="middle">0.056</text>
+      <text x="40" y="114">r4</text><text x="120" y="114" text-anchor="middle">—</text><text x="200" y="114" text-anchor="middle">—</text><text x="280" y="114" text-anchor="middle">1.000</text>
+      <text x="40" y="132">r5</text><text x="120" y="132" text-anchor="middle">1.000</text><text x="200" y="132" text-anchor="middle">—</text><text x="280" y="132" text-anchor="middle">—</text>
+    </g>
+    <line x1="20" y1="142" x2="320" y2="142" stroke="#c4c1b6" stroke-width="0.7"/>
+    <text x="40" y="160" font-family="Inter, sans-serif" font-size="9" fill="#1e3a8a" font-weight="700">Σ vote</text>
+    <text x="120" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">2.696</text>
+    <text x="200" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#b45309">1.248</text>
+    <text x="280" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#065f46">1.056</text>
+
+    <text x="360" y="60" font-family="Inter, sans-serif" font-size="9" fill="#0a0a0a" font-weight="600">θ*</text>
+    <g transform="translate(360, 70)">
+      <rect x="0" y="0" width="120" height="14" fill="#e5e3dc"/>
+      <rect x="0" y="0" width="67" height="14" fill="#1e3a8a"/>
+      <text x="60" y="11" font-family="JetBrains Mono, monospace" font-size="9" fill="#ffffff" text-anchor="middle" font-weight="700">0.557</text>
+    </g>
+    <g transform="translate(360, 90)">
+      <rect x="0" y="0" width="120" height="14" fill="#e5e3dc"/>
+      <rect x="0" y="0" width="29" height="14" fill="#b45309"/>
+      <text x="60" y="11" font-family="JetBrains Mono, monospace" font-size="9" fill="#0a0a0a" text-anchor="middle" font-weight="700">0.243</text>
+    </g>
+    <g transform="translate(360, 110)">
+      <rect x="0" y="0" width="120" height="14" fill="#e5e3dc"/>
+      <rect x="0" y="0" width="24" height="14" fill="#065f46"/>
+      <text x="60" y="11" font-family="JetBrains Mono, monospace" font-size="9" fill="#0a0a0a" text-anchor="middle" font-weight="700">0.200</text>
+    </g>
+  </g>
+
+  <!-- ============ PANEL E: trajectory plot ============ -->
+  <g transform="translate(60, 500)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(E)  ABUNDANCE  TRAJECTORY  ACROSS  ITERATIONS</text>
+    <rect x="0" y="14" width="1060" height="170" rx="4" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1"/>
+
+    <!-- axes -->
+    <g transform="translate(40, 30)">
+      <line x1="0" y1="120" x2="980" y2="120" stroke="#525252" stroke-width="1"/>
+      <line x1="0" y1="0" x2="0" y2="120" stroke="#525252" stroke-width="1"/>
+
+      <!-- y ticks -->
+      <g font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">
+        <text x="-8" y="6" text-anchor="end">1.0</text>
+        <text x="-8" y="36" text-anchor="end">0.75</text>
+        <text x="-8" y="66" text-anchor="end">0.50</text>
+        <text x="-8" y="96" text-anchor="end">0.25</text>
+        <text x="-8" y="124" text-anchor="end">0.00</text>
+      </g>
+      <line x1="0" y1="6" x2="980" y2="6" stroke="#e5e3dc" stroke-width="0.5"/>
+      <line x1="0" y1="36" x2="980" y2="36" stroke="#e5e3dc" stroke-width="0.5"/>
+      <line x1="0" y1="66" x2="980" y2="66" stroke="#e5e3dc" stroke-width="0.5"/>
+      <line x1="0" y1="96" x2="980" y2="96" stroke="#e5e3dc" stroke-width="0.5"/>
+
+      <!-- x ticks -->
+      <g font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">
+        <text x="0" y="138" text-anchor="middle">0</text>
+        <text x="98" y="138" text-anchor="middle">1</text>
+        <text x="196" y="138" text-anchor="middle">2</text>
+        <text x="294" y="138" text-anchor="middle">3</text>
+        <text x="392" y="138" text-anchor="middle">4</text>
+        <text x="490" y="138" text-anchor="middle">5</text>
+        <text x="588" y="138" text-anchor="middle">6</text>
+        <text x="686" y="138" text-anchor="middle">7</text>
+        <text x="784" y="138" text-anchor="middle">8</text>
+        <text x="882" y="138" text-anchor="middle">9</text>
+        <text x="980" y="138" text-anchor="middle">10</text>
+      </g>
+      <text x="490" y="154" font-family="Inter, sans-serif" font-size="10" fill="#525252" text-anchor="middle">iteration</text>
+
+      <!-- T1 trajectory: 0.333, 0.476, 0.521, 0.541, 0.550, 0.554, 0.555, 0.556, 0.557, 0.557, 0.557 -->
+      <polyline points="0,80 98,57 196,52 294,49 392,48 490,47 588,47 686,47 784,47 882,47 980,47"
+                fill="none" stroke="#1e3a8a" stroke-width="2.5"/>
+      <circle cx="980" cy="47" r="3.5" fill="#1e3a8a"/>
+      <text x="998" y="51" font-family="Inter, sans-serif" font-size="10" fill="#1e3a8a" font-weight="700">T1 · 0.557</text>
+
+      <!-- T2: 0.333, 0.292, 0.265, 0.255, 0.250, 0.247, 0.245, 0.244, 0.244, 0.243, 0.243 -->
+      <polyline points="0,80 98,85 196,88 294,89 392,90 490,90 588,91 686,91 784,91 882,91 980,91"
+                fill="none" stroke="#b45309" stroke-width="2.5"/>
+      <circle cx="980" cy="91" r="3.5" fill="#b45309"/>
+      <text x="998" y="95" font-family="Inter, sans-serif" font-size="10" fill="#b45309" font-weight="700">T2 · 0.243</text>
+
+      <!-- T3: 0.333, 0.232, 0.213, 0.207, 0.203, 0.201, 0.201, 0.200, 0.200, 0.200, 0.200 -->
+      <polyline points="0,80 98,96 196,99 294,100 392,101 490,102 588,102 686,102 784,102 882,102 980,102"
+                fill="none" stroke="#065f46" stroke-width="2.5"/>
+      <circle cx="980" cy="102" r="3.5" fill="#065f46"/>
+      <text x="998" y="106" font-family="Inter, sans-serif" font-size="10" fill="#065f46" font-weight="700">T3 · 0.200</text>
+
+      <!-- y label -->
+      <text x="-30" y="60" font-family="Inter, sans-serif" font-size="10" fill="#525252" transform="rotate(-90, -30, 60)" text-anchor="middle">θ_t</text>
+
+      <!-- convergence marker -->
+      <line x1="490" y1="0" x2="490" y2="120" stroke="#7c3aed" stroke-width="0.8" stroke-dasharray="4 3"/>
+      <text x="494" y="14" font-family="Inter, sans-serif" font-size="9" fill="#7c3aed">|Δθ| &lt; 1e-3 by iter 5</text>
+    </g>
+  </g>
+</svg>

@@ -41,7 +41,17 @@
 #include "chapters/ch02-read-alignment.typ"
 #include "chapters/ch03-assembly.typ"
 #include "chapters/ch04-variant-calling.typ"
+#include "chapters/ch05-bulk-rna-seq.typ"
+#include "chapters/ch06-differential-expression.typ"
+#include "chapters/ch07-scrna-seq.typ"
+#include "chapters/ch08-advanced-single-cell.typ"
+#include "chapters/ch09-chip-atac-peak-calling.typ"
+#include "chapters/ch10-methylation-hic.typ"
+#include "chapters/ch11-long-reads-pangenome.typ"
+#include "chapters/ch12-population-genetics.typ"
+#include "chapters/ch13-gwas.typ"
+#include "chapters/ch14-data-engineering.typ"
 
 // Future chapters get included here as they are authored.
-// #include "chapters/ch05-bulk-rna-seq.typ"
+// #include "chapters/ch15-protein-structure.typ"
 // ...

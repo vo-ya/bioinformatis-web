@@ -1,0 +1,272 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 540" role="img" aria-labelledby="t d">
+  <title id="t">Fine-mapping as a sparse linear inverse problem</title>
+  <desc id="d">A three-panel illustration of the relation z = R beta_c + noise. Panel A shows the LD matrix R as a heatmap with a block-structured pattern of strong correlations. Panel B shows the sparse causal effect vector beta_c with only two non-zero entries among twenty SNPs. Panel C shows the resulting observed z-statistic vector, which lifts at many SNPs around the two causal sites because LD propagates the signal to correlated neighbours.</desc>
+
+  <rect width="1200" height="540" fill="#fafaf9"/>
+
+  <!-- Title -->
+  <g font-family="Inter, sans-serif">
+    <text x="60" y="36" font-size="18" font-weight="600" fill="#0a0a0a">Fine-mapping as a sparse linear inverse problem</text>
+    <text x="60" y="56" font-size="11" fill="#525252">Observed z-statistics are the LD matrix times the (sparse) causal effects, plus noise.</text>
+  </g>
+
+  <!-- Equation at top -->
+  <g transform="translate(360, 90)" font-family="Source Serif 4, serif" fill="#0a0a0a">
+    <text x="0" y="0" font-size="20"><tspan font-weight="600">z</tspan> = <tspan font-weight="600">R</tspan> &#946;<tspan baseline-shift="sub" font-size="14">c</tspan> &#8730;<tspan font-style="italic">N</tspan> + <tspan font-style="italic">&#951;</tspan></text>
+    <text x="280" y="0" font-size="13" font-style="italic" fill="#525252">(causal effects are mostly zero)</text>
+  </g>
+
+  <!-- ============== PANEL A: LD matrix R ============== -->
+  <g transform="translate(80, 160)">
+    <text x="0" y="-10" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.08em" font-family="Inter, sans-serif">(A)  LD  MATRIX  R</text>
+    <text x="0" y="6" font-size="10" font-style="italic" fill="#525252" font-family="Inter, sans-serif">20 SNPs &#215; 20 SNPs, block-correlated</text>
+
+    <!-- 20x20 grid, each cell 14x14, total 280x280 -->
+    <g transform="translate(0, 16)">
+      <!-- Generate the heatmap procedurally as colored rects -->
+      <!-- Use a function: r2(i,j) = block_structure  -->
+      <!-- Block 1: SNPs 0-7 with mid-high LD,  Block 2: SNPs 8-13 strong LD, Block 3: SNPs 14-19 weak LD -->
+      <!-- We'll generate manually with 3 levels of intensity. Diagonal=darkest -->
+      <!-- Using cobalt scale: 0=#fafaf9, 0.2=#e0e7ff, 0.4=#a5b4fc, 0.6=#6366f1, 0.8=#3730a3, 1.0=#1e3a8a -->
+
+      <!-- 20 rows, 20 cols -->
+      <!-- We'll write out a script-like manual fill matching block structure (i,j in same block -> high) -->
+      <!-- Row 0 -->
+      <g>
+        <!-- block 1: 0-7 -->
+        <rect x="0" y="0" width="14" height="14" fill="#1e3a8a"/>
+        <rect x="14" y="0" width="14" height="14" fill="#3730a3"/>
+        <rect x="28" y="0" width="14" height="14" fill="#3730a3"/>
+        <rect x="42" y="0" width="14" height="14" fill="#6366f1"/>
+        <rect x="56" y="0" width="14" height="14" fill="#6366f1"/>
+        <rect x="70" y="0" width="14" height="14" fill="#a5b4fc"/>
+        <rect x="84" y="0" width="14" height="14" fill="#a5b4fc"/>
+        <rect x="98" y="0" width="14" height="14" fill="#a5b4fc"/>
+        <!-- block 2: 8-13 -->
+        <rect x="112" y="0" width="14" height="14" fill="#e0e7ff"/>
+        <rect x="126" y="0" width="14" height="14" fill="#e0e7ff"/>
+        <rect x="140" y="0" width="14" height="14" fill="#e0e7ff"/>
+        <rect x="154" y="0" width="14" height="14" fill="#e0e7ff"/>
+        <rect x="168" y="0" width="14" height="14" fill="#f4f3ee"/>
+        <rect x="182" y="0" width="14" height="14" fill="#f4f3ee"/>
+        <!-- block 3 -->
+        <rect x="196" y="0" width="14" height="14" fill="#f4f3ee"/>
+        <rect x="210" y="0" width="14" height="14" fill="#f4f3ee"/>
+        <rect x="224" y="0" width="14" height="14" fill="#fafaf9"/>
+        <rect x="238" y="0" width="14" height="14" fill="#fafaf9"/>
+        <rect x="252" y="0" width="14" height="14" fill="#fafaf9"/>
+        <rect x="266" y="0" width="14" height="14" fill="#fafaf9"/>
+      </g>
+
+      <!-- For row 1 onwards, we use a programmatic pattern via a JS-like approach is not possible in pure SVG. So we'll use shortcuts: build block-tinted overall regions, then darken diagonal and near-diagonal. -->
+      <!-- Background blocks: -->
+      <g opacity="1">
+        <!-- Block 1 (0-7) x Block 1 -->
+        <rect x="0" y="14" width="112" height="98" fill="#3730a3" opacity="0.6"/>
+        <!-- Block 2 (8-13) x Block 2 -->
+        <rect x="112" y="112" width="84" height="84" fill="#1e3a8a" opacity="0.8"/>
+        <!-- Block 3 (14-19) x Block 3 -->
+        <rect x="196" y="196" width="84" height="84" fill="#6366f1" opacity="0.55"/>
+        <!-- cross blocks (weak) -->
+        <rect x="112" y="0" width="84" height="112" fill="#e0e7ff"/>
+        <rect x="0" y="112" width="112" height="84" fill="#e0e7ff"/>
+        <rect x="196" y="0" width="84" height="196" fill="#f4f3ee"/>
+        <rect x="0" y="196" width="196" height="84" fill="#f4f3ee"/>
+      </g>
+
+      <!-- Diagonal -->
+      <g fill="#1e3a8a">
+        <rect x="0" y="0" width="14" height="14"/>
+        <rect x="14" y="14" width="14" height="14"/>
+        <rect x="28" y="28" width="14" height="14"/>
+        <rect x="42" y="42" width="14" height="14"/>
+        <rect x="56" y="56" width="14" height="14"/>
+        <rect x="70" y="70" width="14" height="14"/>
+        <rect x="84" y="84" width="14" height="14"/>
+        <rect x="98" y="98" width="14" height="14"/>
+        <rect x="112" y="112" width="14" height="14"/>
+        <rect x="126" y="126" width="14" height="14"/>
+        <rect x="140" y="140" width="14" height="14"/>
+        <rect x="154" y="154" width="14" height="14"/>
+        <rect x="168" y="168" width="14" height="14"/>
+        <rect x="182" y="182" width="14" height="14"/>
+        <rect x="196" y="196" width="14" height="14"/>
+        <rect x="210" y="210" width="14" height="14"/>
+        <rect x="224" y="224" width="14" height="14"/>
+        <rect x="238" y="238" width="14" height="14"/>
+        <rect x="252" y="252" width="14" height="14"/>
+        <rect x="266" y="266" width="14" height="14"/>
+      </g>
+
+      <!-- frame -->
+      <rect x="0" y="0" width="280" height="280" fill="none" stroke="#0a0a0a" stroke-width="1"/>
+
+      <!-- gridlines -->
+      <g stroke="#fafaf9" stroke-width="0.4">
+        <line x1="0" y1="14" x2="280" y2="14"/>
+        <line x1="0" y1="28" x2="280" y2="28"/>
+        <line x1="0" y1="42" x2="280" y2="42"/>
+        <line x1="0" y1="56" x2="280" y2="56"/>
+        <line x1="0" y1="70" x2="280" y2="70"/>
+        <line x1="0" y1="84" x2="280" y2="84"/>
+        <line x1="0" y1="98" x2="280" y2="98"/>
+        <line x1="0" y1="112" x2="280" y2="112"/>
+        <line x1="0" y1="126" x2="280" y2="126"/>
+        <line x1="0" y1="140" x2="280" y2="140"/>
+        <line x1="0" y1="154" x2="280" y2="154"/>
+        <line x1="0" y1="168" x2="280" y2="168"/>
+        <line x1="0" y1="182" x2="280" y2="182"/>
+        <line x1="0" y1="196" x2="280" y2="196"/>
+        <line x1="0" y1="210" x2="280" y2="210"/>
+        <line x1="0" y1="224" x2="280" y2="224"/>
+        <line x1="0" y1="238" x2="280" y2="238"/>
+        <line x1="0" y1="252" x2="280" y2="252"/>
+        <line x1="0" y1="266" x2="280" y2="266"/>
+        <line x1="14" y1="0" x2="14" y2="280"/>
+        <line x1="28" y1="0" x2="28" y2="280"/>
+        <line x1="42" y1="0" x2="42" y2="280"/>
+        <line x1="56" y1="0" x2="56" y2="280"/>
+        <line x1="70" y1="0" x2="70" y2="280"/>
+        <line x1="84" y1="0" x2="84" y2="280"/>
+        <line x1="98" y1="0" x2="98" y2="280"/>
+        <line x1="112" y1="0" x2="112" y2="280"/>
+        <line x1="126" y1="0" x2="126" y2="280"/>
+        <line x1="140" y1="0" x2="140" y2="280"/>
+        <line x1="154" y1="0" x2="154" y2="280"/>
+        <line x1="168" y1="0" x2="168" y2="280"/>
+        <line x1="182" y1="0" x2="182" y2="280"/>
+        <line x1="196" y1="0" x2="196" y2="280"/>
+        <line x1="210" y1="0" x2="210" y2="280"/>
+        <line x1="224" y1="0" x2="224" y2="280"/>
+        <line x1="238" y1="0" x2="238" y2="280"/>
+        <line x1="252" y1="0" x2="252" y2="280"/>
+        <line x1="266" y1="0" x2="266" y2="280"/>
+      </g>
+    </g>
+
+    <!-- color legend -->
+    <g transform="translate(0, 308)">
+      <text x="0" y="0" font-size="9" fill="#525252" font-family="Inter, sans-serif"><tspan font-style="italic">r</tspan>&#178; = 0</text>
+      <rect x="40" y="-9" width="20" height="10" fill="#fafaf9" stroke="#c4c1b6"/>
+      <rect x="60" y="-9" width="20" height="10" fill="#e0e7ff"/>
+      <rect x="80" y="-9" width="20" height="10" fill="#a5b4fc"/>
+      <rect x="100" y="-9" width="20" height="10" fill="#6366f1"/>
+      <rect x="120" y="-9" width="20" height="10" fill="#3730a3"/>
+      <rect x="140" y="-9" width="20" height="10" fill="#1e3a8a"/>
+      <text x="166" y="0" font-size="9" fill="#525252" font-family="Inter, sans-serif"><tspan font-style="italic">r</tspan>&#178; = 1</text>
+    </g>
+  </g>
+
+  <!-- arrow between A and B -->
+  <g transform="translate(390, 280)">
+    <line x1="0" y1="40" x2="40" y2="40" stroke="#525252" stroke-width="1.5"/>
+    <polygon points="40,36 48,40 40,44" fill="#525252"/>
+  </g>
+
+  <!-- ============== PANEL B: sparse causal vector ============== -->
+  <g transform="translate(460, 160)">
+    <text x="0" y="-10" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.08em" font-family="Inter, sans-serif">(B)  CAUSAL  EFFECTS  &#946;</text>
+    <text x="80" y="-10" font-size="11" font-weight="600" fill="#1e3a8a" font-family="Inter, sans-serif" baseline-shift="sub">c</text>
+    <text x="0" y="6" font-size="10" font-style="italic" fill="#525252" font-family="Inter, sans-serif">sparse: 2 of 20 SNPs are causal</text>
+
+    <!-- vertical bar chart of beta_c with two non-zero entries -->
+    <g transform="translate(0, 16)">
+      <line x1="0" y1="140" x2="280" y2="140" stroke="#0a0a0a" stroke-width="1"/>
+      <line x1="0" y1="20" x2="0" y2="280" stroke="#0a0a0a" stroke-width="1"/>
+
+      <!-- baseline -->
+      <line x1="0" y1="140" x2="280" y2="140" stroke="#525252" stroke-width="0.5"/>
+
+      <!-- 20 tiny bars at zero, two large -->
+      <g>
+        <rect x="2" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="16" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="30" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <!-- causal at idx 3 -->
+        <rect x="44" y="60" width="10" height="80" fill="#b45309"/>
+        <text x="49" y="52" font-size="10" font-weight="600" fill="#b45309" text-anchor="middle" font-family="Inter, sans-serif">&#946;&#8323;</text>
+        <rect x="58" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="72" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="86" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="100" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="114" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="128" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <!-- causal at idx 10 -->
+        <rect x="142" y="78" width="10" height="62" fill="#b45309"/>
+        <text x="147" y="70" font-size="10" font-weight="600" fill="#b45309" text-anchor="middle" font-family="Inter, sans-serif">&#946;&#8321;&#8320;</text>
+        <rect x="156" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="170" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="184" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="198" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="212" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="226" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="240" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="254" y="138" width="10" height="2" fill="#c4c1b6"/>
+        <rect x="268" y="138" width="10" height="2" fill="#c4c1b6"/>
+      </g>
+
+      <text x="140" y="298" text-anchor="middle" font-size="10" fill="#525252" font-family="Inter, sans-serif">SNP index</text>
+    </g>
+  </g>
+
+  <!-- arrow between B and C -->
+  <g transform="translate(750, 280)">
+    <line x1="0" y1="40" x2="40" y2="40" stroke="#525252" stroke-width="1.5"/>
+    <polygon points="40,36 48,40 40,44" fill="#525252"/>
+  </g>
+
+  <!-- ============== PANEL C: observed z ============== -->
+  <g transform="translate(820, 160)">
+    <text x="0" y="-10" font-size="11" font-weight="600" fill="#1e3a8a" letter-spacing="0.08em" font-family="Inter, sans-serif">(C)  OBSERVED  z  =  R&#946;</text>
+    <text x="125" y="-10" font-size="11" font-weight="600" fill="#1e3a8a" font-family="Inter, sans-serif" baseline-shift="sub">c</text>
+    <text x="138" y="-10" font-size="11" font-weight="600" fill="#1e3a8a" font-family="Inter, sans-serif">+ noise</text>
+    <text x="0" y="6" font-size="10" font-style="italic" fill="#525252" font-family="Inter, sans-serif">LD propagates two causals to many tagging SNPs</text>
+
+    <g transform="translate(0, 16)">
+      <line x1="0" y1="140" x2="280" y2="140" stroke="#0a0a0a" stroke-width="1"/>
+      <line x1="0" y1="20" x2="0" y2="280" stroke="#0a0a0a" stroke-width="1"/>
+
+      <!-- diffuse bars: peak around idx 3 and around idx 10 -->
+      <!-- block 1 SNPs (0-7) all show some signal; tallest at 3 -->
+      <g fill="#1e3a8a" opacity="0.85">
+        <rect x="2" y="98" width="10" height="42"/>
+        <rect x="16" y="86" width="10" height="54"/>
+        <rect x="30" y="74" width="10" height="66"/>
+        <rect x="44" y="50" width="10" height="90"/>
+        <rect x="58" y="68" width="10" height="72"/>
+        <rect x="72" y="84" width="10" height="56"/>
+        <rect x="86" y="98" width="10" height="42"/>
+        <rect x="100" y="110" width="10" height="30"/>
+        <!-- block 2 SNPs (8-13) all show some signal; tallest at 10 -->
+        <rect x="114" y="100" width="10" height="40"/>
+        <rect x="128" y="84" width="10" height="56"/>
+        <rect x="142" y="62" width="10" height="78"/>
+        <rect x="156" y="76" width="10" height="64"/>
+        <rect x="170" y="94" width="10" height="46"/>
+        <rect x="184" y="108" width="10" height="32"/>
+        <!-- block 3 (14-19): mostly noise -->
+        <rect x="198" y="128" width="10" height="12"/>
+        <rect x="212" y="124" width="10" height="16"/>
+        <rect x="226" y="130" width="10" height="10"/>
+        <rect x="240" y="126" width="10" height="14"/>
+        <rect x="254" y="132" width="10" height="8"/>
+        <rect x="268" y="128" width="10" height="12"/>
+      </g>
+
+      <!-- threshold -->
+      <line x1="0" y1="58" x2="280" y2="58" stroke="#b91c1c" stroke-width="0.8" stroke-dasharray="3 2"/>
+      <text x="284" y="61" font-size="9" fill="#b91c1c" font-family="Inter, sans-serif">5&#215;10&#8315;&#8312;</text>
+
+      <!-- annotations for lead SNPs -->
+      <text x="49" y="44" text-anchor="middle" font-size="9" fill="#b91c1c" font-style="italic" font-family="Inter, sans-serif">lead 1</text>
+      <text x="147" y="56" text-anchor="middle" font-size="9" fill="#b91c1c" font-style="italic" font-family="Inter, sans-serif">lead 2</text>
+
+      <text x="140" y="298" text-anchor="middle" font-size="10" fill="#525252" font-family="Inter, sans-serif">SNP index</text>
+    </g>
+  </g>
+
+  <!-- bottom annotation -->
+  <g transform="translate(60, 510)">
+    <text x="0" y="0" font-size="11" fill="#0a0a0a" font-family="Inter, sans-serif"><tspan font-weight="600" fill="#1e3a8a">The inverse problem:</tspan> given observed <tspan font-family="Source Serif 4, serif" font-weight="600">z</tspan> and known <tspan font-family="Source Serif 4, serif" font-weight="600">R</tspan>, recover the sparse causal vector <tspan font-family="Source Serif 4, serif" font-weight="600">&#946;</tspan><tspan font-family="Source Serif 4, serif" baseline-shift="sub" font-size="9">c</tspan>. SuSiE, FINEMAP, and CAVIAR are three Bayesian sparse-recovery algorithms; LASSO and basis pursuit are the signal-processing analogues.</text>
+  </g>
+</svg>

@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" role="img" aria-labelledby="t d">
+  <title id="t">TPM, FPKM, and CPM arithmetic with worked numbers and rank flips</title>
+  <desc id="d">A worked example with four genes of different lengths and raw read counts. Three panels show the same four genes after CPM, FPKM, and TPM normalisation. Each row of the lower panel uses identical input numbers; the resulting expression units differ in scale and rank. Two arrows highlight the rank flip between gene B and gene D under CPM versus TPM. A side legend states the formulas.</desc>
+
+  <rect x="0" y="0" width="1200" height="600" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <g>
+    <text x="60" y="38" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">CPM · FPKM · TPM  ·  WHEN THE UNITS DISAGREE</text>
+    <text x="60" y="56" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">4 genes · library depth D = 2,000,000 reads · gene B and gene D rank differently under CPM and TPM</text>
+  </g>
+
+  <!-- ============ PANEL A: input ============ -->
+  <g transform="translate(60, 80)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(A)  INPUT  ·  COUNTS  AND  LENGTHS</text>
+
+    <rect x="0" y="14" width="540" height="190" rx="4" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1"/>
+
+    <!-- table header -->
+    <g font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">
+      <text x="40" y="40">GENE</text>
+      <text x="180" y="40" text-anchor="end">LENGTH (kb)</text>
+      <text x="320" y="40" text-anchor="end">RAW COUNT</text>
+      <text x="500" y="40" text-anchor="end">COUNT / LENGTH</text>
+    </g>
+    <line x1="20" y1="48" x2="520" y2="48" stroke="#c4c1b6" stroke-width="0.7"/>
+
+    <g font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">
+      <text x="40" y="68">A</text>
+      <text x="180" y="68" text-anchor="end">0.5</text>
+      <text x="320" y="68" text-anchor="end">2,000</text>
+      <text x="500" y="68" text-anchor="end">4,000</text>
+
+      <text x="40" y="90">B</text>
+      <text x="180" y="90" text-anchor="end">2.0</text>
+      <text x="320" y="90" text-anchor="end">4,000</text>
+      <text x="500" y="90" text-anchor="end">2,000</text>
+
+      <text x="40" y="112">C</text>
+      <text x="180" y="112" text-anchor="end">5.0</text>
+      <text x="320" y="112" text-anchor="end">5,000</text>
+      <text x="500" y="112" text-anchor="end">1,000</text>
+
+      <text x="40" y="134">D</text>
+      <text x="180" y="134" text-anchor="end">10.0</text>
+      <text x="320" y="134" text-anchor="end">3,000</text>
+      <text x="500" y="134" text-anchor="end">300</text>
+    </g>
+
+    <line x1="20" y1="146" x2="520" y2="146" stroke="#c4c1b6" stroke-width="0.7"/>
+    <text x="40" y="166" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#1e3a8a">Σ  (counts ; counts/length)</text>
+    <text x="320" y="166" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">14,000</text>
+    <text x="500" y="166" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">7,300</text>
+    <text x="40" y="184" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252">Library depth D = 2,000,000 reads (only 14,000 in these 4 genes)</text>
+  </g>
+
+  <!-- ============ PANEL B: formulas ============ -->
+  <g transform="translate(640, 80)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(B)  THREE  FORMULAS</text>
+    <rect x="0" y="14" width="500" height="190" rx="4" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1"/>
+
+    <text x="20" y="42" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a">CPM</text>
+    <text x="20" y="58" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">CPM_g = c_g / (D / 10^6)</text>
+    <text x="20" y="72" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252">depth-corrected only · no length term</text>
+
+    <line x1="20" y1="80" x2="480" y2="80" stroke="#c4c1b6" stroke-width="0.5"/>
+
+    <text x="20" y="98" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a">FPKM</text>
+    <text x="20" y="114" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">FPKM_g = c_g / ((D/10^6) · (ℓ_g/1000))</text>
+    <text x="20" y="128" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252">CPM ÷ length · per-sample Σ varies</text>
+
+    <line x1="20" y1="136" x2="480" y2="136" stroke="#c4c1b6" stroke-width="0.5"/>
+
+    <text x="20" y="154" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a">TPM</text>
+    <text x="20" y="170" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">TPM_g = (c_g/ℓ_g) / Σ_g' (c_g'/ℓ_g')  · 10^6</text>
+    <text x="20" y="184" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252">length-first, depth-second · Σ TPM = 10^6 per sample</text>
+  </g>
+
+  <!-- ============ PANEL C: results table ============ -->
+  <g transform="translate(60, 310)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(C)  THE  THREE  UNITS  ON  THE  SAME  GENES</text>
+    <rect x="0" y="14" width="1080" height="250" rx="4" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1"/>
+
+    <g font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">
+      <text x="50" y="40">GENE</text>
+      <text x="220" y="40" text-anchor="end">CPM</text>
+      <text x="260" y="40" text-anchor="end">(rank)</text>
+      <text x="460" y="40" text-anchor="end">FPKM</text>
+      <text x="500" y="40" text-anchor="end">(rank)</text>
+      <text x="700" y="40" text-anchor="end">TPM</text>
+      <text x="740" y="40" text-anchor="end">(rank)</text>
+      <text x="950" y="40" text-anchor="middle">NORMALISES FOR</text>
+    </g>
+    <line x1="20" y1="48" x2="1060" y2="48" stroke="#c4c1b6" stroke-width="0.7"/>
+
+    <!-- Gene A: count 2000, len 0.5, CPM=1000, FPKM=2000, TPM = 4000/7300 * 1e6 = 547,945 -->
+    <g font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">
+      <text x="50" y="72">A</text>
+      <text x="220" y="72" text-anchor="end">1,000</text>
+      <text x="260" y="72" text-anchor="end" fill="#525252">3</text>
+      <text x="460" y="72" text-anchor="end">2,000</text>
+      <text x="500" y="72" text-anchor="end" fill="#525252">1</text>
+      <text x="700" y="72" text-anchor="end" font-weight="700" fill="#1e3a8a">547,945</text>
+      <text x="740" y="72" text-anchor="end" fill="#525252">1</text>
+
+      <text x="50" y="100">B</text>
+      <text x="220" y="100" text-anchor="end" font-weight="700" fill="#1e3a8a">2,000</text>
+      <text x="260" y="100" text-anchor="end" fill="#525252">2</text>
+      <text x="460" y="100" text-anchor="end">1,000</text>
+      <text x="500" y="100" text-anchor="end" fill="#525252">2</text>
+      <text x="700" y="100" text-anchor="end" font-weight="700" fill="#b45309">273,973</text>
+      <text x="740" y="100" text-anchor="end" fill="#525252">2</text>
+
+      <text x="50" y="128">C</text>
+      <text x="220" y="128" text-anchor="end" font-weight="700" fill="#1e3a8a">2,500</text>
+      <text x="260" y="128" text-anchor="end" fill="#525252">1</text>
+      <text x="460" y="128" text-anchor="end">500</text>
+      <text x="500" y="128" text-anchor="end" fill="#525252">3</text>
+      <text x="700" y="128" text-anchor="end" font-weight="700">136,986</text>
+      <text x="740" y="128" text-anchor="end" fill="#525252">3</text>
+
+      <text x="50" y="156">D</text>
+      <text x="220" y="156" text-anchor="end">1,500</text>
+      <text x="260" y="156" text-anchor="end" fill="#525252">3</text>
+      <text x="460" y="156" text-anchor="end">150</text>
+      <text x="500" y="156" text-anchor="end" fill="#525252">4</text>
+      <text x="700" y="156" text-anchor="end" font-weight="700" fill="#b45309">41,096</text>
+      <text x="740" y="156" text-anchor="end" fill="#525252">4</text>
+    </g>
+
+    <!-- column-end annotations -->
+    <text x="900" y="72" font-family="Inter, sans-serif" font-size="10" fill="#525252">depth only</text>
+    <text x="900" y="100" font-family="Inter, sans-serif" font-size="10" fill="#525252">depth + length</text>
+    <text x="900" y="128" font-family="Inter, sans-serif" font-size="10" fill="#525252">depth + length</text>
+    <text x="900" y="156" font-family="Inter, sans-serif" font-size="10" fill="#525252">→ proportion</text>
+
+    <line x1="20" y1="170" x2="1060" y2="170" stroke="#c4c1b6" stroke-width="0.7"/>
+
+    <!-- Sigma row -->
+    <text x="50" y="190" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#1e3a8a">Σ across all 4</text>
+    <text x="220" y="190" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">7,000</text>
+    <text x="460" y="190" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">3,650</text>
+    <text x="700" y="190" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#1e3a8a">1,000,000</text>
+
+    <!-- rank-flip callout -->
+    <g transform="translate(770, 220)">
+      <rect x="0" y="0" width="270" height="22" rx="3" fill="#fef3c7" stroke="#b45309" stroke-width="0.7"/>
+      <text x="135" y="14" font-family="Inter, sans-serif" font-size="10" fill="#b45309" font-weight="700" text-anchor="middle">B vs D: CPM rank 2/3  →  TPM rank 2/4</text>
+    </g>
+
+    <text x="50" y="232" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">Same input. CPM thinks Gene C is most expressed (longest, most reads). TPM thinks Gene A — once length is</text>
+    <text x="50" y="246" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">corrected, A has the highest per-molecule abundance. The biology you report depends on the unit you choose.</text>
+  </g>
+</svg>

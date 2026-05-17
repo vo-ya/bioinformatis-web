@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="t d">
+  <title id="t">Knee plot and EmptyDrops decision boundary</title>
+  <desc id="d">Two side-by-side panels analysing barcode totals in a single 10x run. The left panel is a log-log knee plot of UMI count versus barcode rank, with about 8000 high-count cell barcodes on a high plateau, a sharp knee near rank 9000 dropping by an order of magnitude, and a long tail of empty-droplet barcodes extending to rank 200000 at counts near 10. Two thresholds are marked: a naive knee cut at rank 9000 and a more permissive EmptyDrops boundary at rank 18000 that admits ambiguous barcodes for ambient testing. The right panel is a multinomial-deviation density showing two populations: ambient barcodes whose gene distribution matches the ambient profile fitted from the long tail, and real cell barcodes whose gene distribution differs significantly. A vertical dashed line marks the EmptyDrops p-value threshold separating the two populations; barcodes to the right of the line are accepted as real cells.</desc>
+
+  <defs>
+    <marker id="tri-cobalt-f2" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="620" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <g>
+    <text x="60" y="36" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">SEPARATING CELLS FROM EMPTY DROPLETS</text>
+    <text x="60" y="54" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">Two views of the same 10x dataset: total UMIs per barcode (left) and gene-distribution divergence from the ambient profile (right).</text>
+  </g>
+
+  <!-- =========== PANEL A: knee plot =========== -->
+  <g transform="translate(80, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(A)  THE KNEE PLOT</text>
+    <text x="0" y="18" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">barcodes sorted by total UMI count, on log–log axes</text>
+
+    <!-- Axes box -->
+    <g transform="translate(40, 36)">
+      <!-- background -->
+      <rect x="0" y="0" width="440" height="380" fill="#ffffff" stroke="#e5e3dc" stroke-width="1"/>
+
+      <!-- gridlines + Y ticks (log: 10, 100, 1k, 10k, 100k) -->
+      <g stroke="#ebeae3" stroke-width="0.5">
+        <line x1="0" y1="20"   x2="440" y2="20"/>
+        <line x1="0" y1="100"  x2="440" y2="100"/>
+        <line x1="0" y1="180"  x2="440" y2="180"/>
+        <line x1="0" y1="260"  x2="440" y2="260"/>
+        <line x1="0" y1="340"  x2="440" y2="340"/>
+      </g>
+      <g font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">
+        <text x="-6" y="24">100k</text>
+        <text x="-6" y="104">10k</text>
+        <text x="-6" y="184">1k</text>
+        <text x="-6" y="264">100</text>
+        <text x="-6" y="344">10</text>
+      </g>
+      <text x="-30" y="200" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252" transform="rotate(-90, -30, 200)">UMI count per barcode  (log)</text>
+
+      <!-- X ticks (log: 1, 100, 10k, 1M) -->
+      <g stroke="#ebeae3" stroke-width="0.5">
+        <line x1="40"  y1="0" x2="40"  y2="380"/>
+        <line x1="160" y1="0" x2="160" y2="380"/>
+        <line x1="280" y1="0" x2="280" y2="380"/>
+        <line x1="400" y1="0" x2="400" y2="380"/>
+      </g>
+      <g font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">
+        <text x="40" y="396">100</text>
+        <text x="160" y="396">1k</text>
+        <text x="280" y="396">10k</text>
+        <text x="400" y="396">100k</text>
+      </g>
+      <text x="220" y="416" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252" text-anchor="middle">barcode rank  (log, sorted by descending UMI count)</text>
+
+      <!-- The curve: plateau, knee, tail. Smooth path. -->
+      <!-- Plateau ~ rank 1..9000 at UMI ~ 10000-30000 -->
+      <!-- Knee at rank ~9000 -->
+      <!-- Tail to rank ~ 200000 at UMI ~ 10 -->
+      <path d="M 8 78
+               C 60 80, 100 92, 160 100
+               C 220 108, 250 116, 268 130
+               C 280 150, 285 200, 296 250
+               C 305 280, 330 320, 360 340
+               C 390 354, 420 364, 432 370"
+            fill="none" stroke="#1e3a8a" stroke-width="2.5" stroke-linecap="round"/>
+
+      <!-- Mark the knee region -->
+      <circle cx="278" cy="156" r="5" fill="#b45309"/>
+      <text x="292" y="146" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b45309">knee</text>
+      <text x="292" y="160" font-family="Inter, sans-serif" font-size="9" fill="#525252">~rank 9000</text>
+
+      <!-- Threshold lines -->
+      <line x1="265" y1="0" x2="265" y2="380" stroke="#dc2626" stroke-width="1" stroke-dasharray="4 3"/>
+      <text x="265" y="-6" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#dc2626">naive knee</text>
+
+      <line x1="316" y1="0" x2="316" y2="380" stroke="#065f46" stroke-width="1" stroke-dasharray="4 3"/>
+      <text x="316" y="-6" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#065f46">EmptyDrops</text>
+
+      <!-- Region shading for cell plateau -->
+      <rect x="0" y="0" width="265" height="380" fill="#1e3a8a" opacity="0.04"/>
+      <!-- Ambiguous zone -->
+      <rect x="265" y="0" width="51" height="380" fill="#b45309" opacity="0.07"/>
+
+      <!-- Region labels -->
+      <text x="120" y="76"  font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a">CELL  PLATEAU</text>
+      <text x="120" y="90"  font-family="Inter, sans-serif" font-size="9" fill="#525252">10k–30k UMIs per barcode</text>
+
+      <text x="290" y="240" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b45309">AMBIGUOUS</text>
+      <text x="290" y="254" font-family="Inter, sans-serif" font-size="9" fill="#525252">test against ambient</text>
+
+      <text x="370" y="358" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#525252">EMPTY  TAIL</text>
+      <text x="370" y="372" font-family="Inter, sans-serif" font-size="9" fill="#525252">10–500 UMIs, ambient RNA only</text>
+    </g>
+  </g>
+
+  <!-- =========== PANEL B: ambient deviation =========== -->
+  <g transform="translate(620, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">(B)  EMPTYDROPS — MULTINOMIAL DEVIATION TEST</text>
+    <text x="0" y="18" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">ambient profile fitted from the deep tail · ambiguous-zone barcodes scored against it</text>
+
+    <g transform="translate(40, 36)">
+      <rect x="0" y="0" width="460" height="380" fill="#ffffff" stroke="#e5e3dc" stroke-width="1"/>
+
+      <!-- Axes -->
+      <line x1="0" y1="340" x2="460" y2="340" stroke="#525252" stroke-width="1"/>
+      <line x1="0" y1="0" x2="0" y2="340" stroke="#525252" stroke-width="1"/>
+
+      <text x="230" y="372" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252" text-anchor="middle">multinomial deviation from ambient profile  (–log p)</text>
+      <text x="-26" y="170" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252" transform="rotate(-90, -26, 170)">density (barcodes)</text>
+
+      <!-- X ticks 0, 5, 10, 15, 20 -->
+      <g font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">
+        <text x="0"   y="355">0</text>
+        <text x="115" y="355">5</text>
+        <text x="230" y="355">10</text>
+        <text x="345" y="355">15</text>
+        <text x="460" y="355">20</text>
+      </g>
+
+      <!-- Ambient distribution — Gaussian-like centred at 1.5 -->
+      <path d="M 0 340
+               C 30 340, 50 240, 80 130
+               C 95 80, 110 60, 130 90
+               C 150 130, 170 220, 200 300
+               C 220 330, 240 340, 260 340"
+            fill="#525252" fill-opacity="0.18" stroke="#525252" stroke-width="1.4"/>
+      <text x="120" y="50" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#525252">AMBIENT  BARCODES</text>
+      <text x="120" y="64" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">multinomial fit, –log p ≈ 0–4</text>
+
+      <!-- Real-cell distribution — bump centred near 14 -->
+      <path d="M 240 340
+               C 280 340, 310 280, 340 180
+               C 360 110, 380 80, 400 100
+               C 415 130, 430 240, 450 320
+               C 455 332, 458 340, 460 340"
+            fill="#1e3a8a" fill-opacity="0.20" stroke="#1e3a8a" stroke-width="1.6"/>
+      <text x="330" y="70" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a">REAL  CELLS</text>
+      <text x="330" y="84" font-family="Inter, sans-serif" font-size="9" fill="#525252" font-style="italic">gene distribution unlike ambient</text>
+
+      <!-- Decision threshold -->
+      <line x1="225" y1="0" x2="225" y2="340" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <text x="225" y="-6" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#dc2626">FDR &lt; 0.01</text>
+      <text x="225" y="358" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#dc2626">≈ 9.7</text>
+
+      <!-- Arrows -->
+      <line x1="180" y1="200" x2="240" y2="200" stroke="#525252" stroke-width="1" marker-end="url(#tri-cobalt-f2)"/>
+      <text x="210" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="#525252">reject</text>
+
+      <line x1="270" y1="200" x2="330" y2="200" stroke="#065f46" stroke-width="1" marker-end="url(#tri-cobalt-f2)"/>
+      <text x="300" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="#065f46">accept</text>
+    </g>
+  </g>
+
+  <!-- Caption strip -->
+  <g transform="translate(60, 560)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">RESULT</text>
+    <text x="60" y="0" font-family="Inter, sans-serif" font-size="10" fill="#525252">~8 000 cells survive the naive knee.  Adding the EmptyDrops test recovers another ~1 200 low-count cells that share little with the ambient profile — a 15% recall gain on the same run.</text>
+    <text x="0" y="20" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252">Same chemistry. Same reads. A multinomial test against the deep tail moves the cell–empty boundary from a heuristic line to a calibrated false-discovery floor.</text>
+  </g>
+</svg>

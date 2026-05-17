@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" role="img" aria-labelledby="t d">
+  <title id="t">hap.py confusion matrix and precision-recall arithmetic against GIAB HG002</title>
+  <desc id="d">Two-panel worked-example figure. Left: a 2x2 confusion matrix with truth on rows (truth-positive, truth-negative) and call on columns (call-positive, call-negative). For an HG002 SNV benchmark, true positives are 3,452,200, false positives are 2,800, false negatives are 14,500, true negatives unfilled. Right: a worked computation of precision, recall, and F1 from those counts. Below: per-variant-type breakdown with separate rows for SNV, INDEL 1-5 bp, INDEL 6-15 bp, INDEL 16+ bp; F1 values 0.9992, 0.989, 0.953, 0.81 respectively. A note explains that the SNV-only F1 hides much weaker INDEL performance.</desc>
+
+  <rect x="0" y="0" width="1200" height="600" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <g>
+    <text x="60" y="40" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">BENCHMARK ARITHMETIC &#8212; hap.py ON GIAB HG002 v4.2.1</text>
+    <text x="60" y="58" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">A representative modern caller against the field-standard truth set. Single-number F1 hides large per-class variance.</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- PANEL A: confusion matrix                                      -->
+  <!-- ============================================================ -->
+  <g transform="translate(60, 96)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">(A)  CONFUSION MATRIX &#8212; SNVs INSIDE THE CONFIDENT REGION</text>
+
+    <!-- column headers -->
+    <text x="290" y="40" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" font-weight="600" fill="#525252">CALL: VARIANT</text>
+    <text x="450" y="40" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" font-weight="600" fill="#525252">CALL: REFERENCE</text>
+
+    <!-- row labels -->
+    <text x="170" y="98" text-anchor="end" font-family="Inter, sans-serif" font-size="10.5" font-weight="600" fill="#525252">TRUTH:</text>
+    <text x="170" y="114" text-anchor="end" font-family="Inter, sans-serif" font-size="10.5" font-weight="600" fill="#525252">VARIANT</text>
+
+    <text x="170" y="190" text-anchor="end" font-family="Inter, sans-serif" font-size="10.5" font-weight="600" fill="#525252">TRUTH:</text>
+    <text x="170" y="206" text-anchor="end" font-family="Inter, sans-serif" font-size="10.5" font-weight="600" fill="#525252">REFERENCE</text>
+
+    <!-- TP cell -->
+    <rect x="190" y="60" width="200" height="100" fill="#065f46" opacity="0.18" stroke="#065f46" stroke-width="1.5"/>
+    <text x="290" y="92" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#065f46" letter-spacing="0.06em">TRUE POSITIVE</text>
+    <text x="290" y="120" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="20" font-weight="600" fill="#0a0a0a">3,452,200</text>
+    <text x="290" y="146" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">caller and truth agree</text>
+
+    <!-- FN cell -->
+    <rect x="390" y="60" width="200" height="100" fill="#b91c1c" opacity="0.12" stroke="#b91c1c" stroke-width="1.5"/>
+    <text x="490" y="92" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b91c1c" letter-spacing="0.06em">FALSE NEGATIVE</text>
+    <text x="490" y="120" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="20" font-weight="600" fill="#0a0a0a">14,500</text>
+    <text x="490" y="146" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">missed variants</text>
+
+    <!-- FP cell -->
+    <rect x="190" y="160" width="200" height="100" fill="#b91c1c" opacity="0.12" stroke="#b91c1c" stroke-width="1.5"/>
+    <text x="290" y="192" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b91c1c" letter-spacing="0.06em">FALSE POSITIVE</text>
+    <text x="290" y="220" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="20" font-weight="600" fill="#0a0a0a">2,800</text>
+    <text x="290" y="246" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">spurious calls</text>
+
+    <!-- TN cell -->
+    <rect x="390" y="160" width="200" height="100" fill="#f4f3ee" stroke="#c4c1b6" stroke-width="1.5"/>
+    <text x="490" y="192" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#8a8a85" letter-spacing="0.06em">TRUE NEGATIVE</text>
+    <text x="490" y="220" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" fill="#8a8a85">~3,068,000,000</text>
+    <text x="490" y="246" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#8a8a85">most of the genome</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- PANEL B: arithmetic                                            -->
+  <!-- ============================================================ -->
+  <g transform="translate(720, 96)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">(B)  P / R / F1 ARITHMETIC</text>
+
+    <rect x="0" y="20" width="420" height="240" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5"/>
+
+    <text x="16" y="46" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">Precision  =  TP / (TP + FP)</text>
+    <text x="16" y="64" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">     =  3,452,200 / 3,455,000  =  0.99919</text>
+
+    <line x1="16" y1="78" x2="404" y2="78" stroke="#e5e3dc" stroke-width="1"/>
+
+    <text x="16" y="100" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">Recall  =  TP / (TP + FN)</text>
+    <text x="16" y="118" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">     =  3,452,200 / 3,466,700  =  0.99582</text>
+
+    <line x1="16" y1="132" x2="404" y2="132" stroke="#e5e3dc" stroke-width="1"/>
+
+    <text x="16" y="154" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0a0a0a">F1  =  2 &#183; P &#183; R / (P + R)</text>
+    <text x="16" y="172" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">    =  2 &#183; 0.99919 &#183; 0.99582 / 1.99501</text>
+    <text x="16" y="190" font-family="JetBrains Mono, monospace" font-size="13" font-weight="600" fill="#1e3a8a">    =  0.99750</text>
+
+    <line x1="16" y1="206" x2="404" y2="206" stroke="#e5e3dc" stroke-width="1"/>
+
+    <text x="16" y="228" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">F1 is the harmonic mean &#8212; pessimistic about</text>
+    <text x="16" y="244" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">whichever of P and R is smaller.</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- PANEL C: per-class breakdown                                   -->
+  <!-- ============================================================ -->
+  <g transform="translate(60, 410)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">(C)  WHY YOU MUST LOOK AT THE PER-CLASS BREAKDOWN</text>
+
+    <rect x="0" y="14" width="1080" height="166" rx="4" fill="#f4f3ee" stroke="#e5e3dc" stroke-width="1.5"/>
+
+    <!-- headers -->
+    <g font-family="Inter, sans-serif" font-size="10.5" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">
+      <text x="60" y="38">VARIANT CLASS</text>
+      <text x="380" y="38" text-anchor="middle">PRECISION</text>
+      <text x="550" y="38" text-anchor="middle">RECALL</text>
+      <text x="720" y="38" text-anchor="middle">F1</text>
+      <text x="900" y="38">NOTE</text>
+    </g>
+    <line x1="14" y1="48" x2="1066" y2="48" stroke="#1e3a8a" stroke-width="1"/>
+
+    <g font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">
+      <text x="60" y="72" font-family="Inter, sans-serif" font-weight="600">SNV</text>
+      <text x="380" y="72" text-anchor="middle">0.9992</text>
+      <text x="550" y="72" text-anchor="middle">0.9958</text>
+      <text x="720" y="72" text-anchor="middle" font-weight="600" fill="#065f46">0.9975</text>
+      <text x="900" y="72" font-family="Inter, sans-serif" font-size="10" fill="#525252">at the field's frontier</text>
+    </g>
+    <line x1="14" y1="84" x2="1066" y2="84" stroke="#e5e3dc" stroke-width="1"/>
+
+    <g font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">
+      <text x="60" y="106" font-family="Inter, sans-serif" font-weight="600">INDEL 1-5 bp</text>
+      <text x="380" y="106" text-anchor="middle">0.9920</text>
+      <text x="550" y="106" text-anchor="middle">0.9860</text>
+      <text x="720" y="106" text-anchor="middle" font-weight="600" fill="#b45309">0.989</text>
+      <text x="900" y="106" font-family="Inter, sans-serif" font-size="10" fill="#525252">competitive across callers</text>
+    </g>
+    <line x1="14" y1="118" x2="1066" y2="118" stroke="#e5e3dc" stroke-width="1"/>
+
+    <g font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">
+      <text x="60" y="140" font-family="Inter, sans-serif" font-weight="600">INDEL 6-15 bp</text>
+      <text x="380" y="140" text-anchor="middle">0.962</text>
+      <text x="550" y="140" text-anchor="middle">0.945</text>
+      <text x="720" y="140" text-anchor="middle" font-weight="600" fill="#b45309">0.953</text>
+      <text x="900" y="140" font-family="Inter, sans-serif" font-size="10" fill="#525252">caller choice starts to matter</text>
+    </g>
+    <line x1="14" y1="152" x2="1066" y2="152" stroke="#e5e3dc" stroke-width="1"/>
+
+    <g font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">
+      <text x="60" y="174" font-family="Inter, sans-serif" font-weight="600">INDEL 16+ bp</text>
+      <text x="380" y="174" text-anchor="middle">0.84</text>
+      <text x="550" y="174" text-anchor="middle">0.79</text>
+      <text x="720" y="174" text-anchor="middle" font-weight="600" fill="#b91c1c">0.81</text>
+      <text x="900" y="174" font-family="Inter, sans-serif" font-size="10" fill="#525252">long-read territory</text>
+    </g>
+  </g>
+</svg>

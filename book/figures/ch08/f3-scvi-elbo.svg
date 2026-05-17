@@ -1,0 +1,193 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 580" role="img" aria-labelledby="t d">
+  <title id="t">scVI as variational EM — encoder, decoder, ELBO</title>
+  <desc id="d">A horizontal architecture diagram of the scVI variational autoencoder annotated with the variational-EM correspondence. From left to right: input block stacking counts x and one-hot batch label s; encoder MLP labelled "E-step" producing a Gaussian posterior q(z|x,s) over a 10-dimensional latent z; latent block with the unit-Gaussian prior p(z); decoder MLP labelled "M-step" taking z and s as input and producing expected expression rho; final block computing the negative-binomial likelihood with library-size latent l and per-gene dispersion phi. Two annotation arrows below: a reconstruction-term arrow connecting input to likelihood; a KL-divergence arrow connecting encoder output to the prior. A header reads "ELBO = E[log p(x|z,s)] − KL(q(z|x,s) || p(z))". Side annotation explains that conditioning the decoder on s frees the latent z from carrying batch identity.</desc>
+
+  <defs>
+    <marker id="arrow-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+    <marker id="arrow-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#525252"/>
+    </marker>
+    <marker id="arrow-violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="580" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <g>
+    <text x="60" y="38" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">scVI — VARIATIONAL EM ON SINGLE-CELL COUNTS</text>
+    <text x="60" y="56" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">Encoder = E-step.  Decoder + NB likelihood = M-step.  Same engine as Chapter 5's Salmon EM.</text>
+  </g>
+
+  <!-- ELBO statement bar -->
+  <g transform="translate(60, 86)">
+    <rect x="0" y="0" width="1080" height="38" rx="4" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1"/>
+    <text x="14" y="16" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">OBJECTIVE</text>
+    <text x="14" y="32" font-family="JetBrains Mono, monospace" font-size="13" fill="#0a0a0a">ELBO = E_q[ log p(x | z, s) ]  −  KL( q(z | x, s)  ||  p(z) )</text>
+    <text x="540" y="32" font-family="Inter, sans-serif" font-size="10" fill="#525252">↑ reconstruction</text>
+    <text x="800" y="32" font-family="Inter, sans-serif" font-size="10" fill="#525252">↑ regulariser to N(0, I)</text>
+  </g>
+
+  <!-- Pipeline -->
+  <g transform="translate(60, 160)">
+    <!-- INPUT block -->
+    <g>
+      <rect x="0" y="50" width="130" height="160" rx="6" fill="#ffffff" stroke="#374151" stroke-width="1.5"/>
+      <text x="65" y="38" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em" text-anchor="middle">INPUT</text>
+
+      <!-- x vector -->
+      <text x="65" y="80" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="#0a0a0a" text-anchor="middle">x_i</text>
+      <text x="65" y="96" font-family="Inter, sans-serif" font-size="9" fill="#525252" text-anchor="middle">counts (~20k genes)</text>
+
+      <line x1="20" y1="118" x2="110" y2="118" stroke="#e5e3dc" stroke-width="0.6"/>
+
+      <!-- s one-hot -->
+      <text x="65" y="146" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="#7c3aed" text-anchor="middle">s_i</text>
+      <text x="65" y="162" font-family="Inter, sans-serif" font-size="9" fill="#525252" text-anchor="middle">batch one-hot</text>
+      <text x="65" y="190" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#7c3aed" text-anchor="middle">"the nuisance label"</text>
+    </g>
+
+    <!-- arrow to encoder -->
+    <line x1="138" y1="130" x2="174" y2="130" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arrow-flow)"/>
+
+    <!-- ENCODER -->
+    <g transform="translate(180, 0)">
+      <rect x="0" y="50" width="190" height="160" rx="6" fill="#eef2ff" stroke="#1e3a8a" stroke-width="2"/>
+      <text x="95" y="38" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em" text-anchor="middle">ENCODER · E-STEP</text>
+
+      <!-- MLP -->
+      <g transform="translate(28, 78)">
+        <circle cx="0" cy="0" r="6" fill="#1e3a8a"/>
+        <circle cx="0" cy="22" r="6" fill="#1e3a8a"/>
+        <circle cx="0" cy="44" r="6" fill="#1e3a8a"/>
+        <circle cx="0" cy="66" r="6" fill="#1e3a8a"/>
+
+        <circle cx="40" cy="0" r="6" fill="#2563eb"/>
+        <circle cx="40" cy="22" r="6" fill="#2563eb"/>
+        <circle cx="40" cy="44" r="6" fill="#2563eb"/>
+        <circle cx="40" cy="66" r="6" fill="#2563eb"/>
+
+        <circle cx="80" cy="11" r="6" fill="#7c3aed"/>
+        <circle cx="80" cy="33" r="6" fill="#7c3aed"/>
+        <circle cx="80" cy="55" r="6" fill="#7c3aed"/>
+
+        <!-- edges sparse -->
+        <line x1="6" y1="0" x2="34" y2="0" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="6" y1="0" x2="34" y2="22" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="6" y1="22" x2="34" y2="22" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="6" y1="22" x2="34" y2="44" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="6" y1="44" x2="34" y2="44" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="6" y1="44" x2="34" y2="66" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="6" y1="66" x2="34" y2="66" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="46" y1="0" x2="74" y2="11" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="46" y1="22" x2="74" y2="11" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="46" y1="22" x2="74" y2="33" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="46" y1="44" x2="74" y2="33" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="46" y1="44" x2="74" y2="55" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="46" y1="66" x2="74" y2="55" stroke="#c4c1b6" stroke-width="0.5"/>
+      </g>
+
+      <text x="95" y="176" font-family="JetBrains Mono, monospace" font-size="11" fill="#1e3a8a" text-anchor="middle">q_φ( z | x, s )</text>
+      <text x="95" y="196" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252" text-anchor="middle">Gaussian posterior over z</text>
+    </g>
+
+    <!-- arrow encoder -> latent -->
+    <line x1="376" y1="130" x2="412" y2="130" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arrow-flow)"/>
+
+    <!-- LATENT -->
+    <g transform="translate(418, 0)">
+      <rect x="0" y="50" width="140" height="160" rx="6" fill="#ffffff" stroke="#374151" stroke-width="1.5"/>
+      <text x="70" y="38" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em" text-anchor="middle">LATENT</text>
+
+      <text x="70" y="100" font-family="JetBrains Mono, monospace" font-size="24" font-weight="700" fill="#0a0a0a" text-anchor="middle">z</text>
+      <text x="70" y="124" font-family="Inter, sans-serif" font-size="10" fill="#525252" text-anchor="middle">10-dim biology-only</text>
+
+      <line x1="20" y1="140" x2="120" y2="140" stroke="#e5e3dc" stroke-width="0.6"/>
+
+      <text x="70" y="162" font-family="JetBrains Mono, monospace" font-size="11" fill="#1e3a8a" text-anchor="middle">p(z) = N(0, I)</text>
+      <text x="70" y="180" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252" text-anchor="middle">unit-Gaussian prior</text>
+    </g>
+
+    <!-- arrow latent -> decoder -->
+    <line x1="562" y1="130" x2="598" y2="130" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arrow-flow)"/>
+
+    <!-- DECODER -->
+    <g transform="translate(604, 0)">
+      <rect x="0" y="50" width="190" height="160" rx="6" fill="#eef2ff" stroke="#1e3a8a" stroke-width="2"/>
+      <text x="95" y="38" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em" text-anchor="middle">DECODER · M-STEP</text>
+
+      <g transform="translate(28, 78)">
+        <circle cx="0" cy="11" r="6" fill="#7c3aed"/>
+        <circle cx="0" cy="33" r="6" fill="#7c3aed"/>
+        <circle cx="0" cy="55" r="6" fill="#7c3aed"/>
+
+        <circle cx="40" cy="0" r="6" fill="#2563eb"/>
+        <circle cx="40" cy="22" r="6" fill="#2563eb"/>
+        <circle cx="40" cy="44" r="6" fill="#2563eb"/>
+        <circle cx="40" cy="66" r="6" fill="#2563eb"/>
+
+        <circle cx="80" cy="0" r="6" fill="#1e3a8a"/>
+        <circle cx="80" cy="22" r="6" fill="#1e3a8a"/>
+        <circle cx="80" cy="44" r="6" fill="#1e3a8a"/>
+        <circle cx="80" cy="66" r="6" fill="#1e3a8a"/>
+
+        <line x1="6" y1="11" x2="34" y2="0" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="6" y1="11" x2="34" y2="22" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="6" y1="33" x2="34" y2="22" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="6" y1="33" x2="34" y2="44" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="6" y1="55" x2="34" y2="44" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="6" y1="55" x2="34" y2="66" stroke="#c4c1b6" stroke-width="0.5"/>
+
+        <line x1="46" y1="0" x2="74" y2="0" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="46" y1="22" x2="74" y2="22" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="46" y1="44" x2="74" y2="44" stroke="#c4c1b6" stroke-width="0.5"/>
+        <line x1="46" y1="66" x2="74" y2="66" stroke="#c4c1b6" stroke-width="0.5"/>
+      </g>
+
+      <text x="95" y="176" font-family="JetBrains Mono, monospace" font-size="11" fill="#1e3a8a" text-anchor="middle">f_θ( z, s ) = ρ</text>
+      <text x="95" y="196" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252" text-anchor="middle">mean expression profile</text>
+    </g>
+
+    <!-- arrow decoder -> likelihood -->
+    <line x1="800" y1="130" x2="836" y2="130" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arrow-flow)"/>
+
+    <!-- LIKELIHOOD -->
+    <g transform="translate(842, 0)">
+      <rect x="0" y="50" width="200" height="160" rx="6" fill="#ffffff" stroke="#374151" stroke-width="1.5"/>
+      <text x="100" y="38" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em" text-anchor="middle">NB LIKELIHOOD</text>
+
+      <text x="100" y="86" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" fill="#0a0a0a" text-anchor="middle">x_ij ~ NB(ρ_ij · l_i, φ_j)</text>
+      <line x1="20" y1="106" x2="180" y2="106" stroke="#e5e3dc" stroke-width="0.6"/>
+      <text x="14" y="128" font-family="Inter, sans-serif" font-size="10" fill="#525252">l_i</text>
+      <text x="40" y="128" font-family="Inter, sans-serif" font-size="9" fill="#525252">per-cell library size (latent)</text>
+      <text x="14" y="150" font-family="Inter, sans-serif" font-size="10" fill="#525252">φ_j</text>
+      <text x="40" y="150" font-family="Inter, sans-serif" font-size="9" fill="#525252">per-gene dispersion</text>
+      <text x="100" y="186" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#1e3a8a" text-anchor="middle">same NB as bulk DE (Chapter 6)</text>
+    </g>
+  </g>
+
+  <!-- batch-conditioning side path: s_i bypass into decoder -->
+  <g>
+    <!-- curve from input s_i down and forward into the decoder -->
+    <path d="M 125 322 Q 125 396, 380 396 T 700 396 T 700 280"
+          fill="none" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow-violet)"/>
+    <text x="380" y="416" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#7c3aed" text-anchor="middle">batch label  s  is fed directly into the decoder too</text>
+    <text x="380" y="432" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252" text-anchor="middle">because the decoder already has s, the latent z does not need to encode batch — KL strips it out</text>
+  </g>
+
+  <!-- bottom-of-figure annotation: reconstruction vs KL terms -->
+  <g transform="translate(60, 484)">
+    <rect x="0" y="0" width="520" height="62" rx="4" fill="#ffffff" stroke="#1e3a8a" stroke-width="1"/>
+    <text x="14" y="20" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">RECONSTRUCTION TERM</text>
+    <text x="14" y="38" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">E_q [ log p(x | z, s) ]</text>
+    <text x="14" y="56" font-family="Inter, sans-serif" font-size="10" fill="#525252">rewards decoder for matching observed counts</text>
+
+    <rect x="540" y="0" width="520" height="62" rx="4" fill="#ffffff" stroke="#1e3a8a" stroke-width="1"/>
+    <text x="554" y="20" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">KL REGULARISER</text>
+    <text x="554" y="38" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a0a0a">KL( q(z | x, s)  ||  N(0, I) )</text>
+    <text x="554" y="56" font-family="Inter, sans-serif" font-size="10" fill="#525252">pulls posterior toward prior, strips batch info from z</text>
+  </g>
+</svg>

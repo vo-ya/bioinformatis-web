@@ -31,7 +31,7 @@ Open <http://localhost:8000/>. Alternatives: `npx serve .` if you have Node, or 
 │   ├── lecture-01/ ... lecture-27/       # exercise.ipynb + build_notebook.py
 │   ├── apply_colab_form.py               # Patcher: wires hidden solutions to Colab's #@title form pattern
 │   └── tests/                            # Structural + endpoint + execution test suites
-├── book/                                 # Print edition (Typst, A4) — currently 15/27 chapters drafted
+├── book/                                 # Print edition (Typst, A4) — complete (27/27 chapters)
 │   ├── book.typ                          # Top-level: frontmatter, TOC, chapter includes
 │   ├── theme/book-theme.typ              # Page geometry, type, admonitions
 │   ├── chapters/chNN-<slug>.typ          # One chapter per lecture
@@ -126,15 +126,15 @@ typst compile --root . book/book.typ book/build/book.pdf
 typst watch   --root . book/book.typ book/build/book.pdf   # auto-rebuild
 ```
 
-Status: **15 / 27 chapters drafted** (Chapters 1–15). Compiles to a 378-page
-A4 PDF as of this commit. Authoring conventions live in
-`markdown_resources/book-style-guide.md`; the executable typographic source
-of truth lives in `book/theme/book-theme.typ`.
+Status: **all 27 chapters drafted.** Compiles to a 706-page A4 PDF.
+Authoring conventions live in `markdown_resources/book-style-guide.md`;
+the executable typographic source of truth lives in
+`book/theme/book-theme.typ`.
 
 ## Current status
 
 **Shipped: all 27 lectures · 186 interactive tools · 320 figures · 27 Colab coding exercises · ~96 contact hours.**
-**Book: 15 / 27 chapters drafted · ~125,000 words · 61 new print-only figures · 378-page A4 PDF.**
+**Book: all 27 chapters drafted · ~245,000 words · 109 new print-only figures · 706-page A4 PDF.**
 
 | # | Lecture | Time | Figures | Tools |
 |---|---|---|---|---|

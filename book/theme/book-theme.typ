@@ -45,18 +45,24 @@
 
   // Body type — serif for prose; size tuned for A4 trade-paperback feel.
   set text(font: ("Source Serif 4", "Charter", "Georgia"), size: 10.5pt, lang: "en")
-  set par(leading: 0.75em, justify: true, first-line-indent: 1.2em)
+  // Book convention for indentation: indent every paragraph *except* the
+  // first one after a heading, figure, list, code block, or callout
+  // ("all: false"). This is the classic O-style novel/textbook indent.
+  set par(
+    leading: 0.75em,
+    justify: true,
+    first-line-indent: (amount: 1.2em, all: false),
+    spacing: 0.65em,
+  )
 
   // Auto-number headings; show rules below choose where each level's
   // number appears (kicker for h1, inline cobalt prefix for h2, hidden
   // for h3).
   set heading(numbering: "1.1")
 
-  // No first-line indent right after a heading, blockquote, figure, code, or list.
-  show heading: it => { set par(first-line-indent: 0pt); it }
-  show figure: it => { set par(first-line-indent: 0pt); it }
-  show raw.where(block: true): it => { set par(first-line-indent: 0pt); it }
-  show quote: it => { set par(first-line-indent: 0pt); it }
+  // (No per-element indent overrides needed — `first-line-indent.all =
+  // false` above already exempts first paragraphs after every block-level
+  // element, which is the book convention.)
 
   // ── Headings ────────────────────────────────────────────────────────
   // h1 = chapter, h2 = section (N.M, inline-numbered), h3 = subsection
@@ -65,17 +71,21 @@
   // sections, plain italic subsection heads.
   show heading.where(level: 1): it => {
     pagebreak(weak: true)
-    v(36pt)
-    text(font: ("Inter", "Helvetica Neue", "Arial"),
-         size: 11pt, weight: "semibold", fill: accent,
-         tracking: 0.18em,
-         upper[Chapter #counter(heading).display("1")])
+    v(40pt)
+    block(width: 100%)[
+      #text(font: ("Inter", "Helvetica Neue", "Arial"),
+            size: 11pt, weight: "semibold", fill: accent,
+            tracking: 0.18em,
+            upper[Chapter #counter(heading).display("1")])
+    ]
+    v(12pt)
+    block(width: 100%)[
+      #text(font: ("Source Serif 4", "Charter", "Georgia"),
+            size: 30pt, weight: "medium", it.body)
+    ]
     v(10pt)
-    text(font: ("Source Serif 4", "Charter", "Georgia"),
-         size: 30pt, weight: "medium", it.body)
-    v(8pt)
     block(width: 60pt, height: 2pt, fill: accent)
-    v(28pt)
+    v(36pt)
   }
 
   show heading.where(level: 2): it => {

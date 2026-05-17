@@ -9,6 +9,11 @@ Emits exercise.ipynb. Re-running overwrites the file.
 from __future__ import annotations
 
 import os
+# Make the shared Colab-form helper importable from the parent dir.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from apply_colab_form import apply_colab_form  # noqa: E402
+
 import nbformat
 from nbformat.v4 import new_notebook, new_markdown_cell, new_code_cell
 
@@ -822,6 +827,7 @@ if __name__ == "__main__":
     nb = build()
     out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "exercise.ipynb")
     with open(out_path, "w", encoding="utf-8") as f:
+        apply_colab_form(nb)
         nbformat.write(nb, f)
     nb2 = nbformat.read(out_path, as_version=4)
     n_md = sum(1 for c in nb2.cells if c.cell_type == "markdown")

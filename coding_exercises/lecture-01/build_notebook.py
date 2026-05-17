@@ -9,6 +9,11 @@ from __future__ import annotations
 
 import os
 
+# Make the shared Colab-form helper importable from the parent dir.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from apply_colab_form import apply_colab_form  # noqa: E402
+
 import nbformat
 from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
 
@@ -539,6 +544,7 @@ def main() -> None:
     out_path = os.path.join(here, "exercise.ipynb")
     nb = build()
     with open(out_path, "w", encoding="utf-8") as fh:
+        apply_colab_form(nb)
         nbformat.write(nb, fh)
     print(f"Wrote {out_path}")
 

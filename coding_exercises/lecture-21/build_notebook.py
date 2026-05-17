@@ -18,6 +18,11 @@ the student how to expand it.
 """
 
 from pathlib import Path
+# Make the shared Colab-form helper importable from the parent dir.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from apply_colab_form import apply_colab_form  # noqa: E402
+
 import nbformat as nbf
 from nbformat.v4 import new_notebook, new_markdown_cell, new_code_cell
 
@@ -1056,6 +1061,7 @@ def build():
         "colab": {"provenance": [], "toc_visible": True},
     }
 
+    apply_colab_form(nb)
     nbf.write(nb, OUT)
     return nb
 

@@ -1,0 +1,226 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="t d">
+  <title id="t">FM-index backward search step trace for ACA in ACAACG$</title>
+  <desc id="d">Worked example of backward search on the FM index of ACAACG$. Top: the BWT (L), the sorted first column (F), the C table, and a precomputed rank array. Middle: a four-step trace showing the half-open interval [sp, ep) shrinking from the full matrix down to a single row as the query characters A, C, A are consumed right-to-left. Bottom: the final interval points to row 2 of the sorted matrix, whose suffix starts at position 0 of the original string.</desc>
+
+  <rect width="1200" height="620" fill="#fafaf9"/>
+
+  <defs>
+    <marker id="arr-cobalt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+    <marker id="arr-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#525252"/>
+    </marker>
+  </defs>
+
+  <!-- Title kicker -->
+  <text x="40" y="34" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-weight="600" fill="#8a8a85" letter-spacing="0.14em">
+    BACKWARD SEARCH · QUERY "ACA" IN ACAACG$
+  </text>
+
+  <!-- ============ TOP-LEFT: the index tables ============ -->
+  <g transform="translate(40, 60)">
+    <text x="0" y="0" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-weight="600" fill="#374151" letter-spacing="0.10em">INDEX</text>
+
+    <!-- F and L columns next to row indices -->
+    <g font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="#8a8a85">
+      <text x="22" y="22">row</text>
+      <text x="80" y="22" fill="#1e3a8a" font-weight="600" letter-spacing="0.14em">F</text>
+      <text x="118" y="22" fill="#1e3a8a" font-weight="600" letter-spacing="0.14em">L (BWT)</text>
+    </g>
+
+    <g font-family="JetBrains Mono, Menlo, monospace" font-size="14" fill="#374151">
+      <text x="30" y="44" fill="#8a8a85">0</text>
+      <text x="30" y="64" fill="#8a8a85">1</text>
+      <text x="30" y="84" fill="#8a8a85">2</text>
+      <text x="30" y="104" fill="#8a8a85">3</text>
+      <text x="30" y="124" fill="#8a8a85">4</text>
+      <text x="30" y="144" fill="#8a8a85">5</text>
+      <text x="30" y="164" fill="#8a8a85">6</text>
+
+      <text x="80" y="44" fill="#8a8a85">$</text>
+      <text x="80" y="64">A</text>
+      <text x="80" y="84">A</text>
+      <text x="80" y="104">A</text>
+      <text x="80" y="124">C</text>
+      <text x="80" y="144">C</text>
+      <text x="80" y="164">G</text>
+
+      <text x="130" y="44">G</text>
+      <text x="130" y="64">C</text>
+      <text x="130" y="84" fill="#8a8a85">$</text>
+      <text x="130" y="104">A</text>
+      <text x="130" y="124">A</text>
+      <text x="130" y="144">A</text>
+      <text x="130" y="164">C</text>
+    </g>
+
+    <!-- Highlight row 2 (final answer) -->
+    <rect x="22" y="74" width="135" height="20" fill="#eef2ff" opacity="0.55"/>
+
+    <!-- C table -->
+    <text x="200" y="22" font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="#8a8a85">C table</text>
+    <g font-family="JetBrains Mono, Menlo, monospace" font-size="13" fill="#374151">
+      <text x="200" y="44">C[$] = 0</text>
+      <text x="200" y="64">C[A] = 1</text>
+      <text x="200" y="84">C[C] = 4</text>
+      <text x="200" y="104">C[G] = 6</text>
+    </g>
+    <text x="200" y="128" font-family="Inter, Helvetica Neue, sans-serif" font-size="9" fill="#525252">
+      count of characters
+    </text>
+    <text x="200" y="142" font-family="Inter, Helvetica Neue, sans-serif" font-size="9" fill="#525252">
+      strictly less than c
+    </text>
+
+    <!-- Rank arrays -->
+    <text x="320" y="22" font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="#8a8a85">rank(c, i) — counts in L[0..i)</text>
+    <g font-family="JetBrains Mono, Menlo, monospace" font-size="12" fill="#374151">
+      <text x="320" y="44">i :  0 1 2 3 4 5 6 7</text>
+      <text x="320" y="64">A :  0 0 0 1 2 3 3 3</text>
+      <text x="320" y="84">C :  0 0 1 1 1 1 1 2</text>
+      <text x="320" y="104">G :  0 1 1 1 1 1 1 1</text>
+      <text x="320" y="124">$ :  0 0 0 1 1 1 1 1</text>
+    </g>
+    <text x="320" y="148" font-family="Inter, Helvetica Neue, sans-serif" font-size="9" fill="#525252">
+      one row per alphabet character; cumulative counts of c in L up to (but not including) position i.
+    </text>
+  </g>
+
+  <!-- ============ TOP-RIGHT: the recurrence ============ -->
+  <g transform="translate(820, 60)">
+    <text x="0" y="0" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-weight="600" fill="#374151" letter-spacing="0.10em">RECURRENCE</text>
+
+    <rect x="0" y="14" width="340" height="80" fill="#f4f3ee" stroke="#c4c1b6" stroke-width="0.5"/>
+    <g font-family="JetBrains Mono, Menlo, monospace" font-size="13" fill="#1e3a8a">
+      <text x="14" y="38">sp' = C[c] + rank(c, sp)</text>
+      <text x="14" y="60">ep' = C[c] + rank(c, ep)</text>
+    </g>
+    <text x="14" y="84" font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="#525252">
+      half-open interval; if ep' &lt;= sp', match dies.
+    </text>
+
+    <text x="0" y="124" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-weight="600" fill="#374151" letter-spacing="0.10em">QUERY</text>
+    <g font-family="JetBrains Mono, Menlo, monospace" font-size="22" fill="#374151" letter-spacing="0.12em">
+      <text x="0" y="160">A C A</text>
+    </g>
+    <g font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="#525252">
+      <text x="0" y="178">consumed right-to-left:</text>
+      <text x="0" y="192">step 1 = last 'A', step 2 = 'C', step 3 = first 'A'</text>
+    </g>
+  </g>
+
+  <!-- ============ MIDDLE: step trace as a table ============ -->
+  <g transform="translate(40, 320)">
+    <text x="0" y="0" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-weight="600" fill="#374151" letter-spacing="0.10em">STEP TRACE</text>
+
+    <!-- Column headers -->
+    <g font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="#8a8a85" font-weight="600" letter-spacing="0.08em">
+      <text x="40" y="28">STEP</text>
+      <text x="120" y="28">CHAR</text>
+      <text x="220" y="28">[sp, ep) BEFORE</text>
+      <text x="400" y="28">C[c]</text>
+      <text x="470" y="28">rank(c, sp)</text>
+      <text x="600" y="28">rank(c, ep)</text>
+      <text x="740" y="28">SP' = C[c] + rank(c, sp)</text>
+      <text x="960" y="28">EP' = C[c] + rank(c, ep)</text>
+    </g>
+    <line x1="0" y1="38" x2="1120" y2="38" stroke="#c4c1b6" stroke-width="1"/>
+
+    <!-- Row: start -->
+    <g font-family="JetBrains Mono, Menlo, monospace" font-size="13" fill="#525252">
+      <text x="40" y="62">start</text>
+      <text x="120" y="62">—</text>
+      <text x="220" y="62" fill="#374151">[0, 7)</text>
+      <text x="400" y="62">—</text>
+      <text x="470" y="62">—</text>
+      <text x="600" y="62">—</text>
+      <text x="740" y="62" fill="#374151">0</text>
+      <text x="960" y="62" fill="#374151">7</text>
+    </g>
+
+    <!-- Row: step 1 — A -->
+    <g font-family="JetBrains Mono, Menlo, monospace" font-size="13" fill="#374151">
+      <text x="40" y="90">1</text>
+      <text x="120" y="90" fill="#1e3a8a" font-weight="700">A</text>
+      <text x="220" y="90">[0, 7)</text>
+      <text x="400" y="90">1</text>
+      <text x="470" y="90">0</text>
+      <text x="600" y="90">3</text>
+      <text x="740" y="90" fill="#1e3a8a" font-weight="700">1 + 0 = 1</text>
+      <text x="960" y="90" fill="#1e3a8a" font-weight="700">1 + 3 = 4</text>
+    </g>
+
+    <!-- Row: step 2 — C -->
+    <g font-family="JetBrains Mono, Menlo, monospace" font-size="13" fill="#374151">
+      <text x="40" y="118">2</text>
+      <text x="120" y="118" fill="#1e3a8a" font-weight="700">C</text>
+      <text x="220" y="118">[1, 4)</text>
+      <text x="400" y="118">4</text>
+      <text x="470" y="118">0</text>
+      <text x="600" y="118">1</text>
+      <text x="740" y="118" fill="#1e3a8a" font-weight="700">4 + 0 = 4</text>
+      <text x="960" y="118" fill="#1e3a8a" font-weight="700">4 + 1 = 5</text>
+    </g>
+
+    <!-- Row: step 3 — A -->
+    <g font-family="JetBrains Mono, Menlo, monospace" font-size="13" fill="#374151">
+      <text x="40" y="146">3</text>
+      <text x="120" y="146" fill="#1e3a8a" font-weight="700">A</text>
+      <text x="220" y="146">[4, 5)</text>
+      <text x="400" y="146">1</text>
+      <text x="470" y="146">1</text>
+      <text x="600" y="146">2</text>
+      <text x="740" y="146" fill="#1e3a8a" font-weight="700">1 + 1 = 2</text>
+      <text x="960" y="146" fill="#1e3a8a" font-weight="700">1 + 2 = 3</text>
+    </g>
+
+    <line x1="0" y1="162" x2="1120" y2="162" stroke="#c4c1b6" stroke-width="0.5" stroke-dasharray="3 3"/>
+
+    <!-- Final result -->
+    <g font-family="Inter, Helvetica Neue, sans-serif" font-size="11" fill="#065f46" font-weight="600">
+      <text x="40" y="190">FINAL INTERVAL = [2, 3)  ·  width = 1  ·  one occurrence  ·  row 2 of sorted matrix  ·  starts at position 0 of ACAACG$</text>
+    </g>
+  </g>
+
+  <!-- ============ BOTTOM-RIGHT: shrinking interval visualisation ============ -->
+  <g transform="translate(820, 240)">
+    <text x="0" y="0" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-weight="600" fill="#374151" letter-spacing="0.10em">INTERVAL COLLAPSE</text>
+
+    <!-- Initial bar -->
+    <g>
+      <text x="0" y="26" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">[0, 7)</text>
+      <rect x="60" y="14" width="280" height="14" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.8"/>
+    </g>
+    <!-- Step 1 -->
+    <g>
+      <text x="0" y="56" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">[1, 4)</text>
+      <rect x="60" y="44" width="280" height="14" fill="#f4f3ee" stroke="#c4c1b6" stroke-width="0.5"/>
+      <rect x="100" y="44" width="120" height="14" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.8"/>
+    </g>
+    <!-- Step 2 -->
+    <g>
+      <text x="0" y="86" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">[4, 5)</text>
+      <rect x="60" y="74" width="280" height="14" fill="#f4f3ee" stroke="#c4c1b6" stroke-width="0.5"/>
+      <rect x="220" y="74" width="40" height="14" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.8"/>
+    </g>
+    <!-- Step 3 -->
+    <g>
+      <text x="0" y="116" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">[2, 3)</text>
+      <rect x="60" y="104" width="280" height="14" fill="#f4f3ee" stroke="#c4c1b6" stroke-width="0.5"/>
+      <rect x="140" y="104" width="40" height="14" fill="#065f46" stroke="#065f46" stroke-width="0.8"/>
+    </g>
+
+    <!-- Connecting arrows -->
+    <g stroke="#1e3a8a" stroke-width="1" fill="none">
+      <line x1="200" y1="30" x2="200" y2="42" marker-end="url(#arr-cobalt)"/>
+      <line x1="200" y1="60" x2="200" y2="72" marker-end="url(#arr-cobalt)"/>
+      <line x1="200" y1="90" x2="200" y2="102" marker-end="url(#arr-cobalt)"/>
+    </g>
+
+    <text x="0" y="140" font-family="Inter, Helvetica Neue, sans-serif" font-size="9" fill="#525252">
+      Each step replaces the cobalt span with the rows whose F-prefix is one character longer.
+    </text>
+  </g>
+
+</svg>

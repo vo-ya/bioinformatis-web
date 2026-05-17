@@ -1,0 +1,207 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" role="img" aria-labelledby="t d">
+  <title id="t">Reconstructing ACAACG from its BWT by walking the LF mapping</title>
+  <desc id="d">A step-by-step trace of inverting the Burrows-Wheeler transform of ACAACG$. The sorted-rotation matrix is drawn on the left with its F and L columns highlighted. On the right, six steps show the algorithm jumping from the current L cell to the same-rank occurrence of that character in F, accumulating the reconstructed string one character at a time, in reverse, until the original ACAACG$ falls out.</desc>
+
+  <rect width="1200" height="600" fill="#fafaf9"/>
+
+  <defs>
+    <marker id="lf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="40" y="34" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-weight="600" fill="#8a8a85" letter-spacing="0.14em">
+    INVERTING BWT BY LF · L = GC$AAAC  ·  REBUILD ACAACG$
+  </text>
+
+  <!-- ============== LEFT: sorted matrix ============== -->
+  <g transform="translate(40, 70)">
+    <text x="0" y="0" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-weight="600" fill="#374151" letter-spacing="0.10em">SORTED ROTATION MATRIX</text>
+
+    <!-- Row labels -->
+    <g font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="#8a8a85">
+      <text x="0" y="32">row</text>
+    </g>
+
+    <!-- Column kickers -->
+    <text x="64" y="32" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.14em">F</text>
+    <text x="232" y="32" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.14em">L</text>
+
+    <!-- F-column highlight band -->
+    <rect x="58" y="42" width="18" height="178" fill="#eef2ff" opacity="0.6"/>
+    <!-- L-column highlight band -->
+    <rect x="222" y="42" width="20" height="178" fill="#eef2ff" opacity="0.6"/>
+
+    <!-- Rows (the sorted rotation matrix) -->
+    <g font-family="JetBrains Mono, Menlo, monospace" font-size="14" fill="#374151" letter-spacing="0.10em">
+      <!-- row 0: $ACAACG -->
+      <text x="0" y="60"  fill="#8a8a85">0</text>
+      <text x="62" y="60" fill="#8a8a85">$</text>
+      <text x="86" y="60">A</text>
+      <text x="110" y="60">C</text>
+      <text x="134" y="60">A</text>
+      <text x="158" y="60">A</text>
+      <text x="182" y="60">C</text>
+      <text x="206" y="60">G</text>
+
+      <!-- row 1: AACG$AC -->
+      <text x="0" y="86"  fill="#8a8a85">1</text>
+      <text x="62" y="86">A</text>
+      <text x="86" y="86">A</text>
+      <text x="110" y="86">C</text>
+      <text x="134" y="86">G</text>
+      <text x="158" y="86" fill="#8a8a85">$</text>
+      <text x="182" y="86">A</text>
+      <text x="206" y="86">C</text>
+
+      <!-- row 2: ACAACG$ -->
+      <text x="0" y="112" fill="#8a8a85">2</text>
+      <text x="62" y="112">A</text>
+      <text x="86" y="112">C</text>
+      <text x="110" y="112">A</text>
+      <text x="134" y="112">A</text>
+      <text x="158" y="112">C</text>
+      <text x="182" y="112">G</text>
+      <text x="206" y="112" fill="#8a8a85">$</text>
+
+      <!-- row 3: ACG$ACA -->
+      <text x="0" y="138" fill="#8a8a85">3</text>
+      <text x="62" y="138">A</text>
+      <text x="86" y="138">C</text>
+      <text x="110" y="138">G</text>
+      <text x="134" y="138" fill="#8a8a85">$</text>
+      <text x="158" y="138">A</text>
+      <text x="182" y="138">C</text>
+      <text x="206" y="138">A</text>
+
+      <!-- row 4: CAACG$A -->
+      <text x="0" y="164" fill="#8a8a85">4</text>
+      <text x="62" y="164">C</text>
+      <text x="86" y="164">A</text>
+      <text x="110" y="164">A</text>
+      <text x="134" y="164">C</text>
+      <text x="158" y="164">G</text>
+      <text x="182" y="164" fill="#8a8a85">$</text>
+      <text x="206" y="164">A</text>
+
+      <!-- row 5: CG$ACAA -->
+      <text x="0" y="190" fill="#8a8a85">5</text>
+      <text x="62" y="190">C</text>
+      <text x="86" y="190">G</text>
+      <text x="110" y="190" fill="#8a8a85">$</text>
+      <text x="134" y="190">A</text>
+      <text x="158" y="190">C</text>
+      <text x="182" y="190">A</text>
+      <text x="206" y="190">A</text>
+
+      <!-- row 6: G$ACAAC -->
+      <text x="0" y="216" fill="#8a8a85">6</text>
+      <text x="62" y="216">G</text>
+      <text x="86" y="216" fill="#8a8a85">$</text>
+      <text x="110" y="216">A</text>
+      <text x="134" y="216">C</text>
+      <text x="158" y="216">A</text>
+      <text x="182" y="216">A</text>
+      <text x="206" y="216">C</text>
+    </g>
+
+    <!-- LF connectors: row 0 (L=G, 1st G) -> F row 6 (1st G); row 6 (L=C, 1st C) -> F row 4; row 4 (L=A, 2nd A) -> F row 2; row 2 (L=$ ) -> halt... -->
+    <g stroke="#1e3a8a" stroke-width="1.2" fill="none" opacity="0.85">
+      <!-- 0 L=G -> 6 F=G -->
+      <path d="M 234 56 C 286 56, 286 212, 76 212" stroke-dasharray="0" marker-end="url(#lf-arrow)"/>
+      <!-- 6 L=C -> 4 F=C -->
+      <path d="M 234 212 C 290 212, 290 160, 76 160" marker-end="url(#lf-arrow)"/>
+      <!-- 4 L=A (2nd) -> 2 F=A (2nd) -->
+      <path d="M 234 160 C 296 160, 296 108, 76 108" marker-end="url(#lf-arrow)"/>
+      <!-- 2 L=G -> we'd next jump but stop; we already know L of 2 = $ ... actually L[2]=$? Wait L row 2 has $ as the 7th char; row 2's L is $ -->
+    </g>
+
+    <text x="0" y="246" font-family="Inter, Helvetica Neue, sans-serif" font-size="9" fill="#525252">
+      cobalt arrows: the i-th occurrence of c in L jumps to the i-th occurrence of c in F.
+    </text>
+  </g>
+
+  <!-- ============== RIGHT: step-by-step trace ============== -->
+  <g transform="translate(560, 70)">
+    <text x="0" y="0" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-weight="600" fill="#374151" letter-spacing="0.10em">RECONSTRUCTION TRACE</text>
+
+    <!-- Step headers -->
+    <g font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="#8a8a85" font-weight="600" letter-spacing="0.08em">
+      <text x="0" y="28">STEP</text>
+      <text x="60" y="28">AT ROW</text>
+      <text x="140" y="28">READ L[row]</text>
+      <text x="250" y="28">RANK IN L</text>
+      <text x="350" y="28">JUMP TO ROW</text>
+      <text x="470" y="28">OUTPUT (PREPENDED)</text>
+    </g>
+    <line x1="0" y1="36" x2="600" y2="36" stroke="#c4c1b6" stroke-width="0.8"/>
+
+    <g font-family="JetBrains Mono, Menlo, monospace" font-size="13" fill="#374151">
+      <text x="0" y="60">1</text>
+      <text x="60" y="60">0  ($)</text>
+      <text x="140" y="60" fill="#1e3a8a" font-weight="700">G</text>
+      <text x="250" y="60">1st G</text>
+      <text x="350" y="60">6</text>
+      <text x="470" y="60" letter-spacing="0.10em">G</text>
+
+      <text x="0" y="86">2</text>
+      <text x="60" y="86">6  (G)</text>
+      <text x="140" y="86" fill="#1e3a8a" font-weight="700">C</text>
+      <text x="250" y="86">1st C</text>
+      <text x="350" y="86">4</text>
+      <text x="470" y="86" letter-spacing="0.10em">CG</text>
+
+      <text x="0" y="112">3</text>
+      <text x="60" y="112">4  (C)</text>
+      <text x="140" y="112" fill="#1e3a8a" font-weight="700">A</text>
+      <text x="250" y="112">2nd A</text>
+      <text x="350" y="112">2</text>
+      <text x="470" y="112" letter-spacing="0.10em">ACG</text>
+
+      <text x="0" y="138">4</text>
+      <text x="60" y="138">2  (A)</text>
+      <text x="140" y="138" fill="#1e3a8a" font-weight="700">$</text>
+      <text x="250" y="138">—</text>
+      <text x="350" y="138" fill="#8a8a85">stop here in practice; below: keep going to recover head</text>
+      <text x="470" y="138" letter-spacing="0.10em"></text>
+    </g>
+
+    <line x1="0" y1="150" x2="600" y2="150" stroke="#c4c1b6" stroke-width="0.5" stroke-dasharray="3 3"/>
+
+    <g font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="#525252">
+      <text x="0" y="170">In practice you halt as soon as the L character is $ — you have reconstructed the entire string from the last character backward.</text>
+      <text x="0" y="184">Continuing past $ would loop back to row 0 (the sentinel row), confirming the inverse is a permutation cycle of length |R| + 1.</text>
+    </g>
+
+    <!-- Final output box -->
+    <rect x="0" y="210" width="600" height="60" fill="#eef2ff" stroke="#1e3a8a" stroke-width="0.6"/>
+    <text x="14" y="232" font-family="Inter, Helvetica Neue, sans-serif" font-size="10" font-weight="600" fill="#1e3a8a" letter-spacing="0.10em">REASSEMBLED</text>
+    <text x="14" y="258" font-family="JetBrains Mono, Menlo, monospace" font-size="18" fill="#1e3a8a" letter-spacing="0.16em">A C A A C G $</text>
+
+    <text x="0" y="290" font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="#525252">
+      The reconstruction reads R out in reverse; reverse the trace and the sentinel-padded original is recovered.
+    </text>
+  </g>
+
+  <!-- ============== BOTTOM: invariant statement ============== -->
+  <g transform="translate(40, 420)">
+    <rect x="0" y="0" width="1120" height="140" fill="#f4f3ee" stroke="#c4c1b6" stroke-width="0.5"/>
+    <text x="20" y="30" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-weight="600" fill="#374151" letter-spacing="0.10em">
+      LF INVARIANT
+    </text>
+    <text x="20" y="56" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" fill="#374151">
+      The i-th occurrence of character c when scanning the L column top to bottom is the i-th occurrence of c
+    </text>
+    <text x="20" y="74" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" fill="#374151">
+      when scanning the F column top to bottom. Equivalently:
+    </text>
+    <text x="20" y="100" font-family="JetBrains Mono, Menlo, monospace" font-size="13" fill="#1e3a8a">
+      LF(i) = C[L[i]] + rank(L[i], i)
+    </text>
+    <text x="20" y="124" font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="#525252">
+      where C[c] is the count of characters strictly less than c, and rank(c, i) is the number of c in L[0..i).
+    </text>
+  </g>
+
+</svg>

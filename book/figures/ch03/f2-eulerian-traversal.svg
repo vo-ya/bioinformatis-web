@@ -1,0 +1,285 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="t d">
+  <title id="t">Hierholzer's algorithm for an Eulerian path</title>
+  <desc id="d">A three-panel walkthrough of Hierholzer's algorithm finding an Eulerian path through a small de Bruijn graph of six nodes and seven edges. Panel 1 shows the starting graph with one source (in-degree minus out-degree equals minus one) and one sink (plus one). Panel 2 shows the first walk consuming a sub-tour from source to sink; one edge remains unvisited. Panel 3 shows the splice operation: a detour cycle around the unused edge is inserted at the node where it attaches, producing the final Eulerian path that visits every edge exactly once. The reconstructed string is shown at the bottom.</desc>
+
+  <rect width="1200" height="620" fill="#fafaf9"/>
+
+  <defs>
+    <marker id="ar-default" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#374151"/>
+    </marker>
+    <marker id="ar-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+    <marker id="ar-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b45309"/>
+    </marker>
+    <marker id="ar-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c4c1b6"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <g font-family="Inter, sans-serif" fill="#374151">
+    <text x="60" y="36" font-size="18" font-weight="600">Hierholzer's algorithm — find the Eulerian path in linear time</text>
+    <text x="60" y="54" font-size="11" fill="#6b7280">Walk until you get stuck; splice in any unused cycles you missed. Repeat until every edge is consumed.</text>
+  </g>
+
+  <!-- ============ Panel 1: starting graph ============ -->
+  <g font-family="Inter, sans-serif">
+    <text x="60" y="92" font-size="10" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">STEP 1  ·  STARTING GRAPH</text>
+    <text x="60" y="108" font-size="10" fill="#6b7280">Six nodes, seven edges. Node AC has out-degree 2 and in-degree 1 (source); node TA has in-degree 1, out-degree 0 (sink).</text>
+  </g>
+
+  <!-- Panel coordinates: AC top-left, CG top-center, GA right-of-CG, GT right-of-GA, TA bottom-right, CA below CG -->
+  <!-- Repositioned for a clearer layout -->
+  <g transform="translate(60 130)">
+
+    <!-- Nodes — circles labeled with 2-mers -->
+    <g font-family="JetBrains Mono, monospace" font-size="13" font-weight="500" text-anchor="middle">
+      <!-- AC (source) -->
+      <circle cx="60" cy="60" r="24" fill="#fafaf9" stroke="#1e3a8a" stroke-width="1.75"/>
+      <text x="60" y="65" fill="#1e3a8a">AC</text>
+      <text x="60" y="100" font-family="Inter, sans-serif" font-size="9" fill="#1e3a8a" font-weight="600">SOURCE</text>
+
+      <!-- CG -->
+      <circle cx="180" cy="60" r="24" fill="#fafaf9" stroke="#374151" stroke-width="1.5"/>
+      <text x="180" y="65" fill="#374151">CG</text>
+
+      <!-- GA -->
+      <circle cx="300" cy="60" r="24" fill="#fafaf9" stroke="#374151" stroke-width="1.5"/>
+      <text x="300" y="65" fill="#374151">GA</text>
+
+      <!-- GT -->
+      <circle cx="180" cy="180" r="24" fill="#fafaf9" stroke="#374151" stroke-width="1.5"/>
+      <text x="180" y="185" fill="#374151">GT</text>
+
+      <!-- CA -->
+      <circle cx="60" cy="180" r="24" fill="#fafaf9" stroke="#374151" stroke-width="1.5"/>
+      <text x="60" y="185" fill="#374151">CA</text>
+
+      <!-- TA (sink) -->
+      <circle cx="300" cy="180" r="24" fill="#fafaf9" stroke="#b45309" stroke-width="1.75"/>
+      <text x="300" y="185" fill="#b45309">TA</text>
+      <text x="300" y="220" font-family="Inter, sans-serif" font-size="9" fill="#b45309" font-weight="600">SINK</text>
+    </g>
+
+    <!-- Edges (all gray initially) -->
+    <g stroke="#525252" stroke-width="1.25" fill="none">
+      <!-- AC → CG -->
+      <line x1="84" y1="60" x2="156" y2="60" marker-end="url(#ar-default)"/>
+      <!-- CG → GA -->
+      <line x1="204" y1="60" x2="276" y2="60" marker-end="url(#ar-default)"/>
+      <!-- GA → AC (back-edge) -->
+      <path d="M 297 36 Q 180 -8 63 36" marker-end="url(#ar-default)"/>
+      <!-- CG → GT -->
+      <line x1="180" y1="84" x2="180" y2="156" marker-end="url(#ar-default)"/>
+      <!-- GT → TA -->
+      <line x1="204" y1="180" x2="276" y2="180" marker-end="url(#ar-default)"/>
+      <!-- GT → CA -->
+      <line x1="156" y1="180" x2="84" y2="180" marker-end="url(#ar-default)"/>
+      <!-- CA → AC -->
+      <line x1="60" y1="156" x2="60" y2="84" marker-end="url(#ar-default)"/>
+    </g>
+
+    <!-- Edge labels -->
+    <g font-family="JetBrains Mono, monospace" font-size="10" fill="#8a8a85" text-anchor="middle">
+      <text x="120" y="52">ACG</text>
+      <text x="240" y="52">CGA</text>
+      <text x="180" y="14">GAC</text>
+      <text x="192" y="125">CGT</text>
+      <text x="240" y="172">GTA</text>
+      <text x="120" y="172">GTC</text>
+      <text x="44" y="125">CAC</text>
+    </g>
+  </g>
+
+  <!-- ============ Panel 2: first walk ============ -->
+  <g font-family="Inter, sans-serif">
+    <text x="450" y="92" font-size="10" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">STEP 2  ·  WALK UNTIL STUCK</text>
+    <text x="450" y="108" font-size="10" fill="#6b7280">Walk from AC: AC → CG → GT → TA. Stuck at sink, but edges GA→AC, CG→GA, CA→AC, GT→CA remain.</text>
+  </g>
+
+  <g transform="translate(450 130)">
+
+    <!-- Walked edges in cobalt (4) -->
+    <g stroke="#1e3a8a" stroke-width="2.5" fill="none">
+      <line x1="84" y1="60" x2="156" y2="60" marker-end="url(#ar-accent)"/>
+      <line x1="180" y1="84" x2="180" y2="156" marker-end="url(#ar-accent)"/>
+      <line x1="204" y1="180" x2="276" y2="180" marker-end="url(#ar-accent)"/>
+    </g>
+
+    <!-- Unvisited edges (light) -->
+    <g stroke="#c4c1b6" stroke-width="1.25" stroke-dasharray="4 3" fill="none">
+      <line x1="204" y1="60" x2="276" y2="60" marker-end="url(#ar-muted)"/>
+      <path d="M 297 36 Q 180 -8 63 36" marker-end="url(#ar-muted)"/>
+      <line x1="156" y1="180" x2="84" y2="180" marker-end="url(#ar-muted)"/>
+      <line x1="60" y1="156" x2="60" y2="84" marker-end="url(#ar-muted)"/>
+    </g>
+
+    <!-- Nodes -->
+    <g font-family="JetBrains Mono, monospace" font-size="13" font-weight="500" text-anchor="middle">
+      <circle cx="60" cy="60" r="24" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.75"/>
+      <text x="60" y="65" fill="#1e3a8a">AC</text>
+
+      <circle cx="180" cy="60" r="24" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.75"/>
+      <text x="180" y="65" fill="#1e3a8a">CG</text>
+
+      <circle cx="300" cy="60" r="24" fill="#fafaf9" stroke="#374151" stroke-width="1.5"/>
+      <text x="300" y="65" fill="#374151">GA</text>
+
+      <circle cx="180" cy="180" r="24" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.75"/>
+      <text x="180" y="185" fill="#1e3a8a">GT</text>
+
+      <circle cx="60" cy="180" r="24" fill="#fafaf9" stroke="#374151" stroke-width="1.5"/>
+      <text x="60" y="185" fill="#374151">CA</text>
+
+      <circle cx="300" cy="180" r="24" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.75"/>
+      <text x="300" y="185" fill="#1e3a8a">TA</text>
+    </g>
+
+    <!-- "current tour" label -->
+    <g font-family="JetBrains Mono, monospace" font-size="11" fill="#1e3a8a">
+      <text x="60" y="240" font-family="Inter, sans-serif" font-size="9" font-weight="600" letter-spacing="0.1em">TOUR SO FAR</text>
+      <text x="60" y="258">AC → CG → GT → TA</text>
+    </g>
+  </g>
+
+  <!-- ============ Panel 3: splice in the missed cycle ============ -->
+  <g font-family="Inter, sans-serif">
+    <text x="840" y="92" font-size="10" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">STEP 3  ·  SPLICE THE UNUSED CYCLE</text>
+    <text x="840" y="108" font-size="10" fill="#6b7280">From CG, an unused cycle exists: CG→GA→AC→...→back to CG. Splice it in at CG.</text>
+  </g>
+
+  <g transform="translate(840 130)">
+
+    <!-- All edges traversed, with the spliced cycle in amber -->
+    <g stroke="#1e3a8a" stroke-width="2.25" fill="none">
+      <line x1="84" y1="60" x2="156" y2="60" marker-end="url(#ar-accent)"/>
+      <line x1="180" y1="84" x2="180" y2="156" marker-end="url(#ar-accent)"/>
+      <line x1="204" y1="180" x2="276" y2="180" marker-end="url(#ar-accent)"/>
+    </g>
+    <g stroke="#b45309" stroke-width="2.25" fill="none">
+      <line x1="204" y1="60" x2="276" y2="60" marker-end="url(#ar-amber)"/>
+      <path d="M 297 36 Q 180 -8 63 36" marker-end="url(#ar-amber)"/>
+      <line x1="156" y1="180" x2="84" y2="180" marker-end="url(#ar-amber)"/>
+      <line x1="60" y1="156" x2="60" y2="84" marker-end="url(#ar-amber)"/>
+    </g>
+
+    <!-- Nodes (all visited) -->
+    <g font-family="JetBrains Mono, monospace" font-size="13" font-weight="500" text-anchor="middle">
+      <circle cx="60" cy="60" r="24" fill="#fef3c7" stroke="#b45309" stroke-width="1.75"/>
+      <text x="60" y="65" fill="#b45309">AC</text>
+
+      <circle cx="180" cy="60" r="24" fill="#fef3c7" stroke="#b45309" stroke-width="1.75"/>
+      <text x="180" y="65" fill="#b45309">CG</text>
+
+      <circle cx="300" cy="60" r="24" fill="#fef3c7" stroke="#b45309" stroke-width="1.75"/>
+      <text x="300" y="65" fill="#b45309">GA</text>
+
+      <circle cx="180" cy="180" r="24" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.75"/>
+      <text x="180" y="185" fill="#1e3a8a">GT</text>
+
+      <circle cx="60" cy="180" r="24" fill="#fef3c7" stroke="#b45309" stroke-width="1.75"/>
+      <text x="60" y="185" fill="#b45309">CA</text>
+
+      <circle cx="300" cy="180" r="24" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.75"/>
+      <text x="300" y="185" fill="#1e3a8a">TA</text>
+    </g>
+
+    <!-- final-tour label -->
+    <g font-family="JetBrains Mono, monospace" font-size="11" fill="#374151">
+      <text x="0" y="240" font-family="Inter, sans-serif" font-size="9" font-weight="600" letter-spacing="0.1em" fill="#065f46">FINAL EULERIAN PATH</text>
+      <text x="0" y="258">AC → CG → GA → AC → CA → GT → CG → GT → TA</text>
+    </g>
+  </g>
+
+  <!-- ============ Recovered sequence at bottom ============ -->
+  <g font-family="Inter, sans-serif">
+    <text x="60" y="430" font-size="10" font-weight="600" fill="#065f46" letter-spacing="0.12em">SEQUENCE FROM PATH  ·  WRITE THE FIRST NODE, THEN THE LAST CHARACTER OF EACH SUBSEQUENT NODE</text>
+  </g>
+
+  <g transform="translate(60 450)">
+    <!-- Path nodes laid out left-to-right -->
+    <g font-family="JetBrains Mono, monospace" font-size="14" font-weight="500" text-anchor="middle">
+      <g transform="translate(40 30)">
+        <rect x="-30" y="-22" width="60" height="44" fill="#fafaf9" stroke="#374151" stroke-width="1.25" rx="3"/>
+        <text x="0" y="5" fill="#374151">AC</text>
+      </g>
+      <g transform="translate(130 30)">
+        <rect x="-30" y="-22" width="60" height="44" fill="#fafaf9" stroke="#374151" stroke-width="1.25" rx="3"/>
+        <text x="0" y="5" fill="#374151">CG</text>
+      </g>
+      <g transform="translate(220 30)">
+        <rect x="-30" y="-22" width="60" height="44" fill="#fafaf9" stroke="#374151" stroke-width="1.25" rx="3"/>
+        <text x="0" y="5" fill="#374151">GA</text>
+      </g>
+      <g transform="translate(310 30)">
+        <rect x="-30" y="-22" width="60" height="44" fill="#fafaf9" stroke="#374151" stroke-width="1.25" rx="3"/>
+        <text x="0" y="5" fill="#374151">AC</text>
+      </g>
+      <g transform="translate(400 30)">
+        <rect x="-30" y="-22" width="60" height="44" fill="#fafaf9" stroke="#374151" stroke-width="1.25" rx="3"/>
+        <text x="0" y="5" fill="#374151">CA</text>
+      </g>
+      <g transform="translate(490 30)">
+        <rect x="-30" y="-22" width="60" height="44" fill="#fafaf9" stroke="#374151" stroke-width="1.25" rx="3"/>
+        <text x="0" y="5" fill="#374151">GT</text>
+      </g>
+      <g transform="translate(580 30)">
+        <rect x="-30" y="-22" width="60" height="44" fill="#fafaf9" stroke="#374151" stroke-width="1.25" rx="3"/>
+        <text x="0" y="5" fill="#374151">CG</text>
+      </g>
+      <g transform="translate(670 30)">
+        <rect x="-30" y="-22" width="60" height="44" fill="#fafaf9" stroke="#374151" stroke-width="1.25" rx="3"/>
+        <text x="0" y="5" fill="#374151">GT</text>
+      </g>
+      <g transform="translate(760 30)">
+        <rect x="-30" y="-22" width="60" height="44" fill="#fafaf9" stroke="#374151" stroke-width="1.25" rx="3"/>
+        <text x="0" y="5" fill="#374151">TA</text>
+      </g>
+    </g>
+
+    <!-- arrows between -->
+    <g stroke="#525252" stroke-width="1" fill="none">
+      <line x1="70" y1="30" x2="100" y2="30" marker-end="url(#ar-default)"/>
+      <line x1="160" y1="30" x2="190" y2="30" marker-end="url(#ar-default)"/>
+      <line x1="250" y1="30" x2="280" y2="30" marker-end="url(#ar-default)"/>
+      <line x1="340" y1="30" x2="370" y2="30" marker-end="url(#ar-default)"/>
+      <line x1="430" y1="30" x2="460" y2="30" marker-end="url(#ar-default)"/>
+      <line x1="520" y1="30" x2="550" y2="30" marker-end="url(#ar-default)"/>
+      <line x1="610" y1="30" x2="640" y2="30" marker-end="url(#ar-default)"/>
+      <line x1="700" y1="30" x2="730" y2="30" marker-end="url(#ar-default)"/>
+    </g>
+
+    <!-- emitted characters under each node, bigger -->
+    <g font-family="JetBrains Mono, monospace" font-size="20" font-weight="600" text-anchor="middle">
+      <text x="40" y="100" fill="#1e3a8a">A</text>
+      <text x="60" y="100" fill="#1e3a8a">C</text>
+      <text x="130" y="100" fill="#374151">G</text>
+      <text x="220" y="100" fill="#374151">A</text>
+      <text x="310" y="100" fill="#374151">C</text>
+      <text x="400" y="100" fill="#374151">A</text>
+      <text x="490" y="100" fill="#374151">T</text>
+      <text x="580" y="100" fill="#374151">·</text>
+      <text x="670" y="100" fill="#374151">·</text>
+      <text x="760" y="100" fill="#374151">·</text>
+    </g>
+    <!-- continuation row (last characters of the rest) -->
+    <g font-family="JetBrains Mono, monospace" font-size="20" font-weight="600" text-anchor="middle">
+      <text x="580" y="100" fill="#374151">G</text>
+      <text x="670" y="100" fill="#374151">T</text>
+      <text x="760" y="100" fill="#374151">A</text>
+    </g>
+
+    <!-- assembled string -->
+    <g font-family="Inter, sans-serif">
+      <text x="0" y="140" font-size="9" font-weight="600" letter-spacing="0.1em" fill="#1e3a8a">ASSEMBLED STRING</text>
+    </g>
+    <g font-family="JetBrains Mono, monospace" font-size="20" font-weight="600">
+      <text x="0" y="166" fill="#1e3a8a" letter-spacing="0.18em">A C G A C A G T A</text>
+    </g>
+
+  </g>
+
+</svg>

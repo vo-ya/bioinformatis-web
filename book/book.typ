@@ -38,8 +38,10 @@
 #counter(heading).update(0)
 
 #include "chapters/ch01-foundations.typ"
+#include "chapters/ch02-read-alignment.typ"
+#include "chapters/ch03-assembly.typ"
+#include "chapters/ch04-variant-calling.typ"
 
 // Future chapters get included here as they are authored.
-// #include "chapters/ch02-read-alignment.typ"
-// #include "chapters/ch03-assembly.typ"
+// #include "chapters/ch05-bulk-rna-seq.typ"
 // ...

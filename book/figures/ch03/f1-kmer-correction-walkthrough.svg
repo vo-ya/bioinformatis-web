@@ -1,0 +1,178 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="t d">
+  <title id="t">k-mer error correction by single-base substitution</title>
+  <desc id="d">A four-panel walkthrough of how a Bayesian k-mer corrector fixes a single sequencing error. Panel 1 shows a 16-base read with one wrong base highlighted. Panel 2 shows the read decomposed into eight overlapping k-mers of length 9, with the three k-mers that span the error all appearing only once in the k-mer dictionary and therefore flagged as suspicious. Panel 3 shows the substitution test: replacing the suspicious base with A, C, G, T and looking up the resulting k-mers in the high-count dictionary; only the substitution to G produces three k-mers that all map to the high-count peak. Panel 4 shows the corrected read.</desc>
+
+  <rect width="1200" height="640" fill="#fafaf9"/>
+
+  <defs>
+    <marker id="ar-step" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#374151"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <g font-family="Inter, sans-serif" fill="#374151">
+    <text x="60" y="36" font-size="18" font-weight="600">k-mer error correction, step by step</text>
+    <text x="60" y="54" font-size="11" fill="#6b7280">A single substitution error pollutes (k) consecutive k-mers; the corrector finds the one base whose flip restores them all to the high-count peak.</text>
+  </g>
+
+  <!-- ============ STEP 1: the read ============ -->
+  <g font-family="Inter, sans-serif">
+    <text x="60" y="90" font-size="10" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">STEP 1  ·  THE READ</text>
+  </g>
+  <g font-family="JetBrains Mono, monospace" font-size="18" fill="#374151">
+    <text x="80" y="124">A</text>
+    <text x="110" y="124">C</text>
+    <text x="140" y="124">G</text>
+    <text x="170" y="124">T</text>
+    <text x="200" y="124">T</text>
+    <text x="230" y="124">G</text>
+    <text x="260" y="124">A</text>
+    <text x="290" y="124" fill="#dc2626" font-weight="600">C</text>
+    <text x="320" y="124">C</text>
+    <text x="350" y="124">A</text>
+    <text x="380" y="124">T</text>
+    <text x="410" y="124">G</text>
+    <text x="440" y="124">C</text>
+    <text x="470" y="124">A</text>
+    <text x="500" y="124">A</text>
+    <text x="530" y="124">G</text>
+  </g>
+  <!-- Position indicator under error base -->
+  <line x1="298" y1="132" x2="298" y2="148" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="298" y="162" font-family="Inter, sans-serif" font-size="10" fill="#dc2626" font-weight="600" text-anchor="middle">position 8</text>
+  <text x="298" y="175" font-family="Inter, sans-serif" font-size="10" fill="#dc2626" text-anchor="middle" font-style="italic">true base was G</text>
+
+  <!-- Position annotations -->
+  <g font-family="JetBrains Mono, monospace" font-size="9" fill="#8a8a85" text-anchor="middle">
+    <text x="86" y="100">1</text>
+    <text x="296" y="100">8</text>
+    <text x="536" y="100">16</text>
+  </g>
+
+  <text x="630" y="124" font-family="Inter, sans-serif" font-size="11" fill="#374151" font-style="italic">A 16-base read with one wrong base.</text>
+  <text x="630" y="140" font-family="Inter, sans-serif" font-size="11" fill="#374151" font-style="italic">k = 9 ⇒ 8 overlapping k-mers across the read.</text>
+
+  <!-- ============ STEP 2: k-mer decomposition ============ -->
+  <g font-family="Inter, sans-serif">
+    <text x="60" y="210" font-size="10" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">STEP 2  ·  COUNT k-MERS (k=9)  ·  SUSPICIOUS = FREQUENCY &lt; THRESHOLD</text>
+  </g>
+
+  <!-- Two-column k-mer table -->
+  <g font-family="JetBrains Mono, monospace" font-size="11">
+    <!-- left column: kmers 1-4 -->
+    <text x="80" y="238" fill="#065f46">ACGTTGACC</text>
+    <text x="220" y="238" fill="#8a8a85" text-anchor="end">freq</text>
+    <text x="260" y="238" fill="#065f46" text-anchor="end">31</text>
+    <text x="285" y="238" font-family="Inter, sans-serif" font-size="10" fill="#065f46">✓ true</text>
+
+    <text x="80" y="258" fill="#065f46">CGTTGACCA</text>
+    <text x="260" y="258" fill="#065f46" text-anchor="end">29</text>
+    <text x="285" y="258" font-family="Inter, sans-serif" font-size="10" fill="#065f46">✓ true</text>
+
+    <text x="80" y="278" fill="#065f46">GTTGACCAT</text>
+    <text x="260" y="278" fill="#065f46" text-anchor="end">30</text>
+    <text x="285" y="278" font-family="Inter, sans-serif" font-size="10" fill="#065f46">✓ true</text>
+
+    <text x="80" y="298" fill="#065f46">TTGACCATG</text>
+    <text x="260" y="298" fill="#065f46" text-anchor="end">32</text>
+    <text x="285" y="298" font-family="Inter, sans-serif" font-size="10" fill="#065f46">✓ true</text>
+
+    <!-- right column: kmers 5-8 (these span the error) -->
+    <text x="450" y="238" fill="#dc2626">TGACCATGC</text>
+    <text x="650" y="238" fill="#8a8a85" text-anchor="end">freq</text>
+    <text x="690" y="238" fill="#dc2626" text-anchor="end">1</text>
+    <text x="715" y="238" font-family="Inter, sans-serif" font-size="10" fill="#dc2626">✗ suspicious</text>
+
+    <text x="450" y="258" fill="#dc2626">GACCATGCA</text>
+    <text x="690" y="258" fill="#dc2626" text-anchor="end">1</text>
+    <text x="715" y="258" font-family="Inter, sans-serif" font-size="10" fill="#dc2626">✗ suspicious</text>
+
+    <text x="450" y="278" fill="#dc2626">ACCATGCAA</text>
+    <text x="690" y="278" fill="#dc2626" text-anchor="end">1</text>
+    <text x="715" y="278" font-family="Inter, sans-serif" font-size="10" fill="#dc2626">✗ suspicious</text>
+
+    <text x="450" y="298" fill="#065f46">CCATGCAAG</text>
+    <text x="690" y="298" fill="#065f46" text-anchor="end">28</text>
+    <text x="715" y="298" font-family="Inter, sans-serif" font-size="10" fill="#065f46">✓ true</text>
+  </g>
+
+  <!-- Note: three suspicious in a row → position is within the (k-1)-base window where the error sits -->
+  <g font-family="Inter, sans-serif" font-size="11" fill="#374151">
+    <text x="80" y="332" font-style="italic">Three consecutive k-mers fail at once — a window of length k around a single base. That window pins the error to one position.</text>
+  </g>
+
+  <!-- ============ STEP 3: substitution test ============ -->
+  <g font-family="Inter, sans-serif">
+    <text x="60" y="382" font-size="10" font-weight="600" fill="#1e3a8a" letter-spacing="0.12em">STEP 3  ·  TRY EACH SUBSTITUTION AT THE SUSPECT BASE; CHECK THE THREE BROKEN k-MERS</text>
+  </g>
+
+  <!-- 4 mini panels: A, C, G, T -->
+  <g>
+    <!-- A -->
+    <g transform="translate(80 400)">
+      <rect width="240" height="100" fill="#fafaf9" stroke="#e5e3dc" stroke-width="0.75" rx="4"/>
+      <text x="12" y="20" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#374151">substitute → A</text>
+      <text x="12" y="42" font-family="JetBrains Mono, monospace" font-size="10" fill="#dc2626">TGACAATGC  freq 1  ✗</text>
+      <text x="12" y="58" font-family="JetBrains Mono, monospace" font-size="10" fill="#dc2626">GACAATGCA  freq 0  ✗</text>
+      <text x="12" y="74" font-family="JetBrains Mono, monospace" font-size="10" fill="#dc2626">ACAATGCAA  freq 0  ✗</text>
+      <text x="12" y="92" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#dc2626">REJECTED</text>
+    </g>
+    <!-- C (original) -->
+    <g transform="translate(330 400)">
+      <rect width="240" height="100" fill="#fafaf9" stroke="#e5e3dc" stroke-width="0.75" rx="4"/>
+      <text x="12" y="20" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#374151">substitute → C  (original)</text>
+      <text x="12" y="42" font-family="JetBrains Mono, monospace" font-size="10" fill="#dc2626">TGACCATGC  freq 1  ✗</text>
+      <text x="12" y="58" font-family="JetBrains Mono, monospace" font-size="10" fill="#dc2626">GACCATGCA  freq 1  ✗</text>
+      <text x="12" y="74" font-family="JetBrains Mono, monospace" font-size="10" fill="#dc2626">ACCATGCAA  freq 1  ✗</text>
+      <text x="12" y="92" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#dc2626">REJECTED</text>
+    </g>
+    <!-- G — winner -->
+    <g transform="translate(580 400)">
+      <rect width="240" height="100" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.25" rx="4"/>
+      <text x="12" y="20" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#1e3a8a">substitute → G</text>
+      <text x="12" y="42" font-family="JetBrains Mono, monospace" font-size="10" fill="#065f46">TGACGATGC  freq 31 ✓</text>
+      <text x="12" y="58" font-family="JetBrains Mono, monospace" font-size="10" fill="#065f46">GACGATGCA  freq 29 ✓</text>
+      <text x="12" y="74" font-family="JetBrains Mono, monospace" font-size="10" fill="#065f46">ACGATGCAA  freq 30 ✓</text>
+      <text x="12" y="92" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#1e3a8a">ACCEPT — flip C→G</text>
+    </g>
+    <!-- T -->
+    <g transform="translate(830 400)">
+      <rect width="240" height="100" fill="#fafaf9" stroke="#e5e3dc" stroke-width="0.75" rx="4"/>
+      <text x="12" y="20" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#374151">substitute → T</text>
+      <text x="12" y="42" font-family="JetBrains Mono, monospace" font-size="10" fill="#dc2626">TGACTATGC  freq 0  ✗</text>
+      <text x="12" y="58" font-family="JetBrains Mono, monospace" font-size="10" fill="#dc2626">GACTATGCA  freq 0  ✗</text>
+      <text x="12" y="74" font-family="JetBrains Mono, monospace" font-size="10" fill="#dc2626">ACTATGCAA  freq 1  ✗</text>
+      <text x="12" y="92" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#dc2626">REJECTED</text>
+    </g>
+  </g>
+
+  <!-- ============ STEP 4: corrected read ============ -->
+  <g font-family="Inter, sans-serif">
+    <text x="60" y="540" font-size="10" font-weight="600" fill="#065f46" letter-spacing="0.12em">STEP 4  ·  CORRECTED READ</text>
+  </g>
+  <g font-family="JetBrains Mono, monospace" font-size="18" fill="#374151">
+    <text x="80" y="574">A</text>
+    <text x="110" y="574">C</text>
+    <text x="140" y="574">G</text>
+    <text x="170" y="574">T</text>
+    <text x="200" y="574">T</text>
+    <text x="230" y="574">G</text>
+    <text x="260" y="574">A</text>
+    <text x="290" y="574" fill="#065f46" font-weight="600">G</text>
+    <text x="320" y="574">C</text>
+    <text x="350" y="574">A</text>
+    <text x="380" y="574">T</text>
+    <text x="410" y="574">G</text>
+    <text x="440" y="574">C</text>
+    <text x="470" y="574">A</text>
+    <text x="500" y="574">A</text>
+    <text x="530" y="574">G</text>
+  </g>
+  <line x1="298" y1="582" x2="298" y2="598" stroke="#065f46" stroke-width="1.5"/>
+  <text x="298" y="612" font-family="Inter, sans-serif" font-size="10" fill="#065f46" font-weight="600" text-anchor="middle">position 8 ✓</text>
+
+  <text x="630" y="574" font-family="Inter, sans-serif" font-size="11" fill="#374151" font-style="italic">All eight k-mers now match the high-count peak.</text>
+  <text x="630" y="590" font-family="Inter, sans-serif" font-size="11" fill="#374151" font-style="italic">Read is admitted to the de Bruijn graph clean.</text>
+
+</svg>

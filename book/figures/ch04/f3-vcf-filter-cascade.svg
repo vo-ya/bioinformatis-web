@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="t d">
+  <title id="t">The VCF filter cascade — from raw calls to clinical shortlist</title>
+  <desc id="d">A funnel-style flow chart for a typical germline whole-genome VCF. Five filter stages are stacked vertically. The width of each stage's bar is proportional to the log of surviving variants. Stage 1 raw calls 4.8 million. Stage 2 quality hard filters retain 4.2 million. Stage 3 region filters drop low-complexity regions and retain 4.0 million. Stage 4 allele-frequency filter (gnomAD AF less than 1 percent) retains 200 thousand. Stage 5 consequence filter (missense, nonsense, frameshift, splice) retains 8 thousand. Stage 6 ClinVar Pathogenic or disease-gene panel retains 50 candidates. Annotations next to each stage list typical thresholds and the absolute drop. The largest cut is at the population-frequency stage.</desc>
+
+  <rect x="0" y="0" width="1200" height="620" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <g>
+    <text x="60" y="40" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">FROM RAW VCF TO ACTIONABLE SHORTLIST</text>
+    <text x="60" y="58" font-family="Inter, sans-serif" font-size="11" font-style="italic" fill="#525252">Canonical filter cascade for a 30× germline whole-genome sample</text>
+  </g>
+
+  <!-- Funnel: stages 1..6 -->
+  <!-- log scale widths: 4.8M -> 1000, 4.2M->980, 4.0M->970, 200k->760, 8k->610, 50->380 -->
+
+  <!-- Stage 1 -->
+  <g transform="translate(100, 100)">
+    <rect x="0" y="0" width="1000" height="56" rx="6" fill="#1e3a8a"/>
+    <text x="20" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#ffffff" letter-spacing="0.08em">STAGE 1 — RAW CALLS</text>
+    <text x="20" y="44" font-family="Inter, sans-serif" font-size="11" fill="#ffffff">Caller output (DeepVariant or HaplotypeCaller)</text>
+    <text x="980" y="36" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="18" font-weight="700" fill="#ffffff">4,800,000</text>
+
+    <!-- side annotations -->
+    <text x="-10" y="36" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">100.0%</text>
+  </g>
+
+  <!-- arrow + filter note -->
+  <g transform="translate(600, 160)">
+    <line x1="0" y1="0" x2="0" y2="22" stroke="#525252" stroke-width="1.2" marker-end="url(#tri-cobalt)"/>
+  </g>
+  <text x="120" y="178" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b45309" letter-spacing="0.04em">FILTER:</text>
+  <text x="180" y="178" font-family="Inter, sans-serif" font-size="10" fill="#525252">FILTER == PASS,  QUAL ≥ 30,  10 ≤ DP ≤ 2 × median DP,  GQ ≥ 20</text>
+  <text x="1080" y="178" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#b45309">− 0.6 M</text>
+
+  <!-- Stage 2 -->
+  <g transform="translate(110, 186)">
+    <rect x="0" y="0" width="980" height="52" rx="6" fill="#2563eb"/>
+    <text x="20" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#ffffff" letter-spacing="0.08em">STAGE 2 — QUALITY  HARD FILTERS</text>
+    <text x="20" y="42" font-family="Inter, sans-serif" font-size="11" fill="#ffffff">PASS only, depth + quality cuts</text>
+    <text x="960" y="34" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="16" font-weight="700" fill="#ffffff">4,200,000</text>
+    <text x="-20" y="32" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">87.5%</text>
+  </g>
+
+  <text x="120" y="262" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b45309" letter-spacing="0.04em">FILTER:</text>
+  <text x="180" y="262" font-family="Inter, sans-serif" font-size="10" fill="#525252">drop ENCODE blacklist, low-complexity, segmental duplications, centromeric repeats</text>
+  <text x="1080" y="262" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#b45309">− 0.2 M</text>
+
+  <!-- Stage 3 -->
+  <g transform="translate(125, 270)">
+    <rect x="0" y="0" width="950" height="52" rx="6" fill="#3a5cb8"/>
+    <text x="20" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#ffffff" letter-spacing="0.08em">STAGE 3 — REGION  FILTERS</text>
+    <text x="20" y="42" font-family="Inter, sans-serif" font-size="11" fill="#ffffff">remove problem regions (blacklist, low-complexity, repeats)</text>
+    <text x="930" y="34" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="16" font-weight="700" fill="#ffffff">4,000,000</text>
+    <text x="-35" y="32" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">83.3%</text>
+  </g>
+
+  <text x="120" y="346" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#dc2626" letter-spacing="0.04em">FILTER:</text>
+  <text x="180" y="346" font-family="Inter, sans-serif" font-size="10" fill="#525252">gnomAD AF &lt; 1%  (keep only rare variants — drops the bulk of common polymorphisms)</text>
+  <text x="1080" y="346" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#dc2626" font-weight="700">− 3.8 M  ← biggest drop</text>
+
+  <!-- Stage 4 -->
+  <g transform="translate(220, 354)">
+    <rect x="0" y="0" width="760" height="52" rx="6" fill="#7c3aed"/>
+    <text x="20" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#ffffff" letter-spacing="0.08em">STAGE 4 — ALLELE-FREQUENCY  FILTER</text>
+    <text x="20" y="42" font-family="Inter, sans-serif" font-size="11" fill="#ffffff">gnomAD AF &lt; 1% (rare)</text>
+    <text x="740" y="34" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="16" font-weight="700" fill="#ffffff">200,000</text>
+    <text x="200" y="32" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">4.2%</text>
+  </g>
+
+  <text x="120" y="430" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b45309" letter-spacing="0.04em">FILTER:</text>
+  <text x="180" y="430" font-family="Inter, sans-serif" font-size="10" fill="#525252">consequence ∈ {missense, nonsense, frameshift, splice-region}  (drop intronic + synonymous)</text>
+  <text x="1080" y="430" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#b45309">− 192 K</text>
+
+  <!-- Stage 5 -->
+  <g transform="translate(295, 438)">
+    <rect x="0" y="0" width="610" height="52" rx="6" fill="#065f46"/>
+    <text x="20" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#ffffff" letter-spacing="0.08em">STAGE 5 — CONSEQUENCE  FILTER</text>
+    <text x="20" y="42" font-family="Inter, sans-serif" font-size="11" fill="#ffffff">protein-altering variants only</text>
+    <text x="590" y="34" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="16" font-weight="700" fill="#ffffff">8,000</text>
+    <text x="275" y="32" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">0.17%</text>
+  </g>
+
+  <text x="120" y="514" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b45309" letter-spacing="0.04em">FILTER:</text>
+  <text x="180" y="514" font-family="Inter, sans-serif" font-size="10" fill="#525252">in ClinVar Pathogenic / Likely-Pathogenic  OR  in curated disease-gene panel</text>
+  <text x="1080" y="514" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#b45309">− 7.95 K</text>
+
+  <!-- Stage 6 -->
+  <g transform="translate(410, 522)">
+    <rect x="0" y="0" width="380" height="56" rx="6" fill="#064e3b"/>
+    <text x="20" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#ffffff" letter-spacing="0.08em">STAGE 6 — CLINICAL  SHORTLIST</text>
+    <text x="20" y="44" font-family="Inter, sans-serif" font-size="11" fill="#ffffff">human review, ACMG classification</text>
+    <text x="360" y="36" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="18" font-weight="700" fill="#ffffff">~ 50</text>
+    <text x="390" y="34" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#525252">0.001%</text>
+  </g>
+
+  <!-- Bottom note bar -->
+  <g transform="translate(60, 596)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-style="italic">Bar widths log-scaled to survivor counts. The single largest cut is gnomAD AF — most variants in any genome are common polymorphisms shared with thousands of other people and irrelevant to a rare-disease workup.</text>
+  </g>
+
+  <defs>
+    <marker id="tri-cobalt" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#374151"/>
+    </marker>
+  </defs>
+</svg>

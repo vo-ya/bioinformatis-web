@@ -389,6 +389,80 @@ a.lecture-card:focus-visible {
   margin: 0;
 }
 
+/* ─── Track toggle + per-card pills ────────────────── */
+
+.track-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 16px;
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  font-family: var(--font-sans);
+}
+
+.track-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  border-radius: calc(var(--radius) - 6px);
+  cursor: pointer;
+  transition: background 120ms ease-out, color 120ms ease-out;
+}
+
+.track-tab:hover { color: var(--fg); }
+
+.track-tab.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.track-tab.is-active:hover { color: #fff; }
+
+.track-tab-count {
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+}
+
+/* Per-card track pill — absolutely positioned in the card's top-right. */
+.lecture-card { position: relative; }
+
+.lecture-card-track {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  line-height: 1;
+}
+
+.lecture-card-track.is-student {
+  background: rgba(30, 58, 138, 0.10);
+  color: #1e3a8a;
+}
+
+.lecture-card-track.is-advanced {
+  background: rgba(124, 58, 237, 0.10);
+  color: #6b21a8;
+}
+
+/* Toggle behaviour: when the list is in "student-only" mode, hide every
+   <li> whose card is tagged advanced. Uses :has() (all modern browsers). */
+.lecture-list.show-student-only li:has(.lecture-card[data-track="advanced"]) {
+  display: none;
+}
+
 /* ─── Secondary nav ────────────────────────────────── */
 
 .homepage-nav {

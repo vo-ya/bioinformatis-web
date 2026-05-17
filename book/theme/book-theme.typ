@@ -4,6 +4,7 @@
 // generous margins, mirrored running heads.
 
 #let accent = rgb("#1e3a8a")           // deep cobalt (matches the website)
+#let fg     = rgb("#0a0a0a")
 #let muted  = rgb("#525252")
 #let subtle = rgb("#8a8a85")
 #let rule   = rgb("#e5e3dc")
@@ -225,6 +226,87 @@
       #text(fill: muted, size: 9pt)[#pages]
     ]
   }
+}
+
+
+// ─── Cover pages ─────────────────────────────────────────────────────
+// Front and back cover, full-bleed A4, no running heads or folios.
+
+#let book-cover(title, subtitle, author, edition, year) = {
+  page(
+    paper: "a4",
+    margin: (top: 50mm, bottom: 30mm, x: 30mm),
+    header: none,
+    footer: none,
+    background: none,
+  )[
+    #set align(center)
+    // Hero mark — path is relative to this theme file.
+    #image("../figures/cover-mark.svg", height: 90mm)
+    #v(18mm)
+    // Kicker
+    #text(font: ("Inter", "Helvetica Neue", "Arial"),
+          size: 11pt, fill: subtle, tracking: 0.22em,
+          upper("A course in print"))
+    #v(14pt)
+    // Title — two-line max, big serif
+    #text(font: ("Source Serif 4", "Charter", "Georgia"),
+          size: 56pt, weight: "medium", title)
+    #v(10pt)
+    // Cobalt rule
+    #block(width: 80pt, height: 3pt, fill: accent)
+    #v(14pt)
+    // Subtitle — italic serif
+    #text(font: ("Source Serif 4", "Charter", "Georgia"),
+          size: 22pt, style: "italic", fill: muted, subtitle)
+    // Push author + edition to the bottom band
+    #v(1fr)
+    #text(font: ("Source Serif 4", "Charter", "Georgia"),
+          size: 16pt, author)
+    #v(8pt)
+    #text(font: ("Inter", "Helvetica Neue", "Arial"),
+          size: 10pt, fill: subtle, tracking: 0.18em,
+          upper(edition + "  ·  " + str(year)))
+  ]
+}
+
+#let book-back-cover(blurb, site-url, institution, semester, author) = {
+  page(
+    paper: "a4",
+    margin: (top: 30mm, bottom: 30mm, x: 30mm),
+    header: none,
+    footer: none,
+    background: none,
+  )[
+    #v(10mm)
+    // A small mark in the top-right to echo the front cover
+    #align(right)[
+      #image("../figures/cover-mark.svg", height: 24mm)
+    ]
+    #v(12pt)
+    // The blurb, in body serif
+    #set par(justify: true, first-line-indent: 0pt, leading: 0.8em)
+    #text(font: ("Source Serif 4", "Charter", "Georgia"), size: 11.5pt, blurb)
+    #v(1fr)
+    // Footer band — course meta + URL
+    #line(length: 100%, stroke: 1pt + accent)
+    #v(10pt)
+    #set par(first-line-indent: 0pt, leading: 0.7em, justify: false)
+    #set text(font: ("Inter", "Helvetica Neue", "Arial"), size: 9.5pt, fill: muted)
+    #grid(
+      columns: (1fr, auto),
+      align: (left, right),
+      [
+        #text(weight: "semibold", fill: fg)[#author] \
+        #institution \
+        #semester
+      ],
+      [
+        #text(tracking: 0.12em, upper("Live site"))\
+        #text(fill: accent, size: 11pt, site-url)
+      ],
+    )
+  ]
 }
 
 

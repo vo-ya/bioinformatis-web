@@ -166,7 +166,7 @@ disagree on the middle stage but agree on the endpoints.
     pseudoalign via Kallisto/Salmon — but both converge at a gene-level
     count matrix that Chapter 6 will consume.
   ],
-) <fig:pipeline>
+) <fig:ch05-pipeline>
 
 The *align-then-count* path produces a sorted BAM and then counts reads
 overlapping each feature (gene, exon, or transcript) using

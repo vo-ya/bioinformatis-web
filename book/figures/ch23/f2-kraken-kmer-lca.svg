@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="t d">
+  <title id="t">Kraken2 k-mer lowest common ancestor classification by worked example</title>
+  <desc id="d">A worked example showing how Kraken2 classifies a single sixty-base read. The read is decomposed into overlapping thirty-five-mers; each k-mer is queried against a precomputed minimiser-keyed hash table built from reference genomes; each hit returns a taxonomic identifier. A small taxonomic subtree shows the lowest common ancestor that consumes the per-k-mer votes. Most k-mers hit the genus Escherichia, three hit the family Enterobacteriaceae, and one is unmapped. The lowest common ancestor of the matches is Escherichia, and the read is assigned there with a confidence score that is the fraction of k-mers that voted for that lineage or a descendant.</desc>
+
+  <rect x="0" y="0" width="1200" height="620" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <text x="60" y="40" font-family="Inter, Helvetica Neue, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">KRAKEN2 — K-MER LCA CLASSIFICATION OF A SINGLE READ</text>
+  <text x="60" y="60" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-style="italic" fill="#525252">A 60-base read is decomposed into k-mers; each k-mer votes for a clade; the LCA of the votes is the call.</text>
+
+  <!-- Step 1: the read -->
+  <g transform="translate(60, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">STEP 1 — READ (60 BP)</text>
+    <rect x="0" y="10" width="900" height="34" fill="#fafaf9" stroke="#374151" stroke-width="1"/>
+    <text x="450" y="32" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="500" fill="#0a0a0a">ATGCGTACGTAGCTAGCTACGTACGATCGATGCATCGTACGTAGCATGCTAGCATCGATGC</text>
+  </g>
+
+  <!-- Step 2: k-mer decomposition (sliding 35-mer, 26 k-mers, we show 6) -->
+  <g transform="translate(60, 170)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">STEP 2 — DECOMPOSE INTO 35-MERS (26 OVERLAPPING)</text>
+
+    <!-- Each k-mer 525 wide -->
+    <g font-family="JetBrains Mono, monospace" font-size="9" font-weight="500">
+      <rect x="0"   y="14" width="525" height="20" fill="#fafaf9" stroke="#374151" stroke-width="0.8"/>
+      <text x="262" y="29" text-anchor="middle" fill="#0a0a0a">ATGCGTACGTAGCTAGCTACGTACGATCGATGCAT</text>
+      <text x="540" y="29" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">k-mer 1</text>
+
+      <rect x="15"  y="38" width="525" height="20" fill="#fafaf9" stroke="#374151" stroke-width="0.8"/>
+      <text x="277" y="53" text-anchor="middle" fill="#0a0a0a">TGCGTACGTAGCTAGCTACGTACGATCGATGCATC</text>
+      <text x="555" y="53" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">k-mer 2</text>
+
+      <rect x="30"  y="62" width="525" height="20" fill="#fafaf9" stroke="#374151" stroke-width="0.8"/>
+      <text x="292" y="77" text-anchor="middle" fill="#0a0a0a">GCGTACGTAGCTAGCTACGTACGATCGATGCATCG</text>
+      <text x="570" y="77" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">k-mer 3</text>
+
+      <text x="262" y="106" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#8a8a85">⋮  (k-mers 4 — 24)</text>
+
+      <rect x="345" y="120" width="525" height="20" fill="#fafaf9" stroke="#374151" stroke-width="0.8"/>
+      <text x="607" y="135" text-anchor="middle" fill="#0a0a0a">CATGCTAGCATCGATGCATCGATGCATCGATGCAT</text>
+      <text x="885" y="135" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85">k-mer 26</text>
+    </g>
+  </g>
+
+  <!-- Step 3: hash table lookup -->
+  <g transform="translate(60, 360)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">STEP 3 — LOOK UP EACH K-MER&apos;S MINIMISER IN THE PREBUILT HASH</text>
+
+    <!-- Vote vector -->
+    <g transform="translate(0, 22)" font-family="Inter, sans-serif" font-size="10">
+      <text x="0" y="0" font-weight="600" fill="#374151">k-mer 1 — 22</text>
+      <rect x="100" y="-12" width="180" height="20" fill="#1e3a8a" opacity="0.16" stroke="#1e3a8a" stroke-width="0.6" rx="2"/>
+      <text x="190" y="3" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#1e3a8a">Escherichia coli  (×22)</text>
+
+      <text x="0" y="28" font-weight="600" fill="#374151">k-mer 23, 25</text>
+      <rect x="100" y="16" width="180" height="20" fill="#b45309" opacity="0.16" stroke="#b45309" stroke-width="0.6" rx="2"/>
+      <text x="190" y="31" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#b45309">Enterobacteriaceae  (×2)</text>
+
+      <text x="0" y="56" font-weight="600" fill="#374151">k-mer 24</text>
+      <rect x="100" y="44" width="180" height="20" fill="#7c3aed" opacity="0.16" stroke="#7c3aed" stroke-width="0.6" rx="2"/>
+      <text x="190" y="59" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#7c3aed">Shigella flexneri  (×1)</text>
+
+      <text x="0" y="84" font-weight="600" fill="#374151">k-mer 26</text>
+      <rect x="100" y="72" width="180" height="20" fill="#6b7280" opacity="0.16" stroke="#525252" stroke-width="0.6" rx="2"/>
+      <text x="190" y="87" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#525252">unmapped  (×1)</text>
+    </g>
+  </g>
+
+  <!-- Step 4: LCA tree -->
+  <g transform="translate(640, 360)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">STEP 4 — AGGREGATE VIA LCA</text>
+
+    <!-- Tree drawn left-to-right:
+         Bacteria (root) -> Enterobacteriaceae -> {Escherichia -> E. coli, Shigella -> S. flexneri}
+    -->
+    <g font-family="Inter, sans-serif" font-size="10">
+      <!-- Root -->
+      <circle cx="40" cy="100" r="8" fill="#525252"/>
+      <text x="22" y="104" text-anchor="end" font-weight="600" fill="#374151">Bacteria</text>
+
+      <!-- Enterobacteriaceae -->
+      <line x1="48" y1="100" x2="148" y2="100" stroke="#525252" stroke-width="1.5"/>
+      <circle cx="156" cy="100" r="8" fill="#b45309"/>
+      <text x="172" y="96" font-weight="700" fill="#b45309">Enterobacteriaceae</text>
+      <text x="172" y="110" font-size="9" fill="#525252">family — 2 votes</text>
+
+      <!-- Escherichia branch -->
+      <line x1="164" y1="100" x2="220" y2="60" stroke="#525252" stroke-width="1.5"/>
+      <circle cx="228" cy="60" r="8" fill="#1e3a8a"/>
+      <text x="244" y="56" font-weight="700" fill="#1e3a8a">Escherichia</text>
+      <text x="244" y="70" font-size="9" fill="#525252">genus — 22 votes  ←  LCA</text>
+
+      <line x1="236" y1="60" x2="320" y2="40" stroke="#525252" stroke-width="1.2" stroke-dasharray="3 2"/>
+      <circle cx="328" cy="40" r="6" fill="#1e3a8a" opacity="0.5"/>
+      <text x="340" y="44" fill="#525252">E. coli</text>
+
+      <line x1="236" y1="60" x2="320" y2="80" stroke="#525252" stroke-width="1.2" stroke-dasharray="3 2"/>
+      <circle cx="328" cy="80" r="6" fill="#1e3a8a" opacity="0.5"/>
+      <text x="340" y="84" fill="#525252">E. fergusonii</text>
+
+      <!-- Shigella branch -->
+      <line x1="164" y1="100" x2="220" y2="140" stroke="#525252" stroke-width="1.5"/>
+      <circle cx="228" cy="140" r="8" fill="#7c3aed"/>
+      <text x="244" y="136" font-weight="700" fill="#7c3aed">Shigella</text>
+      <text x="244" y="150" font-size="9" fill="#525252">genus — 1 vote</text>
+
+      <line x1="236" y1="140" x2="320" y2="140" stroke="#525252" stroke-width="1.2" stroke-dasharray="3 2"/>
+      <circle cx="328" cy="140" r="6" fill="#7c3aed" opacity="0.5"/>
+      <text x="340" y="144" fill="#525252">S. flexneri</text>
+    </g>
+  </g>
+
+  <!-- Step 5: confidence -->
+  <g transform="translate(60, 540)">
+    <rect x="0" y="0" width="1080" height="60" fill="#f4f3ee" stroke="#c4c1b6" stroke-width="0.5" rx="3"/>
+    <text x="14" y="20" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">STEP 5 — CALL + CONFIDENCE</text>
+    <text x="14" y="40" font-family="Inter, sans-serif" font-size="11" fill="#374151">Assignment: <tspan font-family="JetBrains Mono, monospace" font-weight="600" fill="#1e3a8a">Escherichia</tspan> (genus). LCA of the matched k-mers; descendants count toward the lineage.</text>
+    <text x="14" y="54" font-family="Inter, sans-serif" font-size="10" fill="#525252">Confidence = votes for the called lineage or any descendant / total k-mers = 23 / 26 ≈ 0.88. Tunable via `kraken2 --confidence 0.1`.</text>
+  </g>
+</svg>

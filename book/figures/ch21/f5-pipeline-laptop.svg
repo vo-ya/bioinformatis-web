@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" role="img" aria-labelledby="t d">
+  <title id="t">Bacterial-genome annotation pipeline with laptop-scale runtimes</title>
+  <desc id="d">A linear pipeline diagram showing seven boxes from raw reads to final annotation table. Each box shows the step name, the dominant tool, the input and output data types, and an indicative runtime on a 5 megabase bacterial genome running on a modern laptop. HMM-driven steps (Prodigal for ORF prediction and HMMER for Pfam scan) are coloured cobalt; other steps are cool grey. Arrows connect the steps in sequence. A side note summarises cumulative runtime and gene yield.</desc>
+
+  <rect x="0" y="0" width="1200" height="600" fill="#fafaf9"/>
+
+  <defs>
+    <marker id="arr-pipe" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#374151"/>
+    </marker>
+  </defs>
+
+  <!-- Header -->
+  <text x="60" y="40" font-family="Inter, Helvetica Neue, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">BACTERIAL-GENOME ANNOTATION ON A LAPTOP — 2025</text>
+  <text x="60" y="60" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-style="italic" fill="#525252">Two HMM-driven steps (Prodigal, HMMER) anchor a pipeline that annotates ~95% of a 5 Mb bacterial genome in under two hours.</text>
+
+  <!-- Pipeline grid: 7 boxes, two rows -->
+  <!-- Row 1: steps 1-4 -->
+  <!-- Each box 240 wide, 120 tall, spaced 12 apart -->
+
+  <g font-family="Inter, sans-serif">
+
+    <!-- Box 1: Assemble -->
+    <g transform="translate(70, 110)">
+      <rect x="0" y="0" width="240" height="130" fill="#fafaf9" stroke="#525252" stroke-width="1.5" rx="3"/>
+      <text x="12" y="20" font-size="9" font-weight="700" fill="#525252" letter-spacing="0.06em">STEP 1</text>
+      <text x="12" y="42" font-size="14" font-weight="600" fill="#374151">Assemble</text>
+      <text x="12" y="62" font-size="10" font-style="italic" fill="#525252">SPAdes / Flye</text>
+      <line x1="12" y1="72" x2="228" y2="72" stroke="#e5e3dc"/>
+      <text x="12" y="88" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">in: reads.fq</text>
+      <text x="12" y="102" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">out: contigs.fa</text>
+      <text x="12" y="122" font-size="11" font-weight="700" fill="#b45309">~20 min</text>
+    </g>
+
+    <!-- Box 2: ORF prediction (HMM) -->
+    <g transform="translate(322, 110)">
+      <rect x="0" y="0" width="240" height="130" fill="#eef2ff" stroke="#1e3a8a" stroke-width="2" rx="3"/>
+      <text x="12" y="20" font-size="9" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">STEP 2  · HMM</text>
+      <text x="12" y="42" font-size="14" font-weight="600" fill="#1e3a8a">ORF prediction</text>
+      <text x="12" y="62" font-size="10" font-style="italic" fill="#525252">Prodigal  (Viterbi on codon HMM)</text>
+      <line x1="12" y1="72" x2="228" y2="72" stroke="#e5e3dc"/>
+      <text x="12" y="88" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">in: contigs.fa</text>
+      <text x="12" y="102" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">out: ~5,000 ORFs (gff)</text>
+      <text x="12" y="122" font-size="11" font-weight="700" fill="#b45309">~3 min</text>
+    </g>
+
+    <!-- Box 3: Translate -->
+    <g transform="translate(574, 110)">
+      <rect x="0" y="0" width="240" height="130" fill="#fafaf9" stroke="#525252" stroke-width="1.5" rx="3"/>
+      <text x="12" y="20" font-size="9" font-weight="700" fill="#525252" letter-spacing="0.06em">STEP 3</text>
+      <text x="12" y="42" font-size="14" font-weight="600" fill="#374151">Translate</text>
+      <text x="12" y="62" font-size="10" font-style="italic" fill="#525252">seqkit translate</text>
+      <line x1="12" y1="72" x2="228" y2="72" stroke="#e5e3dc"/>
+      <text x="12" y="88" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">in: ORFs (nt)</text>
+      <text x="12" y="102" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">out: ORFs (aa)</text>
+      <text x="12" y="122" font-size="11" font-weight="700" fill="#b45309">&lt;1 min</text>
+    </g>
+
+    <!-- Box 4: Pfam scan (HMM) -->
+    <g transform="translate(826, 110)">
+      <rect x="0" y="0" width="240" height="130" fill="#eef2ff" stroke="#1e3a8a" stroke-width="2" rx="3"/>
+      <text x="12" y="20" font-size="9" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">STEP 4  · HMM</text>
+      <text x="12" y="42" font-size="14" font-weight="600" fill="#1e3a8a">Pfam domain scan</text>
+      <text x="12" y="62" font-size="10" font-style="italic" fill="#525252">hmmscan  (HMMER 3.4)</text>
+      <line x1="12" y1="72" x2="228" y2="72" stroke="#e5e3dc"/>
+      <text x="12" y="88" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">in: ORFs (aa) × ~20k HMMs</text>
+      <text x="12" y="102" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">out: domain table (E&lt;1e-3)</text>
+      <text x="12" y="122" font-size="11" font-weight="700" fill="#b45309">~40 min</text>
+    </g>
+
+    <!-- Row 2: steps 5-7 (centred) -->
+
+    <!-- Box 5: DIAMOND BLAST -->
+    <g transform="translate(196, 320)">
+      <rect x="0" y="0" width="240" height="130" fill="#fafaf9" stroke="#525252" stroke-width="1.5" rx="3"/>
+      <text x="12" y="20" font-size="9" font-weight="700" fill="#525252" letter-spacing="0.06em">STEP 5</text>
+      <text x="12" y="42" font-size="14" font-weight="600" fill="#374151">UniProt search</text>
+      <text x="12" y="62" font-size="10" font-style="italic" fill="#525252">DIAMOND BLASTp</text>
+      <line x1="12" y1="72" x2="228" y2="72" stroke="#e5e3dc"/>
+      <text x="12" y="88" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">in: unannotated ORFs</text>
+      <text x="12" y="102" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">out: best UniProt hits</text>
+      <text x="12" y="122" font-size="11" font-weight="700" fill="#b45309">~30 min</text>
+    </g>
+
+    <!-- Box 6: KEGG -->
+    <g transform="translate(448, 320)">
+      <rect x="0" y="0" width="240" height="130" fill="#fafaf9" stroke="#525252" stroke-width="1.5" rx="3"/>
+      <text x="12" y="20" font-size="9" font-weight="700" fill="#525252" letter-spacing="0.06em">STEP 6</text>
+      <text x="12" y="42" font-size="14" font-weight="600" fill="#374151">KEGG &amp; GO map</text>
+      <text x="12" y="62" font-size="10" font-style="italic" fill="#525252">KEGG REST / InterProScan</text>
+      <line x1="12" y1="72" x2="228" y2="72" stroke="#e5e3dc"/>
+      <text x="12" y="88" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">in: domain + BLAST hits</text>
+      <text x="12" y="102" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">out: pathway + ontology</text>
+      <text x="12" y="122" font-size="11" font-weight="700" fill="#b45309">~10 min</text>
+    </g>
+
+    <!-- Box 7: Final annotation -->
+    <g transform="translate(700, 320)">
+      <rect x="0" y="0" width="240" height="130" fill="#fafaf9" stroke="#065f46" stroke-width="2" rx="3"/>
+      <text x="12" y="20" font-size="9" font-weight="700" fill="#065f46" letter-spacing="0.06em">STEP 7</text>
+      <text x="12" y="42" font-size="14" font-weight="600" fill="#374151">Final annotation</text>
+      <text x="12" y="62" font-size="10" font-style="italic" fill="#525252">merge + GFF3 emit</text>
+      <line x1="12" y1="72" x2="228" y2="72" stroke="#e5e3dc"/>
+      <text x="12" y="88" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">out: annotated.gff3</text>
+      <text x="12" y="102" font-family="JetBrains Mono, monospace" font-size="9" fill="#525252">     proteins.faa</text>
+      <text x="12" y="122" font-size="11" font-weight="700" fill="#065f46">~5 min</text>
+    </g>
+
+  </g>
+
+  <!-- Arrows row 1 (1->2->3->4) -->
+  <line x1="310" y1="175" x2="320" y2="175" stroke="#374151" stroke-width="2" marker-end="url(#arr-pipe)"/>
+  <line x1="562" y1="175" x2="572" y2="175" stroke="#374151" stroke-width="2" marker-end="url(#arr-pipe)"/>
+  <line x1="814" y1="175" x2="824" y2="175" stroke="#374151" stroke-width="2" marker-end="url(#arr-pipe)"/>
+
+  <!-- Arrow row 1 -> row 2 (4 -> 5) -->
+  <path d="M 946 240 C 946 280, 316 280, 316 318" fill="none" stroke="#374151" stroke-width="2" marker-end="url(#arr-pipe)"/>
+
+  <!-- Arrows row 2 (5->6->7) -->
+  <line x1="436" y1="385" x2="446" y2="385" stroke="#374151" stroke-width="2" marker-end="url(#arr-pipe)"/>
+  <line x1="688" y1="385" x2="698" y2="385" stroke="#374151" stroke-width="2" marker-end="url(#arr-pipe)"/>
+
+  <!-- Legend / cumulative -->
+  <g transform="translate(60, 490)">
+    <rect x="0" y="0" width="1080" height="80" fill="#fafaf9" stroke="#c4c1b6" stroke-width="0.5" rx="3"/>
+
+    <text x="20" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">PIPELINE TOTAL</text>
+
+    <text x="20" y="42" font-family="Inter, sans-serif" font-size="11" fill="#374151">
+      <tspan font-weight="600">cumulative runtime ≈ 110 minutes</tspan>
+      <tspan dx="20" fill="#525252">  (modern 8-core laptop, single sample)</tspan>
+    </text>
+    <text x="20" y="60" font-family="Inter, sans-serif" font-size="11" fill="#374151">
+      <tspan font-weight="600">~80% of ORFs annotated</tspan>
+      <tspan dx="8" fill="#525252">by Pfam,</tspan>
+      <tspan dx="6" font-weight="600">+10%</tspan>
+      <tspan dx="6" fill="#525252">by UniProt BLAST,</tspan>
+      <tspan dx="8" font-weight="600">+5%</tspan>
+      <tspan dx="6" fill="#525252">by structural homology (AlphaFold + Foldseek).</tspan>
+    </text>
+
+    <g transform="translate(720, 22)">
+      <rect x="0" y="0" width="14" height="10" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5"/>
+      <text x="20" y="9" font-family="Inter, sans-serif" font-size="10" fill="#1e3a8a" font-weight="600">HMM-driven step</text>
+      <rect x="0" y="20" width="14" height="10" fill="#fafaf9" stroke="#525252" stroke-width="1.5"/>
+      <text x="20" y="29" font-family="Inter, sans-serif" font-size="10" fill="#525252" font-weight="600">other tool</text>
+      <rect x="0" y="40" width="14" height="10" fill="#fafaf9" stroke="#065f46" stroke-width="1.5"/>
+      <text x="20" y="49" font-family="Inter, sans-serif" font-size="10" fill="#065f46" font-weight="600">final output</text>
+    </g>
+  </g>
+</svg>

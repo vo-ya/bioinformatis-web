@@ -139,7 +139,7 @@ but standard for publication-quality assemblies.
     post-mortems on a bad assembly are about figuring out which stage
     let a problem through.
   ],
-) <fig:pipeline>
+) <fig:ch03-pipeline>
 
 The flow is linear and the stages compose, but the same physical
 assembler may iterate across stages — SPAdes, for example, builds graphs
@@ -248,7 +248,7 @@ read edge is overwhelmingly likely to be wrong.
     small spike at zero is the part the Poisson model misses — real
     dropouts.
   ],
-) <fig:coverage>
+) <fig:ch03-coverage>
 
 === Where the Poisson model breaks
 

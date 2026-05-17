@@ -136,7 +136,7 @@ ends up at about 196 kb without paying full quadratic cost.
     range. The two-stage split is what makes hundred-kilobase
     receptive fields tractable.
   ],
-) <fig:enformer>
+) <fig:ch16-enformer>
 
 The third pairing is *count matrices and variational autoencoders with
 the right likelihood*. Single-cell RNA-seq (Chapter 7) gives you
@@ -943,7 +943,7 @@ the previous five sections of this chapter are organised to prevent.
     five questions on the left map to the failure modes on the right;
     most published controversies in the field reduce to one of them.
   ],
-) <fig:checklist>
+) <fig:ch16-checklist>
 
 *Architecture choice.* The first decision is whether the architecture's
 inductive bias matches the structural property of the data. The five
@@ -1182,7 +1182,7 @@ each choice from first principles in two or three sentences each.
 #strong[8.] #emph[(Open-ended.)] Pick a 2023 — 2025 genomics ML paper
 that you find interesting and that reports a striking headline
 number. Run the five-question design-review checklist
-(@fig:checklist) against the paper. Identify the weakest of the five
+(@fig:ch16-checklist) against the paper. Identify the weakest of the five
 links. Propose one experiment that would change your confidence in
 the headline result, and predict whether it would raise or lower the
 number. Cite the paper.

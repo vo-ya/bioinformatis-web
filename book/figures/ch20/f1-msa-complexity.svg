@@ -1,0 +1,194 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="t d">
+  <title id="t">Three regimes of MSA computational complexity</title>
+  <desc id="d">A three-panel figure comparing the cost scaling of exact dynamic programming on the Carrillo-Lipman tensor, progressive alignment along a guide tree, and profile-profile alignment with a fixed tree. Panel A shows the exponential L-to-the-N curve dwarfing the others. Panel B shows the N-squared L-squared progressive cost. Panel C shows the linear N L-squared profile-profile cost. A table at the bottom summarises tools, complexity, and typical scale.</desc>
+
+  <rect x="0" y="0" width="1200" height="620" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <text x="60" y="40" font-family="Inter, Helvetica Neue, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">MSA COMPLEXITY — THREE REGIMES, THREE PRACTICAL SCALES</text>
+  <text x="60" y="60" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-style="italic" fill="#525252">Exact dynamic programming is hopeless past five sequences; progressive heuristics dominate practice; profile-profile alignment scales to hundreds of thousands.</text>
+
+  <!-- ─────────── PANEL A: Exact DP ─────────── -->
+  <g transform="translate(60, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">(A)  EXACT DP — CARRILLO-LIPMAN TENSOR</text>
+    <text x="0" y="16" font-family="Inter, sans-serif" font-size="10" fill="#525252">N-dimensional tensor, transitions over 2^N − 1 neighbours.</text>
+
+    <!-- Plot frame -->
+    <g transform="translate(20, 36)">
+      <rect x="0" y="0" width="300" height="220" fill="#fafaf9" stroke="#c4c1b6" stroke-width="0.5"/>
+      <!-- Axes -->
+      <line x1="0" y1="220" x2="300" y2="220" stroke="#374151" stroke-width="1"/>
+      <line x1="0" y1="0" x2="0" y2="220" stroke="#374151" stroke-width="1"/>
+      <!-- X axis labels -->
+      <text x="0" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">2</text>
+      <text x="75" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">5</text>
+      <text x="150" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">10</text>
+      <text x="225" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">20</text>
+      <text x="300" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">50</text>
+      <text x="150" y="260" font-family="Inter, sans-serif" font-size="10" fill="#525252" text-anchor="middle">number of sequences N</text>
+      <!-- Y axis labels (log10 of states) -->
+      <text x="-8" y="220" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10⁴</text>
+      <text x="-8" y="165" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10¹²</text>
+      <text x="-8" y="110" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10²⁵</text>
+      <text x="-8" y="55" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10⁶⁰</text>
+      <text x="-8" y="10" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10¹²⁵</text>
+
+      <!-- Plot curve L^N with L=300; this is steep linear on log scale -->
+      <!-- Mark sample points: N=2→4.95 log10(300^2)=4.95; N=5→12.4; N=10→24.8; N=20→49.6; N=50→124 -->
+      <!-- map y_log to y_pixel: max=125 -> y=10; min=4.95 -> y=220 -->
+      <path d="M 0 211 L 75 196 L 150 178 L 225 142 L 300 10"
+            fill="none" stroke="#dc2626" stroke-width="2.5"/>
+      <circle cx="0" cy="211" r="3" fill="#dc2626"/>
+      <circle cx="75" cy="196" r="3" fill="#dc2626"/>
+      <circle cx="150" cy="178" r="3" fill="#dc2626"/>
+      <circle cx="225" cy="142" r="3" fill="#dc2626"/>
+      <circle cx="300" cy="10" r="3" fill="#dc2626"/>
+
+      <!-- Feasibility line at 10^12 -->
+      <line x1="0" y1="165" x2="300" y2="165" stroke="#b45309" stroke-width="1" stroke-dasharray="3 2"/>
+      <text x="305" y="168" font-family="Inter, sans-serif" font-size="9" fill="#b45309">feasibility ceiling ~10¹²</text>
+    </g>
+
+    <!-- Annotation block -->
+    <g transform="translate(20, 290)" font-family="Inter, sans-serif" font-size="9.5" fill="#374151">
+      <text x="0" y="0" font-weight="600" fill="#dc2626">cost ~ O(L^N)</text>
+      <text x="0" y="14">N=5, L=300:  ~ 10¹²  states</text>
+      <text x="0" y="28">N=50:        ~ 10¹²⁵ states</text>
+      <text x="0" y="42" font-style="italic">use only as a sanity check (≤5 seq)</text>
+    </g>
+  </g>
+
+  <!-- ─────────── PANEL B: Progressive ─────────── -->
+  <g transform="translate(460, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">(B)  PROGRESSIVE — GUIDE TREE</text>
+    <text x="0" y="16" font-family="Inter, sans-serif" font-size="10" fill="#525252">N − 1 pairwise / profile-profile DPs in tree order.</text>
+
+    <g transform="translate(20, 36)">
+      <rect x="0" y="0" width="300" height="220" fill="#fafaf9" stroke="#c4c1b6" stroke-width="0.5"/>
+      <line x1="0" y1="220" x2="300" y2="220" stroke="#374151" stroke-width="1"/>
+      <line x1="0" y1="0" x2="0" y2="220" stroke="#374151" stroke-width="1"/>
+
+      <text x="0" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">2</text>
+      <text x="75" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">5</text>
+      <text x="150" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">10</text>
+      <text x="225" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">20</text>
+      <text x="300" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">50</text>
+      <text x="150" y="260" font-family="Inter, sans-serif" font-size="10" fill="#525252" text-anchor="middle">number of sequences N</text>
+
+      <text x="-8" y="220" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10⁴</text>
+      <text x="-8" y="165" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10⁶</text>
+      <text x="-8" y="110" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10⁸</text>
+      <text x="-8" y="55" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10¹⁰</text>
+      <text x="-8" y="10" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10¹²</text>
+
+      <!-- Cost ~ N^2 L^2 with L=300; log10 values: N=2 → log(4*9e4)=5.56; N=5→6.35; N=10→6.95; N=20→7.56; N=50→8.35 -->
+      <!-- y mapping: log10 from 4 (bottom 220) to 12 (top 10); slope = (220-10)/(12-4) = 26.25 per decade -->
+      <path d="M 0 179 L 75 158 L 150 141 L 225 125 L 300 104"
+            fill="none" stroke="#065f46" stroke-width="2.5"/>
+      <circle cx="0" cy="179" r="3" fill="#065f46"/>
+      <circle cx="75" cy="158" r="3" fill="#065f46"/>
+      <circle cx="150" cy="141" r="3" fill="#065f46"/>
+      <circle cx="225" cy="125" r="3" fill="#065f46"/>
+      <circle cx="300" cy="104" r="3" fill="#065f46"/>
+
+      <line x1="0" y1="51" x2="300" y2="51" stroke="#b45309" stroke-width="1" stroke-dasharray="3 2"/>
+      <text x="305" y="54" font-family="Inter, sans-serif" font-size="9" fill="#b45309">feasibility ceiling</text>
+    </g>
+
+    <g transform="translate(20, 290)" font-family="Inter, sans-serif" font-size="9.5" fill="#374151">
+      <text x="0" y="0" font-weight="600" fill="#065f46">cost ~ O(N² L²)</text>
+      <text x="0" y="14">N=50, L=300:  ~ 2 × 10⁸ ops</text>
+      <text x="0" y="28">N=1000:       ~ 10¹¹ ops (minutes)</text>
+      <text x="0" y="42" font-style="italic">Clustal, MUSCLE, MAFFT default</text>
+    </g>
+  </g>
+
+  <!-- ─────────── PANEL C: Profile-profile ─────────── -->
+  <g transform="translate(860, 100)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">(C)  PROFILE-PROFILE — FIXED TREE</text>
+    <text x="0" y="16" font-family="Inter, sans-serif" font-size="10" fill="#525252">Each step pays O(L²); amortised O(N L²) over the tree.</text>
+
+    <g transform="translate(20, 36)">
+      <rect x="0" y="0" width="280" height="220" fill="#fafaf9" stroke="#c4c1b6" stroke-width="0.5"/>
+      <line x1="0" y1="220" x2="280" y2="220" stroke="#374151" stroke-width="1"/>
+      <line x1="0" y1="0" x2="0" y2="220" stroke="#374151" stroke-width="1"/>
+
+      <text x="0" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">10</text>
+      <text x="70" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">10²</text>
+      <text x="140" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">10³</text>
+      <text x="210" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">10⁴</text>
+      <text x="280" y="240" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="middle">10⁵</text>
+      <text x="140" y="260" font-family="Inter, sans-serif" font-size="10" fill="#525252" text-anchor="middle">number of sequences N</text>
+
+      <text x="-8" y="220" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10⁶</text>
+      <text x="-8" y="160" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10⁸</text>
+      <text x="-8" y="100" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10¹⁰</text>
+      <text x="-8" y="40" font-family="Inter, sans-serif" font-size="9" fill="#8a8a85" text-anchor="end">10¹²</text>
+
+      <!-- Cost ~ N L^2; log10 values: N=10→7; 100→8; 1000→9; 10000→10; 1e5→11; map between 6 and 12: 1 decade=30 px -->
+      <path d="M 0 190 L 70 160 L 140 130 L 210 100 L 280 70"
+            fill="none" stroke="#1e3a8a" stroke-width="2.5"/>
+      <circle cx="0" cy="190" r="3" fill="#1e3a8a"/>
+      <circle cx="70" cy="160" r="3" fill="#1e3a8a"/>
+      <circle cx="140" cy="130" r="3" fill="#1e3a8a"/>
+      <circle cx="210" cy="100" r="3" fill="#1e3a8a"/>
+      <circle cx="280" cy="70" r="3" fill="#1e3a8a"/>
+
+      <line x1="0" y1="40" x2="280" y2="40" stroke="#b45309" stroke-width="1" stroke-dasharray="3 2"/>
+      <text x="170" y="32" font-family="Inter, sans-serif" font-size="9" fill="#b45309">feasibility ceiling</text>
+    </g>
+
+    <g transform="translate(20, 290)" font-family="Inter, sans-serif" font-size="9.5" fill="#374151">
+      <text x="0" y="0" font-weight="600" fill="#1e3a8a">cost ~ O(N L²)</text>
+      <text x="0" y="14">N=10000, L=300:  ~ 10⁹ ops</text>
+      <text x="0" y="28">N=10⁵, L=300:    ~ 10¹⁰ ops</text>
+      <text x="0" y="42" font-style="italic">Clustal Omega, FAMSA, HHalign</text>
+    </g>
+  </g>
+
+  <!-- Summary table -->
+  <g transform="translate(60, 440)">
+    <rect x="0" y="0" width="1080" height="150" fill="#f4f3ee" stroke="#c4c1b6" stroke-width="0.5"/>
+    <text x="14" y="20" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">SUMMARY — MSA TOOLS AT EACH REGIME</text>
+
+    <line x1="14" y1="32" x2="1066" y2="32" stroke="#c4c1b6" stroke-width="0.5"/>
+    <g font-family="Inter, sans-serif" font-size="10" fill="#374151">
+      <!-- header row -->
+      <text x="20" y="50" font-weight="700">regime</text>
+      <text x="200" y="50" font-weight="700">cost</text>
+      <text x="380" y="50" font-weight="700">tool examples</text>
+      <text x="680" y="50" font-weight="700">typical N</text>
+      <text x="860" y="50" font-weight="700">when to use</text>
+
+      <line x1="14" y1="58" x2="1066" y2="58" stroke="#e5e3dc" stroke-width="0.5"/>
+
+      <!-- row 1 -->
+      <text x="20" y="78" fill="#dc2626" font-weight="600">exact tensor</text>
+      <text x="200" y="78" font-family="JetBrains Mono, monospace">O(L^N)</text>
+      <text x="380" y="78">MSA (Lipman et al., 1989)</text>
+      <text x="680" y="78">≤5</text>
+      <text x="860" y="78">benchmarking, sanity</text>
+
+      <line x1="14" y1="88" x2="1066" y2="88" stroke="#e5e3dc" stroke-width="0.5"/>
+
+      <!-- row 2 -->
+      <text x="20" y="108" fill="#065f46" font-weight="600">progressive</text>
+      <text x="200" y="108" font-family="JetBrains Mono, monospace">O(N² L²)</text>
+      <text x="380" y="108">Clustal W, MUSCLE, MAFFT L-INS-i, T-Coffee, ProbCons</text>
+      <text x="680" y="108">10 — 10³</text>
+      <text x="860" y="108">accuracy default</text>
+
+      <line x1="14" y1="118" x2="1066" y2="118" stroke="#e5e3dc" stroke-width="0.5"/>
+
+      <!-- row 3 -->
+      <text x="20" y="138" fill="#1e3a8a" font-weight="600">profile-profile</text>
+      <text x="200" y="138" font-family="JetBrains Mono, monospace">O(N L²)</text>
+      <text x="380" y="138">Clustal Omega, FAMSA, HHalign, MAFFT FFT-NS</text>
+      <text x="680" y="138">10³ — 10⁵</text>
+      <text x="860" y="138">large-scale family alignments</text>
+    </g>
+  </g>
+
+  <!-- Footnote -->
+  <text x="60" y="606" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#8a8a85">Sum-of-pairs scoring; column counts assume L ≈ 300 amino acids. Realistic constants vary 10× across implementations.</text>
+</svg>

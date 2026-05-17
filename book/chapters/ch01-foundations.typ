@@ -588,7 +588,7 @@ per-sample already.
     variant calling (Chapter 4), expression analysis (Chapters 5–8),
     and so on through the rest of the book.
   ],
-) <fig:pipeline>
+) <fig:ch01-pipeline>
 
 Everything from here onward starts with a FASTQ file. Chapter 2 covers
 the most common first step: aligning short reads back to a reference

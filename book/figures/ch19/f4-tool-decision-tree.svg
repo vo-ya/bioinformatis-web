@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" role="img" aria-labelledby="t d">
+  <title id="t">Decision tree for choosing among BLASTP, DIAMOND, MMseqs2, and USEARCH</title>
+  <desc id="d">A decision tree that branches on three questions: first, the identity range expected for hits; second, the throughput or sensitivity constraint dominating the workload; third, the workflow's reproducibility requirement. The tree terminates in tool recommendations: USEARCH for the high-identity, high-throughput corner; DIAMOND fast mode for moderate-identity throughput-bound metagenomic search; DIAMOND sensitive mode for moderate-identity with sensitivity slightly favoured; MMseqs2 for deep-homology search at scale; classical BLASTP for single queries at the NCBI web interface and for the reference benchmark.</desc>
+
+  <rect x="0" y="0" width="1200" height="660" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <text x="60" y="40" font-family="Inter, Helvetica Neue, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">CHOOSING A SEARCH TOOL — A DECISION TREE</text>
+  <text x="60" y="60" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-style="italic" fill="#525252">Three questions, in order: expected identity range, throughput vs sensitivity constraint, and workflow standardisation.</text>
+
+  <defs>
+    <marker id="arrow-tree" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#525252"/>
+    </marker>
+  </defs>
+
+  <!-- Q1: Identity range -->
+  <g transform="translate(500, 100)">
+    <rect x="0" y="0" width="200" height="60" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5" rx="4"/>
+    <text x="100" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#1e3a8a" letter-spacing="0.06em" text-anchor="middle">Q1</text>
+    <text x="100" y="44" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#374151" text-anchor="middle">Expected identity range?</text>
+  </g>
+
+  <!-- Q1 branches: 3 arrows to 3 next nodes -->
+  <line x1="540" y1="160" x2="220" y2="220" stroke="#525252" stroke-width="1.5" marker-end="url(#arrow-tree)"/>
+  <line x1="600" y1="160" x2="600" y2="220" stroke="#525252" stroke-width="1.5" marker-end="url(#arrow-tree)"/>
+  <line x1="660" y1="160" x2="980" y2="220" stroke="#525252" stroke-width="1.5" marker-end="url(#arrow-tree)"/>
+
+  <!-- Branch labels -->
+  <text x="320" y="180" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252">&gt; 70%</text>
+  <text x="608" y="180" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252">30 — 70%</text>
+  <text x="900" y="180" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252">&lt; 30%</text>
+
+  <!-- High-identity branch -->
+  <g transform="translate(100, 230)">
+    <rect x="0" y="0" width="240" height="60" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5" rx="4"/>
+    <text x="120" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#1e3a8a" letter-spacing="0.06em" text-anchor="middle">Q2 (high-id)</text>
+    <text x="120" y="44" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#374151" text-anchor="middle">Clustering / amplicon search?</text>
+  </g>
+
+  <!-- High-id Q2 branches -->
+  <line x1="180" y1="290" x2="120" y2="350" stroke="#525252" stroke-width="1.5" marker-end="url(#arrow-tree)"/>
+  <line x1="260" y1="290" x2="320" y2="350" stroke="#525252" stroke-width="1.5" marker-end="url(#arrow-tree)"/>
+  <text x="120" y="320" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252" text-anchor="middle">yes</text>
+  <text x="320" y="320" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252" text-anchor="middle">no</text>
+
+  <!-- USEARCH terminal -->
+  <g transform="translate(40, 360)">
+    <rect x="0" y="0" width="160" height="100" fill="#065f46" stroke="#065f46" stroke-width="1.5" rx="4"/>
+    <text x="80" y="24" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#fafaf9" letter-spacing="0.06em" text-anchor="middle">USEARCH / UCLUST</text>
+    <line x1="20" y1="34" x2="140" y2="34" stroke="#dcfce7" stroke-width="0.5"/>
+    <text x="80" y="52" font-family="Inter, sans-serif" font-size="9" fill="#dcfce7" text-anchor="middle">16S microbiome</text>
+    <text x="80" y="66" font-family="Inter, sans-serif" font-size="9" fill="#dcfce7" text-anchor="middle">amplicon OTU clustering</text>
+    <text x="80" y="84" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#dcfce7" text-anchor="middle">very fast above 70%</text>
+  </g>
+
+  <!-- Diamond-or-BLAST close-homolog -->
+  <g transform="translate(240, 360)">
+    <rect x="0" y="0" width="160" height="100" fill="#1e3a8a" stroke="#1e3a8a" stroke-width="1.5" rx="4"/>
+    <text x="80" y="24" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#fafaf9" letter-spacing="0.06em" text-anchor="middle">DIAMOND --fast</text>
+    <line x1="20" y1="34" x2="140" y2="34" stroke="#dbeafe" stroke-width="0.5"/>
+    <text x="80" y="52" font-family="Inter, sans-serif" font-size="9" fill="#dbeafe" text-anchor="middle">closely-related</text>
+    <text x="80" y="66" font-family="Inter, sans-serif" font-size="9" fill="#dbeafe" text-anchor="middle">bulk database search</text>
+    <text x="80" y="84" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#dbeafe" text-anchor="middle">100-1000x BLASTP throughput</text>
+  </g>
+
+  <!-- Mid-identity branch -->
+  <g transform="translate(480, 230)">
+    <rect x="0" y="0" width="240" height="60" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5" rx="4"/>
+    <text x="120" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#1e3a8a" letter-spacing="0.06em" text-anchor="middle">Q2 (mid-id)</text>
+    <text x="120" y="44" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#374151" text-anchor="middle">Pipeline-scale or one query?</text>
+  </g>
+
+  <line x1="560" y1="290" x2="500" y2="350" stroke="#525252" stroke-width="1.5" marker-end="url(#arrow-tree)"/>
+  <line x1="640" y1="290" x2="700" y2="350" stroke="#525252" stroke-width="1.5" marker-end="url(#arrow-tree)"/>
+  <text x="500" y="320" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252" text-anchor="middle">pipeline (millions)</text>
+  <text x="710" y="320" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252" text-anchor="middle">single query</text>
+
+  <!-- DIAMOND sensitive terminal -->
+  <g transform="translate(420, 360)">
+    <rect x="0" y="0" width="160" height="100" fill="#1e3a8a" stroke="#1e3a8a" stroke-width="1.5" rx="4"/>
+    <text x="80" y="24" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#fafaf9" letter-spacing="0.06em" text-anchor="middle">DIAMOND --sensitive</text>
+    <line x1="20" y1="34" x2="140" y2="34" stroke="#dbeafe" stroke-width="0.5"/>
+    <text x="80" y="52" font-family="Inter, sans-serif" font-size="9" fill="#dbeafe" text-anchor="middle">metagenomic annotation</text>
+    <text x="80" y="66" font-family="Inter, sans-serif" font-size="9" fill="#dbeafe" text-anchor="middle">~95% BLAST sensitivity</text>
+    <text x="80" y="84" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#dbeafe" text-anchor="middle">de-facto pipeline default</text>
+  </g>
+
+  <!-- BLASTP web interface terminal -->
+  <g transform="translate(620, 360)">
+    <rect x="0" y="0" width="160" height="100" fill="#7c3aed" stroke="#7c3aed" stroke-width="1.5" rx="4"/>
+    <text x="80" y="24" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#fafaf9" letter-spacing="0.06em" text-anchor="middle">BLASTP (NCBI)</text>
+    <line x1="20" y1="34" x2="140" y2="34" stroke="#ede9fe" stroke-width="0.5"/>
+    <text x="80" y="52" font-family="Inter, sans-serif" font-size="9" fill="#ede9fe" text-anchor="middle">interactive web search</text>
+    <text x="80" y="66" font-family="Inter, sans-serif" font-size="9" fill="#ede9fe" text-anchor="middle">reference E-value calibration</text>
+    <text x="80" y="84" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#ede9fe" text-anchor="middle">community standard</text>
+  </g>
+
+  <!-- Low-identity branch -->
+  <g transform="translate(860, 230)">
+    <rect x="0" y="0" width="240" height="60" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5" rx="4"/>
+    <text x="120" y="22" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#1e3a8a" letter-spacing="0.06em" text-anchor="middle">Q2 (deep-homology)</text>
+    <text x="120" y="44" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#374151" text-anchor="middle">Profile available?</text>
+  </g>
+
+  <line x1="940" y1="290" x2="880" y2="350" stroke="#525252" stroke-width="1.5" marker-end="url(#arrow-tree)"/>
+  <line x1="1020" y1="290" x2="1080" y2="350" stroke="#525252" stroke-width="1.5" marker-end="url(#arrow-tree)"/>
+  <text x="880" y="320" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252" text-anchor="middle">no (start cold)</text>
+  <text x="1080" y="320" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#525252" text-anchor="middle">yes (HMM)</text>
+
+  <!-- MMseqs2 terminal -->
+  <g transform="translate(800, 360)">
+    <rect x="0" y="0" width="160" height="100" fill="#1e3a8a" stroke="#1e3a8a" stroke-width="1.5" rx="4"/>
+    <text x="80" y="24" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#fafaf9" letter-spacing="0.06em" text-anchor="middle">MMseqs2</text>
+    <line x1="20" y1="34" x2="140" y2="34" stroke="#dbeafe" stroke-width="0.5"/>
+    <text x="80" y="52" font-family="Inter, sans-serif" font-size="9" fill="#dbeafe" text-anchor="middle">deep homology at scale</text>
+    <text x="80" y="66" font-family="Inter, sans-serif" font-size="9" fill="#dbeafe" text-anchor="middle">~10% identity reachable</text>
+    <text x="80" y="84" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#dbeafe" text-anchor="middle">UniRef-scale clustering</text>
+  </g>
+
+  <!-- HMMER terminal -->
+  <g transform="translate(1000, 360)">
+    <rect x="0" y="0" width="160" height="100" fill="#7c3aed" stroke="#7c3aed" stroke-width="1.5" rx="4"/>
+    <text x="80" y="24" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#fafaf9" letter-spacing="0.06em" text-anchor="middle">HMMER / HHblits</text>
+    <line x1="20" y1="34" x2="140" y2="34" stroke="#ede9fe" stroke-width="0.5"/>
+    <text x="80" y="52" font-family="Inter, sans-serif" font-size="9" fill="#ede9fe" text-anchor="middle">profile HMM search</text>
+    <text x="80" y="66" font-family="Inter, sans-serif" font-size="9" fill="#ede9fe" text-anchor="middle">Pfam / InterPro family</text>
+    <text x="80" y="84" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#ede9fe" text-anchor="middle">covered in Chapter 20</text>
+  </g>
+
+  <!-- PSI-BLAST as starting node next to deep-homology branch -->
+  <g transform="translate(800, 488)">
+    <rect x="0" y="0" width="360" height="50" fill="#f4f3ee" stroke="#374151" stroke-width="1" rx="3"/>
+    <text x="180" y="22" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#374151" text-anchor="middle">First-pass PSI-BLAST (3 iterations, capped)</text>
+    <text x="180" y="38" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#525252" text-anchor="middle">used to build a profile when none is available, then HMMER takes over</text>
+  </g>
+
+  <!-- Bottom: defaults box -->
+  <line x1="60" y1="570" x2="1140" y2="570" stroke="#374151" stroke-width="0.5"/>
+  <g transform="translate(60, 588)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e3a8a" letter-spacing="0.06em">DEFAULT FOR EACH WORKFLOW</text>
+
+    <g transform="translate(0, 18)">
+      <rect x="0" y="0" width="14" height="14" fill="#1e3a8a"/>
+      <text x="22" y="11" font-family="Inter, sans-serif" font-size="9" fill="#525252">Genome annotation pipeline: DIAMOND --sensitive against UniRef90</text>
+    </g>
+    <g transform="translate(0, 38)">
+      <rect x="0" y="0" width="14" height="14" fill="#7c3aed"/>
+      <text x="22" y="11" font-family="Inter, sans-serif" font-size="9" fill="#525252">Single-query interactive search: NCBI BLASTP web interface against nr</text>
+    </g>
+    <g transform="translate(0, 58)">
+      <rect x="0" y="0" width="14" height="14" fill="#1e3a8a"/>
+      <text x="22" y="11" font-family="Inter, sans-serif" font-size="9" fill="#525252">Reference clustering of a sequence corpus: MMseqs2 cluster mode</text>
+    </g>
+
+    <g transform="translate(560, 18)">
+      <rect x="0" y="0" width="14" height="14" fill="#065f46"/>
+      <text x="22" y="11" font-family="Inter, sans-serif" font-size="9" fill="#525252">16S amplicon OTU calling: USEARCH / VSEARCH at 97% identity</text>
+    </g>
+    <g transform="translate(560, 38)">
+      <rect x="0" y="0" width="14" height="14" fill="#7c3aed"/>
+      <text x="22" y="11" font-family="Inter, sans-serif" font-size="9" fill="#525252">Pfam / InterPro family search: HMMER against pre-built profile HMMs</text>
+    </g>
+    <g transform="translate(560, 58)">
+      <rect x="0" y="0" width="14" height="14" fill="#1e3a8a"/>
+      <text x="22" y="11" font-family="Inter, sans-serif" font-size="9" fill="#525252">Reciprocal best hits across two species: BLASTP or DIAMOND, both directions</text>
+    </g>
+  </g>
+</svg>

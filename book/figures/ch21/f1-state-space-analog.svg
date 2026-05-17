@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 580" role="img" aria-labelledby="t d">
+  <title id="t">State-space model family tree: Kalman filter vs Hidden Markov Model</title>
+  <desc id="d">A two-column comparison of two state-space models. The left column shows the Kalman filter: continuous latent state x with linear Gaussian dynamics, continuous observation y with linear Gaussian emission, and inference algorithms forward filter and Rauch-Tung-Striebel smoother. The right column shows the Hidden Markov Model: discrete latent state z with categorical transitions, discrete observation x with arbitrary discrete emission, and inference algorithms forward and forward-backward. The two columns are connected by horizontal arrows labelled discretise the state, discretise the observation, swap addition for max for the MAP variant. A bottom row maps the algorithm pairs: Kalman filter to forward, Kalman smoother to forward-backward, MAP trajectory to Viterbi.</desc>
+
+  <rect x="0" y="0" width="1200" height="580" fill="#fafaf9"/>
+
+  <!-- Header -->
+  <text x="60" y="40" font-family="Inter, Helvetica Neue, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">STATE-SPACE MODELS — CONTINUOUS VS DISCRETE</text>
+  <text x="60" y="60" font-family="Inter, Helvetica Neue, sans-serif" font-size="11" font-style="italic" fill="#525252">An HMM is the Kalman filter's discrete-state cousin. The algorithms transfer in both directions.</text>
+
+  <!-- Column dividers -->
+  <line x1="600" y1="90" x2="600" y2="530" stroke="#c4c1b6" stroke-width="0.5" stroke-dasharray="3 3"/>
+
+  <!-- Left column header: Kalman -->
+  <rect x="60" y="90" width="500" height="34" fill="#1e3a8a" opacity="0.08" rx="2"/>
+  <text x="80" y="113" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1e3a8a">KALMAN FILTER  (Kalman 1960, continuous state)</text>
+
+  <!-- Right column header: HMM -->
+  <rect x="640" y="90" width="500" height="34" fill="#b45309" opacity="0.10" rx="2"/>
+  <text x="660" y="113" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#b45309">HIDDEN MARKOV MODEL  (Baum &amp; Petrie 1966, discrete state)</text>
+
+  <!-- Left: state graphical model -->
+  <g transform="translate(80, 150)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#374151" letter-spacing="0.06em">LATENT DYNAMICS</text>
+    <!-- continuous chain: x_{t-1} -> x_t -> x_{t+1} -->
+    <g font-family="JetBrains Mono, monospace" font-size="13" fill="#374151">
+      <circle cx="40" cy="40" r="20" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5"/>
+      <text x="40" y="44" text-anchor="middle">x_{t-1}</text>
+      <circle cx="160" cy="40" r="20" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5"/>
+      <text x="160" y="44" text-anchor="middle">x_t</text>
+      <circle cx="280" cy="40" r="20" fill="#eef2ff" stroke="#1e3a8a" stroke-width="1.5"/>
+      <text x="280" y="44" text-anchor="middle">x_{t+1}</text>
+    </g>
+    <line x1="60" y1="40" x2="138" y2="40" stroke="#374151" stroke-width="1.5" marker-end="url(#arrowL)"/>
+    <line x1="180" y1="40" x2="258" y2="40" stroke="#374151" stroke-width="1.5" marker-end="url(#arrowL)"/>
+    <!-- emissions -->
+    <g font-family="JetBrains Mono, monospace" font-size="12" fill="#374151">
+      <rect x="22" y="90" width="36" height="22" fill="#fafaf9" stroke="#525252" stroke-width="1"/>
+      <text x="40" y="106" text-anchor="middle">y_{t-1}</text>
+      <rect x="142" y="90" width="36" height="22" fill="#fafaf9" stroke="#525252" stroke-width="1"/>
+      <text x="160" y="106" text-anchor="middle">y_t</text>
+      <rect x="262" y="90" width="36" height="22" fill="#fafaf9" stroke="#525252" stroke-width="1"/>
+      <text x="280" y="106" text-anchor="middle">y_{t+1}</text>
+    </g>
+    <line x1="40" y1="60" x2="40" y2="88" stroke="#525252" stroke-width="1" marker-end="url(#arrowL)"/>
+    <line x1="160" y1="60" x2="160" y2="88" stroke="#525252" stroke-width="1" marker-end="url(#arrowL)"/>
+    <line x1="280" y1="60" x2="280" y2="88" stroke="#525252" stroke-width="1" marker-end="url(#arrowL)"/>
+  </g>
+
+  <!-- Right: HMM graphical model -->
+  <g transform="translate(660, 150)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#374151" letter-spacing="0.06em">LATENT DYNAMICS</text>
+    <g font-family="JetBrains Mono, monospace" font-size="13" fill="#374151">
+      <circle cx="40" cy="40" r="20" fill="#fef3c7" stroke="#b45309" stroke-width="1.5"/>
+      <text x="40" y="44" text-anchor="middle">z_{t-1}</text>
+      <circle cx="160" cy="40" r="20" fill="#fef3c7" stroke="#b45309" stroke-width="1.5"/>
+      <text x="160" y="44" text-anchor="middle">z_t</text>
+      <circle cx="280" cy="40" r="20" fill="#fef3c7" stroke="#b45309" stroke-width="1.5"/>
+      <text x="280" y="44" text-anchor="middle">z_{t+1}</text>
+    </g>
+    <line x1="60" y1="40" x2="138" y2="40" stroke="#374151" stroke-width="1.5" marker-end="url(#arrowR)"/>
+    <line x1="180" y1="40" x2="258" y2="40" stroke="#374151" stroke-width="1.5" marker-end="url(#arrowR)"/>
+    <!-- emissions -->
+    <g font-family="JetBrains Mono, monospace" font-size="12" fill="#374151">
+      <rect x="22" y="90" width="36" height="22" fill="#fafaf9" stroke="#525252" stroke-width="1"/>
+      <text x="40" y="106" text-anchor="middle">x_{t-1}</text>
+      <rect x="142" y="90" width="36" height="22" fill="#fafaf9" stroke="#525252" stroke-width="1"/>
+      <text x="160" y="106" text-anchor="middle">x_t</text>
+      <rect x="262" y="90" width="36" height="22" fill="#fafaf9" stroke="#525252" stroke-width="1"/>
+      <text x="280" y="106" text-anchor="middle">x_{t+1}</text>
+    </g>
+    <line x1="40" y1="60" x2="40" y2="88" stroke="#525252" stroke-width="1" marker-end="url(#arrowR)"/>
+    <line x1="160" y1="60" x2="160" y2="88" stroke="#525252" stroke-width="1" marker-end="url(#arrowR)"/>
+    <line x1="280" y1="60" x2="280" y2="88" stroke="#525252" stroke-width="1" marker-end="url(#arrowR)"/>
+  </g>
+
+  <!-- Markers -->
+  <defs>
+    <marker id="arrowL" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#374151"/>
+    </marker>
+    <marker id="arrowR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#374151"/>
+    </marker>
+    <marker id="arrowMap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <!-- Equations row -->
+  <g transform="translate(80, 290)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#374151" letter-spacing="0.06em">PARAMETRISATION</text>
+    <text x="0" y="22" font-family="JetBrains Mono, monospace" font-size="11" fill="#374151">x_t = A x_{t-1} + w_t,    w_t ~ N(0, Q)</text>
+    <text x="0" y="40" font-family="JetBrains Mono, monospace" font-size="11" fill="#374151">y_t = C x_t   + v_t,      v_t ~ N(0, R)</text>
+    <text x="0" y="64" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">Linear-Gaussian dynamics, continuous state x in R^n.</text>
+  </g>
+
+  <g transform="translate(660, 290)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#374151" letter-spacing="0.06em">PARAMETRISATION</text>
+    <text x="0" y="22" font-family="JetBrains Mono, monospace" font-size="11" fill="#374151">P(z_t = j | z_{t-1} = i) = a_ij</text>
+    <text x="0" y="40" font-family="JetBrains Mono, monospace" font-size="11" fill="#374151">P(x_t      | z_t = i)     = b_i(x_t)</text>
+    <text x="0" y="64" font-family="Inter, sans-serif" font-size="10" font-style="italic" fill="#525252">Categorical transitions, discrete state z in {1,...,K}.</text>
+  </g>
+
+  <!-- Algorithm row -->
+  <line x1="60" y1="380" x2="1140" y2="380" stroke="#374151" stroke-width="0.5"/>
+
+  <text x="60" y="408" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e3a8a" letter-spacing="0.08em">ALGORITHM CORRESPONDENCE</text>
+
+  <g transform="translate(60, 425)" font-family="Inter, sans-serif" font-size="11">
+    <text x="0"   y="20"  font-weight="600" fill="#374151">Filtering (forward)</text>
+    <text x="0"   y="38"  fill="#525252" font-style="italic">P(x_t | y_{1:t})</text>
+    <text x="280" y="20"  font-weight="600" fill="#525252">↔</text>
+    <text x="320" y="20"  font-weight="600" fill="#b45309">Forward algorithm</text>
+    <text x="320" y="38"  fill="#525252" font-style="italic">α_t(i) = P(x_{1:t}, z_t = i)</text>
+  </g>
+
+  <g transform="translate(60, 462)" font-family="Inter, sans-serif" font-size="11">
+    <text x="0"   y="20"  font-weight="600" fill="#374151">Smoothing (RTS)</text>
+    <text x="0"   y="38"  fill="#525252" font-style="italic">P(x_t | y_{1:T})</text>
+    <text x="280" y="20"  font-weight="600" fill="#525252">↔</text>
+    <text x="320" y="20"  font-weight="600" fill="#b45309">Forward-backward</text>
+    <text x="320" y="38"  fill="#525252" font-style="italic">γ_t(i) = α_t(i) β_t(i) / P(X)</text>
+  </g>
+
+  <g transform="translate(60, 499)" font-family="Inter, sans-serif" font-size="11">
+    <text x="0"   y="20"  font-weight="600" fill="#374151">MAP trajectory</text>
+    <text x="0"   y="38"  fill="#525252" font-style="italic">argmax P(x_{1:T} | y_{1:T})</text>
+    <text x="280" y="20"  font-weight="600" fill="#525252">↔</text>
+    <text x="320" y="20"  font-weight="600" fill="#7c3aed">Viterbi (max-product)</text>
+    <text x="320" y="38"  fill="#525252" font-style="italic">δ_t(i) = max-path likelihood</text>
+  </g>
+
+  <!-- Right-side connector arrow (discretise) -->
+  <g>
+    <path d="M 380 220 C 470 220, 520 220, 620 220" fill="none" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrowMap)"/>
+    <text x="500" y="208" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#7c3aed" font-style="italic">discretise the state</text>
+  </g>
+
+  <!-- Footnote -->
+  <text x="60" y="558" font-family="Inter, sans-serif" font-size="9" font-style="italic" fill="#8a8a85">Both families are state-space dynamical systems. Kalman handles continuous state with Gaussian noise; HMMs handle finite-alphabet state with arbitrary discrete emissions.</text>
+</svg>

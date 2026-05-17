@@ -923,7 +923,7 @@ sequencing intact, and that surviving region is the lever.
     and `minimap2` differ in the seed type, the extension, and the
     read length they are tuned for, not in the skeleton.
   ],
-) <fig:pipeline>
+) <fig:ch02-pipeline>
 
 #note[
   This is the coarse acquisition + fine tracking pattern from

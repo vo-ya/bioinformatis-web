@@ -53,7 +53,14 @@
 #include "chapters/ch14-data-engineering.typ"
 #include "chapters/ch15-protein-structure.typ"
 #include "chapters/ch16-ml-in-genomics.typ"
-
-// Future chapters get included here as they are authored.
-// #include "chapters/ch17-clinical-genomics.typ"
-// ...
+#include "chapters/ch17-clinical-genomics.typ"
+#include "chapters/ch18-cancer-genomics.typ"
+#include "chapters/ch19-blast.typ"
+#include "chapters/ch20-msa-phylogenetics.typ"
+#include "chapters/ch21-hmms.typ"
+#include "chapters/ch22-network-biology.typ"
+#include "chapters/ch23-metagenomics.typ"
+#include "chapters/ch24-crispr-screens.typ"
+#include "chapters/ch25-causal-inference.typ"
+#include "chapters/ch26-drug-discovery.typ"
+#include "chapters/ch27-proteomics-metabolomics.typ"

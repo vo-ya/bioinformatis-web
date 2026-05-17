@@ -73,11 +73,11 @@ AHA_MD = """> **Aha.** Viterbi is **MAP decoding on a state-space model** — th
 
 
 PREAMBLE_CODE = """# Colab preamble — pinned installs. Re-runs are no-ops if already present.
-!pip install numpy matplotlib requests biopython -q
+!pip install numpy==1.26.4 matplotlib==3.8.4 requests==2.32.3 biopython==1.83 -q
 # Optional: pyhmmer makes parsing Pfam HMMER3 files trivial. We write our own
 # minimal parser below so this is just a backup, but install it for the
 # fallback path.
-!pip install pyhmmer -q"""
+!pip install pyhmmer==0.10.15 -q"""
 
 
 IMPORTS_CODE = """import io

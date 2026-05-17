@@ -241,32 +241,54 @@
     background: none,
   )[
     #set align(center)
-    // Hero mark — path is relative to this theme file.
+    #set par(first-line-indent: 0pt, justify: false, leading: 0.6em)
+
+    // Hero mark
     #image("../figures/cover-mark.svg", height: 90mm)
-    #v(18mm)
+    #v(16mm)
+
     // Kicker
-    #text(font: ("Inter", "Helvetica Neue", "Arial"),
-          size: 11pt, fill: subtle, tracking: 0.22em,
-          upper("A course in print"))
+    #block[
+      #set text(font: ("Inter", "Helvetica Neue", "Arial"),
+                size: 11pt, fill: subtle, tracking: 0.22em)
+      #upper("A course in print")
+    ]
     #v(14pt)
-    // Title — two-line max, big serif
-    #text(font: ("Source Serif 4", "Charter", "Georgia"),
-          size: 56pt, weight: "medium", title)
-    #v(10pt)
+
+    // Title — supports multi-line content via line breaks in the
+    // caller (e.g. [Bioinformatics for \ Engineers]).
+    #block[
+      #set text(font: ("Source Serif 4", "Charter", "Georgia"),
+                size: 52pt, weight: "medium")
+      #set par(leading: 0.32em)
+      #title
+    ]
+    #v(12pt)
+
     // Cobalt rule
     #block(width: 80pt, height: 3pt, fill: accent)
-    #v(14pt)
-    // Subtitle — italic serif
-    #text(font: ("Source Serif 4", "Charter", "Georgia"),
-          size: 22pt, style: "italic", fill: muted, subtitle)
+    #v(16pt)
+
+    // Subtitle
+    #block[
+      #set text(font: ("Source Serif 4", "Charter", "Georgia"),
+                size: 22pt, style: "italic", fill: muted)
+      #subtitle
+    ]
+
     // Push author + edition to the bottom band
     #v(1fr)
-    #text(font: ("Source Serif 4", "Charter", "Georgia"),
-          size: 16pt, author)
-    #v(8pt)
-    #text(font: ("Inter", "Helvetica Neue", "Arial"),
-          size: 10pt, fill: subtle, tracking: 0.18em,
-          upper(edition + "  ·  " + str(year)))
+
+    #block[
+      #set text(font: ("Source Serif 4", "Charter", "Georgia"), size: 16pt)
+      #author
+    ]
+    #v(10pt)
+    #block[
+      #set text(font: ("Inter", "Helvetica Neue", "Arial"),
+                size: 10pt, fill: subtle, tracking: 0.18em)
+      #upper(edition + "  ·  " + str(year))
+    ]
   ]
 }
 
@@ -313,18 +335,39 @@
 // ─── Frontmatter helpers ─────────────────────────────────────────────
 #let book-title-page(title, subtitle, author, edition, year) = {
   align(center + horizon)[
+    #set par(first-line-indent: 0pt, justify: false, leading: 0.6em)
     #v(-40pt)
-    #text(font: ("Inter", "Helvetica Neue", "Arial"), size: 11pt, fill: subtle, smallcaps("a course in print"))
+    #block[
+      #set text(font: ("Inter", "Helvetica Neue", "Arial"),
+                size: 11pt, fill: subtle, tracking: 0.18em)
+      #upper("A course in print")
+    ]
     #v(12pt)
-    #text(font: ("Source Serif 4", "Charter", "Georgia"), size: 44pt, weight: "medium", title)
-    #v(4pt)
+    #block[
+      #set text(font: ("Source Serif 4", "Charter", "Georgia"),
+                size: 40pt, weight: "medium")
+      #set par(leading: 0.32em)
+      #title
+    ]
+    #v(8pt)
     #block(width: 60pt, height: 2pt, fill: muted)
-    #v(12pt)
-    #text(font: ("Source Serif 4", "Charter", "Georgia"), size: 18pt, style: "italic", fill: muted, subtitle)
+    #v(14pt)
+    #block[
+      #set text(font: ("Source Serif 4", "Charter", "Georgia"),
+                size: 18pt, style: "italic", fill: muted)
+      #subtitle
+    ]
     #v(60pt)
-    #text(font: ("Source Serif 4", "Charter", "Georgia"), size: 14pt, author)
+    #block[
+      #set text(font: ("Source Serif 4", "Charter", "Georgia"), size: 14pt)
+      #author
+    ]
     #v(80pt)
-    #text(font: ("Inter", "Helvetica Neue", "Arial"), size: 10pt, fill: subtle, edition + "  ·  " + str(year))
+    #block[
+      #set text(font: ("Inter", "Helvetica Neue", "Arial"),
+                size: 10pt, fill: subtle, tracking: 0.18em)
+      #upper(edition + "  ·  " + str(year))
+    ]
   ]
   pagebreak()
 }

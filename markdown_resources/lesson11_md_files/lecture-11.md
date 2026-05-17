@@ -303,7 +303,7 @@ Modern pipeline (2024):
 3. **Call variants** with `vg call` or a caller adapted to graph alignments.
 4. **Project to linear** with `vg surject` if downstream tools expect linear BAMs.
 
-**FIGURE — Figure #11: vg toolchain workflow** → `diagrams/lecture-11/11-vg-toolchain.svg`
+**FIGURE — Figure #10: vg toolchain workflow** → `diagrams/lecture-11/10-vg-toolchain.svg`
 *Left: inputs — reference genome, VCF of known variants OR a collection of assembled genomes. Centre: `vg construct` or `pggb` builds the graph (`.vg` or `.gfa`). Right: `vg giraffe` aligns reads to graph, outputting `.gam` alignments. Downstream: `vg call` produces VCF; `vg surject` produces BAM for short-read tool compatibility.*
 
 ### 4.3 Alignment-to-path decoding and practical tradeoffs (≈8 min)
@@ -355,7 +355,7 @@ $$V(s, t) = \max_{s' \in \text{pred}(s)} \left[ V(s', t-1) + \text{match\_score}
 
 For a linear chain, $\text{pred}(s)$ is a single state, and the algorithm reduces to standard Smith-Waterman. For a DAG, $\text{pred}(s)$ is the set of in-edges; the algorithm naturally handles branches.
 
-**FIGURE — Figure #10: Viterbi on a linear chain vs DAG** → `diagrams/lecture-11/10-viterbi-linear-vs-dag.svg`
+**FIGURE — Figure #11: Viterbi on a linear chain vs DAG** → `diagrams/lecture-11/11-viterbi-linear-vs-dag.svg`
 *Left: linear reference as a trellis — a chain of states, time on one axis, states on the other; Viterbi path drawn as a single trace through the trellis. Right: graph reference — states now form a DAG; Viterbi path branches to pick the right node at each choice point. The dynamic-programming update is the same equation; only the predecessor structure differs.*
 
 **EMBED — Artifact #6: Viterbi-on-Graph Path Finder** → `artifacts/lecture-11/06-viterbi-graph.html`

@@ -239,8 +239,14 @@
     });
     svg += `<text x="${(x0+x1)/2}" y="${H-6}" text-anchor="middle" font-size="11" fill="#525252">offset from seed</text>`;
 
-    // HSP boundary shading
-    svg += `<rect x="${xPos(traj[result.leftEnd >= 0 ? result.leftEnd - result.seedIdx + 0 : 0].pos)}" y="${y1}" width="${xPos(traj[result.rightEnd - result.seedIdx + 0].pos) - xPos(traj[result.leftEnd - result.seedIdx + 0].pos)}" height="${y0-y1}" fill="#fef3c7" fill-opacity="0.4"/>`;
+    // HSP boundary shading. Earlier code indexed traj as
+    // `traj[result.leftEnd - result.seedIdx]`, but traj is built in
+    // POSITION-INDEX order (push from seedIdx forward, then unshift
+    // backward), so traj[i] === positions[i]. When leftEnd < seedIdx
+    // the relative index went negative → traj[-1] is undefined and
+    // .pos threw, killing drawChart so the score trajectory and
+    // boundaries never appeared.
+    svg += `<rect x="${xPos(traj[result.leftEnd].pos)}" y="${y1}" width="${xPos(traj[result.rightEnd].pos) - xPos(traj[result.leftEnd].pos)}" height="${y0-y1}" fill="#fef3c7" fill-opacity="0.4"/>`;
 
     // Trajectory
     const path = traj.map((t, i) => `${i === 0 ? 'M' : 'L'} ${xPos(t.pos).toFixed(1)} ${yPos(t.score).toFixed(1)}`).join(' ');

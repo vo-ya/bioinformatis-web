@@ -107,7 +107,10 @@
   };
 
   function generateCandidates(gene, library) {
-    const r = rng(gene.length(0) + library.length(0));
+    // Deterministic seed per (gene, library) — the previous version called
+    // `gene.length(0)`, which throws TypeError under strict mode because
+    // .length is a number not a function, and update() never reached render.
+    const r = rng(gene.charCodeAt(0) * 100 + library.length);
     const numCand = library === 'custom' ? 10 : (library === 'brunello' ? 8 : 10);
     const cands = [];
     const profile = GENES[gene].profile;

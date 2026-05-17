@@ -1025,13 +1025,25 @@
     ctx.lineTo(SIZE, SIZE);
     ctx.stroke();
 
-    // Corner labels
-    ctx.fillStyle = '#525252';
+    // Corner labels. Each label sits ON TOP of the heatmap pixels, so
+    // a translucent white pad goes underneath first; otherwise the
+    // grey text vanishes against the dark cobalt/navy cells near the
+    // diagonal at high r².
     ctx.font = '10px "JetBrains Mono", monospace';
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.fillRect(2, 2, 44, 14);
+    ctx.fillStyle = '#525252';
     ctx.textAlign = 'left';
     ctx.fillText('SNP 1', 4, 12);
+
+    const lblBR = 'SNP ' + S;
+    const wBR = ctx.measureText(lblBR).width;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.fillRect(SIZE - 6 - wBR, SIZE - 14, wBR + 6, 12);
+    ctx.fillStyle = '#525252';
     ctx.textAlign = 'right';
-    ctx.fillText('SNP ' + S, SIZE - 4, SIZE - 4);
+    ctx.fillText(lblBR, SIZE - 4, SIZE - 4);
   }
 
   // ─────────────────────────────────────────────────────────

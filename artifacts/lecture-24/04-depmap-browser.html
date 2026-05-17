@@ -237,14 +237,19 @@
     yl.textContent = 'Chronos in other lineages';
     svg.appendChild(yl);
 
-    // Plot targets as below-diagonal points (high selectivity = far below)
-    scn.targets.forEach(t => {
+    // Plot targets as below-diagonal points. Labels alternate above / below
+    // the point because most scenarios have multiple genes sharing the same
+    // out-of-lineage Chronos value (-0.2 or -0.3), which collapses their
+    // y to a single line — the original cy+4 offset stacked label glyphs
+    // on top of each other (e.g. MYD88 and CD19 in DLBCL).
+    scn.targets.forEach((t, i) => {
       const c = document.createElementNS(ns, 'circle');
       c.setAttribute('cx', xAt(t.in)); c.setAttribute('cy', yAt(t.out)); c.setAttribute('r', 8);
       c.setAttribute('fill', '#dc2626'); c.setAttribute('stroke', '#fff'); c.setAttribute('stroke-width', 1.5);
       svg.appendChild(c);
       const lbl = document.createElementNS(ns, 'text');
-      lbl.setAttribute('x', xAt(t.in) + 12); lbl.setAttribute('y', yAt(t.out) + 4);
+      lbl.setAttribute('x', xAt(t.in) + 12);
+      lbl.setAttribute('y', yAt(t.out) + (i % 2 === 0 ? -10 : 18));
       lbl.setAttribute('font-size', 10); lbl.setAttribute('font-weight', 700);
       lbl.setAttribute('font-family', 'JetBrains Mono, monospace'); lbl.setAttribute('fill', '#dc2626');
       lbl.textContent = t.gene;

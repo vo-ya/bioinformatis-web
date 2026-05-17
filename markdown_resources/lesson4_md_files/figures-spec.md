@@ -28,10 +28,10 @@ Eleven figures for a ~3h 30min lecture. Placement by part:
 | 3 | Frameshift vs in-frame INDEL | Part 1 | Custom SVG |
 | 4 | Anatomy of a samtools pileup | Part 2 | Custom SVG |
 | 5 | Anatomy of a variant call at one position | Part 2 | Custom SVG |
-| 6 | Bayesian genotyping at a position | Part 3 | Custom SVG |
-| 7 | INDEL misalignment and local realignment | Part 3 | Custom SVG |
-| 8 | The five canonical SV types | Part 4 | Custom SVG |
-| 9 | The three SV detection signals | Part 4 | Custom SVG |
+| 6 | INDEL misalignment and local realignment | Part 3 | Custom SVG |
+| 7 | Bayesian genotyping at a position | Part 3 | Custom SVG |
+| 8 | The three SV detection signals | Part 4 | Custom SVG |
+| 9 | The five canonical SV types | Part 4 | Custom SVG |
 | 10 | Anatomy of a VCF file | Part 5 | Custom SVG |
 | 11 | Variant annotation pipeline | Part 5 | Custom SVG |
 
@@ -220,9 +220,9 @@ chr1  1000  .  A  G  420  PASS  DP=17;AF=0.294  GT:AD:DP:GQ  0/1:12,5:17:95
 
 ---
 
-## Figure 6 — Bayesian Genotyping at a Position
+## Figure 7 — Bayesian Genotyping at a Position
 
-**File**: `diagrams/lecture-04/06-bayesian-genotyping.svg`
+**File**: `diagrams/lecture-04/07-bayesian-genotyping.svg`
 **Lecture anchor**: §3.2 Caller families — Bayesian
 **ViewBox**: `0 0 860 440`
 
@@ -256,9 +256,9 @@ Each likelihood shown as a small formula and a numerical value.
 
 ---
 
-## Figure 7 — INDEL Misalignment and Local Realignment
+## Figure 6 — INDEL Misalignment and Local Realignment
 
-**File**: `diagrams/lecture-04/07-indel-realignment.svg`
+**File**: `diagrams/lecture-04/06-indel-realignment.svg`
 **Lecture anchor**: §3.1 Pre-calling pipeline
 **ViewBox**: `0 0 860 420`
 
@@ -287,9 +287,9 @@ Annotation: "with local realignment: clean 2-bp deletion, no false SNVs."
 
 ---
 
-## Figure 8 — The Five Canonical SV Types
+## Figure 9 — The Five Canonical SV Types
 
-**File**: `diagrams/lecture-04/08-sv-types.svg`
+**File**: `diagrams/lecture-04/09-sv-types.svg`
 **Lecture anchor**: §4.3 SV types and naming
 **ViewBox**: `0 0 960 400`
 
@@ -319,9 +319,9 @@ One-stop reference for the standard SV vocabulary. Reader should come away with 
 
 ---
 
-## Figure 9 — The Three SV Detection Signals
+## Figure 8 — The Three SV Detection Signals
 
-**File**: `diagrams/lecture-04/09-sv-detection-signals.svg`
+**File**: `diagrams/lecture-04/08-sv-detection-signals.svg`
 **Lecture anchor**: §4.1 Why SVs need a different algorithm
 **ViewBox**: `0 0 900 480`
 

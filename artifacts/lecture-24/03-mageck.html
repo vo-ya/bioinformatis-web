@@ -98,7 +98,9 @@
   for (let i = 1; i <= 35; i++) NULL_GENES.push(`GENE${i.toString().padStart(2, '0')}`);
 
   function generateGenes(scenario, quality) {
-    const r = rng(scenario.length(0) + quality.length(0));
+    // Deterministic seed — `.length(0)` threw under strict mode and left
+    // update() short of drawVolcano(), rendering an empty white panel.
+    const r = rng(scenario.charCodeAt(0) * 100 + quality.charCodeAt(0));
     const noise = quality === 'high' ? 0.3 : quality === 'medium' ? 0.6 : 1.0;
     const genes = [];
     if (scenario === 'dropout' || scenario === 'mixed') {

@@ -1,14 +1,14 @@
 #import "../theme/book-theme.typ": *
 
-= ChIP-seq, ATAC-seq, and Peak Calling: Detection Theory on the Genome <ch:chip-atac>
+= #idx("ChIP-seq")ChIP-seq, #idx("ATAC-seq")ATAC-seq, and #idx("peak calling")Peak Calling: Detection Theory on the Genome <ch:chip-atac>
 
 #matters[
-  DNA sequencing tells you what the letters are; RNA sequencing tells
+  #idx("DNA")DNA sequencing tells you what the letters are; #idx("RNA")RNA sequencing tells
   you which letters get transcribed; neither tells you _why_. The cell
   decides which genes to turn on by physically marking and unwrapping
-  the regions of chromatin where transcription factors land. Reading
+  the regions of #idx("chromatin")chromatin where #idx("transcription")transcription factors land. Reading
   that decision requires a different kind of assay — one that produces
-  a coverage signal stacked over regulatory elements rather than over
+  a #idx("coverage")coverage signal stacked over regulatory elements rather than over
   genes or exons. This chapter walks the analysis pipeline for two such
   assays, ChIP-seq and ATAC-seq, from the wet-lab chemistry through to
   modern sequence-to-regulation deep-learning models. The mathematical
@@ -21,7 +21,7 @@ A short coverage track does not look like much. A few thousand reads
 piled into a 200-base-pair window above background, flanked by a
 near-empty desert; another smaller pile-up a few kilobases over; the
 genome scrolling on either side. The data type is identical to anything
-this book has covered so far — aligned BAM, integer counts per genomic
+this book has covered so far — aligned #idx("BAM")BAM, integer counts per genomic
 interval — and the algorithms turn out to be ports of techniques that
 EE students have already seen in radar, communications, and classical
 DSP. The reason the chapter is worth your time is that the _biological
@@ -34,15 +34,15 @@ a self-contained tour of detection theory on the genome.
 The chapter has six sections. @sec:assays introduces the two assays,
 the biological questions each answers, and the kind of signal each
 deposits in a BAM. @sec:libraries works through library preparation —
-crosslinking, sonication, Tn5 transposition — and the QC signatures
+crosslinking, sonication, #idx("Tn5")Tn5 transposition — and the QC signatures
 each protocol leaves in the fragment-length distribution. @sec:peaks
-is the long middle of the chapter: the MACS2 peak caller as a
+is the long middle of the chapter: the #idx("MACS2")MACS2 peak caller as a
 constant-false-alarm-rate detector against a local Poisson null, with
 narrow versus broad modes and the practical choices around each. @sec:diffbind
 ports the negative-binomial GLM machinery from Chapter 6's
 differential-expression analysis to peaks-versus-samples count matrices.
 @sec:motifs introduces position weight matrices and the matched-filter
-view of motif scanning, then covers ATAC footprinting as a $sqrt(N)$
+view of #idx("motif")motif scanning, then covers ATAC footprinting as a $sqrt(N)$
 signal-averaging problem. @sec:enformer closes with the sequence-to-regulation
 deep-learning models that have started to predict the assay output
 directly from DNA.
@@ -57,15 +57,15 @@ will be familiar from Chapter 6.
 == What ChIP-seq and ATAC-seq Measure <sec:assays>
 
 A typical human cell carries roughly two metres of DNA folded into a
-five-micron nucleus. That DNA is not bare — it is wrapped around
-histone octamers at 147 base-pair intervals to form _nucleosomes_, and
+five-micron #idx("nucleus")nucleus. That DNA is not bare — it is wrapped around
+#idx("histone")histone octamers at 147 base-pair intervals to form _nucleosomes_, and
 those nucleosomes are packaged into higher-order structures whose
-density varies dramatically along the chromosome. Some regions are
-tightly compacted into heterochromatin where no transcription factor
+density varies dramatically along the #idx("chromosome")chromosome. Some regions are
+tightly compacted into heterochromatin where no #idx("transcription factor")transcription factor
 can physically reach the DNA; others sit in loose, accessible
 configurations where the regulatory machinery can land. The cell uses
 this physical accessibility, plus a layer of covalent histone
-modifications and DNA methylation marks, to control which genes are
+modifications and DNA #idx("methylation")methylation marks, to control which genes are
 transcribed in which cell types. Two strands of identical DNA in two
 sister cells can be expressed in radically different ways because the
 chromatin packaging differs.
@@ -123,13 +123,13 @@ flanked by near-empty background.
   moment; ATAC-seq asks which parts of the contract are open for
   reading. The combination tells you which regulatory elements are
   active in the cells you sampled — a view neither whole-genome
-  sequencing nor RNA-seq can give you.
+  sequencing nor #idx("RNA-seq")RNA-seq can give you.
 ]
 
 The modern ChIP-seq era began in 2007 with two near-simultaneous
 papers, Barski and colleagues in _Cell_ and Robertson and colleagues in
 _Nature Methods_, that combined the older microarray-readout assay
-ChIP-chip with the freshly available Solexa/Illumina short-read
+ChIP-chip with the freshly available Solexa/#idx("Illumina")Illumina short-read
 sequencer. The follow-on project, ENCODE — originally a 2003 pilot
 using microarrays, relaunched in 2007 as a sequencing-era effort —
 profiled hundreds of transcription factors and histone marks across
@@ -142,13 +142,13 @@ borrows from ENCODE are close to one.
 
 === The Single-Cell Variant
 
-The same Tn5 chemistry runs at per-cell resolution in droplet scATAC-seq
+The same Tn5 chemistry runs at per-cell resolution in #idx("droplet")droplet scATAC-seq
 and in the 10x Multiome platform (paired RNA + ATAC on the same
 nucleus). The output is dramatically sparser — roughly ten thousand
 fragments per cell versus thirty million reads per bulk sample — and
 the dimensionality-reduction step uses Latent Semantic Indexing (an
 inverse-document-frequency-weighted SVD borrowed from text retrieval)
-instead of the PCA familiar from bulk RNA-seq. But the peak-calling
+instead of the #idx("PCA")PCA familiar from bulk RNA-seq. But the peak-calling
 machinery in this chapter transfers cleanly: aggregate per-cell
 fragments into a pseudo-bulk track per cluster, then call peaks as
 though the pseudo-bulks were bulk. Differential accessibility, motif
@@ -187,7 +187,7 @@ for peak calling these biases average out over a typical 200-bp test
 window and rarely cause downstream problems.
 
 *Tn5 transposition* replaces all of the above for ATAC-seq. Tn5 is a
-prokaryotic transposase whose native role is to cut DNA at its
+prokaryotic #idx("transposase")transposase whose native role is to cut DNA at its
 recognition sequence and insert a transposon in a single reaction. The
 ATAC trick is to pre-load Tn5 with sequencing adapters in place of the
 natural transposon payload, then apply the loaded enzyme to lightly
@@ -203,7 +203,7 @@ The catch is that Tn5 has _sequence preference_. The enzyme cuts more
 often at certain ~9-bp local motifs than at others, with a typical
 preferred motif resembling `NNNYMNNHN`. Even in a perfectly open
 region of DNA, the raw per-base Tn5 cut counts are non-uniform — and
-that non-uniformity is precisely what footprint analysis (Section 9.5)
+that non-uniformity is precisely what #idx("footprint")footprint analysis (Section 9.5)
 has to deconvolve before it can identify protein-protection signals.
 For peak calling the bias is small enough to average out over a 200-bp
 window; for footprinting it is not.
@@ -213,7 +213,7 @@ window; for footprinting it is not.
   caption: [
     Tn5 inserts adapters only in nucleosome-free regions; the fragment
     length records how many nucleosomes sit between the two adapter
-    insertion points. Sub-nucleosomal fragments span no nucleosome;
+    insertion points. Sub-nucleosomal fragments span no #idx("nucleosome")nucleosome;
     mono-nucleosomal fragments span exactly one.
   ],
 ) <fig:tn5>
@@ -251,7 +251,7 @@ salvageable, and a sample that does not show the pattern is almost
 certainly not. Common failure modes include too little Tn5 (everything
 ends up at the long tail), too much Tn5 (the library over-fragments
 into a single sub-nucleosomal mode), degraded chromatin (the ladder
-flattens), and over-aggressive size selection (the longer modes get
+flattens), and over-aggressive size #idx("selection")selection (the longer modes get
 clipped). No downstream analytical fix recovers a sample that fails
 this QC.
 
@@ -269,7 +269,7 @@ this QC.
 === Alignment Quirks
 
 Alignment is mostly a callback to Chapter 2: BWA-MEM or Bowtie2 on
-paired-end reads, expecting most reads to map uniquely, with the same
+#idx("paired-end")paired-end reads, expecting most reads to map uniquely, with the same
 mark-duplicates pass that variant-calling pipelines run. Two
 ChIP-and-ATAC-specific wrinkles modify the picture.
 
@@ -288,12 +288,12 @@ coverage no matter what assay you run: rRNA gene clusters, telomeric
 and centromeric repeats, regions with annotation errors. These
 positions systematically produce false-positive peaks. The ENCODE
 Blacklist (Amemiya, Kundaje, & Boyle 2019) is a curated set of ~400
-GRCh38 intervals that every accessibility analysis should exclude
+#idx("GRCh38")GRCh38 intervals that every accessibility analysis should exclude
 before peak calling.
 
 *PCR duplicates.* Illumina libraries undergo PCR amplification, and
 duplicate fragments from the same pre-amplification template should be
-collapsed before peak calling. Unlike single-cell RNA-seq, ATAC and
+collapsed before peak calling. Unlike #idx("single-cell RNA-seq")single-cell RNA-seq, ATAC and
 ChIP libraries usually lack UMIs; deduplication uses
 mapping-position + fragment-length as a duplicate key. Picard
 MarkDuplicates or `samtools markdup` does the job.
@@ -314,7 +314,7 @@ MarkDuplicates or `samtools markdup` does the job.
 The peak-calling problem is the central computational task of this
 chapter. You align thirty million paired-end reads to the human
 reference, get a coordinate-sorted BAM in hand, and need to produce a
-BED file: a list of genomic intervals at which the read pile-up is
+#idx("BED")BED file: a list of genomic intervals at which the read pile-up is
 significantly above the local background. Some regions of the genome
 will have many tens of reads stacked into a 200 bp window; most regions
 will have one read or zero. The task is to decide, at every position on
@@ -333,7 +333,7 @@ The signal-to-noise ratio in a typical ChIP-seq experiment is
 generous — a real TF binding site routinely shows ~5–20× the local
 background — but the genome is three billion positions long, so even a
 modest false-alarm rate of one in $10^5$ produces tens of thousands of
-spurious peaks across a whole-genome scan. Multiple testing is not
+spurious peaks across a whole-genome scan. #idx("multiple testing")Multiple testing is not
 optional. The shape of the answer is a detector whose false-alarm rate
 is controlled across the entire genome, and whose threshold adapts to
 local conditions so that real peaks above local hot regions are not
@@ -401,7 +401,7 @@ The algorithm proceeds in six steps.
    is $P(X >= c | lambda_(text("local")))$ from the standard Poisson
    tail.
 5. *Multi-test correction.* Apply Benjamini–Hochberg across all
-   candidate windows in the genome (the same FDR machinery from
+   candidate windows in the genome (the same #idx("FDR")FDR machinery from
    Chapter 6, §6.4) to control the genome-wide false-discovery rate
    at 5 % by default.
 6. *Merge adjacent significant windows* into a single peak interval,
@@ -468,7 +468,7 @@ like a sharp peak. Some histone marks cover domains tens to hundreds of
 kilobases wide — H3K27me3 over Polycomb-silenced regions, H3K9me3 over
 heterochromatin, H3K36me3 over the bodies of actively transcribed
 genes. Running default-narrow MACS2 on H3K27me3 fragments these
-domains into a long string of sub-peaks, each of which is a real
+domains into a long #idx("STRING")string of sub-peaks, each of which is a real
 fragment of one underlying biological signal.
 
 #figure(
@@ -539,7 +539,7 @@ matters so much.
 You have a peak list for one condition. Now your collaborator runs the
 same experiment in a knockout, a drug-treated sample, or a different
 tissue, and asks: _which peaks changed_? This is the chromatin
-equivalent of differential expression, and the statistical machinery
+equivalent of #idx("differential expression")differential expression, and the statistical machinery
 ported almost verbatim from Chapter 6.
 
 The analysis template:
@@ -552,7 +552,7 @@ The analysis template:
    The output is a peaks-by-samples count matrix — the same shape as
    Chapter 6's genes-by-samples matrix, with peaks in the row position
    instead of genes.
-4. Fit a negative-binomial GLM (DESeq2, edgeR), test each peak for
+4. Fit a negative-binomial GLM (#idx("DESeq2")DESeq2, #idx("edgeR")edgeR), test each peak for
    differential count between conditions, apply Benjamini–Hochberg
    correction.
 
@@ -566,7 +566,7 @@ but the estimator has not.
   image("../../diagrams/lecture-09/08-differential-accessibility.svg", width: 95%),
   caption: [
     Differential accessibility produces the same visual language as
-    differential expression. The MA plot has identical axes
+    differential expression. The #idx("MA plot")MA plot has identical axes
     (mean count, log-fold-change between conditions); the
     significance threshold is the same Benjamini–Hochberg-adjusted
     p-value; the underlying statistical machine is the same
@@ -612,7 +612,7 @@ in your experiment.
   Differential binding inherits both the strengths and weaknesses of
   count-based DE. Strength: the statistical framework is mature, the
   multiple-testing machinery is well-understood, the per-feature
-  shrinkage stabilises low-count estimates. Weakness: the design has
+  #idx("shrinkage")shrinkage stabilises low-count estimates. Weakness: the design has
   to fit into a GLM, which means continuous covariates and
   batch effects need explicit modelling, and the peakset has to be
   defined before the test (csaw's window approach evades the second
@@ -680,7 +680,7 @@ is `TGACTCA` (the AP-1 family core) will also bind `TGAGTCA` and
 `TGACTCT` with somewhat lower affinity, and the relative affinities are
 the biologically meaningful quantity.
 
-The standard representation is a *position weight matrix* (PWM): a
+The standard representation is a *#idx("position weight matrix")position weight matrix* (#idx("PWM")PWM): a
 $4 times L$ matrix with rows indexed by base (A, C, G, T) and columns
 indexed by position in the motif. The entry $w_{b,i}$ is the log of the
 ratio between the observed frequency of base $b$ at position $i$ in a
@@ -771,7 +771,7 @@ statistic.
   matches the template — exactly the optimal-detection statistic for
   a known signal in additive noise that every introductory
   signals-and-systems course covers. The "log-odds PWM on one-hot
-  sequence equals matched filter against a 4-channel template" is
+  sequence equals #idx("matched filter")matched filter against a 4-channel template" is
   one of the cleanest EE-to-biology isomorphisms in the entire
   pipeline.
 ]
@@ -859,7 +859,7 @@ Tools — TOBIAS (Bentsen et al. 2020), HINT-ATAC (Li et al. 2019),
 BaGFoot (Baek et al. 2017) — all implement the same aggregation idea
 with different choices of Tn5-bias correction and statistical
 thresholding. TOBIAS in particular has become the modern default
-because of its explicit Tn5-bias deconvolution step and its built-in
+because of its explicit Tn5-bias #idx("deconvolution")deconvolution step and its built-in
 differential-footprint analysis across conditions.
 
 #tip[
@@ -882,10 +882,10 @@ observation. A different paradigm has emerged that bypasses the
 measurement entirely: predict the regulatory landscape directly from
 DNA sequence, using a neural network trained on the ENCODE corpus.
 
-The flagship model is *Enformer* (Avsec et al. 2021, DeepMind in
+The flagship model is *#idx("Enformer")Enformer* (Avsec et al. 2021, DeepMind in
 collaboration with Calico), a CNN-plus-transformer hybrid that takes a
 ~100 kb DNA window as input and predicts thousands of regulatory
-outputs simultaneously: CAGE signal (a proxy for promoter activity) at
+outputs simultaneously: CAGE signal (a proxy for #idx("promoter")promoter activity) at
 every position, ATAC and DNase accessibility, ChIP-seq signal for many
 TFs and many histone marks. The model is trained on the union of
 ENCODE, Roadmap Epigenomics, and FANTOM5 — essentially every
@@ -898,13 +898,13 @@ output features.
 #figure(
   image("../../diagrams/lecture-09/12-enformer-architecture.svg", width: 95%),
   caption: [
-    Enformer architecture. The CNN block extracts local sequence
+    Enformer architecture. The #idx("CNN")CNN block extracts local sequence
     features from a 100 kb one-hot input, downsampling to 128 bp
-    bins; the transformer block captures long-range interactions
+    bins; the #idx("transformer")transformer block captures long-range interactions
     across the entire 100 kb window; many output heads predict
     thousands of regulatory tracks in parallel.
   ],
-) <fig:enformer>
+) <fig:ch09-enformer>
 
 The architectural choice is worth understanding. The CNN block does
 local feature extraction at sub-kilobase resolution — the same kind of
@@ -913,7 +913,7 @@ learned filters and many composition layers. The transformer block on
 top captures the long-range interactions that a CNN alone cannot
 represent: distal enhancers up to 50 kb from their target promoter,
 chromatin-loop endpoints, larger regulatory domains. The
-attention mechanism in the transformer learns which distant positions
+#idx("attention")attention mechanism in the transformer learns which distant positions
 matter for predicting the output at the central bin. Without the
 transformer block the model would underperform on long-range
 regulation; without the CNN block the model would lack the local-motif
@@ -934,12 +934,12 @@ What the sequence-to-regulation models do that MACS2 cannot:
   matching cell line.
 - Score _variant effects_ by comparing model outputs for reference and
   variant sequences. This is the most-used application: take a
-  candidate regulatory variant from a GWAS or a rare-disease genome,
+  candidate regulatory variant from a #idx("GWAS")GWAS or a rare-disease genome,
   feed in the reference and variant 100 kb windows, and compute the
   difference in predicted ATAC or ChIP signal. The result is an
   in-silico estimate of the variant's regulatory impact.
 - Capture _long-range interactions_ that the per-base analyses of the
-  rest of this chapter cannot see directly. A distal enhancer's
+  rest of this chapter cannot see directly. A distal #idx("enhancer")enhancer's
   effect on its target promoter is part of what the model has learned.
 
 What the models still cannot do well: predict accurately in cell types
@@ -996,7 +996,7 @@ long tail of the regulatory landscape are correspondingly weaker.
   count against the local null. Narrow-peak mode fits TFs and punctate
   marks; broad-peak mode fits domain-scale marks.
 - Differential binding is Chapter 6 on a different feature set. The
-  same negative-binomial GLM, the same dispersion shrinkage, the same
+  same negative-binomial GLM, the same #idx("dispersion")dispersion shrinkage, the same
   Benjamini–Hochberg correction — applied to peaks-by-samples instead
   of genes-by-samples. DiffBind and csaw are the two standard
   wrappers.
@@ -1009,7 +1009,7 @@ long tail of the regulatory landscape are correspondingly weaker.
   instances. SNR scales as $sqrt(N)$; individual instances are too
   noisy to read, but the aggregate footprint emerges cleanly with
   enough depth and enough motif copies.
-- Sequence-to-regulation deep learning predicts assay output directly
+- Sequence-to-regulation #idx("deep learning")deep learning predicts assay output directly
   from DNA. Enformer is a CNN-plus-transformer trained on the entire
   ENCODE corpus; the first CNN layer is a learned PWM bank, and the
   transformer captures long-range interactions. The architecture is
@@ -1072,7 +1072,7 @@ Show the $sqrt(N)$ scaling explicitly.
 
 #strong[7.] #emph[Enformer variant scoring.]
 Pick a published regulatory variant — for example, a fine-mapped GWAS
-SNP associated with a phenotype of your choice. Run Enformer
+#idx("SNP")SNP associated with a phenotype of your choice. Run Enformer
 (via the public Hub model) on both the reference and the alternate
 sequence centred on the variant. Compare the predicted ATAC and
 H3K27ac tracks. Does the model predict a regulatory effect at the

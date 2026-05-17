@@ -4,9 +4,9 @@
 
 #matters[
   By the time you reach this chapter, the previous twenty-one have
-  taught you to produce gene lists. Differential expression hands you
-  a few hundred up- and down-regulated transcripts. ChIP-seq returns
-  TF-bound regions; GWAS returns a set of significant SNPs and the
+  taught you to produce gene lists. #idx("differential expression")Differential expression hands you
+  a few hundred up- and down-regulated transcripts. #idx("ChIP-seq")ChIP-seq returns
+  TF-bound regions; #idx("GWAS")GWAS returns a set of significant SNPs and the
   genes nearest to them; somatic-variant calling on tumour cohorts
   returns a tail of mutated drivers. In every case the gene list is the
   output of the assay, not the answer to the biological question. The
@@ -23,7 +23,7 @@
 
 You arrive at network biology with a list of genes and a question that
 the list alone cannot answer. The genes might be the DEGs from a
-two-condition RNA-seq comparison, the marker set for a single-cell
+two-condition #idx("RNA-seq")RNA-seq comparison, the marker set for a single-cell
 cluster, the candidate region from a clinical exome, or the
 significant SNPs from a biobank-scale GWAS. They are unsorted by
 biological context, and the biological-context question — _what
@@ -33,10 +33,10 @@ on the day you deliver the table.
 
 This chapter is the framework that answers that question. The first
 move is to recognise that the gene is not a self-contained unit;
-proteins interact, transcription factors regulate, metabolites
+proteins interact, #idx("transcription")transcription factors regulate, metabolites
 participate in cascades. The natural representation is a graph. The
 second move is to attach a controlled vocabulary to the graph: a
-_pathway_ in KEGG, a _term_ in Gene Ontology, a _gene set_ in MSigDB.
+_pathway_ in #idx("KEGG")KEGG, a _term_ in #idx("Gene Ontology")Gene Ontology, a _gene set_ in MSigDB.
 The third move is to ask which terms are statistically enriched in
 your list — by counting (over-representation analysis) or by
 following the full ranked list (gene-set enrichment analysis). The
@@ -47,11 +47,11 @@ subgraph into modules — communities — that correspond to functional
 units.
 
 Across all five moves the same EE-flavoured mathematics keeps
-recurring. The graph Laplacian is a spectral operator with a Fourier
+recurring. The graph #idx("Laplacian")Laplacian is a spectral operator with a Fourier
 basis. Network propagation is a low-pass filter in that basis.
-Spectral clustering operates in the same basis on a different
-slice. GSEA is a Kolmogorov–Smirnov statistic on a ranked list.
-PageRank — the founding algorithm of modern web search — is exactly
+#idx("spectral clustering")Spectral clustering operates in the same basis on a different
+slice. #idx("GSEA")GSEA is a Kolmogorov–Smirnov statistic on a ranked list.
+#idx("PageRank")PageRank — the founding algorithm of modern web search — is exactly
 the random-walk-with-restart that drug-target prediction has been
 running since the 2000s. The bioinformatics literature occasionally
 re-invents these tools and gives them new names; the EE-trained
@@ -66,15 +66,15 @@ shows up in this book are worth listing because they look
 superficially different and converge on the same network step.
 
 - Differential expression on bulk RNA-seq (Chapter 6) returns a set
-  of genes whose transcript abundance differs significantly between
-  conditions, typically a few hundred entries at FDR &lt; 0.05.
-- ChIP-seq peak calling (Chapter 9) returns transcription-factor
+  of genes whose #idx("transcript abundance")transcript abundance differs significantly between
+  conditions, typically a few hundred entries at #idx("FDR")FDR &lt; 0.05.
+- ChIP-seq #idx("peak calling")peak calling (Chapter 9) returns transcription-factor
   binding sites which, after annotation, become a set of target
   genes.
 - scRNA-seq clustering (Chapter 7) labels each cluster with a set of
   marker genes that distinguish it from its neighbours.
 - GWAS (Chapter 13) returns a set of SNPs above genome-wide
-  significance, and a standard interpretation pass maps each SNP to
+  significance, and a standard interpretation pass maps each #idx("SNP")SNP to
   the nearest protein-coding gene.
 - Tumour driver discovery on cancer cohorts returns a set of
   significantly mutated genes — the canonical drivers and the long
@@ -92,10 +92,10 @@ difference between them is more than vocabulary.
 
 *Protein–protein interaction (PPI) networks* are the workhorse. Nodes
 are proteins; edges are physical interactions detected by
-affinity-purification mass spectrometry (AP-MS), yeast two-hybrid
+affinity-purification #idx("mass spectrometry")mass spectrometry (AP-MS), yeast two-hybrid
 (Y2H), proximity labelling (BioID, APEX), or structural prediction
-(AlphaFold-Multimer). The major databases — STRING (von Mering et
-al., 2003), BioGRID, IntAct, the Human Reference Interactome (HuRI) —
+(AlphaFold-Multimer). The major databases — #idx("STRING")STRING (von Mering et
+al., 2003), #idx("BioGRID")BioGRID, IntAct, the Human Reference Interactome (HuRI) —
 each curate the same underlying experiments with different policies
 on what to include. STRING is broadest because it includes predicted
 interactions weighted by confidence; BioGRID is narrower because it
@@ -106,12 +106,12 @@ factors is probably itself a DNA-repair factor.
 
 *Gene regulatory networks (GRNs)* are directed. Nodes are
 transcription factors and their target genes; edges represent the
-regulation of one by the other. The evidence comes from ChIP-seq motif
-calls, perturbation experiments — CRISPRi screens that knock down
+regulation of one by the other. The evidence comes from ChIP-seq #idx("motif")motif
+calls, perturbation experiments — #idx("CRISPRi")CRISPRi screens that knock down
 each TF in turn and measure the downstream cascade — and from
-ATAC-seq combined with chromatin-state annotation. GRNs are
+#idx("ATAC-seq")ATAC-seq combined with chromatin-state annotation. GRNs are
 inherently noisier than PPI networks because regulation is contextual:
-a TF binds chromatin in some cell types and not others, and the same
+a TF binds #idx("chromatin")chromatin in some cell types and not others, and the same
 binding event activates one target while repressing another.
 
 *Metabolic networks* are bipartite. Nodes are either metabolites or
@@ -124,8 +124,8 @@ linear program to predict reaction fluxes from growth conditions.
 
 *Signalling networks* are also directed and overlap with GRNs at the
 TF-binding end. Nodes are signalling proteins — kinases, receptors,
-adapters; edges are phosphorylation events, allosteric activations,
-or stable complex formation. PhosphoSitePlus, OmniPath, and Reactome's
+adapters; edges are #idx("phosphorylation")phosphorylation events, allosteric activations,
+or stable complex formation. PhosphoSitePlus, OmniPath, and #idx("Reactome")Reactome's
 signalling-pathway portion are the main sources. Signalling networks
 are where drug-mechanism inference and pathway-perturbation modelling
 live.
@@ -185,7 +185,7 @@ ten DEGs reaches most of the proteome within a handful of hops; the
 analytical challenge is _which_ neighbours matter, not how to reach
 them.
 
-The third is *modularity*: dense functional clusters connected to
+The third is *#idx("modularity")modularity*: dense functional clusters connected to
 each other by sparse inter-cluster edges. The cluster structure is
 itself nested — protein complexes inside pathways inside larger
 functional systems. Module detection in Section 22.5 is the
@@ -196,7 +196,7 @@ the Web, citation graphs, the protein interactome — all show
 scale-free degree distributions, small-world path lengths, and
 modular structure. The toolkit of network science transfers
 directly, which is why so many of the algorithms in this chapter
-have their origin outside biology and arrived via translation.
+have their origin outside biology and arrived via #idx("translation")translation.
 
 === Networks as Graph Signal Processing
 
@@ -245,7 +245,7 @@ as the graph topology allows.
   ],
 ) <fig:laplacian>
 
-This decomposition is the engineering scaffold for the rest of the
+This decomposition is the engineering #idx("scaffold")scaffold for the rest of the
 chapter. Network propagation in Section 22.4 is a low-pass filter:
 multiply each Fourier coefficient $hat(f)_i$ by a decay factor that
 shrinks the high-eigenvalue components and keeps the low-eigenvalue
@@ -295,7 +295,7 @@ this has driven some downstream pipelines toward open alternatives.
     standard visual language for metabolic pathways: nodes are
     metabolites, edges are enzymes labelled by EC number, and
     branches show inputs to the pentose-phosphate pathway and
-    outputs to lactate or the mitochondrion.
+    outputs to lactate or the #idx("mitochondrion")mitochondrion.
   ],
 ) <fig:kegg>
 
@@ -303,7 +303,7 @@ this has driven some downstream pipelines toward open alternatives.
 younger and more granular competitor. Established in 2003 as an
 open-source successor to the older Genome-Net pathway maps, it
 provides roughly 2,500 human pathways, hierarchically organised so
-that broad pathways like "DNA repair" nest into specific
+that broad pathways like "#idx("DNA")DNA repair" nest into specific
 sub-pathways like "translesion synthesis" and "mismatch repair".
 Each pathway is decomposed into reactions; each reaction lists
 inputs, outputs, catalysts, and the regulators that promote or
@@ -397,7 +397,7 @@ a noise-driven artefact.
 
 Pathway enrichment is the simplest network-aware analysis, and the
 one you will run first on every gene list. Two flavours dominate:
-*over-representation analysis* (ORA), which discretises the gene
+*over-representation analysis* (#idx("ORA")ORA), which discretises the gene
 list at a significance threshold and counts overlap, and *gene-set
 enrichment analysis* (GSEA), which uses the full ranked list of all
 tested genes.
@@ -414,7 +414,7 @@ a KEGG pathway, a GO term, a Hallmark set.
 
 The null hypothesis is that $L$ is a uniform random subset of $U$
 of size $|L|$. Under that null, the overlap count $|L sect G|$ is
-*hypergeometric* — the same distribution as drawing $|L|$ balls
+*#idx("hypergeometric")hypergeometric* — the same distribution as drawing $|L|$ balls
 without replacement from an urn of $|U|$ balls of which $|G|$ are
 marked. The one-sided p-value is the probability of seeing at least
 the observed overlap by chance,
@@ -422,7 +422,7 @@ the observed overlap by chance,
 $ p = sum_(k = |L sect G|)^(min(|L|, |G|)) frac(binom(|G|, k)
 binom(|U| - |G|, |L| - k), binom(|U|, |L|)). $
 
-Equivalently, this is Fisher's exact test applied to the $2 times
+Equivalently, this is #idx("Fisher's exact test")Fisher's exact test applied to the $2 times
 2$ contingency table of "in / not in $L$" against "in / not in
 $G$", and the equivalence is exact rather than approximate.
 
@@ -458,7 +458,7 @@ shrinks toward zero, every observed overlap looks improbable, and
 every pathway you test comes back significant. The fix is to set
 $|U|$ to the set of genes that survived the expression filter and
 entered the test. A second failure is *unused background*: if your
-candidate list comes from a targeted panel (a CRISPR screen against
+candidate list comes from a targeted panel (a #idx("CRISPR")CRISPR screen against
 500 cancer genes, say), the universe must be restricted to those
 500 genes, not extended to the whole transcriptome.
 
@@ -470,7 +470,7 @@ hypergeometric is the safe default; modern enrichment packages
 (`clusterProfiler`, `g:Profiler`, `enrichR`) use it by default and
 the chi-squared shortcut survives only in older code.
 
-==== Multiple Testing
+==== #idx("multiple testing")Multiple Testing
 
 Testing 1,000 pathways against the same list produces ~50 nominally
 "significant" results at $p < 0.05$ purely by chance. The standard
@@ -572,10 +572,10 @@ spreading, every node has a score that reflects its proximity to
 the seeds, and the score ranks novel candidates by their network
 distance to known biology.
 
-=== Random Walk With Restart
+=== #idx("random walk with restart")Random Walk With Restart
 
 The most common propagation algorithm is *random walk with restart*
-(RWR). Define the column-normalised adjacency $W = A D^(-1)$, so
+(#idx("RWR")RWR). Define the column-normalised adjacency $W = A D^(-1)$, so
 $W_(i j)$ is the probability of stepping from $j$ to $i$. Pick a
 restart probability $r in (0, 1)$, typically around $0.5$. Initialise
 $bold(p)^((0))$ to a seed vector — $1$ at known-disease genes or
@@ -744,7 +744,7 @@ expected by chance given the node degrees.
 Maximising $Q$ is NP-hard. Two practical algorithms have become the
 standard.
 
-*Louvain* (Blondel et al., *Journal of Statistical Mechanics*, 2008)
+*#idx("Louvain")Louvain* (Blondel et al., *Journal of Statistical Mechanics*, 2008)
 is a greedy local-move heuristic. Initialise each node as its own
 community. For each node in turn, move it to whichever neighbouring
 community produces the largest increase in $Q$, breaking ties
@@ -755,7 +755,7 @@ aggregated graph. Repeat until the aggregation step finds no further
 improvement. The whole procedure runs in $O(n log n)$ time in
 practice and scales to millions of nodes.
 
-*Leiden* (Traag, Waltman, and van Eck, *Scientific Reports*, 2019)
+*#idx("Leiden")Leiden* (Traag, Waltman, and van Eck, *Scientific Reports*, 2019)
 improves Louvain by fixing a documented pathology: Louvain
 occasionally produces disconnected communities, where a community's
 member nodes do not form a connected subgraph. Leiden inserts a
@@ -763,8 +763,8 @@ refinement step between the local-move and aggregation phases that
 checks community connectivity and guarantees, by construction, that
 every community in the output is internally connected. The
 single-cell community has converged on Leiden as the default
-clustering algorithm; the same Leiden that runs inside scanpy and
-Seurat for cell-type discovery is the algorithm here.
+clustering algorithm; the same Leiden that runs inside #idx("Scanpy")scanpy and
+#idx("Seurat")Seurat for cell-type discovery is the algorithm here.
 
 === Spectral Clustering
 
@@ -833,7 +833,7 @@ seeds in, network operations applied, ranked candidates out.
 
 Build a heterogeneous network of drugs, protein targets, diseases,
 and side effects. Edges encode drug-target binding (DrugBank,
-ChEMBL), protein–protein interactions (STRING), drug-disease
+#idx("ChEMBL")ChEMBL), protein–protein interactions (STRING), drug-disease
 indications (Open Targets), and protein-disease associations
 (DisGeNET). Seed the propagation at a known drug; let the heat
 spread through known targets to their PPI neighbours and onward to
@@ -900,7 +900,7 @@ The *disease-module hypothesis* (Barabási, Menche, Goh, and others,
 2011 onward) is the conceptual underpinning. Empirical work on the
 human interactome shows that genes associated with the same disease
 tend to cluster in a localised neighbourhood of the network — the
-disease module — rather than scattering uniformly. Diseases whose
+#idx("disease module")disease module — rather than scattering uniformly. Diseases whose
 modules overlap in the network tend to share clinical features and
 respond to overlapping drug interventions. The module hypothesis
 turns clinical comorbidity and drug repositioning into a network
@@ -929,12 +929,12 @@ correct for that.
 === Cell-Cell Communication
 
 The most recent application is *cell–cell communication inference*
-from single-cell RNA-seq data. Single-cell experiments measure
+from #idx("single-cell RNA-seq")single-cell RNA-seq data. Single-cell experiments measure
 expression at the level of individual cells; the cells partition
 into types; and the question is which cell types are signalling to
-which others via known ligand-receptor pairs.
+which others via known #idx("ligand-receptor")ligand-receptor pairs.
 
-CellChat (Jin et al., *Nature Communications*, 2021) and
+#idx("CellChat")CellChat (Jin et al., *Nature Communications*, 2021) and
 CellPhoneDB (Efremova et al., *Nature Protocols*, 2020) are the
 standard tools. The recipe builds a directed network whose nodes
 are cell-type pairs and whose edges are weighted by the joint
@@ -955,7 +955,7 @@ kernel — GNNs learn a task-specific node embedding via end-to-end
 training on labelled examples. Variants include the graph
 convolutional network of Kipf and Welling (2017), the
 message-passing neural network of Gilmer et al. (2017), and the
-graph attention network of Veličković et al. (2018). Multi-modal
+graph #idx("attention")attention network of Veličković et al. (2018). Multi-modal
 network medicine — PPI plus GRN plus drug-target plus GWAS in one
 heterogeneous graph, with a single GNN learning unified embeddings —
 is the active research area.
@@ -1017,7 +1017,7 @@ qualitatively, the noise is doing the work.
 
 *Tissue mismatch.* PPI databases are species-aggregate, pooled
 over every cell type and condition. Neural-specific signalling
-interactions show up as edges in the muscle PPI, where they may
+interactions show up as edges in the #idx("MUSCLE")muscle PPI, where they may
 have no biological relevance to a cardiomyopathy study. The fix
 is to filter edges by the tissue expression of both endpoints:
 use GTEx or the Human Protein Atlas to retrieve the

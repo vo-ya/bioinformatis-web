@@ -1,6 +1,6 @@
 #import "../theme/book-theme.typ": *
 
-= Drug Discovery and Chemoinformatics: From SMILES to FDA <ch:drug-discovery>
+= Drug Discovery and Chemoinformatics: From #idx("SMILES")SMILES to #idx("FDA")FDA <ch:drug-discovery>
 
 #matters[
   A small-molecule drug is a chemical decision made under three
@@ -44,7 +44,7 @@ A reader who has worked through Chapters 15 and 16 will recognise the
 shape of the problem. The molecule is a graph, the pocket is a 3-D
 surface, the assay is a noisy observation of a free-energy difference,
 and the architecture that handles each well is the one whose
-inductive bias matches the geometric arrangement of the data —
+#idx("inductive bias")inductive bias matches the geometric arrangement of the data —
 permutation equivariance for the graph, SE(3) equivariance for the
 pocket, an over-dispersed likelihood for the assay. Drug discovery is
 where those ML pieces converge into a single multi-stage pipeline,
@@ -62,7 +62,7 @@ converge on a protein worth modulating. Hit discovery, where some
 combination of high-throughput screening, virtual screening, and
 structure-based design produces hundreds to thousands of compounds
 with sub-micromolar activity. Hit-to-lead, where those hits are
-triaged for druggability, selectivity, and early ADMET signal.
+triaged for druggability, selectivity, and early #idx("ADMET")ADMET signal.
 Lead optimisation, where medicinal chemists work analogue series until
 a small number of compounds clear the threshold for animal studies.
 Pre-clinical pharmacokinetics and toxicology in rodents and a non-human
@@ -96,14 +96,14 @@ drug discovery" presentations focus on the top is that the bottom is
 where ML's leverage is genuinely small.
 
 Where genomics fits into the pipeline is everywhere except the
-chemistry. *Target identification* uses GWAS to find disease-associated
-loci, CRISPR screens to find essentialities, DepMap to find cancer
+chemistry. *Target identification* uses #idx("GWAS")GWAS to find disease-associated
+loci, #idx("CRISPR")CRISPR screens to find essentialities, #idx("DepMap")DepMap to find cancer
 dependencies, and Mendelian randomisation to test whether a
 biomarker is on the causal path or downstream of it. *Mechanism* uses
-pathway analysis, structural biology, and increasingly AlphaFold-2
+pathway analysis, structural biology, and increasingly #idx("AlphaFold-2")AlphaFold-2
 to characterise the target's biophysics. *Patient stratification*
 uses clinical genomics to select trial populations where the drug is
-most likely to work. *Biomarker development* uses bulk RNA-seq,
+most likely to work. *Biomarker development* uses bulk #idx("RNA-seq")RNA-seq,
 single-cell, and cancer genomics to find correlates of response. This
 chapter walks the chemistry side — what the computational pipeline
 does once a druggable target is in hand — but it would be misleading
@@ -117,7 +117,7 @@ a drug at all.
   thousand are considered classically druggable — they are enzymes
   (especially kinases), G-protein-coupled receptors, ion channels,
   and nuclear receptors with well-formed binding pockets. The
-  remainder — transcription factors, structural scaffolds,
+  remainder — #idx("transcription")transcription factors, structural scaffolds,
   intrinsically disordered proteins — were until recently called
   "undruggable" for the simple reason that they presented no obvious
   small-molecule binding surface. Three things have eroded that
@@ -134,7 +134,7 @@ a drug at all.
 == Representations of Molecules <sec:representations>
 
 Computers need a representation of a molecule, and there are three
-sensible choices for one. *SMILES* is a string — the storage and
+sensible choices for one. *SMILES* is a #idx("STRING")string — the storage and
 transport format. The *molecular graph* is the working representation
 — what cheminformatics libraries operate on internally and what graph
 neural networks consume directly. The *fingerprint* is a fixed-length
@@ -149,8 +149,8 @@ tasks and not for others.
   caption: [
     Three representations of aspirin. The SMILES string is
     canonicalised, transported, and looked up against databases. The
-    molecular graph is what RDKit, OpenBabel, and any GNN see. The
-    Morgan fingerprint is a 1024-bit hash of local atomic environments
+    molecular graph is what #idx("RDKit")RDKit, OpenBabel, and any GNN see. The
+    #idx("Morgan fingerprint")Morgan fingerprint is a 1024-bit hash of local atomic environments
     suitable as input to a classical learner.
   ],
 ) <fig:reps>
@@ -170,7 +170,7 @@ ethanol is `CCO`, benzene is `c1ccccc1`, aspirin is
 syntactically valid SMILES, so a canonical form — defined by the
 Daylight canonicalisation algorithm — is used whenever equality
 testing matters. *Canonical SMILES* are the database keys for
-PubChem, ChEMBL, and DrugBank; non-canonical forms are what users
+PubChem, #idx("ChEMBL")ChEMBL, and DrugBank; non-canonical forms are what users
 type at a terminal.
 
 InChI and InChIKey are the IUPAC alternatives. *InChI*, the
@@ -235,7 +235,7 @@ Molecular ACCess System, are 166 hand-curated structural patterns —
 "contains a halogen at a benzylic position." They are interpretable,
 compact, and adequate for crude first-pass filtering. *Morgan
 fingerprints*, also called *Extended Connectivity Fingerprints*
-(ECFP), are the modern default. Rogers and Hahn formalised the
+(#idx("ECFP")ECFP), are the modern default. Rogers and Hahn formalised the
 algorithm in 2010, building on Harry Morgan's 1965 atom-numbering
 work for canonicalisation. Each atom gets an initial identifier
 derived from its element, charge, degree, hydrogen count, and
@@ -280,7 +280,7 @@ is a feature-engineering decision tied to the downstream task.
 ]
 
 
-== Similarity Search and the Tanimoto Coefficient <sec:similarity>
+== Similarity Search and the #idx("Tanimoto")Tanimoto Coefficient <sec:similarity>
 
 Once compounds are fingerprints, comparing them is set arithmetic.
 The Tanimoto coefficient — known to statisticians as the Jaccard
@@ -357,7 +357,7 @@ budget is tight or when distance-bounded nearest-neighbour queries
 need to be exact.
 
 
-== Virtual Screening and Docking <sec:docking>
+== Virtual Screening and #idx("docking")Docking <sec:docking>
 
 Given a target protein and a library of candidates, *virtual
 screening* ranks the library by predicted binding and concentrates
@@ -383,7 +383,7 @@ pocket-finding tool such as fpocket or DoGSite. The search space is
 defined as a rectangular box around the pocket, typically 20 to 30
 ångströms on a side.
 
-The most-used open-source docker is *AutoDock Vina* (Trott and Olson,
+The most-used open-source #idx("Docker")docker is *#idx("AutoDock Vina")AutoDock Vina* (Trott and Olson,
 *Journal of Computational Chemistry*, 2010). Vina's energy function
 is a sum of six empirical terms — steric attraction, steric repulsion,
 hydrophobic contact, hydrogen-bonding, conformational entropy from
@@ -419,11 +419,11 @@ improves the ranking. *Free Energy Perturbation* (FEP+, Schrödinger's
 implementation, or open-source variants) is slower still — minutes
 to hours per compound — but gets within 1 kcal/mol of experiment on
 favourable systems. *GNINA* (Ragoza et al., 2017) trains a 3-D
-convolutional neural network on co-crystal structures and uses it as
+#idx("convolutional neural network")convolutional neural network on co-crystal structures and uses it as
 a learned scoring function over Vina's poses; on benchmark sets it
 outperforms Vina's empirical function by a meaningful margin.
 
-The 2020s frontier is *learned end-to-end docking*. *DiffDock* (Corso
+The 2020s frontier is *learned end-to-end docking*. *#idx("DiffDock")DiffDock* (Corso
 et al., 2023) treats pose prediction as a generative-diffusion problem
 on the rigid-body pose plus torsion-angle coordinates — the network
 learns to push noise toward the binding pose, conditioned on the
@@ -456,7 +456,7 @@ output, written $"EF"_x$. AUC is the area under the receiver-operator
 characteristic curve — actives recall on the $y$-axis, false-positive
 rate on the $x$-axis, area integrated over the curve. AUC = 0.5 is
 random; AUC = 1.0 is perfect. $"EF"_x$ is the fold-enrichment of actives
-among the top $x$ % of compounds compared to random selection —
+among the top $x$ % of compounds compared to random #idx("selection")selection —
 $"EF"_(1%) = 35$ means the top 1 % of ranked compounds contains 35
 times more actives than a random 1 %. For typical kinase or protease
 targets with well-characterised pockets, Vina alone reaches AUC =
@@ -473,7 +473,7 @@ absent from the training data, both numbers collapse.
   papers report numbers on DUD-E that look impressive and then fail
   on out-of-distribution targets. Treat any docking benchmark with
   the same suspicion you would treat a random 80/20 split in a
-  genomics paper (see Chapter 16 on data leakage). The cleaner
+  genomics paper (see Chapter 16 on #idx("data leakage")data leakage). The cleaner
   evaluation is *prospective* — design the screen, run it, order
   the top fifty compounds, measure them. Most published EFs are
   retrospective; the prospective numbers are roughly half.
@@ -514,7 +514,7 @@ blockade, mutagenicity, teratogenicity, and the long tail of
 idiosyncratic adverse events.
 
 The historical first attempt at quantifying druglikeness is
-*Lipinski's Rule of Five* (Lipinski et al., 1997). A retrospective
+*#idx("Lipinski")Lipinski's Rule of Five* (Lipinski et al., 1997). A retrospective
 study of compounds that had reached Phase 2 trials versus those that
 had not found that the failures clustered at the extremes of four
 simple physicochemical properties: molecular weight, the
@@ -548,7 +548,7 @@ perfectly drug-like in practice.
   ],
 ) <fig:lipinski>
 
-The single-number successor is *QED*, the *Quantitative Estimate of
+The single-number successor is *#idx("QED")QED*, the *Quantitative Estimate of
 Druglikeness* (Bickerton et al., 2012). QED combines eight properties
 — MW, logP, HBD, HBA, polar surface area, rotatable bonds, aromatic
 ring count, and a count of structural alerts — through a desirability
@@ -602,7 +602,7 @@ foundation models — *ChemBERTa* (Chithrananda et al., 2020),
 *MolBERT* (Fabian et al., 2020), *MoLFormer* (Ross et al., 2022) —
 pretrained on hundreds of millions of unlabelled SMILES with masked
 language modelling, then fine-tuned on the ADMET endpoints jointly.
-The Chapter 16 lesson applies directly: pretraining buys an order of
+The Chapter 16 lesson applies directly: #idx("pretraining")pretraining buys an order of
 magnitude in label efficiency when downstream data is scarce, which
 is the case for almost every internal ADMET dataset.
 
@@ -611,7 +611,7 @@ is the case for almost every internal ADMET dataset.
   genomics models of Chapter 16. Public ADMET datasets are small
   ($10^3$ to $10^4$ compounds per endpoint) and heavily biased
   toward whatever a few large pharma libraries are. Compounds in a
-  novel scaffold class — exactly the class a generative model is
+  novel #idx("scaffold")scaffold class — exactly the class a generative model is
   trying to design into — sit far from the training distribution
   and produce predictions that are confidently wrong. Treat ADMET
   predictions on novel scaffolds as approximate prior probabilities
@@ -621,7 +621,7 @@ is the case for almost every internal ADMET dataset.
 ]
 
 
-== Deep Learning for Drug Discovery <sec:deep-learning>
+== #idx("deep learning")Deep Learning for Drug Discovery <sec:deep-learning>
 
 Graph neural networks were the first deep-learning architecture to
 land in cheminformatics, because molecules are graphs and the
@@ -644,7 +644,7 @@ because edges carry features.
 #figure(
   image("../../diagrams/lecture-26/10-gnn-message-passing.svg", width: 92%),
   caption: [
-    GNN message passing on a small molecule. Atom representations are
+    GNN #idx("message passing")message passing on a small molecule. Atom representations are
     iteratively refined by aggregating learned functions of neighbour
     atoms and bonds; the final readout produces a graph-level
     representation that feeds the property prediction head.
@@ -661,7 +661,7 @@ sometimes uncomfortable conclusion: on tasks with few thousand
 labels and well-defined chemistries, random-forest-on-ECFP is hard
 to beat. On tasks with tens of thousands of labels and diverse
 chemistries, GNNs pull ahead. On tasks with bespoke pretraining and
-careful augmentation, foundation-model fine-tuning pulls further
+careful augmentation, foundation-model #idx("fine-tuning")fine-tuning pulls further
 ahead. The architecture-matters-less-than-the-data lesson from
 Chapter 16 reappears.
 
@@ -669,9 +669,9 @@ The architectural variant worth knowing about is the *3-D equivariant*
 GNN. Where the 2-D message-passing networks of Gilmer and Yang take
 the molecular graph as input, 3-D equivariant networks (*SchNet*,
 *DimeNet*, *NequIP*, *MACE*) take atomic coordinates and learn
-features that are equivariant under rotation and translation of the
+features that are equivariant under rotation and #idx("translation")translation of the
 input. They are the cheminformatics analogue of AlphaFold-2's
-structure module — same SE(3) group, same equivariance machinery,
+#idx("structure module")structure module — same SE(3) group, same equivariance machinery,
 same payoff in data efficiency on the right tasks. For property
 predictions that depend on conformer geometry (binding affinity for a
 specific pocket, partition coefficients in lipid bilayers) the 3-D
@@ -682,14 +682,14 @@ tasks, the simpler 2-D networks win on compute and on data efficiency.
 *Generative models* are the second class of architecture worth
 covering, because they invert the inference problem. Where a property
 predictor takes a molecule and outputs a score, a generative model
-takes a target score and outputs a molecule. *REINVENT* (Olivecrona
+takes a target score and outputs a molecule. *#idx("REINVENT")REINVENT* (Olivecrona
 et al., 2017; Loeffler et al., 2024) trains a recurrent neural network
 to generate SMILES, then fine-tunes it with reinforcement learning
 against a reward — predicted potency, predicted ADMET, scaffold
 novelty. The output of a REINVENT run is roughly $10^5$ to $10^6$
 generated SMILES, of which a few thousand have a non-zero chance of
 synthesisability and a few hundred are worth a medicinal chemist's
-attention. *JT-VAE* (Jin, Barzilay, Jaakkola, 2018) uses a
+#idx("attention")attention. *JT-VAE* (Jin, Barzilay, Jaakkola, 2018) uses a
 junction-tree variational autoencoder — molecules are decomposed
 into fragments, fragments are arranged in a tree, the tree is the
 latent code — to support property-conditioned generation in a
@@ -922,7 +922,7 @@ explicitly: an assay measurement reported as "> 10 µM" is a one-sided
 constraint, not a single number, and treating it as the latter biases
 the predictor toward optimism. Use Huber or quantile losses when the
 assay's outlier distribution warrants it. The Chapter 16 lesson on
-matched likelihoods — Gaussian for continuous, negative binomial for
+matched likelihoods — Gaussian for continuous, #idx("negative binomial")negative binomial for
 counts, ZINB for zero-inflated counts — extends here to Huber for
 censored ADMET data and ordinal regression for ranked toxicity
 endpoints.
@@ -1158,7 +1158,7 @@ whether it would raise or lower the number. Cite the paper.
   paper. The four reasons hold up; the AI-led pipeline is the
   natural fifth chapter that has not yet been written.
 - *Wu, Z., Ramsundar, B., Feinberg, E. N., et al.* (2018).
-  "MoleculeNet: a benchmark for molecular machine learning."
+  "MoleculeNet: a benchmark for molecular #idx("machine learning")machine learning."
   _Chemical Science_ 9: 513 – 530. The benchmark paper. The
   Therapeutics Data Commons (Huang et al., 2021) is the modern
   successor; both are worth reading for the split protocols as much

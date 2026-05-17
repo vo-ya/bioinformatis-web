@@ -5,10 +5,10 @@
 #matters[
   Most of the methods in the preceding fifteen chapters arrived in the
   same way. Somebody noticed that a genomic measurement had a particular
-  geometric or statistical shape — a 2-D pileup, a 1-D regulatory
+  geometric or statistical shape — a 2-D #idx("pileup")pileup, a 1-D regulatory
   sequence, an over-dispersed count vector, a molecular graph, a 3-D
   protein — and somebody else discovered that a particular neural
-  network architecture had an inductive bias that matched that shape
+  network architecture had an #idx("inductive bias")inductive bias that matched that shape
   almost exactly. The match made the architecture much more
   sample-efficient than its general-purpose alternatives. Get the match
   right and a tractable training set is enough; get it wrong and no
@@ -16,20 +16,20 @@
   the individual case studies. The five canonical pairings — pileups to
   CNNs, long-range regulation to dilated convolutions plus transformers,
   count matrices to negative-binomial VAEs, molecules to graph networks,
-  3-D structure to equivariant attention — share a single design move,
-  and three pathologies — label scarcity, data leakage, and oversold
+  3-D structure to equivariant #idx("attention")attention — share a single design move,
+  and three pathologies — label scarcity, #idx("data leakage")data leakage, and oversold
   foundation models — share three responses. The chapter is the
   blueprint, and it is also the warning label.
 ]
 
-A genome is a long string drawn from a four-letter alphabet, but every
+A genome is a long #idx("STRING")string drawn from a four-letter alphabet, but every
 piece of biology you have learned to do with it has involved a different
-geometric arrangement of bytes. Variant calling presented you with a 2-D
-array of stacked reads. Differential expression handed you a vector of
+geometric arrangement of bytes. #idx("variant calling")Variant calling presented you with a 2-D
+array of stacked reads. #idx("differential expression")Differential expression handed you a vector of
 counts per gene. Single-cell analysis stacked those vectors into a
 matrix that was mostly zeros. Long-range regulation gave you a
-hundred-kilobase stretch of one-hot-encoded DNA and a thousand
-quantitative readouts. Protein structure presented an L-by-L pair
+hundred-kilobase stretch of one-hot-encoded #idx("DNA")DNA and a thousand
+quantitative readouts. #idx("protein structure")Protein structure presented an L-by-L pair
 representation that wanted to be a 3-D arrangement. Each of those
 shapes admitted a different machine-learning architecture, and the
 match between shape and architecture is the most useful thing you can
@@ -39,7 +39,7 @@ The chapter is organised around that observation. The first three
 sections walk the canonical architecture–data pairings and extract
 their common move. The fourth deals with the label-scarcity problem
 that every genomics task eventually hits, and with the
-self-supervised pretraining that the field has converged on as the
+self-supervised #idx("pretraining")pretraining that the field has converged on as the
 answer. The fifth section is the one most working bioinformaticians
 discover the hard way: genomic data is correlated in ways that break
 naive cross-validation, and the resulting *data leakage* is the most
@@ -70,15 +70,15 @@ candidate, channels are base identity plus base quality plus strand
 plus mapping quality plus a handful of auxiliary signals. A typical
 window is on the order of a hundred rows by two hundred columns by six
 channels. The classification target is one of four genotypes. The
-right architecture is a 2-D convolutional neural network — exactly
+right architecture is a 2-D #idx("convolutional neural network")convolutional neural network — exactly
 the architecture Yann LeCun's group introduced for handwritten-digit
 recognition (LeNet, 1998) and that AlexNet (Krizhevsky, Sutskever, and
-Hinton, 2012) scaled to natural images. DeepVariant (Poplin et al.,
+Hinton, 2012) scaled to natural images. #idx("DeepVariant")DeepVariant (Poplin et al.,
 *Nature Biotechnology* 2018) was the moment this transfer became
-explicit: a plain ImageNet-style CNN fed pileup images outperformed a
+explicit: a plain ImageNet-style #idx("CNN")CNN fed pileup images outperformed a
 decade of hand-engineered statistical machinery in
-GATK's HaplotypeCaller. The CNN's two priors — locality (a small
-filter sees a small neighbourhood) and translation equivariance
+#idx("GATK")GATK's #idx("HaplotypeCaller")HaplotypeCaller. The CNN's two priors — locality (a small
+filter sees a small neighbourhood) and #idx("translation")translation equivariance
 (the same filter applies at every column) — line up with what variant
 evidence looks like. Mismatches and deletions are local features.
 Whether they sit at column eighty or column one-twenty is irrelevant.
@@ -95,15 +95,15 @@ Pool the local evidence across reads and you get a variant call.
   ],
 ) <fig:deepvariant>
 
-DeepVariant was not invented in a vacuum. Earlier work — DeepBind
+DeepVariant was not invented in a vacuum. Earlier work — #idx("DeepBind")DeepBind
 (Alipanahi et al., 2015) for transcription-factor binding from DNA
-sequence, Basset (Kelley, Snoek, and Rinn, 2016) for chromatin
+sequence, #idx("Basset")Basset (Kelley, Snoek, and Rinn, 2016) for #idx("chromatin")chromatin
 accessibility — had already shown that a 1-D CNN over one-hot-encoded
 DNA could rediscover known TF motifs as filters in its first
 convolutional layer and predict binding intensities better than
 position-weight-matrix methods. The 2018 PrecisionFDA truth
-challenges, where DeepVariant won the SNP and indel categories on
-both Illumina and PacBio data, cemented the pattern: an ImageNet
+challenges, where DeepVariant won the #idx("SNP")SNP and #idx("indel")indel categories on
+both #idx("Illumina")Illumina and #idx("PacBio")PacBio data, cemented the pattern: an ImageNet
 backbone, retrained on a genomics task with a few thousand
 high-confidence labels, beats hand-tuned heuristics. The remainder of
 the genomics-CNN literature is variations on the same theme.
@@ -111,19 +111,19 @@ the genomics-CNN literature is variations on the same theme.
 The second pairing is *long-range regulatory sequence and dilated
 convolutions plus self-attention*. The Chapter 9 problem was to
 predict a vector of regulatory readouts — chromatin accessibility in
-several hundred cell types, CAGE expression, ChIP-seq tracks — from
+several hundred cell types, CAGE expression, #idx("ChIP-seq")ChIP-seq tracks — from
 a hundred kilobases of surrounding DNA. The input is a 100,000-by-4
 one-hot tensor. Pure self-attention is quadratic in length and would
 require $10^{10}$ pairwise computations at this scale, which is
 prohibitive. Pure convolutions cannot reach a hundred-kilobase
-receptive field without an absurd number of layers. The Enformer
+receptive field without an absurd number of layers. The #idx("Enformer")Enformer
 architecture (Avsec et al., *Nature Methods* 2021), which descends
-from Basenji (Kelley, 2018) and Basenji2 (Kelley, 2020), resolves the
+from #idx("Basenji")Basenji (Kelley, 2018) and Basenji2 (Kelley, 2020), resolves the
 tension in two stages. A stack of dilated convolutions with dilations
 $1, 2, 4, dots, 512$ down-samples the sequence and grows the
 receptive field exponentially to about two kilobases — enough to
 capture motifs and small clusters of them. The down-sampled
-representation then feeds a transformer whose self-attention routes
+representation then feeds a #idx("transformer")transformer whose self-attention routes
 information across the remaining hundred-kilobase span. Multi-scale
 hierarchy meets sparse long-range routing, and the receptive field
 ends up at about 196 kb without paying full quadratic cost.
@@ -139,18 +139,18 @@ ends up at about 196 kb without paying full quadratic cost.
 ) <fig:ch16-enformer>
 
 The third pairing is *count matrices and variational autoencoders with
-the right likelihood*. Single-cell RNA-seq (Chapter 7) gives you
+the right likelihood*. #idx("single-cell RNA-seq")Single-cell #idx("RNA-seq")RNA-seq (Chapter 7) gives you
 roughly twenty thousand gene counts per cell, with mean expression
 well below variance and a heavy zero-fraction from technical dropout.
 A vanilla autoencoder minimises mean-squared error, which is the
 log-likelihood of a Gaussian noise model. Counts are not Gaussian.
-They are negative binomial, often zero-inflated. *scVI* (Lopez,
+They are #idx("negative binomial")negative binomial, often zero-inflated. *#idx("scVI")scVI* (Lopez,
 Regier, Cole, Jordan, and Yosef, *Nature Methods* 2018) replaces the
 MSE reconstruction with a negative-binomial log-likelihood and
 conditions the decoder on a batch covariate. The encoder maps a
 cell's count vector to a ten-to-thirty-dimensional latent; the
 decoder reconstructs the counts under an NB likelihood with
-batch-aware dispersion. The architecture is straightforward; the
+batch-aware #idx("dispersion")dispersion. The architecture is straightforward; the
 likelihood is the entire game. *totalVI* (Gayoso et al., 2021) adds
 surface-protein measurements; *MultiVI* (Ashuach et al., 2023) adds
 ATAC. None of them are deep — they are shallow MLPs by current
@@ -158,7 +158,7 @@ standards. The depth was never the point.
 
 The fourth pairing is *molecular graphs and graph neural networks*.
 Cheminformatics tasks — predicting solubility, binding affinity,
-toxicity, ADMET properties from molecular structure — present a
+toxicity, #idx("ADMET")ADMET properties from molecular structure — present a
 chemical compound as a graph. Nodes are atoms with features (element,
 hybridisation, formal charge); edges are bonds with features (single
 or double, aromatic, in-ring). The right network is a message-passing
@@ -178,16 +178,16 @@ AlphaFold-3's diffusion module for ligand atoms and in many models
 that predict protein–ligand interaction.
 
 The fifth pairing is *protein structure and equivariant attention*.
-Chapter 15 walked the Evoformer and the Invariant Point Attention
-module of AlphaFold-2 (Jumper et al., *Nature* 2021). The
+Chapter 15 walked the #idx("Evoformer")Evoformer and the #idx("invariant point attention")Invariant Point Attention
+module of #idx("AlphaFold-2")AlphaFold-2 (Jumper et al., *Nature* 2021). The
 key priors there are axial attention on the L-by-L pair
 representation (which makes full 2-D attention's $O(L^4)$ cost
 collapse to $O(L^3)$), triangle multiplicative updates and triangle
 attention (which enforce a geometric consistency: if residues $i$ and
 $j$ are close in 3-D and $j$ and $k$ are close, then $i$ and $k$
 inherit a triangle-inequality constraint), and SE(3)-equivariance in
-the structure module (so that rotating the input rotates the output by
-the same group element, with no data augmentation needed). AlphaFold
+the #idx("structure module")structure module (so that rotating the input rotates the output by
+the same group element, with no data augmentation needed). #idx("AlphaFold")AlphaFold
 is the canonical demonstration that the right inductive bias plus a
 lot of data produces a step change in accuracy. The CASP14 jump from
 roughly 40 to roughly 90 GDT_TS is one of the most consequential
@@ -329,7 +329,7 @@ No data augmentation, no rotation jitter — the symmetry is built in.
 ) <fig:inductive>
 
 A useful framing for an EE-trained reader is the matched-filter
-analogy. A matched filter in signal processing is optimal when both
+analogy. A #idx("matched filter")matched filter in signal processing is optimal when both
 the signal template and the noise covariance are known exactly. Get
 either wrong — wrong template, wrong noise model — and performance
 collapses. An ML architecture's inductive bias is the generalised
@@ -349,7 +349,7 @@ noise model right — carries over directly.
   that on a hundred-million-image pretraining corpus, a plain
   transformer learns the equivalent of local translation
   equivariance from data and beats the strongest CNNs. AlphaFold-2's
-  Evoformer learns enough about MSA statistics from
+  Evoformer learns enough about #idx("MSA")MSA statistics from
   150 million-sequence pretraining that it does not need the explicit
   contact priors that EVfold relied on. The general rule is: the
   more data, the weaker the prior you can afford to commit to. Most
@@ -362,7 +362,7 @@ noise model right — carries over directly.
 
 == Information Theory in Genomics <sec:info-theory>
 
-The inductive-bias question reduces, in the end, to one Shannon would
+The inductive-bias question reduces, in the end, to one #idx("Shannon")Shannon would
 recognise: what is the minimum description length of the signal you
 are trying to recover? The right architecture is the one whose
 hypothesis class is small enough to generalise from limited data, but
@@ -376,15 +376,15 @@ uniform-random DNA sequence, $H = 2$ bits per base. Real genomes sit
 below that ceiling because the empirical base frequencies are
 non-uniform, regional GC content varies (gene-rich isochores are
 typically 50 — 60 %, gene-poor regions 35 — 45 %), and longer-range
-correlations — codon usage, CpG islands, repeat-element families —
-shave off further bits. Generic compression of a human chromosome
+correlations — #idx("codon")codon usage, #idx("CpG")CpG islands, repeat-element families —
+shave off further bits. Generic compression of a human #idx("chromosome")chromosome
 with `gzip` reaches roughly 1.4 bits per base; reference-aware
 genomic compressors (Genozip, Spring) reach about 0.4 bits per base
 by exploiting redundancy with the reference and across reads. The
 gap between 2 bits and 0.4 bits is where biology lives.
 
 Per-position information content drives the position-specific
-scoring matrices that have been the backbone of motif discovery for
+scoring matrices that have been the backbone of #idx("motif")motif discovery for
 thirty years and the sequence logos that visualise transcription-factor
 preferences. For column $i$ of an aligned set of binding sites, the
 information content is
@@ -400,21 +400,21 @@ information units.
 *Mutual information* between two positions, $I(X; Y) = sum p(x, y)
 log frac(p(x, y), p(x) p(y))$, measures statistical dependence
 without assuming a functional form. Three genomics applications use it
-directly. Coevolution detection (Chapter 15) uses pairwise MI across
+directly. #idx("coevolution")Coevolution detection (Chapter 15) uses pairwise MI across
 MSA columns as a proxy for spatial contact in 3-D. Regulatory-network
-inference (ARACNe, CLR, GENIE3) uses MI between TF expression and
+inference (ARACNe, #idx("CLR")CLR, GENIE3) uses MI between TF expression and
 target expression to score putative regulatory edges. Feature
-selection in GWAS uses MI between a SNP and a phenotype as a
+#idx("selection")selection in #idx("GWAS")GWAS uses MI between a SNP and a phenotype as a
 model-free alternative to the linear-regression $p$-value, robust to
-non-linear association forms. The DCA story in Chapter 15
+non-linear association forms. The #idx("DCA")DCA story in Chapter 15
 is the most refined version of the MI move — adding an
 inverse-covariance step to separate direct from indirect coupling —
 but the underlying intuition is unchanged.
 
-The genetic code itself is, on closer inspection, an
+The #idx("genetic code")genetic code itself is, on closer inspection, an
 *error-correcting code*. The 64-codon to 20-amino-acid mapping is a
 $(64, 20)$ code with structured redundancy. Mutations at codon
-position 3 are usually synonymous because of the wobble degeneracy.
+position 3 are usually synonymous because of the #idx("wobble")wobble degeneracy.
 Mutations at position 1 typically change one amino acid for a
 chemically similar one (hydrophobic for hydrophobic, charged for
 charged). Mutations at position 2 are the most disruptive and tend to
@@ -439,12 +439,12 @@ have it so good.
 
 Several genomics measurements are *compressed-sensing* problems in
 disguise. Single-cell RNA-seq observes a tiny fraction of a cell's
-mRNA molecules; the recovery of a usable expression matrix from those
-sparse observations is a low-rank matrix completion problem. DIA
+#idx("mRNA")mRNA molecules; the recovery of a usable expression matrix from those
+sparse observations is a low-rank matrix completion problem. #idx("DIA")DIA
 proteomics co-fragments overlapping peptides and recovers individual
-identities by sparse decomposition. Pooled CRISPR screens read a
+identities by sparse decomposition. Pooled #idx("CRISPR")CRISPR screens read a
 population-level phenotype that is a linear measurement of the
-underlying perturbation matrix. Hi-C contact recovery downsamples a
+underlying perturbation matrix. #idx("Hi-C")Hi-C contact recovery downsamples a
 three-dimensional contact tensor and reconstructs it under sparsity
 constraints. The pattern is the same in every case: an
 underdetermined linear system $bold(y) = A bold(x)$ where $bold(x)$
@@ -481,7 +481,7 @@ the shape of the data pyramid is inverted.
   caption: [
     The genomics labelled-data pyramid is inverted. Unlabelled
     sequence is abundant; gold-standard functional labels — DMS,
-    MPRA, ClinVar pathogenicity, curated drug responses — are
+    MPRA, #idx("ClinVar")ClinVar pathogenicity, curated drug responses — are
     thousands of orders smaller. Foundation-model strategies exist
     largely to bridge that gap.
   ],
@@ -501,7 +501,7 @@ with cluster-level labels that change every time the data is
 reclustered. *Protein structures* number about 180,000 experimentally
 determined entries in the PDB and about 214 million predicted entries
 in the AlphaFold DB — and the predicted ones are usable as labels if
-filtered by pLDDT. *Gene annotations* (RefSeq, Ensembl, GENCODE) are
+filtered by #idx("pLDDT")pLDDT. *Gene annotations* (RefSeq, Ensembl, GENCODE) are
 in the tens of thousands per genome, mostly curated. *Variant
 pathogenicity* in ClinVar contributes a few hundred thousand
 expert-curated calls, growing slowly. *Functional experimental data*
@@ -511,7 +511,7 @@ thousand genes — gold-standard signal, but small. *Clinical
 outcomes* are mostly access-controlled (dbGaP, EGA), comparably tiny,
 and rarely cross-study compatible.
 
-The shape matters because supervised deep learning wants millions of
+The shape matters because supervised #idx("deep learning")deep learning wants millions of
 labelled examples and most genomics tasks meet the quality bar with
 hundreds to thousands. The consequences are structural rather than
 tactical. *Foundation-model strategies dominate*: pretrain on the
@@ -532,10 +532,10 @@ on a small labelled task and the network does not start from scratch.
 Two pretraining objectives dominate. *Masked language modelling*
 hides about 15 % of tokens and asks the network to fill them in
 from context — the BERT recipe (Devlin et al., 2018) for natural
-language, adapted to DNA k-mers in DNABERT (Ji et al., 2021) and to
+language, adapted to DNA k-mers in #idx("DNABERT")DNABERT (Ji et al., 2021) and to
 amino acids in ESM-1 (Rives et al., 2021) and its successors.
 *Causal next-token prediction* asks the network to predict the next
-token given the prefix — the GPT recipe, adapted to DNA in HyenaDNA
+token given the prefix — the GPT recipe, adapted to DNA in #idx("HyenaDNA")HyenaDNA
 (Nguyen et al., 2023) and Evo (Nguyen et al., 2024), and to proteins
 in ProGen (Madani et al., 2023). A few other objectives appear at
 the edges: contrastive learning (SimCLR, MoCo) on paired biological
@@ -548,7 +548,7 @@ and the target is the sequence.
   caption: [
     Self-supervised pretraining. The ratio is what matters:
     hundreds of millions of unlabelled examples in pretraining, tens
-    of thousands of labelled examples in fine-tuning. Pretraining
+    of thousands of labelled examples in #idx("fine-tuning")fine-tuning. Pretraining
     bridges the gap that pure supervision cannot cross.
   ],
 ) <fig:ssl>
@@ -612,10 +612,10 @@ homology* puts protein sequences from related species at 60 — 95 %
 identity; a random split puts close homologues on both sides of the
 train/test boundary, and the test answers become trivially predictable
 by nearest-neighbour lookup. *Genomic locality* puts nearby SNPs in
-linkage disequilibrium; per-SNP random splits put correlated SNPs on
+#idx("linkage disequilibrium")linkage disequilibrium; per-SNP random splits put correlated SNPs on
 both sides. *Family relatedness* in biobank cohorts is enough that a
 500 k-individual cohort like UK Biobank contains thousands of
-unflagged cousin pairs; their shared haplotype segments allow a
+unflagged cousin pairs; their shared #idx("haplotype")haplotype segments allow a
 model trained on one to score the other without learning the biology.
 *Cross-study batch effects* in single-cell datasets — different
 chemistry versions, different operator practices, different
@@ -648,7 +648,7 @@ that a classifier can latch onto in place of biological signal.
 
 The remedies are domain-specific. For *protein-function or
 protein-structure tasks*, the community standard is sequence-identity
-clustering with CD-HIT or MMseqs2 at a 30 — 50 % identity threshold,
+clustering with CD-HIT or #idx("MMseqs2")MMseqs2 at a 30 — 50 % identity threshold,
 splitting at the cluster level so that no test cluster shares more
 than the threshold identity with any training cluster. The CAFA
 challenge (*Critical Assessment of Functional Annotation*, Radivojac
@@ -671,7 +671,7 @@ labelled datasets are human-only but is the gold standard when
 matched-species data exists.
 
 For *biobank GWAS-style tasks*, the standard is *kinship-aware
-splitting*. Compute the genome-wide kinship matrix between every pair
+splitting*. Compute the genome-wide #idx("kinship")kinship matrix between every pair
 of individuals; reject any train/test split that contains pairs with
 kinship above about 0.05 (third-cousin level or closer). GWAS
 pipelines have implemented this for two decades. ML pipelines that
@@ -744,7 +744,7 @@ GPT did for natural language.
 The lineage runs from 2021 forward. *DNABERT* (Ji et al.,
 *Bioinformatics* 2021) was the first scaled DNA-LM: BERT-style, $k$-mer
 tokenisation, a 512-token context, and roughly a hundred million
-parameters. *Nucleotide Transformer* (Dalla-Torre et al., 2024, from
+parameters. *#idx("Nucleotide Transformer")#idx("nucleotide")Nucleotide Transformer* (Dalla-Torre et al., 2024, from
 InstaDeep and Cambridge) scaled to between 500 million and
 2.5 billion parameters, used multi-species pretraining across 850
 genomes, and extended the context to about twelve kilobases.
@@ -835,11 +835,11 @@ pretraining corpora often overlap published benchmarks.
 == Foundation Models for Cells <sec:cell-fms>
 
 A second wave of foundation models targets *cells* rather than
-sequence. *Geneformer* (Theodoris et al., *Nature* 2023) was the
+sequence. *#idx("Geneformer")Geneformer* (Theodoris et al., *Nature* 2023) was the
 opening move: a BERT-style transformer pretrained on roughly thirty
 million single-cell transcriptomes from the Human Cell Atlas, with a
 rank-value tokenisation that orders genes by per-cell expression and
-uses the rank as the token. *scGPT* (Cui et al., *Nature Methods*
+uses the rank as the token. *#idx("scGPT")scGPT* (Cui et al., *Nature Methods*
 2024) followed with binned expression values plus gene-identity tokens
 as parallel channels, pretrained on tens of millions of cells.
 *scFoundation* (Hao et al., *Nature Methods* 2024) used per-gene
@@ -854,7 +854,7 @@ cross-species translation.
 #figure(
   image("../../diagrams/lecture-16/09-cell-foundation-model.svg", width: 92%),
   caption: [
-    A cell foundation model in the abstract: a cell's gene-expression
+    A cell #idx("foundation model")foundation model in the abstract: a cell's gene-expression
     vector is tokenised (rank-value, binned, or real-valued); a stack
     of transformer layers produces a cell-level embedding; downstream
     tasks consume the embedding. The architecture is conventional;
@@ -893,7 +893,7 @@ cell types that are present in pretraining under different ontology
 labels — re-cluster the data, rename the clusters, and the
 "zero-shot" task becomes nearest-neighbour lookup in the pretrained
 embedding. Specialised methods still win on specialised tasks: scVI
-for integration, Harmony for batch correction, CellTypist for
+for integration, #idx("Harmony")Harmony for batch correction, CellTypist for
 cell-type classification under standard ontologies. The pretraining
 cost is high — thousands of GPU-hours per model — and the downstream
 utility has not yet justified it across most tasks. The biological
@@ -917,14 +917,14 @@ sentence.
 Where the models might still matter is in places where the
 specialised tools also struggle. Cross-species alignment at scale is a
 genuine UCE strength because no specialised method exists at the
-same coverage. Patient-level predictions from single-cell data —
+same #idx("coverage")coverage. Patient-level predictions from single-cell data —
 combining multi-patient data into a shared embedding for disease-state
 classification — could parallel what radiomics has done for imaging.
 *In-silico* perturbation screens at virtual scale, where a pretrained
 representation plus a modest amount of experimental perturbation data
 predicts CRISPR-screen outcomes across cell types, is a plausible
 near-term application. Multi-modal integration — foundation models
-that jointly cover RNA, ATAC, surface protein, and ideally lineage —
+that jointly cover #idx("RNA")RNA, ATAC, surface protein, and ideally lineage —
 is the likely future. Current single-modality cell foundation models
 are a stepping stone.
 
@@ -992,7 +992,7 @@ all rarely seen in genomics papers.
 *Test-set reuse.* Iterating on a fixed test set inflates the reported
 accuracy through implicit hyper-parameter overfitting. The classic
 remedy — keep a held-out set that is touched once — is hard to
-enforce in a community benchmark, but the CAFA and CASP cultures, with
+enforce in a community benchmark, but the CAFA and #idx("CASP")CASP cultures, with
 strict time-locked test sets, are the standard worth aspiring to.
 
 #warn[
@@ -1029,18 +1029,18 @@ modality.
 
 Three near-term directions look promising. *Protein-DNA co-design*
 combines a protein-LM with a DNA-LM to design both a protein and its
-target nucleic acid jointly — a transcription factor with its binding
+target nucleic acid jointly — a #idx("transcription factor")#idx("transcription")transcription factor with its binding
 site, an RNA-binding protein with its preferred RNA motif, a CRISPR
 variant with its guide-RNA preference. RFdiffusion-All-Atom (Krishna
 et al., 2024) and AlphaFold-3 (Abramson et al., *Nature* 2024)
 already do partial versions of this. *Generative biology* moves past
-prediction into design — designed proteins (RFdiffusion + ProteinMPNN
+prediction into design — designed proteins (#idx("RFdiffusion")RFdiffusion + #idx("ProteinMPNN")ProteinMPNN
 + AlphaFold as critic, the pipeline Chapter 15 walked), designed DNA
 and RNA (Evo and its successors), and, more speculatively, designed
 cells. The dual-use questions raised in Chapter 15 become
 sharper with each generation; the field has not yet settled on
 clear norms. *Convergence with mainstream AI* is the longer-term
-trajectory: genomics ML used to lag the mainstream by two or three
+#idx("trajectory")trajectory: genomics ML used to lag the mainstream by two or three
 years, and that gap has closed. The same scaling laws, the same
 optimisation tricks, the same architectural progress now arrives in
 genomics within weeks of being published elsewhere.
@@ -1049,7 +1049,7 @@ genomics within weeks of being published elsewhere.
   DeepVariant (2018) is a useful waypoint for the moment genomics ML
   became indistinguishable from mainstream ML. Before 2018, most
   bioinformatics tools were hand-engineered statistical methods —
-  GATK's HaplotypeCaller is essentially an HMM with hand-crafted
+  GATK's HaplotypeCaller is essentially an #idx("HMM")HMM with hand-crafted
   features. DeepVariant showed that an ImageNet-style CNN trained on
   pileup images could match a decade of careful engineering and
   retrain for a new sequencing technology in a few GPU-days. The
@@ -1119,9 +1119,9 @@ genomics problems, identify the architecture with the closest match
 between inductive bias and data: (a) predict the effect of a missense
 variant on protein stability; (b) call structural variants from
 long-read alignments; (c) impute missing genotypes from a sparsely
-genotyped chip; (d) cluster cells in a CITE-seq dataset that has
+genotyped chip; (d) cluster cells in a #idx("CITE-seq")CITE-seq dataset that has
 both RNA counts and surface protein counts; (e) predict the binding
-affinity of a small molecule to a protein, given the molecule's SMILES
+affinity of a small molecule to a protein, given the molecule's #idx("SMILES")SMILES
 and the protein's sequence. For each, write one sentence on why the
 chosen architecture's prior fits the data.
 
@@ -1136,7 +1136,7 @@ paragraph on why the NB likelihood produces the best results despite
 identical architecture.
 
 #strong[3.] #emph[Leakage diagnostic.] Take a publicly available
-protein-function-prediction dataset (e.g., Pfam classification on a
+protein-function-prediction dataset (e.g., #idx("Pfam")Pfam classification on a
 held-out fraction of UniProt). Run two splits: a random 80/20 split,
 and a CD-HIT 50 % identity cluster split. Train the same shallow
 classifier on both. Report the accuracy gap. Predict, before running,

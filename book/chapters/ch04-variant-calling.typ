@@ -1,6 +1,6 @@
 #import "../theme/book-theme.typ": *
 
-= Variant Calling: From Aligned Reads to Called Differences <ch:variant-calling>
+= #idx("variant calling")Variant Calling: From Aligned Reads to Called Differences <ch:variant-calling>
 
 #matters[
   Almost every clinical decision a modern genomics workflow informs —
@@ -8,7 +8,7 @@
   to put a patient on enhanced cancer surveillance, whether to call a
   rare-disease case solved — rests on a single line of text in a single
   file. That line is a variant call. The pipeline that produces it
-  starts with a tube of DNA on an instrument and ends with a string that
+  starts with a tube of #idx("DNA")DNA on an instrument and ends with a #idx("STRING")string that
   reads `chr7	140753336	.	A	T	612	PASS …`. The four billion
   base-pairs in between have been compressed to a sparse list of
   disagreements with a reference, each annotated with a statistical
@@ -19,7 +19,7 @@
 
 Two people's genomes differ at roughly one base in a thousand. Multiplied
 across the 3.1 gigabases of a human nuclear genome, that comes to three
-to four million differences per individual relative to the GRCh38
+to four million differences per individual relative to the #idx("GRCh38")GRCh38
 reference — a few hundred thousand of them inside protein-coding genes,
 a few thousand inside the canonical disease-associated set, perhaps a
 single digit number with directly clinical consequence. The job of
@@ -31,19 +31,19 @@ biological claims.
 The four moves of variant calling are: stack the reads, call by
 likelihood, filter honestly, annotate to action. This chapter expands
 each of them. Sections 4.1 and 4.2 lay out what a variant is and how
-the pileup organises the evidence. Sections 4.3 and 4.4 cover the
-statistical machinery — Bayesian genotyping, the math of allele balance,
+the #idx("pileup")pileup organises the evidence. Sections 4.3 and 4.4 cover the
+statistical machinery — #idx("Bayesian genotyping")Bayesian genotyping, the math of allele balance,
 and how PHRED-encoded scores fall out of the posterior. Section 4.5
-turns to the pre-calling pipeline (mark duplicates, INDEL realignment,
+turns to the pre-calling pipeline (mark duplicates, #idx("indel")INDEL realignment,
 base-quality recalibration) and the three generations of callers, from
-`samtools mpileup` (2008) through GATK HaplotypeCaller (2010) to
-DeepVariant (2017). Section 4.6 takes the special case of somatic
+`samtools mpileup` (2008) through #idx("GATK")GATK #idx("HaplotypeCaller")HaplotypeCaller (2010) to
+#idx("DeepVariant")DeepVariant (2017). Section 4.6 takes the special case of somatic
 variant calling in tumours, and Section 4.7 covers structural variants,
 which need a fundamentally different family of algorithms. Section 4.8
-returns to the output: VCF, filtering, and annotation against the
+returns to the output: #idx("VCF")VCF, filtering, and annotation against the
 reference databases that turn calls into decisions.
 
-The chapter assumes you have a coordinate-sorted, duplicate-marked BAM
+The chapter assumes you have a coordinate-sorted, duplicate-marked #idx("BAM")BAM
 in hand — that is, you understand the alignment step from Chapter 2.
 Everything downstream of the VCF — population genetics, expression
 analysis, structural biology — assumes you understand what is and is
@@ -80,7 +80,7 @@ Variants arise in three regimes:
   high-penetrance rare-disease load.
 
 A useful sanity check: at a normal human position the expected VAF
-(variant allele frequency) under germline diploidy is 0, 0.5, or 1.0.
+(variant #idx("allele frequency")allele frequency) under germline diploidy is 0, 0.5, or 1.0.
 If you see 0.15 in a constitutional sample, the most likely
 explanations are sample contamination, mosaicism, or a mapping
 artifact. If you see 0.15 in a tumour sample at 30 % purity, it might
@@ -103,9 +103,9 @@ different bins.
   deletions, insertions, duplications, inversions, translocations.
   Rarer per individual than SNVs by another order of magnitude, but
   implicated in a large fraction of rare disease and cancer.
-- *Copy-number variants (CNVs).* The sub-class of SV where the dosage of
+- *Copy-number variants (CNVs).* The sub-class of #idx("SV")SV where the dosage of
   a large region changes (usually duplication or deletion). Often
-  measured as a coverage shift rather than as discrete breakpoints.
+  measured as a #idx("coverage")coverage shift rather than as discrete breakpoints.
 
 #figure(
   image("../../diagrams/lecture-04/01-variant-taxonomy.svg", width: 95%),
@@ -125,24 +125,24 @@ have it. Completely different statistical problem on the same pileup.
 === SNVs and Their Consequences
 
 SNVs are the dominant class — about 3 million per human genome — but
-the vast majority are benign. The clinical consequence of a particular
+the vast majority are #idx("benign")benign. The clinical consequence of a particular
 SNV depends almost entirely on where in the genome it falls.
 
 If the SNV lies in a *non-coding region* (about 98 % of the genome) it
-may do nothing, or it may alter a regulatory element — a promoter, an
-enhancer, a splice site — with effects that range from undetectable to
+may do nothing, or it may alter a #idx("regulatory element")regulatory element — a #idx("promoter")promoter, an
+#idx("enhancer")enhancer, a splice site — with effects that range from undetectable to
 severe. Most non-coding SNVs are treated as neutral by default; a
 small minority, especially those at canonical splice positions, are
 known to matter.
 
 If the SNV lies in a *coding region* the consequence depends on how it
-changes the codon. The four categories — synonymous, missense,
+changes the #idx("codon")codon. The four categories — synonymous, missense,
 nonsense, splice-region — partition the space of coding SNVs.
 
 - *Synonymous (silent).* The new codon still codes for the same amino
   acid. No protein change. The default assumption is neutrality;
   modern work has caught exceptions involving codon-usage effects on
-  translation speed, RNA folding, and exonic splicing enhancers, but
+  #idx("translation")translation speed, #idx("RNA")RNA folding, and exonic splicing enhancers, but
   the assumption mostly holds.
 - *Missense.* The new codon codes for a different amino acid. Impact
   ranges from undetectable to complete loss of function depending on
@@ -151,7 +151,7 @@ nonsense, splice-region — partition the space of coding SNVs.
   — usually a loss-of-function allele, because truncated proteins are
   degraded or non-functional.
 - *Splice-region.* The SNV disrupts a splice donor or acceptor site at
-  an exon boundary. Consequences include exon skipping, intron
+  an #idx("exon")exon boundary. Consequences include exon skipping, #idx("intron")intron
   retention, or a frameshift that ripples through the rest of the
   protein.
 
@@ -216,7 +216,7 @@ allele.
 
 === Why It Matters
 
-The stakes for variant calling are not abstract. A pathogenic variant
+The stakes for variant calling are not abstract. A #idx("pathogenic")pathogenic variant
 in `BRCA1` shifts a 25-year-old woman's recommended cancer-surveillance
 schedule from "screening at 50" to "annual MRI starting at 25." A
 `SERPINA1` Z/Z genotype changes pulmonary care for life. A `BRAF` V600E
@@ -230,7 +230,7 @@ pipeline like the one in this chapter.
   genome-wide variant calling happened between 2008 and 2015 and was
   infrastructure-driven. GATK (Broad Institute, first release 2010) and
   `bcftools` (Heng Li, 2011) made calling 3 million variants feasible
-  and reproducible. ClinVar (NCBI, 2012) made the clinical-interpretation
+  and reproducible. #idx("ClinVar")ClinVar (NCBI, 2012) made the clinical-interpretation
   layer shareable. By 2020, a clinical-grade germline VCF for a whole
   exome cost about \$200 to produce, with turnaround under 24 hours —
   cheaper than the office visit that returned the result.
@@ -767,7 +767,7 @@ true genotype is one of three (`0/0, 0/1, 1/1`), and the VAF of any
 variant should be very close to 0, 0.5, or 1.0. Evidence of a variant
 at VAF 0.15 means something is _wrong_ — probably contamination,
 mosaicism, or mapping artifact. Germline callers include `GATK
-HaplotypeCaller`, DeepVariant, `bcftools call`, and `Strelka2` (germline
+HaplotypeCaller`, DeepVariant, `bcftools call`, and `#idx("Strelka2")Strelka2` (germline
 mode).
 
 A *somatic caller* expects a mixture. The sample is a tumour with
@@ -782,7 +782,7 @@ The standard approach is *matched tumour/normal calling.* Sequence
 both the tumour and a matched normal tissue (usually peripheral blood)
 from the same patient. At every candidate site, compare the tumour
 pileup to the normal pileup: a true somatic variant is present in the
-tumour and _absent from the normal_. Callers: `Mutect2` (GATK),
+tumour and _absent from the normal_. Callers: `#idx("MuTect2")Mutect2` (GATK),
 `Strelka2` somatic mode, `VarScan2`, DeepSomatic.
 
 #figure(
@@ -1088,7 +1088,7 @@ transcript the variant intersects:
 ```
 CSQ=T|missense_variant|MODERATE|BRAF|ENSG00000157764|Transcript|
 ENST00000288602|protein_coding|15/18|...|p.Val600Glu|...|
-REVEL=0.932|SpliceAI=0.01
+#idx("REVEL")REVEL=0.932|SpliceAI=0.01
 ```
 
 That string says: the alternate allele T causes a missense variant of

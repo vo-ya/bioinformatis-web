@@ -10,8 +10,8 @@
   aggregate; the reruns must be bit-identical years later; the change
   log is the audit trail; and every report carries the signature of a
   physician whose license is at stake. The technical content of this
-  chapter — the ACMG/AMP rule table, the evidence ecosystem,
-  pharmacogenomics, the regulatory landscape, ancestry bias, indigenous
+  chapter — the #idx("ACMG")ACMG/AMP rule table, the evidence ecosystem,
+  #idx("pharmacogenomics")pharmacogenomics, the regulatory landscape, ancestry bias, indigenous
   data sovereignty — is the technical content of an industry that
   treats your code as a medical device. If you intend to ship genomics
   software into care, the chapter is the price of admission.
@@ -20,7 +20,7 @@
 A clinical genomics laboratory is a research bioinformatics pipeline
 with the regulatory shell of a medical device. The sequencing chemistry
 is the same; the aligners and variant callers are usually the same; the
-reference databases — ClinVar, gnomAD, REVEL, AlphaMissense, SpliceAI —
+reference databases — #idx("ClinVar")ClinVar, #idx("gnomAD")gnomAD, #idx("REVEL")REVEL, #idx("AlphaMissense")AlphaMissense, SpliceAI —
 are the same. What changes is the discipline around them. Every tool
 version is pinned. Every reference file is hashed. Every run has a UUID
 that traces back through the chain of custody to the tube of blood that
@@ -38,9 +38,9 @@ classifications, literature — and the working profession of the variant
 scientist. We turn to pharmacogenomics, which is the cleanest example
 of clinical genomics already operating as a lookup table on a
 state-machine, with immunogenomics as the natural extension into HLA
-typing and neoantigen prediction. We close on the parts that an
+typing and #idx("neoantigen")neoantigen prediction. We close on the parts that an
 EE-trained mind tends to under-weight: incidental findings and the
-right not to know; the FDA Laboratory-Developed Test rule of 2024 and
+right not to know; the #idx("FDA")FDA Laboratory-Developed Test rule of 2024 and
 the EU In-Vitro Diagnostic Regulation; the gaps in the Genetic
 Information Nondiscrimination Act; the systematic ancestry bias in
 clinical resources; and the Havasupai precedent that began the
@@ -59,7 +59,7 @@ that constrains every design decision downstream of it.
 
 Accuracy is the first. A research pipeline that reports 99.8 % recall
 on a benchmark is excellent. A clinical pipeline that misses
-0.2 % of pathogenic variants has missed a patient — and, eventually,
+0.2 % of #idx("pathogenic")pathogenic variants has missed a patient — and, eventually,
 several patients, because the failure mode is silent and repeatable.
 Reproducibility is the second. Every classification call must be
 re-derivable years later from the same input file, the same tool
@@ -68,7 +68,7 @@ time is the third. Research analyses run for weeks; clinical analyses
 run in three to fourteen days for most indications and in hours for
 the urgent ones. Regulation is the fourth. A research lab is bound by
 the institutional review board and by good scientific practice; a
-clinical lab is bound by CLIA in the United States, by ISO 15189
+clinical lab is bound by #idx("CLIA")CLIA in the United States, by ISO 15189
 internationally, by IVDR in the European Union, and by national
 accreditation bodies on top of that. Sign-off is the fifth. A research
 paper has authors; a clinical report has a named physician signatory
@@ -102,7 +102,7 @@ bodies that audit against it.
 Bioinformatics inside a CLIA lab looks unfamiliar to anyone whose only
 experience is academic research computing. Every pipeline release has a
 written *validation document* — colloquially the "vali-doc" — that
-demonstrates accuracy on a known benchmark sample (typically the GIAB
+demonstrates accuracy on a known benchmark sample (typically the #idx("GIAB")GIAB
 reference HG002, or matched tumour-normal cell lines for somatic
 assays). Every release has a *standard operating procedure* with
 explicit version tracking, and any change to a tool — even a patch
@@ -113,7 +113,7 @@ participates in external quality assessment programmes (blind
 proficiency tests such as GenQA) that catch systematic drift.
 
 The assay regulatory classification adds a second axis. A *Laboratory-Developed
-Test*, or LDT, is a test developed, validated, and performed within a
+Test*, or #idx("LDT")LDT, is a test developed, validated, and performed within a
 single clinical laboratory. Historically the FDA exercised "enforcement
 discretion" — that is, declined to regulate LDTs — and so the bulk of
 clinical genomic testing operated under CLIA alone. The 2024 final rule
@@ -122,7 +122,7 @@ chapter and through @sec:ch17-regulatory in particular. An
 *In-Vitro Diagnostic device*, or IVD, is an FDA-cleared or FDA-approved
 assay sold as a self-contained kit of reagents, instruments, and
 software; the regulatory bar is much higher, and the FoundationOne CDx
-and Illumina TSO500 panels are canonical examples. *Research Use Only*
+and #idx("Illumina")Illumina TSO500 panels are canonical examples. *Research Use Only*
 reagents — RUO — are labelled explicitly for research; using them in a
 clinical workflow is a regulatory violation unless the lab has
 performed and documented its own clinical validation, which is the
@@ -159,7 +159,7 @@ to the raw reads. Pipelines run periodically on the GIAB reference
 samples and a regression-test harness compares the output against the
 last known-good run; an unexpected diff triggers a release block.
 Failures are *fail-closed*: a variant caller that silently outputs an
-empty VCF on a low-coverage region must throw a loud warning, not
+empty #idx("VCF")VCF on a low-coverage region must throw a loud warning, not
 emit a quietly empty file that downstream consumers treat as "no
 findings."
 
@@ -197,13 +197,13 @@ standard in almost every clinical genomics lab in the world.
 
 The five-class output is the user-facing surface of the framework.
 *Pathogenic* (P) means at least 99 % probability that the variant
-causes the patient's disease; *likely pathogenic* (LP) is 90 to 99 %;
-*variant of uncertain significance* (VUS) covers 10 to 90 %; *likely
-benign* (LB) is 0.1 to 10 %; *benign* (B) is below 0.1 %. The
+causes the patient's disease; *#idx("likely pathogenic")likely pathogenic* (LP) is 90 to 99 %;
+*variant of uncertain significance* (#idx("VUS")VUS) covers 10 to 90 %; *likely
+#idx("benign")benign* (LB) is 0.1 to 10 %; *benign* (B) is below 0.1 %. The
 intervals are not approximations — they are the thresholds against
 which the rule table is calibrated. Each class also carries a distinct
 clinical action. P and LP findings are acted on: a patient with a
-pathogenic BRCA1 variant enters enhanced screening, a pathogenic MLH1
+pathogenic #idx("BRCA1")BRCA1 variant enters enhanced screening, a pathogenic MLH1
 carrier enters Lynch-syndrome surveillance, a pathogenic Long-QT
 channelopathy variant changes anaesthesia decisions. VUS findings are
 reported with a note and explicitly not acted on; reclassifying them as
@@ -247,7 +247,7 @@ gene where loss-of-function is a known disease mechanism. Nonsense
 mutations, frameshifts, canonical splice-site disruptions, and
 single-exon deletions in genes like CFTR or BRCA1 or DMD apply this
 code. The caveats are also important: a stop-gain in the very last
-exon may escape nonsense-mediated decay, in which case it is not
+#idx("exon")exon may escape nonsense-mediated decay, in which case it is not
 truly loss-of-function and PVS1 does not apply; the ClinGen Sequence
 Variant Interpretation working group has published explicit decision
 trees for when PVS1 applies at full strength versus when it should be
@@ -306,7 +306,7 @@ the upstream judgement that assigns the codes.
 #note[
   The ACMG/AMP rule table is an *explicit, auditable rule-based
   classifier*. The choice to keep it rule-based rather than to swap in
-  end-to-end machine learning was deliberate. Three reasons. First,
+  end-to-end #idx("machine learning")machine learning was deliberate. Three reasons. First,
   auditability: every call traces back to specific evidence with a
   written rationale, which a neural network cannot provide.
   Second, regulatory acceptance: FDA and EU IVDR approval processes
@@ -363,7 +363,7 @@ section is about that chain.
 The 2015 framework is deliberately gene-agnostic, but disease biology
 is not. For high-interest genes the ClinGen consortium has published
 *gene-specific refinements* that supersede the generic rules. BRCA1
-and BRCA2 have refined PVS1 logic that depends on exon location, and
+and #idx("BRCA2")BRCA2 have refined PVS1 logic that depends on exon location, and
 founder-population frequency thresholds that diverge from the generic
 PM2/BA1 cutoffs. TP53 has hotspot definitions that change which
 positions qualify for PM1. The mismatch-repair genes — MLH1, MSH2,
@@ -437,12 +437,12 @@ exome cohort to 730,947 individuals and the genome cohort to 76,215.
 gnomAD is the descendant of the Exome Variant Server and the Exome
 Aggregation Consortium (ExAC, 2016), themselves descendants of the
 1000 Genomes Project. The lineage matters because frequency-based
-evidence codes are calibrated to the resource's coverage: PM2 and BA1
+evidence codes are calibrated to the resource's #idx("coverage")coverage: PM2 and BA1
 thresholds shifted slightly between ExAC and gnomAD v2, and again
 between v2 and v4, and any clinical pipeline must pin the version it
 queries.
 
-The codes consume gnomAD as follows. BA1 fires when allele frequency
+The codes consume gnomAD as follows. BA1 fires when #idx("allele frequency")allele frequency
 exceeds 5 %: stand-alone benign. BS1 fires when the frequency exceeds
 the gene's disease-prevalence-derived threshold: strong benign. PM2
 fires when the variant is absent or extremely rare — the precise
@@ -479,10 +479,10 @@ agree on damaging effect, or BP4 if they agree on benign effect. The
 codes are deliberately supporting: a single predictor score is never
 sufficient by itself.
 
-The lineage runs back to the early 2000s. *SIFT* (Ng and Henikoff,
+The lineage runs back to the early 2000s. *#idx("SIFT")SIFT* (Ng and Henikoff,
 2001) classified missense variants by sequence conservation alone, on
 the assumption that positions strongly conserved across species are
-intolerant of change. *PolyPhen* and its successor *PolyPhen-2*
+intolerant of change. *#idx("PolyPhen")PolyPhen* and its successor *PolyPhen-2*
 (Adzhubei et al., 2010) added structural features alongside
 conservation. Both became staples of clinical pipelines and remain
 embedded inside more recent ensemble predictors. *CADD* (Kircher et
@@ -494,7 +494,7 @@ older predictors — SIFT, PolyPhen-2, MutationTaster, GERP, and others —
 in a random forest trained on rare missense variants and produced a
 0-to-1 score with ACMG/AMP-relevant thresholds of 0.7 or above for PP3
 and 0.15 or below for BP4. *AlphaMissense* (Cheng et al., _Science_
-2023) was the first predictor trained on the AlphaFold-2 structural
+2023) was the first predictor trained on the #idx("AlphaFold-2")AlphaFold-2 structural
 representations from Chapter 15; it predicts likely-pathogenic,
 ambiguous, or likely-benign for every possible amino-acid substitution
 in the human proteome and currently sits at or near the state of the
@@ -533,7 +533,7 @@ variants in under-represented populations.
 === Splicing
 
 Splice-altering variants are an under-appreciated pathogenicity class.
-A variant fifty bases inside an intron can create a new splice site,
+A variant fifty bases inside an #idx("intron")intron can create a new splice site,
 skip an exon, and produce a truncated protein — and conventional
 predictors trained on protein-level effects miss them entirely.
 *SpliceAI* (Jaganathan et al., _Cell_, 2019) is the workhorse. It
@@ -614,13 +614,13 @@ operating at scale as a lookup table on a state machine. The patient
 is measured (genotype across a handful of cytochrome-P450 and related
 loci); the measurement is mapped to a discrete phenotype (poor,
 intermediate, normal, rapid, ultra-rapid metaboliser); the phenotype
-indexes a fixed dosing recommendation in the CPIC guideline tables.
+indexes a fixed dosing recommendation in the #idx("CPIC")CPIC guideline tables.
 No ML, no learning, no inference at runtime — because the
 evidence-generation machinery has already done the optimisation and
 the table is the compiled answer.
 
-The underlying biology is that the cytochrome P450 enzymes — CYP2D6,
-CYP2C9, CYP2C19, CYP3A4, and a dozen others — and several other
+The underlying biology is that the cytochrome P450 enzymes — #idx("CYP2D6")CYP2D6,
+CYP2C9, #idx("CYP2C19")CYP2C19, CYP3A4, and a dozen others — and several other
 pharmacokinetic enzymes carry common loss-of-function or
 gain-of-function variants at population frequencies that differ
 sharply by ancestry. About 20 drug–gene pairs have CPIC Level A
@@ -686,11 +686,11 @@ of magnitude.
   ],
 ) <fig:pgx-examples>
 
-=== Star alleles and metaboliser phenotypes
+=== #idx("STAR")Star alleles and metaboliser phenotypes
 
 Pharmacogenomics uses *star-allele* nomenclature to describe
 haplotypes. CYP2D6\*1 is the reference (wild-type) allele; CYP2D6\*4 is
-a common loss-of-function haplotype that carries a splicing variant
+a common loss-of-function #idx("haplotype")haplotype that carries a splicing variant
 plus several SNPs; CYP2D6\*10 is a reduced-function haplotype common
 in East Asian populations; CYP2D6\*17 is a reduced-function haplotype
 common in African populations. Each star allele is a defined
@@ -778,7 +778,7 @@ receptors / immunoglobulins — that together encode the human adaptive
 immune system.
 
 *HLA typing* is the first piece. The Major Histocompatibility Complex
-on chromosome 6 contains the HLA genes — the most polymorphic locus in
+on #idx("chromosome")chromosome 6 contains the HLA genes — the most polymorphic locus in
 the human genome, with tens of thousands of catalogued alleles. HLA
 class I (A, B, C) presents intracellular peptides to CD8 T cells;
 HLA class II (DR, DQ, DP) presents extracellular peptides to CD4 T
@@ -795,8 +795,8 @@ specialised tools — *OptiType*, *HLA-LA*, *arcasHLA* — graph-align or
 assemble reads against the curated IMGT/HLA database.
 
 *T-cell receptor* and *B-cell receptor* repertoires arise from V(D)J
-recombination — somatic rearrangement of variable, diversity, and
-joining gene segments with random nucleotide insertion at junctions.
+#idx("recombination")recombination — somatic rearrangement of variable, diversity, and
+joining gene segments with random #idx("nucleotide")nucleotide insertion at junctions.
 Each lymphocyte gets a unique receptor; the repertoire in a healthy
 adult holds roughly $10^8$ distinct clones. Bulk repertoire sequencing
 amplifies the TCR β chain (or both chains) from sorted T cells and
@@ -804,7 +804,7 @@ counts clones; single-cell paired-chain protocols (10× Genomics VDJ)
 link the α/β pair to the gene-expression profile of the same cell.
 Tools — *MiXCR*, *IgBLAST*, *TRUST4* — reconstruct CDR3 sequences,
 V/D/J segment usage, and abundance distributions. Diversity metrics
-(Shannon, Simpson, D50), clonality, and the detection of "public"
+(#idx("Shannon")Shannon, #idx("Simpson")Simpson, D50), clonality, and the detection of "public"
 clones (identical CDR3 across individuals, typically pathogen-specific)
 are the standard analytic outputs. Targeted clone tracking — finding
 a tumour-specific TCR clone in peripheral blood as a minimal-residual-disease
@@ -815,7 +815,7 @@ Tumour somatic mutations create novel peptides not present in normal
 tissue; if those peptides bind the patient's HLA, they may be
 presented to T cells and become targets for personalised immunotherapy.
 The pipeline runs tumour-normal sequencing to identify somatic missense
-mutations, HLA-types the patient's germline DNA, translates each
+mutations, HLA-types the patient's germline #idx("DNA")DNA, translates each
 mutation into a window of 9-to-11-mer peptides, predicts HLA binding
 affinity with *NetMHCpan* or *MHCflurry*, filters for tumour
 expression (the peptide must be present on an expressed transcript) and
@@ -829,7 +829,7 @@ biomarkers (high neoantigen load correlates with response).
   image("../../diagrams/lecture-17/13-immunogenomics.svg", width: 95%),
   caption: [
     Immunogenomics in three layers. Top: HLA peptide presentation
-    cascade from somatic mutation through proteasomal cleavage and
+    cascade from #idx("somatic mutation")somatic mutation through proteasomal cleavage and
     HLA loading to T-cell recognition. Middle: V(D)J recombination of
     the TCR β locus producing the $approx 10^15$-clone theoretical
     repertoire. Bottom: the five-stage neoantigen pipeline cascading
@@ -847,12 +847,12 @@ explicit generative models to the repertoire and compute per-clone
 generation probabilities — the equivalent of a likelihood under the
 V(D)J channel. Public clones are then identified as outliers in the
 generation-probability-by-abundance plane: high abundance with
-surprisingly low generation probability suggests selection. The
+surprisingly low generation probability suggests #idx("selection")selection. The
 techniques transfer almost directly from speech-coding and
 channel-modelling work.
 
 
-== Secondary Findings and the Right Not to Know <sec:ch17-secondary>
+== #idx("secondary findings")Secondary Findings and the Right Not to Know <sec:ch17-secondary>
 
 A patient comes in for cardiomyopathy testing. The lab sequences their
 exome. In addition to the indication-relevant variant the exome
@@ -877,7 +877,7 @@ list is dominated by hereditary cancer syndromes (BRCA1/2,
 MLH1/MSH2/MSH6/PMS2/EPCAM for Lynch syndrome, TP53 for Li-Fraumeni,
 APC, MUTYH, NF1/2, PTEN, RET, VHL), inherited arrhythmia syndromes
 (SCN5A, KCNQ1, KCNH2, RYR2), cardiomyopathies (MYH7, MYBPC3, TNNT2),
-familial hypercholesterolemia (LDLR, APOB, PCSK9), malignant
+familial hypercholesterolemia (LDLR, APOB, #idx("PCSK9")PCSK9), malignant
 hyperthermia susceptibility (RYR1, CACNA1S), and a handful of
 miscellaneous actionable conditions.
 
@@ -1056,7 +1056,7 @@ systematic ancestry bias in clinical resources, and the rights of
 communities whose biological samples have driven much of the field's
 research.
 
-=== GINA and its limits
+=== #idx("GINA")GINA and its limits
 
 The *Genetic Information Nondiscrimination Act* (GINA) was signed
 into US federal law in May 2008 after a thirteen-year legislative
@@ -1106,7 +1106,7 @@ patients. gnomAD v4: 56 % European overall, with the African-ancestry
 subset growing but still smaller. The functional predictors (REVEL,
 AlphaMissense, CADD) are trained on labelled sets where European
 variants dominate. Polygenic risk scores — Chapter 13 — are
-calibrated on overwhelmingly European training cohorts. The GWAS
+calibrated on overwhelmingly European training cohorts. The #idx("GWAS")GWAS
 Catalog tracked diversity directly for over a decade: about 89 % of
 its participants were of European ancestry as of mid-2020s estimates
 (Sirugo, Williams, and Tishkoff, _Cell_ 2019; updated periodically).
@@ -1147,7 +1147,7 @@ the US minority-focused consortium. *Million Veteran Program* (VA,
 2011+) recruits a more diverse US cohort than UK Biobank
 equivalents. *Biobank Japan*, *Biobank Korea*, and *Taiwan Biobank*
 extend the East Asian coverage. The data these cohorts generate flows
-back into ClinVar, gnomAD, AlphaMissense training sets, and PRS
+back into ClinVar, gnomAD, AlphaMissense training sets, and #idx("PRS")PRS
 portability models. Progress is measurable — gnomAD v4 in 2024 is
 materially more diverse than v2 in 2020 — but full equity remains
 years away.

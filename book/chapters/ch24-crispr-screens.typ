@@ -1,6 +1,6 @@
 #import "../theme/book-theme.typ": *
 
-= CRISPR Functional Screens and DepMap <ch:crispr-screens>
+= #idx("CRISPR")CRISPR Functional Screens and #idx("DepMap")DepMap <ch:crispr-screens>
 
 #matters[
   By the end of Chapter 4 you could read variants out of a genome. By
@@ -9,7 +9,7 @@
   a cell, and neither could tell you which of the genes they touch is
   worth the next twenty years of medicinal chemistry. CRISPR functional
   screens are how the field answers both questions experimentally and
-  at genome scale. A single Cas9 ribonucleoprotein and a library of
+  at genome scale. A single #idx("Cas9")Cas9 ribonucleoprotein and a library of
   eighty thousand short RNAs are enough to switch every protein-coding
   gene off in a population of cells and read out which losses matter
   for fitness, drug resistance, or any other selectable phenotype. The
@@ -30,10 +30,10 @@ protein-coding gene at roughly four guides apiece. Package the library
 into lentivirus and infect a population of cells at a multiplicity of
 infection low enough that almost every infected cell carries exactly
 one guide. Split the culture into a sample taken at the start of the
-selection and one or more samples taken after fourteen to twenty-one
+#idx("selection")selection and one or more samples taken after fourteen to twenty-one
 days of growth, drug pressure, viral challenge, or whatever phenotype
 the screen is built around. Amplify the integrated guide cassette by
-PCR from genomic DNA and sequence it to a depth of about five hundred
+PCR from genomic #idx("DNA")DNA and sequence it to a depth of about five hundred
 reads per guide. Aggregate guide-level counts into gene-level scores
 with a statistical solver. The output is a ranked list of genes whose
 perturbation moved the cells through the selection.
@@ -53,11 +53,11 @@ mix.
 
 The remaining chapters of the book use those outputs without
 re-deriving them. Chapter 25 picks up MAVE-derived variant scores as
-PS3 evidence for ACMG/AMP classification. Chapter 26 reaches DepMap
+PS3 evidence for #idx("ACMG")ACMG/AMP classification. Chapter 26 reaches DepMap
 for drug-target prioritisation when discussing translational pipelines.
 The compressed-sensing framing recurs in Chapter 16's pattern of
 matched-prior architectures and in Chapter 21's discussion of pooled
-metagenomics. This chapter is the spine.
+#idx("metagenomics")metagenomics. This chapter is the spine.
 
 
 == Cas9, Guide RNAs, and the Loss-of-Function Move <sec:mechanism>
@@ -70,7 +70,7 @@ guide library to recognise and cut re-infecting viruses. *Jennifer
 Doudna*, *Emmanuelle Charpentier*, and their groups demonstrated in
 August 2012 (Jinek et al., _Science_ 337) that the
 _Streptococcus pyogenes_ Cas9 protein could be reprogrammed in vitro
-with a synthetic guide RNA. *Feng Zhang*'s group at the Broad
+with a synthetic guide #idx("RNA")RNA. *Feng Zhang*'s group at the Broad
 Institute (Cong et al., _Science_ 2013) and *George Church*'s group at
 Harvard (Mali et al., _Science_ 2013) showed within six months that
 the same system worked in human cells. The reagent and the recipe were
@@ -83,15 +83,15 @@ biochemistry; the screening literature traces from Shalem and Wang.
 For screens, all you need to know about the molecule is what determines
 whether a given guide cuts where you point it.
 
-A *single-guide RNA*, abbreviated *sgRNA*, is about a hundred
+A *single-guide RNA*, abbreviated *#idx("sgRNA")sgRNA*, is about a hundred
 nucleotides long. Twenty of those nucleotides — the *spacer* — are
 the programmable region that base-pairs with the genomic target. The
-remaining sequence is structural scaffold that holds the guide in the
+remaining sequence is structural #idx("scaffold")scaffold that holds the guide in the
 Cas9 active site. The protein itself is a roughly 1,400-amino-acid
 nuclease with two cleavage domains, *HNH* and *RuvC*, that cut the
 two strands of the target DNA. Cleavage requires an additional
-recognition motif on the DNA immediately downstream of the
-spacer-matching sequence — the *protospacer-adjacent motif* or *PAM*.
+recognition #idx("motif")motif on the DNA immediately downstream of the
+spacer-matching sequence — the *protospacer-adjacent motif* or *#idx("PAM")PAM*.
 For _S. pyogenes_ Cas9, the PAM is `NGG`. The cut is blunt and lands
 exactly three base pairs upstream of the PAM. @fig:cas9 lays out the
 geometry.
@@ -113,9 +113,9 @@ cells repair double-strand breaks with a strong bias toward
 *non-homologous end joining*, NHEJ. NHEJ is fast and inaccurate. It
 glues the cut ends back together with frequent small insertions and
 deletions of one to ten bases. Roughly eighty-five to ninety-five
-percent of edited alleles end up with an indel that is not a multiple
-of three. The mRNA produced from that allele has a shifted reading
-frame, hits a premature stop codon within a hundred bases, and gets
+percent of edited alleles end up with an #idx("indel")indel that is not a multiple
+of three. The #idx("mRNA")mRNA produced from that allele has a shifted reading
+frame, hits a premature stop #idx("codon")codon within a hundred bases, and gets
 degraded by nonsense-mediated decay or translated into a truncated
 non-functional protein. A cell whose two chromosomal copies of a gene
 have both received frameshifting indels is, for practical purposes, a
@@ -138,19 +138,19 @@ phenotype is the average behaviour of the knockout subpopulation.
 
 Three engineering variants of the same backbone are now standard.
 *CRISPR knockout* (CRISPRko) is what we have just described — wild-type
-Cas9 cuts and NHEJ scrambles the locus. *CRISPR interference* (CRISPRi),
+Cas9 cuts and NHEJ scrambles the locus. *CRISPR interference* (#idx("CRISPRi")CRISPRi),
 introduced by *Luke Gilbert* and *Stanley Qi* working with *Jonathan
 Weissman* in 2013, replaces the nuclease activity with a catalytically
 dead Cas9 (dCas9) fused to a KRAB transcriptional repressor. The
-fusion sits on the promoter region of the targeted gene and silences
-transcription without making a permanent edit. Knockdown rather than
+fusion sits on the #idx("promoter")promoter region of the targeted gene and silences
+#idx("transcription")transcription without making a permanent edit. Knockdown rather than
 knockout. The signal is partial — typically 70 — 95 percent reduction
 in mRNA — and reversible, which is the point: essential genes survive
 the screen long enough to be seen as dropping out, because partial
 knockdown does not kill cells instantly the way a clean knockout does.
-*CRISPR activation* (CRISPRa), introduced by *Silvana Konermann* and
+*CRISPR activation* (#idx("CRISPRa")CRISPRa), introduced by *Silvana Konermann* and
 *Feng Zhang* in 2015, takes the opposite tack: dCas9 fused to a VP64
-activator domain (or the more potent SunTag and SAM systems) drives
+activator domain (or the more potent SunTag and #idx("SAM")SAM systems) drives
 expression of normally silent genes. Gain-of-function screens read out
 the opposite direction — which forced overexpressions confer
 resistance to a drug, which drive a developmental transition. The
@@ -162,12 +162,12 @@ same gene set and triangulate.
 Two further classes — *base editors* (Komor et al., 2016; Gaudelli et
 al., 2017) and *prime editors* (Anzalone et al., 2019) — turn the
 machinery into precision instruments rather than knockout factories.
-A base editor fuses a deaminase to a catalytically attenuated Cas9
-and converts a single nucleotide (C → T for cytidine deaminases, A → G
+A #idx("base editor")base editor fuses a deaminase to a catalytically attenuated Cas9
+and converts a single #idx("nucleotide")nucleotide (C → T for cytidine deaminases, A → G
 for adenine deaminases) inside a narrow editing window without making
-a double-strand break. A prime editor uses a reverse-transcriptase
+a double-strand break. A #idx("prime editor")prime editor uses a reverse-transcriptase
 fusion and an extended guide that templates an arbitrary edit. Both
-matter for the MAVE half of this chapter because they let a screen
+matter for the #idx("MAVE")MAVE half of this chapter because they let a screen
 introduce all possible single-base variants in a gene rather than
 knock the gene out entirely.
 
@@ -192,9 +192,9 @@ A screen is engineered from the library outward. A *library* is a pool
 of plasmids, each carrying one sgRNA expression cassette and a
 selectable marker. A typical human CRISPRko library has roughly four
 guides per gene across the 19,000-odd protein-coding genes for a total
-near 76,000 — *Brunello* (Doench et al., 2016) is the canonical
+near 76,000 — *#idx("Brunello")Brunello* (Doench et al., 2016) is the canonical
 example, *TKOv3* (Mair et al., 2019) is the matched essentiality-screen
-companion, and *GeCKO v2* (Sanjana et al., 2014) is the older legacy
+companion, and *#idx("GeCKO")GeCKO v2* (Sanjana et al., 2014) is the older legacy
 library with six guides per gene at the cost of more low-activity ones.
 For CRISPRi the corresponding choices are *Dolcetto* and *Horlbeck*; for
 CRISPRa, *Calabrese* and *Caprano*.
@@ -217,10 +217,10 @@ estimate per-guide off-target activity by summing penalised matches
 across the genome. A high-quality library combines high on-target
 activity with low off-target burden and is uniformly tiled across the
 gene's coding sequence so that the four guides are not all in one
-exon — pick a guide too close to the C-terminus and a knockout-grade
+#idx("exon")exon — pick a guide too close to the C-terminus and a knockout-grade
 indel can produce a near-full-length protein with intact function.
 
-The choice of library is the screen's first inductive bias. Pick a
+The choice of library is the screen's first #idx("inductive bias")inductive bias. Pick a
 library with low-activity guides and you will see weak signal because
 many of your knockouts never actually happen. Pick a library with high
 off-target burden and you will see strong signal where you do not
@@ -259,7 +259,7 @@ with two guides has a confounded phenotype. A lower MOI keeps the
 mixing rate down but throws away cells. The 0.3 sweet spot is so
 standard that the field treats it as a constant.
 
-*Cell coverage.* For each guide to have enough independent cellular
+*Cell #idx("coverage")coverage.* For each guide to have enough independent cellular
 founders to average over, you need about five hundred cells per guide
 at the moment of infection. With seventy-five thousand guides and a
 30 percent infection rate, that means a starting population of about
@@ -276,7 +276,7 @@ hosts fail to divide.
 *Genomic-DNA extraction and PCR amplification.* The integrated guide
 cassettes are amplified out of the cellular genome with primers
 flanking the spacer region. The amplicon is short — about 200 — 300 bp
-— so single-end Illumina reads at 75 — 150 bp are enough.
+— so single-end #idx("Illumina")Illumina reads at 75 — 150 bp are enough.
 
 *Sequencing.* Read each amplicon to a depth of about five hundred
 reads per guide. For a 75,000-guide library that is $3.75 times 10^7$
@@ -371,7 +371,7 @@ rule, makes the screen work.
   $ell_1$-regularised sparse recovery in the same family as LASSO.
 ]
 
-The textbook MAGeCK / DrugZ / BAGEL2 pipelines do not invoke the
+The textbook #idx("MAGeCK")MAGeCK / DrugZ / BAGEL2 pipelines do not invoke the
 compressed-sensing vocabulary, but every one of them is a particular
 choice of noise model and prior on the recovery problem. MAGeCK uses
 a rank-based, non-parametric test that is robust to heavy tails.
@@ -394,18 +394,18 @@ analytical default for pooled screens. The recipe runs in three
 stages.
 
 *Stage one — guide-level testing.* For each guide $g$ and each
-condition, MAGeCK fits a *negative binomial* model to the count
+condition, MAGeCK fits a *#idx("negative binomial")negative binomial* model to the count
 distribution. The negative-binomial is the same workhorse that
-Chapter 6 used for bulk RNA-seq differential expression: it handles
+Chapter 6 used for bulk #idx("RNA-seq")RNA-seq #idx("differential expression")differential expression: it handles
 the over-dispersion that count data carries when biological
 variability adds variance on top of pure Poisson sampling. The
 mean-variance relationship is
 
 $ "Var"(c_g) = mu_g + alpha_g mu_g^2, $
 
-where $alpha_g$ is the per-guide dispersion. MAGeCK estimates
+where $alpha_g$ is the per-guide #idx("dispersion")dispersion. MAGeCK estimates
 $alpha_g$ by pooling across guides with similar mean counts (the same
-shrinkage idea Chapter 6 traced through DESeq2). Per-guide one-sided
+#idx("shrinkage")shrinkage idea Chapter 6 traced through #idx("DESeq2")DESeq2). Per-guide one-sided
 $p$-values are computed by tail probability under the negative
 binomial fit.
 
@@ -470,7 +470,7 @@ shape.
 ]
 
 MAGeCK's output is a per-gene log fold-change estimate, a $p$-value,
-and a Benjamini-Hochberg-corrected FDR. For a typical dropout screen
+and a Benjamini-Hochberg-corrected #idx("FDR")FDR. For a typical dropout screen
 on a cancer cell line you would expect roughly 1,500 — 2,500 genes at
 FDR $< 0.05$ — about half of these are the *core essentials* that
 drop out of every cancer cell line, and the rest are cell-line- or
@@ -506,7 +506,7 @@ careful interpretation is required.
   caption: [
     MAGeCK's pipeline. Count tables → median normalisation →
     per-guide negative-binomial test → per-gene modified RRA →
-    Benjamini-Hochberg FDR → ranked hit list. The same backbone
+    #idx("Benjamini-Hochberg")Benjamini-Hochberg FDR → ranked hit list. The same backbone
     drives DrugZ and BAGEL2 with different choices of guide-level
     test statistic and aggregation rule.
   ],
@@ -571,7 +571,7 @@ with standard deviation 0.41, core-essential dropout 88 percent. Pass.
 The gene-level output ranks about 1,800 genes at FDR < 0.05 with
 negative log fold-change. The top of the list is dominated by
 ribosomal subunits (`RPS6`, `RPL5`, `RPL11`), proteasome components
-(`PSMA3`, `PSMB5`), translation initiation factors (`EIF3A`), and
+(`PSMA3`, `PSMB5`), #idx("translation")translation initiation factors (`EIF3A`), and
 mitochondrial complex-V subunits — the universal essentials. None of
 this is interesting on its own; every cancer cell line returns the
 same core list, which is a sanity check that the screen worked.
@@ -580,7 +580,7 @@ The interesting biology starts where A375 differs from the average
 cell line. `BRAF` and `MAPK1` show strong dropout because A375 is
 `BRAF`-V600E mutant and depends on the MAPK pathway. `MITF` shows
 dropout because A375 is melanocyte-lineage and depends on the
-melanocyte transcription factor. `MDM2` shows dropout because A375
+melanocyte #idx("transcription factor")transcription factor. `MDM2` shows dropout because A375
 has wild-type `TP53` and is therefore exquisitely dependent on the
 `MDM2` ubiquitin ligase to keep p53 levels in check. None of these
 are surprises in 2024; they are the validation that the screen sees
@@ -617,10 +617,10 @@ lines covering thirty cancer types, over the course of seven years.
 emerged from the 2017 paper "Defining a Cancer Dependency Map" by
 *Aviad Tsherniak* and colleagues (_Cell_ 170: 564). The premise is
 simple. The Cancer Cell Line Encyclopedia (CCLE) and the Sanger
-COSMIC Cell Lines Project together hold characterised, omics-profiled
+#idx("COSMIC")COSMIC Cell Lines Project together hold characterised, omics-profiled
 cancer cell lines numbered in the low thousands. Run a genome-scale
 CRISPR knockout screen on every one of them, cross-reference against
-the matched RNA-seq, methylation, mutation, and copy-number data, and
+the matched RNA-seq, #idx("methylation")methylation, mutation, and copy-number data, and
 you have a four-dimensional map: for every gene, for every cell line,
 how essential is its knockout, and what about the cell line's
 molecular profile predicts that essentiality? Released publicly
@@ -656,7 +656,7 @@ of column emerge.
 *Pan-essentials* are genes whose loss kills nearly every cell line —
 the ribosomal subunits, the proteasome, mitochondrial complexes. These
 are the bottom of the universal-essentials list. From a drug-discovery
-standpoint they are useless. Killing the ribosome would kill the
+standpoint they are useless. Killing the #idx("ribosome")ribosome would kill the
 patient as fast as it killed the tumour.
 
 *Pan-non-essentials* are genes that nothing depends on under any
@@ -683,7 +683,7 @@ multiple compounds in development.
 
 The most-cited DepMap-driven discovery is the *MTAP / PRMT5* synthetic
 lethality. The *MTAP* gene sits adjacent to the tumour-suppressor
-*CDKN2A* on chromosome 9p21 — a region deleted in roughly 15 percent
+*CDKN2A* on #idx("chromosome")chromosome 9p21 — a region deleted in roughly 15 percent
 of all cancers as collateral to the CDKN2A loss. MTAP encodes
 methylthioadenosine phosphorylase, an enzyme in the methionine
 salvage pathway. MTAP loss causes accumulation of the substrate MTA,
@@ -698,11 +698,11 @@ the logic.
 #figure(
   image("../figures/ch24/f4-synthetic-lethality-logic.svg", width: 96%),
   caption: [
-    Synthetic lethality logic with two clinical case studies. The 2 × 2
+    #idx("synthetic lethality")Synthetic lethality logic with two clinical case studies. The 2 × 2
     truth table on the left is the abstract definition: both single
     knockouts are viable, the double knockout is lethal. The BRCA /
-    PARP case study established the framework in the clinic (olaparib,
-    FDA 2014); the MTAP / PRMT5 case study, anchored in DepMap, brings
+    #idx("PARP")PARP case study established the framework in the clinic (#idx("olaparib")olaparib,
+    #idx("FDA")FDA 2014); the MTAP / PRMT5 case study, anchored in DepMap, brings
     the discovery loop full circle.
   ],
 ) <fig:synth-lethal>
@@ -716,7 +716,7 @@ the logic.
   existed; both predicted exactly the kind of systematic discovery
   pipeline that DepMap eventually became. The first clinical
   realisation, the *PARP* inhibitor *olaparib* approved by the FDA in
-  2014 for BRCA1/2-deficient ovarian cancer, came out of the Bryant
+  2014 for #idx("BRCA1")BRCA1/2-deficient ovarian cancer, came out of the Bryant
   (2005) and Farmer (2005) yeast-screen tradition — pre-CRISPR but
   philosophically continuous with what DepMap does at scale.
 ]
@@ -743,7 +743,7 @@ Single-gene functional measurement is a separate use of the same
 technology and deserves its own treatment. A *multiplexed assay of
 variant effects* — MAVE — measures the functional effect of every
 possible variant in a defined region. The locus might be a protein
-domain, a regulatory element, or a whole gene; the variants might be
+domain, a #idx("regulatory element")regulatory element, or a whole gene; the variants might be
 single-amino-acid changes, single-base substitutions, or short indels.
 The unifying recipe is the same as a screen: build a library of all
 the variants, introduce them into a population of cells under a
@@ -776,7 +776,7 @@ paper on *BRCA1* (Findlay et al., 562: 217) is the canonical example:
 roughly 4,000 single-nucleotide variants across the BRCA1 RING and
 BRCT functional domains, edited into HAP1 cells (a haploid human
 cell line where a single-copy knockout suffices), grown for 11 days
-under selection for BRCA1-dependent homologous recombination, and
+under selection for BRCA1-dependent homologous #idx("recombination")recombination, and
 read out by amplicon sequencing. The output is a per-variant function
 score.
 
@@ -800,7 +800,7 @@ incremental improvement.
     produces per-variant function scores; binned scores map onto
     ACMG/AMP PS3 / BS3 evidence codes; the resulting reclassification
     moves variants from the "uncertain significance" bucket into
-    definite Pathogenic / Likely Pathogenic or Likely Benign / Benign
+    definite #idx("pathogenic")Pathogenic / #idx("likely pathogenic")Likely Pathogenic or Likely #idx("benign")Benign / Benign
     calls. The illustrative numbers reflect the magnitude of the shift
     Findlay (2018) measured for BRCA1.
   ],
@@ -829,7 +829,7 @@ roughly fifty genes as of mid-2024.
 The honest assessment is that MAVE coverage is still uneven. Roughly
 fifty published genes is not the 19,000-gene scale that variant
 interpretation would need to be fully covered. For unmeasured genes,
-the computational complement — *AlphaMissense* (Cheng et al., 2023,
+the computational complement — *#idx("AlphaMissense")AlphaMissense* (Cheng et al., 2023,
 trained partly on MAVE data), *EVE* (Frazer et al., 2021), and the
 older PolyPhen-2 and CADD — supplies *PP3* / *BP4* evidence at lower
 strength. The 2024 frontier is integration: train a deep model on
@@ -894,7 +894,7 @@ explicitly.
 
 The *statistical pitfalls* are multiple-testing, power, and
 imbalanced designs. Twenty thousand genes tested simultaneously means
-that Benjamini-Hochberg FDR control is essential; a Bonferroni
+that Benjamini-Hochberg FDR control is essential; a #idx("Bonferroni")Bonferroni
 correction is too conservative and most screens use BH. Power
 calculations should target an effect size based on the screen's
 purpose — dropout screens want enough power for log fold-changes of
@@ -908,7 +908,7 @@ The *reproducibility story* is, on net, encouraging. *Erik Hanson*'s
 2022 cross-study reanalysis showed that CRISPR-screen replication
 rates between independent groups working on the same cell line and
 condition are roughly 80 percent — much higher than the 30 — 50 percent
-seen for microbiome studies or for early GWAS hits. Three factors
+seen for #idx("microbiome")microbiome studies or for early #idx("GWAS")GWAS hits. Three factors
 drive this. *Standardised libraries* (everyone uses Brunello or TKOv3)
 remove a major source of cross-study variance. *Cell-line uniformity*
 — a cancer cell line is the same genetic background across labs, in
@@ -1012,7 +1012,7 @@ reached the clinic too: Vertex Pharmaceuticals' *Casgevy*, the
 2023-approved gene-therapy product for sickle-cell disease and
 beta-thalassemia, descends directly from the CRISPR-Cas9 mechanism
 walked at the start of this chapter (although it is in-vivo editing of
-the BCL11A enhancer, not a screen).
+the BCL11A #idx("enhancer")enhancer, not a screen).
 
 The applications beyond oncology have lagged but are arriving.
 *Anti-viral host-factor screens* — the SARS-CoV-2 entry-factor work
@@ -1060,7 +1060,7 @@ in-vivo translation is harder than in oncology.
 
 - MAGeCK's robust rank aggregation is a Beta(1, $k$) tail test on the
   best-of-$k$ guide-level rank. It is the same family of order-statistic
-  tests that drives GSEA; the modification (median rather than
+  tests that drives #idx("GSEA")GSEA; the modification (median rather than
   minimum) absorbs one outlier guide gracefully.
 
 - Quality control before analysis is non-negotiable. Four checks —
@@ -1107,7 +1107,7 @@ count table from DepMap (the public 23Q4 release contains the raw
 counts behind every Chronos run). Pick one cell line. Run MAGeCK
 with default parameters and produce a ranked list of essential genes.
 Report the top ten essentials and identify which are core-essentials
-versus cell-line-specific. Show the volcano plot of log fold change
+versus cell-line-specific. Show the #idx("volcano plot")volcano plot of #idx("log fold change")log #idx("fold change")fold change
 versus $-log_(10)$ FDR.
 
 #strong[2.] #emph[Tool comparison.] Run the same count table through
@@ -1132,7 +1132,7 @@ data: is there a compound that mirrors the gene-knockout pattern? If
 so, name it and check whether it has a clinical-development programme
 in the relevant indication.
 
-#strong[5.] #emph[MAVE alignment with ClinVar.] Download the BRCA1
+#strong[5.] #emph[MAVE alignment with #idx("ClinVar")ClinVar.] Download the BRCA1
 saturation genome-editing data from MAVEdb (Findlay 2018). Cross-reference
 the top 100 ClinVar Pathogenic BRCA1 variants with the MAVE function
 scores. Compute the per-variant concordance (Pathogenic should be

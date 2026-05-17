@@ -1,14 +1,14 @@
 #import "../theme/book-theme.typ": *
 
-= Mass-Spectrometry Proteomics and Metabolomics: Counting What Actually Does the Work <ch:proteomics-metabolomics>
+= Mass-Spectrometry Proteomics and #idx("metabolomics")Metabolomics: Counting What Actually Does the Work <ch:proteomics-metabolomics>
 
 #matters[
-  RNA-seq counts the messages a cell sends to itself. The proteins those
+  #idx("RNA-seq")RNA-seq counts the messages a cell sends to itself. The proteins those
   messages encode are what actually carry out the work — enzymes catalyse
-  reactions, transcription factors regulate gene expression, receptors
+  reactions, #idx("transcription")transcription factors regulate gene expression, receptors
   detect signals, antibodies fight infection — and the metabolites those
   proteins produce are what most clinical assays end up measuring. The
-  correlation between mRNA and protein abundance across genes is around
+  correlation between #idx("mRNA")mRNA and protein abundance across genes is around
   $r = 0.4$ to $0.6$, low enough that a transcriptomic measurement is at
   best a noisy proxy for the protein-level state. This chapter is about
   the instrument that fills the gap. A modern mass spectrometer can
@@ -46,13 +46,13 @@ sequences to grep against the genome; they have peptides that have to
 be matched against a database of theoretical fragment masses. Their
 abundance dynamic range in plasma spans ten orders of magnitude, where
 no single assay can cover the whole range. Their modifications —
-phosphorylation, acetylation, ubiquitination — are biologically
+#idx("phosphorylation")phosphorylation, acetylation, #idx("ubiquitination")ubiquitination — are biologically
 load-bearing and analytically combinatorial. And the metabolites they
 produce live in chemical space that has no sequence at all to organise
 the search.
 
 This is the final chapter of the book, and a closing note at the end
-returns to the larger arc — the way RNA, protein, metabolite, and
+returns to the larger arc — the way #idx("RNA")RNA, protein, metabolite, and
 function fit together in multi-omics integration, and where the field
 appears to be heading. The bulk of the chapter is the proteomics and
 metabolomics pipeline itself: how the instrument works, how the spectra
@@ -64,7 +64,7 @@ the pipeline is the structure of the chapter.
 == From Spectrum to Peptide <sec:ch27-spectrum-to-peptide>
 
 The protocol that produces most of the world's proteomic data is called
-*bottom-up*, *shotgun*, or *LC-MS/MS proteomics*, and it has a fixed
+*bottom-up*, *shotgun*, or *#idx("LC-MS")LC-MS/MS proteomics*, and it has a fixed
 shape. A protein mixture is digested with a protease into peptides;
 the peptides are separated by liquid chromatography; the separated
 peptides are ionised, fragmented, and mass-analysed; the resulting
@@ -132,7 +132,7 @@ older alternative — *matrix-assisted laser desorption ionisation*
 and Koichi Tanaka in Japan in 1988 — uses a UV laser pulse to vaporise
 a co-crystallised matrix, carrying the peptides into the gas phase.
 ESI dominates because it couples cleanly to LC; MALDI persists for
-specialised applications like imaging mass spectrometry, where spatial
+specialised applications like imaging #idx("mass spectrometry")mass spectrometry, where spatial
 resolution on a tissue section is the priority.
 
 #note[
@@ -240,12 +240,12 @@ a cross-correlation between observed and theoretical spectra, which
 remains the conceptual core of every modern search engine. *Mascot*,
 released commercially by Matrix Science (Perkins, Pappin, Creasy, and
 Cottrell, 1999), introduced a probability-based scoring scheme and
-dominated commercial proteomics for a decade. *MaxQuant*, released
+dominated commercial proteomics for a decade. *#idx("MaxQuant")MaxQuant*, released
 free of charge by Jürgen Cox and Matthias Mann at the Max Planck
 Institute in 2008, bundled a search engine (Andromeda), an MS1-based
 quantification module (MaxLFQ), and an analysis suite (Perseus) into a
 single workflow that became the de-facto community standard.
-*MSFragger*, developed by Andy Kong, Felipe Leprevost, Dmitry
+*#idx("MSFragger")MSFragger*, developed by Andy Kong, Felipe Leprevost, Dmitry
 Avtonomov, Sangtae Mellacheruvu, and Alexey Nesvizhskii in 2017,
 implemented a fragment-index data structure that made open searches —
 allowing arbitrary unspecified modifications — practical for the first
@@ -255,8 +255,8 @@ commercial interface.
 
 #tip[
   When picking a search engine in 2024, the practical hierarchy is
-  roughly: MaxQuant for DDA bulk proteomics, FragPipe/MSFragger for
-  open searches and PTM-heavy applications, DIA-NN for DIA, Mascot
+  roughly: MaxQuant for #idx("DDA")DDA bulk proteomics, FragPipe/MSFragger for
+  open searches and PTM-heavy applications, DIA-NN for #idx("DIA")DIA, Mascot
   if you have a vendor-supported pipeline. The differences between
   the top tools at default settings are smaller than the differences
   between any of them and a poor parameter choice. The single most
@@ -276,7 +276,7 @@ a set of expected peak positions with predicted intensities. The
 search engine computes a correlation or a probability score between
 template and signal, and picks the candidate with the best score.
 
-This is *constrained matched filtering*. The classical matched filter
+This is *constrained matched filtering*. The classical #idx("matched filter")matched filter
 in radar detection is optimal when both the signal template and the
 noise covariance are known. In peptide identification, the templates
 are the theoretical spectra of all tryptically possible peptides, and
@@ -316,7 +316,7 @@ in different ways.
 DDA is the classical mode and was the only practical option for two
 decades. The instrument runs a fast MS1 scan, picks the top $N$ most
 intense precursors — typically $N = 10$ to $20$ — and fragments each
-in turn before going back to MS1. The selection rule is dynamic: every
+in turn before going back to MS1. The #idx("selection")selection rule is dynamic: every
 few seconds the instrument re-examines the current MS1 landscape and
 chooses what to fragment next. Most pipelines also apply a *dynamic
 exclusion* window of fifteen to thirty seconds, so that a precursor
@@ -326,7 +326,7 @@ is likely to have eluted.
 DDA's strength is that the resulting MS2 spectra are mostly clean —
 each spectrum contains fragment ions from a single peptide, give or
 take some co-isolation contamination. Its weakness is *stochastic
-coverage*. Because the instrument can only fragment a fixed number of
+#idx("coverage")coverage*. Because the instrument can only fragment a fixed number of
 precursors per unit time, and because the precursor selection is
 biased toward whatever happens to be most intense at that moment, the
 set of peptides identified varies between technical replicates of the
@@ -364,7 +364,7 @@ solve.
     DDA picks top-$N$ precursors and fragments them sequentially; DIA
     cycles through fixed $m/z$ windows and fragments every precursor
     in each window. The cost of DDA is stochastic coverage; the cost
-    of DIA is chimeric spectra that need deconvolution.
+    of DIA is chimeric spectra that need #idx("deconvolution")deconvolution.
   ],
 ) <fig:dda-vs-dia>
 
@@ -431,7 +431,7 @@ neural network trained to perform the same task. DIA-NN does the
 neural-network version. The pattern recurs throughout this book —
 RNA-seq deconvolution of bulk samples into cell types
 (Chapter 7), CRISPR-screen recovery of per-gene effects from pooled
-phenotypes (Chapter 24), Hi-C contact recovery from sparse
+phenotypes (Chapter 24), #idx("Hi-C")Hi-C contact recovery from sparse
 observations (Chapter 10) — all are underdetermined linear systems
 solved under sparsity priors. DIA is the proteomics instance of the
 same family.
@@ -449,14 +449,14 @@ same family.
 ]
 
 
-== Identification, FDR, and Protein Inference <sec:ch27-identification>
+== Identification, #idx("FDR")FDR, and Protein Inference <sec:ch27-identification>
 
 Every peptide-spectrum match comes with a score. Distributing scores
 across all candidate spectra produces two overlapping distributions —
 correct matches at higher scores, incorrect matches at lower scores —
 and the bioinformatician's job is to set a threshold that controls
 the rate of false identifications without throwing away too many real
-ones. The mechanism for doing this is *target-decoy estimation*, the
+ones. The mechanism for doing this is *#idx("target-decoy")target-decoy estimation*, the
 single most important statistical idea in modern proteomics.
 
 === The Target-Decoy Approach
@@ -470,7 +470,7 @@ by shuffling residues with the K/R termini preserved. Any spectrum
 that matches a decoy peptide is by construction a false match: the
 decoy sequence does not exist in nature. If you count $D$ decoy hits
 at some score threshold $T$ and $N$ target hits at the same threshold,
-the *false discovery rate* (FDR) is estimated as $hat("FDR") = D / N$,
+the *#idx("false discovery rate")false discovery rate* (FDR) is estimated as $hat("FDR") = D / N$,
 under the assumption that decoys mimic the distribution of incorrect
 target matches.
 
@@ -579,14 +579,14 @@ proteomics, with their mass deltas, are:
   (addition of $-"PO"_3"H"$). Adds a negative charge at physiological pH;
   regulates roughly thirty percent of the proteome.
 - *Acetylation* on lysine or the N-terminus: $+42.01$ Da (addition of
-  acetyl, $-"COCH"_3$). Neutralises positive charge; central to histone
+  acetyl, $-"COCH"_3$). Neutralises positive charge; central to #idx("histone")histone
   regulation and metabolic enzyme tuning.
-- *Methylation* on lysine or arginine: $+14.02$ Da per methyl group.
+- *#idx("methylation")Methylation* on lysine or arginine: $+14.02$ Da per methyl group.
   Permits "code" of mono-, di-, and tri-methylation states.
 - *Ubiquitination* on lysine: leaves a glycine-glycine remnant after
   trypsin digestion, $+114.04$ Da on the modified lysine ("K-GG").
   Targets proteins for proteasomal degradation; also signals trafficking
-  and DNA damage repair.
+  and #idx("DNA")DNA damage repair.
 - *Oxidation* on methionine: $+15.99$ Da. Mostly an artifact of sample
   handling but biologically meaningful for some proteins.
 
@@ -654,7 +654,7 @@ phosphorylated which site, and inferring the upstream signalling
 pathway, is the harder downstream problem. The 2020s have seen
 multiple foundation-model-style efforts to predict kinase-substrate
 relationships from sequence and phosphoproteomic data; the field's
-ground truth remains *in vitro* kinase assays and CRISPR/RNAi
+ground truth remains *in vitro* kinase assays and #idx("CRISPR")CRISPR/RNAi
 perturbations.
 
 
@@ -688,7 +688,7 @@ DDA, 5% on DIA), retention-time drift, and a tendency to leave missing
 values when peptides fall below the MS1 detection threshold in some
 samples.
 
-=== Stable-Isotope Labelling: SILAC
+=== Stable-Isotope Labelling: #idx("SILAC")SILAC
 
 The second approach is *metabolic labelling* — incorporating a
 mass-distinguishable variant of an amino acid into the protein in vivo.
@@ -717,7 +717,7 @@ The *Super-SILAC* extension mixes a SILAC-labelled cell-line reference
 into unlabelled clinical samples as a common reference, partially
 recovering the benefits.
 
-=== Chemical Labelling: TMT and iTRAQ
+=== Chemical Labelling: #idx("TMT")TMT and #idx("iTRAQ")iTRAQ
 
 The third approach is *isobaric chemical labelling*, where every
 sample is tagged with a chemical reagent that introduces a known
@@ -784,8 +784,8 @@ roughly the same shape as a bulk RNA-seq count matrix (Chapter 5),
 which is no accident.
 
 The statistical machinery is mostly borrowed from RNA-seq with a few
-proteomics-specific adjustments. *limma* (Smyth, 2004), the linear
-model with empirical-Bayes variance shrinkage that became the standard
+proteomics-specific adjustments. *#idx("limma")limma* (Smyth, 2004), the linear
+model with empirical-Bayes variance #idx("shrinkage")shrinkage that became the standard
 for microarray and then for RNA-seq, transfers directly to proteomics
 data once the intensities are log-transformed and normalised. Proteomics
 adaptations like *DEqMS* (Zhu, Orre, Tran, Mermelekas, et al., 2020)
@@ -853,11 +853,11 @@ versus low-abundance proteins.
 
 Once you have a list of differentially abundant proteins, the
 downstream analysis tracks the RNA-seq pipeline of Chapter 22.
-Over-representation analysis (ORA) tests whether known biological
+Over-representation analysis (#idx("ORA")ORA) tests whether known biological
 pathways are enriched among the hits; gene-set enrichment analysis
-(GSEA) generalises to the full ranked list; protein-protein interaction
-networks from STRING propagate the signal across the interactome.
-KEGG and Reactome are the standard pathway databases; Gene Ontology
+(#idx("GSEA")GSEA) generalises to the full ranked list; protein-protein interaction
+networks from #idx("STRING")STRING propagate the signal across the interactome.
+#idx("KEGG")KEGG and #idx("Reactome")Reactome are the standard pathway databases; #idx("Gene Ontology")Gene Ontology
 the standard functional vocabulary. The proteomics-specific wrinkle is
 that some PTM-aware analyses look not just at protein abundance but
 at *per-modification* changes — phosphosite-level differential
@@ -908,7 +908,7 @@ prostate cancer; *CA-125, CA 19-9, AFP* are tumour markers in
 established oncology workflows. The
 2024 landscape is shifting under two pressures. Olink-based discovery
 studies in biobank-scale cohorts (UK Biobank, FinnGen) are publishing
-hundreds of plausible new biomarker candidates per year; the FDA's
+hundreds of plausible new biomarker candidates per year; the #idx("FDA")FDA's
 biomarker qualification process is slow and few candidates ever make
 it into clinical use. Proteomics has produced many discovery hits;
 turning them into clinical-grade assays remains the bottleneck.
@@ -947,7 +947,7 @@ which determine clinical activity and toxicity.
 ) <fig:chemoproteomics>
 
 Chemoproteomics is the experimental complement to the AlphaFold-based
-docking workflows of Chapter 15. A predicted binding pose is a
+#idx("docking")docking workflows of Chapter 15. A predicted binding pose is a
 hypothesis; a chemoproteomic pulldown is the live-cell measurement
 that can falsify it. For drug discovery in 2024 the two are
 increasingly combined — predict candidates computationally, confirm
@@ -955,7 +955,7 @@ binding in cells, iterate.
 
 === Structural Proteomics and Single-Cell Frontier
 
-A handful of MS techniques look at protein structure rather than just
+A handful of MS techniques look at #idx("protein structure")protein structure rather than just
 abundance. *Cross-linking mass spectrometry* (XL-MS) uses a chemical
 crosslinker to lock interacting residues together; MS then identifies
 the crosslinked peptide pairs, which constrain the spatial layout of
@@ -964,7 +964,7 @@ how readily backbone amide hydrogens exchange with deuterated solvent;
 exchange rates report on local flexibility and ligand-binding-induced
 conformational changes. *Native MS* keeps protein complexes intact
 through the ESI source and measures their assembled masses directly.
-All three complement AlphaFold and cryo-EM by giving conformational
+All three complement #idx("AlphaFold")AlphaFold and cryo-EM by giving conformational
 or interaction-level constraints in solution rather than in a crystal.
 
 *Single-cell proteomics* is the field's current frontier. SCOPE-MS
@@ -973,7 +973,7 @@ single-cell sensitivity by miniaturising the sample prep and using
 TMT to multiplex many cells per run. As of 2024, a typical single-cell
 proteomics experiment quantifies 1,000–3,000 proteins per cell with
 substantial cell-to-cell missingness — still a gap of an order of
-magnitude versus single-cell RNA-seq, but closing. Spatial proteomics
+magnitude versus #idx("single-cell RNA-seq")single-cell RNA-seq, but closing. Spatial proteomics
 techniques like *Imaging Mass Cytometry* (IMC) and *CODEX* measure
 40–60 protein markers per cell at tissue-section resolution, sitting
 between the genomic-scale of MS and the targeted nature of antibody
@@ -1010,7 +1010,7 @@ structure but no sequence; the space of "all possible metabolites" is
 vast and only partially catalogued.
 
 The reference databases are the bottleneck. The *Human Metabolome
-Database* (HMDB, Wishart and colleagues, since 2009) lists about
+Database* (#idx("HMDB")HMDB, Wishart and colleagues, since 2009) lists about
 250,000 putative human metabolites, but only a fraction have
 experimentally measured tandem-MS spectra. *METLIN* covers tandem-MS
 spectra for about a million molecules, commercially. *MoNA* (the
@@ -1022,7 +1022,7 @@ whose spectra are not in any database, drug metabolites the human
 liver has produced, microbiome-derived compounds, and exotic
 fragmentation artifacts.
 
-The *Metabolomics Standards Initiative* (MSI) confidence levels
+The *Metabolomics Standards Initiative* (#idx("MSI")MSI) confidence levels
 formalise the spectrum of identification quality. *Level 1* is a
 match against an authentic standard analysed on the same instrument —
 mass, retention time, and MS/MS all agree. *Level 2* is a putative
@@ -1046,10 +1046,10 @@ is what keeps metabolomic biomarker validation slow.
 ) <fig:metabolomics>
 
 A handful of computational tools narrow the identification gap.
-*XCMS* (Smith, Want, O'Maille, Abagyan, and Siuzdak, 2006) is the
+*#idx("XCMS")XCMS* (Smith, Want, O'Maille, Abagyan, and Siuzdak, 2006) is the
 canonical open-source platform for untargeted metabolomic peak
-detection and alignment. *MetaboAnalyst* (Pang, Chong, Li, and Xia,
-2024) wraps statistical and pathway-enrichment analysis. *SIRIUS*
+detection and alignment. *#idx("MetaboAnalyst")MetaboAnalyst* (Pang, Chong, Li, and Xia,
+2024) wraps statistical and pathway-enrichment analysis. *#idx("SIRIUS")SIRIUS*
 (Dührkop and colleagues, since 2015) uses fragmentation-tree
 analysis plus a machine-learning module (CSI:FingerID) to predict
 chemical structure from MS/MS spectra of unknown peaks — when it
@@ -1157,7 +1157,7 @@ reasonable splice isoforms), and multi-protein peptide ambiguity (rely
 on the search engine's parsimony rule, and look at protein groups
 rather than single proteins in the output).
 
-*Quantification* requires explicit attention. Missing values need a
+*Quantification* requires explicit #idx("attention")attention. Missing values need a
 defensible imputation strategy, or none at all (ProDA-style dropout
 modelling). TMT runs need ratio compression awareness — interpret
 fold changes conservatively, especially for highly-multiplexed runs.
@@ -1170,7 +1170,7 @@ the differential analysis.
   per-sample protein-ID count, per-sample missing-value count, and
   inter-sample peptide-ID overlap before any analysis. Out-of-the-ordinary
   samples — three standard deviations below the mean ID count, a
-  systematic missing-value pattern, an outlier in PCA — usually
+  systematic missing-value pattern, an outlier in #idx("PCA")PCA — usually
   reflect technical problems (incomplete digestion, LC failure,
   detector miscalibration) that need to be resolved before
   differential analysis is meaningful.
@@ -1179,7 +1179,7 @@ the differential analysis.
 === Reproducibility
 
 Proteomics reproducibility is intermediate between RNA-seq and
-microbiome studies. Cohort-scale DIA workflows now achieve 80%–85%
+#idx("microbiome")microbiome studies. Cohort-scale DIA workflows now achieve 80%–85%
 protein-ID overlap across technical replicates and 60%–70% replication
 of differential-abundance hits across independent cohorts.
 DDA-LFQ studies sit lower, around 70% identification overlap and
@@ -1269,7 +1269,7 @@ chemical polymer and an instrument that turns it into a text file
 (Chapters 2–4), from RNA counts to expression dynamics (Chapters 5–6),
 into the single-cell era (Chapters 7–8) and the regulatory and
 epigenomic layers (Chapters 9–10), out to long reads and pangenomes
-(Chapter 11), into population genetics and GWAS (Chapters 12–13),
+(Chapter 11), into population genetics and #idx("GWAS")GWAS (Chapters 12–13),
 through data engineering (Chapter 14) and protein structure (Chapter 15),
 into the machine-learning architectures that have reshaped every prior
 chapter (Chapter 16), and finally — across the latter half — into
@@ -1278,7 +1278,7 @@ inference, ML in biology, and the integrative methods that pull the
 pieces together. The thread that runs through all of it is the
 recurring move every working bioinformatician makes: pick a biological
 question, identify the measurement that has structural information
-about that question, find the algorithm whose inductive bias matches
+about that question, find the algorithm whose #idx("inductive bias")inductive bias matches
 the measurement's shape, and validate against the messy reality of
 biological variability. This chapter on mass spectrometry is the
 last instrument we cover, but the move is the same one Chapter 1
@@ -1290,7 +1290,7 @@ measurement layer captures a biological system. RNA-seq (Chapter 5)
 tells you what a cell intends to make; the proteome of this chapter
 tells you what it actually made; the metabolome tells you what those
 proteins did; single-cell methods (Chapter 7) reveal which cells are
-which; ChIP-seq and ATAC-seq (Chapter 9) localise the regulators;
+which; #idx("ChIP-seq")ChIP-seq and #idx("ATAC-seq")ATAC-seq (Chapter 9) localise the regulators;
 the GWAS catalogue (Chapter 13) anchors variants to phenotypes;
 network methods (Chapter 22) interpret the layers as a system; causal
 inference (Chapter 25) tries to ascribe direction to the resulting
@@ -1298,7 +1298,7 @@ edges. A serious clinical or basic-research question almost always
 needs at least two of these layers, and the next decade of
 bioinformatics is, in large part, about doing the integration well —
 matched multi-modal foundation models (Chapter 16's frontier), causal
-mediation analyses that span omics layers (Chapter 25), and clinical
+#idx("mediation")mediation analyses that span omics layers (Chapter 25), and clinical
 biomarker panels that combine genetic risk, protein abundance, and
 metabolite concentrations into a single risk model. The technical
 pieces are largely available; what remains is the patient, careful

@@ -4,15 +4,15 @@
 
 #matters[
   Every analysis in this book up to now has treated a single genome at a
-  time — one FASTQ, one BAM, one VCF. Population genetics asks a
+  time — one #idx("FASTQ")FASTQ, one #idx("BAM")BAM, one #idx("VCF")VCF. Population genetics asks a
   different question. Given a collection of genomes from a population
   — a thousand individuals, a hundred thousand individuals, all of
   Iceland — what can you say about the _distribution_ of variation? The
-  answer matters for GWAS power, for clinical-allele frequency cutoffs,
+  answer matters for #idx("GWAS")GWAS power, for clinical-allele frequency cutoffs,
   for evolutionary inference, and for the parts of human history that
   the historical record never touched. The mathematical objects in this
-  chapter — Hardy-Weinberg ratios, the Wright-Fisher Markov chain, the
-  Kingman coalescent — are also the cleanest stochastic-process
+  chapter — #idx("Hardy-Weinberg")Hardy-Weinberg ratios, the #idx("Wright-Fisher")Wright-Fisher Markov chain, the
+  #idx("Kingman")Kingman #idx("coalescent")coalescent — are also the cleanest stochastic-process
   isomorphisms in the entire course. Read them as both biology and
   signal processing.
 ]
@@ -33,13 +33,13 @@ equilibrium — and explains why the centrepiece of the field is a model
 that nobody believes is literally true. Section 12.2 introduces the
 Wright-Fisher Markov chain, the simplest forward-in-time model of
 allele-frequency dynamics, and the four forces that perturb it:
-drift, selection, mutation, migration. Section 12.3 picks up linkage
+drift, #idx("selection")selection, mutation, migration. Section 12.3 picks up linkage
 disequilibrium — the genome-scale autocorrelation structure that GWAS
 exploits and that selection scans use to date sweeps. Section 12.4
 flips time around and develops the coalescent: the same Wright-Fisher
 process run backward from a present-day sample, which is dramatically
 cheaper to simulate. Section 12.5 turns those tools onto real data
-with PSMC, SMC++, and ADMIXTURE — methods that infer effective
+with #idx("PSMC")PSMC, SMC++, and #idx("ADMIXTURE")ADMIXTURE — methods that infer effective
 population size and ancestry composition from one or many sequenced
 genomes. Section 12.6 covers selection scans: detecting the genomic
 footprints of recent adaptation with controlled false-alarm rates.
@@ -52,14 +52,14 @@ machinery this chapter develops.
 
 == Allele Frequencies and Hardy-Weinberg <sec:hwe>
 
-A *biallelic SNP* in a population has two alleles, say $A$ and $a$.
+A *biallelic #idx("SNP")SNP* in a population has two alleles, say $A$ and $a$.
 Pool the genomes of $N$ diploid individuals and you have $2N$
 chromosomes total. Count the copies of each allele; call the counts
-$k_A$ and $k_a$. The *allele frequency* of $A$ is
+$k_A$ and $k_a$. The *#idx("allele frequency")allele frequency* of $A$ is
 $ p = k_A / (2N), quad q = 1 - p. $
 This single number $p$ is the basic currency of population genetics.
 Every more sophisticated quantity — genotype frequency, heterozygosity,
-effective population size, $F$-statistics, LD measures — is built on
+#idx("effective population size")effective population size, $F$-statistics, LD measures — is built on
 allele-frequency tallies.
 
 Three operational conventions are worth pinning down before going
@@ -71,7 +71,7 @@ differently. Genotype frequencies — the fraction of individuals with
 each diploid genotype $A A$, $A a$, $a a$ — are not the same object as
 allele frequencies, and the link between the two is the topic of the
 next subsection. And ploidy matters: the X and Y chromosomes and
-the mitochondrion break the diploid assumption and have their own
+the #idx("mitochondrion")mitochondrion break the diploid assumption and have their own
 conventions; pipelines treat them as separate categories.
 
 === The Hardy-Weinberg Principle
@@ -195,7 +195,7 @@ mating, common in plant breeding systems with self-incompatibility.
 stratification, which becomes a confounder in GWAS (Chapter 13).
 *Allele-frequency shifts between generations* are the live signature
 of selection, drift, or migration; long-term sampling (museum
-specimens, ancient DNA) makes these directly observable. *Single-site
+specimens, ancient #idx("DNA")DNA) makes these directly observable. *Single-site
 extreme rejections* are usually genotyping artefacts: a clustered
 miscall pattern, a copy-number variant masquerading as a SNP, or a
 mismapped read pile.
@@ -203,7 +203,7 @@ mismapped read pile.
 #tip[
   When a single SNP rejects HWE at $p < 10^(-6)$ in a large cohort,
   the priors say it is a genotyping artefact roughly nine times out of
-  ten. Tools like Hail's `hwe_normalize` and the GATK Best-Practices
+  ten. Tools like Hail's `hwe_normalize` and the #idx("GATK")GATK Best-Practices
   filters use HWE rejection precisely _as_ a quality filter, not as a
   biology detector. The biology shows up when many loci near each
   other reject in the same direction.
@@ -236,7 +236,7 @@ fixes one allele or the other.
 #figure(
   image("../../diagrams/lecture-12/03-wright-fisher.svg", width: 92%),
   caption: [
-    The Wright-Fisher generative scheme. Each chromosome in the next
+    The Wright-Fisher generative scheme. Each #idx("chromosome")chromosome in the next
     generation is an independent random draw with replacement from
     the current generation — allele frequency drifts with variance
     $p(1 - p) / (2 N)$ per step.
@@ -256,7 +256,7 @@ fixes one allele or the other.
   this Markov chain plus its diffusion limit.
 ]
 
-=== Genetic Drift
+=== #idx("genetic drift")Genetic Drift
 
 *Genetic drift* is the per-generation change in allele frequency
 arising purely from finite-population sampling. The conditional mean
@@ -293,7 +293,7 @@ parameter in the field.
     Drift as binomial sampling noise at three effective population
     sizes. Per-generation step size, fixation probability, and
     heterozygosity half-life all scale with $N_e$. The bottom panel
-    sketches trajectory shapes; the right panel collects the
+    sketches #idx("trajectory")trajectory shapes; the right panel collects the
     long-run consequences.
   ],
 ) <fig:drift-math>
@@ -401,7 +401,7 @@ to reach for whenever the formula calls for "$N$."
 ]
 
 
-== Linkage Disequilibrium: Genome-Scale Autocorrelation <sec:ld>
+== #idx("linkage disequilibrium")Linkage Disequilibrium: Genome-Scale Autocorrelation <sec:ld>
 
 The Wright-Fisher model in §12.2 tracks a single locus. Real genomes
 have millions of loci on a few dozen chromosomes, and alleles at
@@ -416,7 +416,7 @@ the sweep.
 
 === Where LD Comes From and How It Goes Away
 
-If alleles at two loci were independent, the haplotype frequency
+If alleles at two loci were independent, the #idx("haplotype")haplotype frequency
 $P(A B)$ would equal the product $p_A p_B$ of the marginal allele
 frequencies. The deviation
 $ D = P(A B) - p_A p_B $
@@ -431,11 +431,11 @@ positive $D$:
    and the admixed population has LD between any pair of
    differing-frequency loci.
 3. *Selection.* A positively selected allele drags its flanking
-   variants up in frequency with it, generating a footprint of
+   variants up in frequency with it, generating a #idx("footprint")footprint of
    elevated LD around the selected site — the "selective sweep"
-   pattern picked up by iHS and XP-EHH (§12.6).
+   pattern picked up by #idx("iHS")iHS and XP-EHH (§12.6).
 
-Three destructive processes erode LD: *recombination* breaks
+Three destructive processes erode LD: *#idx("recombination")recombination* breaks
 haplotypes apart at meiosis; *drift* perturbs the deterministic
 co-occurrences stochastically; and *time* simply lets recombination
 compound. The single most consequential prediction in LD theory is the
@@ -521,7 +521,7 @@ catalogue underpins every commercial GWAS array.
   caption: [
     Average $r^2$ vs physical distance in a human cohort. The
     half-decay distance lies around 30 kb — the operational scale of
-    tag-SNP coverage.
+    tag-SNP #idx("coverage")coverage.
   ],
 ) <fig:ld-decay-empirical>
 
@@ -623,7 +623,7 @@ The two estimators give the same population parameter $theta$ under
 neutrality but weight branches differently — $pi$ weights internal
 branches (where most heterozygosity sits), and $S / sum 1/k$ weights
 total tree length. The difference $pi - S / sum 1/k$ is the
-numerator of *Tajima's D* (Tajima 1989), the classical test for
+numerator of *#idx("Tajima's D")Tajima's D* (Tajima 1989), the classical test for
 departures from neutrality (§12.6).
 
 #figure(
@@ -694,18 +694,18 @@ published *PSMC* (Pairwise Sequentially Markovian Coalescent) in
 _Nature_ in 2011 demonstrating this. The intuition is that a diploid
 genome contains two chromosome copies — maternal and paternal —
 which have their own coalescent time at every locus. Locally low
-heterozygosity means a recent MRCA at that locus (so small $N_e$
+heterozygosity means a recent #idx("MRCA")MRCA at that locus (so small $N_e$
 around that time); locally high heterozygosity means an ancient
 MRCA (so large $N_e$ then).
 
-The PSMC algorithm models the genome as a hidden Markov model. The
+The PSMC algorithm models the genome as a #idx("hidden Markov model")hidden Markov model. The
 hidden state is the local coalescent time between the two diploid
 copies, discretised into time bins. The emission is the observed
 heterozygosity in a window. The transition probabilities come from
 the *sequentially Markovian coalescent* (SMC) approximation: as you
 walk along the chromosome, the local TMRCA changes only at
 recombination events, and the new TMRCA is correlated with the old.
-Fitting the HMM by Baum-Welch (an EM variant) gives a step-function
+Fitting the #idx("HMM")HMM by #idx("Baum-Welch")Baum-Welch (an EM variant) gives a step-function
 $N_e(t)$ that explains the observed heterozygosity profile.
 
 #figure(
@@ -906,7 +906,7 @@ XP-EHH detects sweeps differentiated between populations.
 #figure(
   image("../../diagrams/lecture-12/12-selection-scan.svg", width: 95%),
   caption: [
-    A genome-wide selection-scan Manhattan plot. Annotated peaks
+    A genome-wide selection-scan #idx("Manhattan plot")Manhattan plot. Annotated peaks
     correspond to known sweep targets: $L C T$ (lactase persistence
     in Europeans), $S L C 24 A 5$ (skin pigmentation), $E D A R$
     (East-Asian hair thickness), $A B C C 11$ (earwax type). Even
@@ -932,7 +932,7 @@ turn out to be wrong. Four failure modes dominate:
    reduces diversity genome-wide in gene-rich regions. Without
    correction, this looks like positive-selection signal in
    precisely the regions where you most want to detect it.
-4. *Multiple testing.* Across millions of SNPs, the tail of any null
+4. *#idx("multiple testing")Multiple testing.* Across millions of SNPs, the tail of any null
    distribution contains many false positives at any fixed nominal
    significance.
 

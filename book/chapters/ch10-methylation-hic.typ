@@ -1,14 +1,14 @@
 #import "../theme/book-theme.typ": *
 
-= Methylation, Hi-C, and 3D Genome Organisation <ch:methylation-hic>
+= #idx("methylation")Methylation, #idx("Hi-C")Hi-C, and 3D Genome Organisation <ch:methylation-hic>
 
 #matters[
   The genome you have spent nine chapters reading is a one-dimensional
-  string of letters. The genome inside a cell is something else: a
-  two-metre polymer folded into a five-micron nucleus, decorated with a
-  second alphabet of chemical marks that does not appear in the FASTQ,
-  organised into chromatin neighbourhoods and territories that decide
-  which gene gets to talk to which enhancer. Two assays — bisulfite
+  #idx("STRING")string of letters. The genome inside a cell is something else: a
+  two-metre polymer folded into a five-micron #idx("nucleus")nucleus, decorated with a
+  second alphabet of chemical marks that does not appear in the #idx("FASTQ")FASTQ,
+  organised into #idx("chromatin")chromatin neighbourhoods and territories that decide
+  which gene gets to talk to which #idx("enhancer")enhancer. Two assays — #idx("bisulfite")bisulfite
   sequencing for the chemical marks, Hi-C for the folding — read both
   of these missing dimensions back into text files an aligner can chew.
   Each comes with a statistical problem dressed up in unfamiliar
@@ -16,17 +16,17 @@
   squarely, a piece of textbook engineering math: a channel-decoding
   problem, a Bayesian proportion estimator, a covariance matrix's
   principal component, a change-point detector. This chapter does the
-  translation.
+  #idx("translation")translation.
 ]
 
-DNA methylation and three-dimensional chromosome conformation sit in
+#idx("DNA")DNA methylation and three-dimensional #idx("chromosome")chromosome conformation sit in
 the same chapter because both are layers of biology that the linear
 sequence cannot tell you about — and because both, despite being
 biologically and chemically unrelated, end up posing remarkably similar
 inference problems. Methylation is a chemical mark on individual
 cytosines, read out by sequencing after a channel-induced symbol flip.
 Hi-C is a population-averaged measurement of which loci touch which
-other loci in space, read out as an $N times N$ contact matrix. The
+other loci in space, read out as an $N times N$ #idx("contact matrix")contact matrix. The
 methylation pipeline boils down to decoding a channel and estimating
 proportions; the Hi-C pipeline boils down to balancing a matrix and
 running an eigendecomposition. By the end of the chapter the same
@@ -42,7 +42,7 @@ covers Hi-C: what the protocol measures, what the contact matrix looks
 like after iterative balancing, how TADs fall out of an insulation
 score, and how A/B compartments fall out of the first eigenvector. The
 last section pulls together the three linear-algebra framings — Hi-C
-as covariance, compartments as PCA, 3D reconstruction as MDS — that
+as covariance, compartments as #idx("PCA")PCA, 3D reconstruction as MDS — that
 make the whole assay legible to anyone with a signals-and-systems
 background.
 
@@ -53,7 +53,7 @@ DNA methylation is a small chemical modification: a methyl group ($"CH"_3$)
 covalently attached to the fifth carbon of cytosine, producing
 *5-methylcytosine* (5mC). In every mammalian genome the modification
 occurs almost exclusively at cytosines that sit immediately upstream
-of a guanine on the same strand — the *CpG dinucleotide*, where the
+of a guanine on the same strand — the *#idx("CpG")CpG dinucleotide*, where the
 "p" is a literal phosphodiester bond, not a base. Plants methylate
 more permissively; mammals are CpG-centric.
 
@@ -87,11 +87,11 @@ actively erase the mark by oxidising 5mC to 5-hydroxymethylcytosine
 ) <fig:methylation-chemistry>
 
 The regulatory consequence depends on where in the genome the
-methylation lands. Methylation at a gene's promoter typically silences
+methylation lands. Methylation at a gene's #idx("promoter")promoter typically silences
 the gene: methylated CpGs recruit methyl-CpG-binding proteins (the
 MBD family), which in turn recruit chromatin-compacting machinery,
-which in turn keeps RNA polymerase from getting a foothold. Demethylation
-at the same promoter releases the suppression and allows transcription.
+which in turn keeps #idx("RNA")RNA #idx("polymerase")polymerase from getting a foothold. Demethylation
+at the same promoter releases the suppression and allows #idx("transcription")transcription.
 The same sequence, read at two different methylation states, expresses
 different genes. This is why cells with identical genomes — every
 nucleated cell in your body — can become very different cell types:
@@ -124,7 +124,7 @@ short (200 bp to 3 kb) regions with locally high GC content (above
 50 %) and high observed-to-expected CpG ratio (above 0.6). These are
 *CpG islands*. They survive because they are usually unmethylated;
 no mark, no accelerated deamination, no loss. About 60 to 70 percent
-of human gene promoters overlap a CpG island, and in normal cells
+of human gene promoters overlap a #idx("CpG island")CpG island, and in normal cells
 those CpG islands are kept unmethylated regardless of whether the
 linked gene is actively transcribed.
 
@@ -166,11 +166,11 @@ of tumour cells.
   mid-1970s — Riggs in 1975, Holliday and Pugh independently the same
   year — well before sequencing was cheap enough to measure it
   genome-wide. The field spent twenty-five years studying individual
-  loci one at a time, with locus-specific PCR and Sanger sequencing
+  loci one at a time, with locus-specific PCR and #idx("Sanger sequencing")Sanger sequencing
   after bisulfite treatment. The 2008–2012 explosion of
   whole-genome bisulfite sequencing turned methylation from a
   per-locus into a per-genome assay — the same kind of transition that
-  ChIP-seq caused for transcription-factor binding, in roughly the
+  #idx("ChIP-seq")ChIP-seq caused for transcription-factor binding, in roughly the
   same five-year span. The Roadmap Epigenomics project assembled the
   first pan-tissue reference methylomes by 2015; a modern WGBS
   experiment covers all \~28 million human CpGs in one run.
@@ -234,7 +234,7 @@ has become a base identity.
 
 === Why Standard Aligners Break
 
-A vanilla short-read aligner — BWA, Bowtie2 — was designed for
+A vanilla short-read aligner — #idx("BWA")BWA, Bowtie2 — was designed for
 Chapter 2's problem: place a read against a reference under a small
 random-error model. Most positions match; mismatches are rare,
 quasi-Gaussian, and concentrate at high-error positions (read ends,
@@ -259,7 +259,7 @@ that all of those mismatches share an underlying explanation.
 
 === Three-Letter Alignment
 
-*Bismark* (Krueger & Andrews, 2011) introduced the trick that has
+*#idx("Bismark")Bismark* (Krueger & Andrews, 2011) introduced the trick that has
 dominated the field ever since: project both the reference and the
 read into a reduced three-letter alphabet where the bisulfite channel
 acts as the identity map. Align in that reduced space. Then, once
@@ -339,12 +339,12 @@ re-analyses.
 
 A different approach emerged in 2019–2022 from the long-read
 platforms: call methylation directly from the raw sequencing signal,
-without a bisulfite step at all. *Oxford Nanopore* sequences DNA by
+without a bisulfite step at all. *#idx("Oxford Nanopore")Oxford Nanopore* sequences DNA by
 threading it through a protein pore and recording an electrical
 current; the methyl group at 5mC alters the current signature subtly
 but consistently enough that a methylation-aware base caller (Guppy's
 `hac_modbases` model, then Dorado in later releases) emits both a base
-identity and a methylation probability per position. *PacBio HiFi*
+identity and a methylation probability per position. *#idx("PacBio")PacBio #idx("HiFi")HiFi*
 measures polymerase kinetics during base incorporation; 5mC produces a
 small but reproducible interpulse-duration shift, called by a
 specialised HiFi 5mC model.
@@ -386,11 +386,11 @@ methylation estimate is $hat(p)_i = m_i / t_i$ — the fraction of
 methylated reads — and at infinite depth this would be the answer.
 At finite depth it is a noisy estimate of a bounded quantity, and
 the standard frequentist tools that work on count data (Poisson,
-negative binomial, log-normal) do not respect the $[0, 1]$ bound the
+#idx("negative binomial")negative binomial, log-normal) do not respect the $[0, 1]$ bound the
 true methylation proportion lives in.
 
 The first move in any sane methylation pipeline is to put a *Beta*
-prior on the per-CpG proportion. The Beta distribution has density
+prior on the per-CpG proportion. The #idx("Beta distribution")Beta distribution has density
 
 $ f(p; alpha, beta) = (p^(alpha-1) (1-p)^(beta-1)) / "B"(alpha, beta), quad p in [0, 1] $
 
@@ -455,7 +455,7 @@ The framework follows naturally from the per-CpG Beta-Binomial. At
 each CpG and in each group, fit a Beta posterior. Compare the
 posteriors — if the credible intervals do not overlap, the groups
 differ at that site; equivalently, perform a likelihood-ratio test on
-the two-group Beta-Binomial model. Adjust for multiple testing across
+the two-group Beta-Binomial model. Adjust for #idx("multiple testing")multiple testing across
 the genome (Benjamini–Hochberg, the standard default). Cluster
 adjacent significant CpGs into DMR calls, with a minimum-size
 threshold to suppress single-site flukes.
@@ -472,8 +472,8 @@ Three R packages dominate practice:
   per-site. Uses a local-likelihood smoother and emits contiguous
   DMRs as the output.
 - *DSS* (Feng et al., 2014). Fits a Beta-Binomial mixed model with
-  per-site dispersion estimated by empirical-Bayes shrinkage —
-  borrowing strength across sites the way DESeq2 borrows it across
+  per-site #idx("dispersion")dispersion estimated by empirical-Bayes #idx("shrinkage")shrinkage —
+  borrowing strength across sites the way #idx("DESeq2")DESeq2 borrows it across
   genes in the differential-expression chapter. Best power in
   typical WGBS comparisons; the modern default.
 
@@ -534,7 +534,7 @@ genomic loci, how often they are in physical contact across a
 population of cells. The output is a *contact matrix* $C in
 "NN"^(N times N)$: for a discretised genome with $N$ bins of fixed
 size (10 kb is the modern standard, with deep experiments going as
-fine as 1 kb), the entry $C[i, j]$ counts paired-end sequencing reads
+fine as 1 kb), the entry $C[i, j]$ counts #idx("paired-end")paired-end sequencing reads
 that map with one mate inside bin $i$ and the other inside bin $j$.
 Large $C[i, j]$ means the two bins are frequently in close
 three-dimensional contact; small $C[i, j]$ means they are rarely
@@ -567,7 +567,7 @@ they can measure per experiment.
   many primers, up to a few hundred thousand pairs. Many-vs-many but
   over a pre-selected set of loci.
 - *Hi-C* (Lieberman-Aiden et al., 2009). Biotin-tagged ligation
-  junctions plus streptavidin pulldown plus Illumina sequencing. The
+  junctions plus streptavidin pulldown plus #idx("Illumina")Illumina sequencing. The
   first all-vs-all genome-wide contact matrix. Changed everything.
 - *Micro-C* (Hsieh et al., 2015). Hi-C with MNase digestion to
   nucleosomal resolution instead of a restriction enzyme. Resolves
@@ -636,7 +636,7 @@ several billion reads and 1 kb resolution.
 
 For a human genome binned at 10 kb the matrix is roughly
 $290{,}000 times 290{,}000$. Stored densely the matrix has on the order
-of $10^11$ cells. In practice the matrix is stored sparse: HDF5 with
+of $10^11$ cells. In practice the matrix is stored sparse: #idx("HDF5")HDF5 with
 the `cooler` schema (Abdennur & Mirny, 2020) or the `.hic` binary
 format (Durand et al., 2016). Both formats index by bin coordinate so
 that arbitrary genomic regions can be loaded as small dense submatrices.
@@ -662,7 +662,7 @@ intensity:
   caption: [
     Raw and ICE-normalised contact matrices for the same region. The
     banding in the raw matrix is bin-specific bias; iterative
-    normalisation removes it and the underlying TAD blocks and
+    normalisation removes it and the underlying #idx("TAD")TAD blocks and
     compartment checkerboard become visible.
   ],
 ) <fig:contact-matrix>
@@ -670,7 +670,7 @@ intensity:
 A raw map also carries two kinds of artefact that must be cleaned up
 before structural interpretation:
 
-- *Bin-specific coverage bias.* Some bins generate systematically
+- *Bin-specific #idx("coverage")coverage bias.* Some bins generate systematically
   more or fewer mapped read pairs because of mappability (a bin
   containing repeats accepts fewer unique mappings), GC content
   (PCR-amplification efficiency is GC-dependent), and
@@ -763,7 +763,7 @@ scale.
 ]
 
 
-== TADs and the Insulation Score <sec:tads>
+== TADs and the #idx("insulation score")Insulation Score <sec:tads>
 
 Zoom into a balanced contact matrix at the megabase scale and a new
 pattern appears: triangular blocks of high contact density along the
@@ -823,7 +823,7 @@ choice of algorithm and threshold matters more than the data does.
   signal is then off-the-shelf — PELT, binary segmentation, Bayesian
   online change-point detection all apply. The same problem appears
   in any signal where you suspect piecewise-constant means with
-  abrupt transitions: GPS trajectory segmentation, speech-pause
+  abrupt transitions: GPS #idx("trajectory")trajectory segmentation, speech-pause
   detection, control-loop fault detection. The genomic specificity
   is entirely in the reduction; the change-point machinery is
   identical.
@@ -857,7 +857,7 @@ diagonal, compare its count to four background windows in the immediate
 neighbourhood (one in each diagonal direction). Test whether the focal
 count is significantly brighter than its neighbours under a local
 Poisson null. The statistical framing is — as elsewhere in this course
-— a local-Poisson detection problem, structurally identical to MACS2's
+— a local-Poisson detection problem, structurally identical to #idx("MACS2")MACS2's
 peak detection in Chapter 9. Different domain, same algorithm.
 
 
@@ -906,7 +906,7 @@ and negative values — the chromosome's compartment structure.
   image("../../diagrams/lecture-10/10-tads-compartments.svg", width: 95%),
   caption: [
     Three feature scales on one balanced Hi-C matrix. The
-    Mb-scale plaid is the A/B compartment checkerboard;
+    Mb-scale plaid is the #idx("A/B compartment")A/B compartment checkerboard;
     triangular blocks along the diagonal are TADs at the
     100 kb–Mb scale; focal bright spots near TAD corners are
     individual loops.
@@ -1175,7 +1175,7 @@ multiple chromosomes.
   every methylation pipeline cites.
 - *Feng, H., Conneely, K. N., & Wu, H.* (2014). "A Bayesian
   Hierarchical Model to Detect Differentially Methylated Loci from
-  Single Nucleotide Resolution Sequencing Data." _Nucleic Acids
+  Single #idx("nucleotide")Nucleotide Resolution Sequencing Data." _Nucleic Acids
   Research_ 42: e69. The DSS paper.
 - *Lieberman-Aiden, E., van Berkum, N. L., Williams, L., et al.*
   (2009). "Comprehensive Mapping of Long-Range Interactions Reveals

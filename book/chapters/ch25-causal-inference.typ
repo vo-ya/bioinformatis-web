@@ -3,9 +3,9 @@
 = Causal Inference and Mendelian Randomisation <ch:causal-inference>
 
 #matters[
-  Every GWAS hit in this book — every locus you have learned to call, fine-map,
+  Every #idx("GWAS")GWAS hit in this book — every locus you have learned to call, fine-map,
   meta-analyse, and partition — establishes one thing: a statistical
-  association between a stretch of DNA and a phenotype. None of it, by itself,
+  association between a stretch of #idx("DNA")DNA and a phenotype. None of it, by itself,
   tells you what happens if you intervene. The difference between $P(Y mid X)$
   and $P(Y mid op("do")(X))$ is the difference between an observation and a
   recommendation. It is the difference between "people with low LDL have less
@@ -17,23 +17,23 @@
   the laws Gregor Mendel published in 1866.
 ]
 
-The previous twenty-four chapters have given you a long string of tools that
-turn raw sequence into statistical statements: read alignment, variant calling,
-expression quantification, GWAS, fine-mapping, polygenic scoring. By Chapter
-13 you knew how to run a GWAS and read its Manhattan plot. By Chapter 14 you
+The previous twenty-four chapters have given you a long #idx("STRING")string of tools that
+turn raw sequence into statistical statements: #idx("read alignment")read alignment, #idx("variant calling")variant calling,
+expression quantification, GWAS, #idx("fine-mapping")fine-mapping, polygenic scoring. By Chapter
+13 you knew how to run a GWAS and read its #idx("Manhattan plot")Manhattan plot. By Chapter 14 you
 had a pipeline that processed a biobank end-to-end. By this point in the
-course a single SNP that crosses a $5 times 10^(-8)$ threshold is a routine
+course a single #idx("SNP")SNP that crosses a $5 times 10^(-8)$ threshold is a routine
 observation. The question this chapter takes seriously is what such an
 observation _means_, and how — and when — you can turn it into a causal claim
 without running a randomised trial.
 
 The answer involves three pieces. The first is a vocabulary borrowed from
 econometrics and statistics: instrumental variables, two-stage least squares,
-and Judea Pearl's do-calculus. The second is a specific trick — using
+and Judea Pearl's #idx("do-calculus")do-calculus. The second is a specific trick — using
 germline SNPs as instrumental variables for exposures of interest — that
 George Davey Smith and Shah Ebrahim christened _Mendelian randomisation_ in
-2003. The third is a disciplined sensitivity workflow — MR-Egger, MR-PRESSO,
-weighted median, the Steiger directionality test — that gives you a fighting
+2003. The third is a disciplined sensitivity workflow — #idx("MR-Egger")MR-Egger, #idx("MR-PRESSO")MR-PRESSO,
+#idx("weighted median")weighted median, the Steiger directionality test — that gives you a fighting
 chance of detecting it when the trick goes wrong.
 
 The chapter walks the three in that order. We start by sharpening the
@@ -41,8 +41,8 @@ distinction between association and causation, then introduce the
 instrumental-variable estimator and derive the Wald ratio from first
 principles. The middle of the chapter is the MR sensitivity quartet and the
 practical workflow that ties it together. The last two sections cover the
-mediation problem and the application most likely to put MR in your CV
-within a pharmaceutical R&D group: drug-target validation by cis-MR. The
+#idx("mediation")mediation problem and the application most likely to put MR in your CV
+within a pharmaceutical R&D group: drug-target validation by #idx("cis-MR")cis-MR. The
 chapter closes with a brief tour of the wider causal-inference landscape —
 difference-in-differences, regression discontinuity, doubly robust
 estimators, causal forests — so you know what else lives in the toolbox when
@@ -281,7 +281,7 @@ weighted least-squares regression of $hat(beta)_("Z"_k arrow "Y")$ on
 $hat(beta)_("Z"_k arrow "X")$ through the origin, with weights equal to the
 inverse variance of the outcome estimates.
 
-The other classical generalisation is _two-stage least squares_ (2SLS), the
+The other classical generalisation is _two-stage least squares_ (#idx("2SLS")2SLS), the
 estimator econometricians have used for half a century. 2SLS replaces the
 two univariate regressions with two multivariate ones. Stage 1 regresses
 $X$ on the full matrix of instruments $bold(Z)$ (plus any control
@@ -398,8 +398,8 @@ $arrow T arrow Y$, where $T$ is some other trait, biases the Wald ratio.
 #figure(
   image("../../diagrams/lecture-25/11-pleiotropy.svg", width: 88%),
   caption: [
-    Vertical (allowed) versus horizontal (forbidden) pleiotropy. Only
-    horizontal pleiotropy invalidates an instrumental variable: the SNP
+    Vertical (allowed) versus horizontal (forbidden) #idx("pleiotropy")pleiotropy. Only
+    horizontal pleiotropy invalidates an #idx("instrumental variable")instrumental variable: the SNP
     must not have a path to $Y$ that bypasses $X$.
   ],
 ) <fig:pleio>
@@ -510,7 +510,7 @@ SNP must work via $X$ on its way to $Y$, not via $Y$ on its way to $X$.
 Reverse causation is unusual for germline SNPs — the genotype is fixed at
 birth — but the equivalent failure mode does occur when the candidate
 exposure $X$ is itself a downstream consequence of the outcome $Y$. The
-Steiger test compares, per SNP, how much variance the SNP explains in $X$
+#idx("Steiger test")Steiger test compares, per SNP, how much variance the SNP explains in $X$
 versus how much it explains in $Y$:
 
 $ R^2_(Z, X) "vs" R^2_(Z, Y) $
@@ -597,7 +597,7 @@ The recipe has eight steps.
 
 3. *Select instruments.* Take the SNPs that reach genome-wide significance
    ($p < 5 times 10^(-8)$) for the exposure. Clump them so that no two
-   selected SNPs are in strong linkage disequilibrium ($r^2 < 0.001$ within
+   selected SNPs are in strong #idx("linkage disequilibrium")linkage disequilibrium ($r^2 < 0.001$ within
    10 Mb is the standard). For LDL, this typically yields 80 to 200
    independent instruments depending on the GWAS vintage.
 
@@ -625,7 +625,7 @@ The recipe has eight steps.
    within a few percent. Steiger directionality runs cleanly in the LDL →
    CAD direction. The evidence is about as clean as MR ever gets.
 
-This is the study that backed the development of PCSK9 inhibitors and the
+This is the study that backed the development of #idx("PCSK9")PCSK9 inhibitors and the
 post-hoc validation of statins — and that we will return to in
 @sec:ch25-cis-mr from the cis-MR angle.
 
@@ -759,7 +759,7 @@ SNP-exposure betas and East-Asian SNP-outcome betas can produce serious
 bias. The cleanest cross-ancestry analyses run within-ancestry MR
 separately and meta-analyse only the final effect estimates.
 
-*Selection bias and survival.* GWAS cohorts are alive at the time of
+*#idx("selection")Selection bias and survival.* GWAS cohorts are alive at the time of
 recruitment. SNPs that lower survival enough to deplete carriers from the
 recruited cohort produce a distorted picture: people who survived to age
 60 with the harmful allele are systematically different from those who
@@ -816,7 +816,7 @@ lowering $X$ would lower $Y$, including pathways that no drug can hit.
 Cis-MR sharpens the question. Instead of using all genome-wide significant
 SNPs for $X$ as instruments, use only the SNPs in or near $G$ itself —
 specifically, the cis-eQTLs or pQTLs within roughly $plus.minus 100$ kb
-of the transcription start site of $G$. These SNPs alter the expression or
+of the #idx("transcription")transcription start site of $G$. These SNPs alter the expression or
 activity of $G$'s product and are biologically local: by the very locality
 of their genomic position, they are far less likely to be horizontally
 pleiotropic for other pathways. A cis-MR estimate using these SNPs is a
@@ -923,7 +923,7 @@ hit rate is industry-relevant.
 ]
 
 The cis-MR move generalises beyond classical drug development. Combined
-with CRISPR functional screens (Chapter 26), single-cell perturbation
+with #idx("CRISPR")CRISPR functional screens (Chapter 26), single-cell perturbation
 atlases (Chapter 27), and downstream pathway modelling, cis-MR forms the
 backbone of the Open Targets platform — a public consortium that scores
 every gene–disease pair by every available causal-evidence stream and
@@ -961,7 +961,7 @@ patient is treated when a test score crosses a cutoff and untreated when
 it does not, comparing the two sides of the threshold within a narrow
 band gives a quasi-randomised estimate of the treatment effect. The
 genomics analogue is polygenic-score-based screening — if patients above
-the 95th-percentile PRS receive an intervention and those below do not,
+the 95th-percentile #idx("PRS")PRS receive an intervention and those below do not,
 the just-above versus just-below comparison estimates the intervention's
 local average causal effect.
 
@@ -974,7 +974,7 @@ under the assumed graph. It is rarely used as the estimator itself;
 rather, it is the bookkeeping that tells you which estimator is valid.
 
 *Doubly robust estimators* — augmented inverse-probability weighting,
-TMLE (targeted maximum likelihood estimation) — combine an outcome model
+TMLE (targeted #idx("maximum likelihood")maximum likelihood estimation) — combine an outcome model
 with an exposure model in a way that is consistent if _either_ model is
 correctly specified. They have become standard in observational
 pharmacoepidemiology and are increasingly seen in biobank-scale
@@ -1022,7 +1022,7 @@ Each is a useful refinement; none is a wholesale replacement.
 
 - Association is not causation. Three causal stories — direct, reverse,
   confounded — produce the same correlation in observational data. The
-  distinction matters because translation into therapy depends on which
+  distinction matters because #idx("translation")translation into therapy depends on which
   one is true.
 - Pearl's do-calculus separates the observational distribution
   $P(Y mid X)$ from the interventional distribution $P(Y mid op("do")(X))$.
@@ -1136,7 +1136,7 @@ clinician should be in the headline number.
 
 == Further Reading <sec:ch25-further-reading>
 
-- *Davey Smith, G., and Ebrahim, S.* (2003). "'Mendelian randomization':
+- *Davey Smith, G., and Ebrahim, S.* (2003). "'#idx("Mendelian randomization")Mendelian randomization':
   can genetic epidemiology contribute to understanding environmental
   determinants of disease?" #emph[International Journal of Epidemiology]
   32: 1–22. The paper that named the field and is still the cleanest

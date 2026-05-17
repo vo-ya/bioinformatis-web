@@ -79,18 +79,18 @@ other.
   caption: [
     File-format footprints for one 30× human WGS sample. Compression
     is only part of the story — random access via `bgzip` plus index
-    is what makes CRAM and BCF usable where flat gzip is not.
+    is what makes #idx("CRAM")CRAM and #idx("BCF")BCF usable where flat gzip is not.
   ],
 ) <fig:format-comparison>
 
 The bioinformatics field has accumulated about thirty years of
-formats. Some are elegant — VCF, HDF5, Zarr, Parquet. Some are
-regrettable but entrenched — the GFF/GTF split, the FASTQ header
+formats. Some are elegant — #idx("VCF")VCF, #idx("HDF5")HDF5, #idx("Zarr")Zarr, #idx("Parquet")Parquet. Some are
+regrettable but entrenched — the #idx("GFF")GFF/GTF split, the #idx("FASTQ")FASTQ header
 zoo. Most working time goes into moving data between them, so it
 pays to know what each one costs.
 
 
-== FASTQ, BAM, and CRAM <sec:read-formats>
+== FASTQ, #idx("BAM")BAM, and CRAM <sec:read-formats>
 
 The first three formats every bioinformatician learns are the three
 formats that carry sequencing reads from the instrument to the
@@ -100,7 +100,7 @@ caller. They form a natural progression from "transport" through
 === FASTQ: the transport format
 
 FASTQ (Chapter 1) is what comes off the sequencer: four lines per
-read, identifier, sequence, separator, quality string. Plain ASCII,
+read, identifier, sequence, separator, quality #idx("STRING")string. Plain ASCII,
 human-readable, near-universal as an input. It is almost always
 shipped as `.fastq.gz` — generic gzip cuts the size by about a
 factor of three over raw text. A 30× human whole-genome sample at
@@ -115,7 +115,7 @@ optimal for moving raw reads from the sequencer to the first tool
 that needs them.
 
 #tip[
-  Paired-end Illumina data ships as a pair of FASTQ files, `_R1.fq.gz`
+  #idx("paired-end")Paired-end #idx("Illumina")Illumina data ships as a pair of FASTQ files, `_R1.fq.gz`
   and `_R2.fq.gz`. The pairing is positional — record _n_ in `R1` is
   mated to record _n_ in `R2`. Tools that reorder one file without the
   other silently scramble the pairing. `seqkit pair` and `fastp` are
@@ -124,10 +124,10 @@ that needs them.
 
 === BAM: the working format
 
-BAM (the binary form of SAM, the Sequence Alignment / Map format,
+BAM (the binary form of #idx("SAM")SAM, the Sequence Alignment / Map format,
 specified by Heng Li and colleagues in 2009) is the working
 representation of aligned reads. Each record carries the read's
-identifier, its alignment position on the reference, the CIGAR
+identifier, its alignment position on the reference, the #idx("CIGAR")CIGAR
 string describing matches and gaps, the mate's position, the
 base sequence, the quality string, the mapping quality, and a list
 of optional tags. The records are sorted by genomic coordinate and
@@ -141,7 +141,7 @@ BAM was the de-facto standard for fifteen years. Its weakness is
 that the compression is generic zlib — the same thing you would get
 on any random binary file, ignoring everything the encoder knows
 about the data. Reads from a sequenced genome are massively
-redundant with each other and with the reference: at 30× coverage,
+redundant with each other and with the reference: at 30× #idx("coverage")coverage,
 the same true base is observed thirty times, and the read mostly
 matches the reference it came from. BAM compresses none of that
 redundancy explicitly.
@@ -273,7 +273,7 @@ UK-Biobank-scale joint-called VCF with 500,000 samples and even a
 modest set of common variants comes to hundreds of gigabytes for
 common variants alone, and the per-row format assumes that reading
 one row is cheap. Modern extensions handle the biobank regime by
-reformatting: *GVCF* (genome VCF, GATK's emission format) records
+reformatting: *GVCF* (genome VCF, #idx("GATK")GATK's emission format) records
 calls at every position including reference; *sparse VCF* and
 *project-VCF* formats elide the predominant `0/0` calls; Hail's
 *MatrixTable* drops the row-oriented model entirely in favour of a
@@ -299,8 +299,8 @@ the one the upstream tool defaults to.
 The flat-file-with-index model breaks down for genuinely
 multi-dimensional data. A single-cell experiment (Chapters 7 and 8)
 produces a matrix of counts indexed by cell, gene, modality, and
-batch. A methylation experiment produces per-CpG-per-sample matrices
-at gigabase scale. A GWAS produces summary-statistic tables across
+batch. A #idx("methylation")methylation experiment produces per-CpG-per-sample matrices
+at gigabase scale. A #idx("GWAS")GWAS produces summary-statistic tables across
 millions of variants and dozens of traits. These are not
 sparse-deltas-from-a-reference; they are dense tensors, and they
 need *chunked, random-access, compressible multi-dimensional*
@@ -336,7 +336,7 @@ outside bioinformatics) has entered the field via summary-statistic
 tables. The columnar layout means that aggregations over a single
 column (sum, filter, group-by) touch only the bytes of that column,
 not the whole row. UK Biobank's GWAS summary stats ship as Parquet;
-gnomAD's per-variant frequency tables ship as Parquet. Every
+#idx("gnomAD")gnomAD's per-variant frequency tables ship as Parquet. Every
 modern data-processing ecosystem — Spark, Dask, DuckDB, Polars,
 Apache Arrow — reads Parquet natively, which is most of the reason
 it has won outside genomics.
@@ -381,7 +381,7 @@ The major open-access repositories form one tier:
   canonical home for raw sequencing data, free, with accession
   prefixes `SRP` (project), `SRR` (run), `SRS` (sample),
   `SRX` (experiment), and `PRJNA` (BioProject).
-- *ENA* (the European Nucleotide Archive, EBI-hosted): the European
+- *ENA* (the European #idx("nucleotide")Nucleotide Archive, EBI-hosted): the European
   counterpart; mirrors SRA daily. Prefixes `ERP`, `ERR`, `ERS`, `ERX`,
   `PRJEB`.
 - *DDBJ Sequence Read Archive* (Japan): the third leg of the
@@ -389,7 +389,7 @@ The major open-access repositories form one tier:
   SRA and ENA.
 - *GEO* (the Gene Expression Omnibus, NIH-hosted) and its European
   counterpart *ArrayExpress* (EBI): processed-data repositories for
-  microarray and RNA-seq, typically count matrices and metadata.
+  microarray and #idx("RNA-seq")RNA-seq, typically count matrices and metadata.
   Most modern RNA-seq studies deposit raw reads in SRA and processed
   counts in GEO.
 
@@ -461,7 +461,7 @@ awkward. Cloud-hosted copies have become the de facto standard. The
 Azure simultaneously. gnomAD lives in Google Cloud Storage at
 `gs://gcp-public-data--gnomad`. GTEx and the All of Us research
 cohort live on AnVIL and the Researcher Workbench, both Terra-based.
-The Human Pangenome Reference Consortium publishes its assemblies on
+The Human #idx("pangenome")Pangenome Reference Consortium publishes its assemblies on
 AWS and GitHub. UK Biobank ships its bulk genomic data via the RAP
 (Research Analysis Platform, DNAnexus-hosted), where compute is
 billed to the researcher.
@@ -1028,7 +1028,7 @@ $ "F1" = (2 dot "precision" dot "recall") / ("precision" + "recall") $
 Precision is the fraction of called variants that are real. Recall
 is the fraction of real variants that were called. F1 is the
 harmonic mean — pessimistic about whichever of the two is smaller.
-A modern caller on HG002 against GIAB v4.2.1 looks like
+A modern caller on HG002 against #idx("GIAB")GIAB v4.2.1 looks like
 @fig:happy-matrix: about 3.45 million true-positive SNV calls,
 about 2,800 false positives, about 14,500 false negatives, for an
 SNV F1 around 0.9975.
@@ -1036,9 +1036,9 @@ SNV F1 around 0.9975.
 #figure(
   image("../figures/ch14/f4-happy-confusion-matrix.svg", width: 95%),
   caption: [
-    The hap.py confusion matrix for a representative modern caller
+    The #idx("hap.py")hap.py confusion matrix for a representative modern caller
     against GIAB HG002 v4.2.1. Single-number F1 hides the
-    per-variant-class variance — SNV F1 sits above 0.99, but indel
+    per-variant-class variance — SNV F1 sits above 0.99, but #idx("indel")indel
     F1 above 16 bp collapses to around 0.8.
   ],
 ) <fig:happy-matrix>
@@ -1069,7 +1069,7 @@ methods winning the long-indel regime decisively.
   per-category breakdowns so methods can be compared where they
   actually differ, and is expected of every new method paper. The
   same function as ImageNet for image classification, GLUE for
-  natural-language processing, and CASP for protein structure (which
+  natural-language processing, and #idx("CASP")CASP for #idx("protein structure")protein structure (which
   the next chapter covers): give the field a way to compare methods
   objectively and drive iterative improvement. Without benchmarks
   of this kind, method rankings are anecdotal and progress stalls.
@@ -1103,10 +1103,10 @@ clinical tumour samples, non-human species, or rare conditions
 requires additional validation.
 
 Every major sub-field has a benchmark of similar shape. SVs use the
-GIAB SV benchmark plus *Truvari*. RNA-seq quantification has *SQANTI*
+GIAB #idx("SV")SV benchmark plus *Truvari*. RNA-seq quantification has *SQANTI*
 and the SRA test sets. Single-cell integration has the *sccloud*
 benchmark and the cellxgene "nice tissues" benchmarks. Genome
-assembly has *QUAST*. Metagenomics has *CAMI*. Protein structure
+assembly has *QUAST*. #idx("metagenomics")Metagenomics has *CAMI*. Protein structure
 has *CASP*. The common pattern: a well-characterised ground truth,
 a reference evaluation script, and a community norm that "if you
 publish a new tool, you benchmark on the standard set."
@@ -1123,8 +1123,8 @@ naming explicitly.
 than most biomedical fields. *bioRxiv* (launched 2013) is where
 most methods papers land before peer review, and the community
 reads them routinely. *medRxiv* (launched 2019) is the clinical
-and epidemiology counterpart. ML-heavy work — AlphaFold,
-Enformer, scVI — also appears on arXiv, often cross-listed.
+and epidemiology counterpart. ML-heavy work — #idx("AlphaFold")AlphaFold,
+#idx("Enformer")Enformer, #idx("scVI")scVI — also appears on arXiv, often cross-listed.
 The typical flow is preprint, community feedback (in GitHub
 issues, on social media, in citation comments), revision, journal
 submission, peer review, publication. The time between preprint
@@ -1153,7 +1153,7 @@ hosts SRA, GenBank, and dbGaP. EBI (the European Bioinformatics
 Institute at Wellcome Sanger) operates ENA, Ensembl, and a
 significant fraction of European bioinformatics infrastructure. The
 Broad Institute publishes GATK and much of the Cromwell/WDL
-ecosystem. The Sanger Institute publishes nf-core, Nextflow, and
+ecosystem. The Sanger Institute publishes #idx("nf-core")nf-core, #idx("Nextflow")Nextflow, and
 the pangenome consortium tooling. UCSC anchors the Genome Browser
 and historically much of reference-assembly curation. Commercial
 players matter less than in most fields; Illumina dominates
@@ -1191,7 +1191,7 @@ stable registry — are the field's response. Whether they hold up at
   queries touch contiguous bytes, with an index for seek. CRAM goes
   further with content-aware compression, storing reads as positions
   plus diffs against a reference.
-- *Reference management is its own discipline.* "GRCh38" names
+- *Reference management is its own discipline.* "#idx("GRCh38")GRCh38" names
   multiple references; know which variant your tool expects; pin by
   MD5, not by filename. Reference mismatches are the silent-failure
   king and produce wrong calls with no error message.
@@ -1201,11 +1201,11 @@ stable registry — are the field's response. Whether they hold up at
   requester-pays buckets shift cost from the agency to the analyst.
 - *Dependency hell is worse in bioinformatics than in most fields*
   because of mixed-language ecosystems plus ageing academic
-  software plus deep system-level dependencies. Containers (Docker,
+  software plus deep system-level dependencies. Containers (#idx("Docker")Docker,
   Apptainer) plus environment managers (conda, mamba, pixi) plus
   BioContainers solve the packaging problem; pinning the rest is on
   you.
-- *Workflow languages are dataflow runtimes.* Nextflow, Snakemake,
+- *Workflow languages are dataflow runtimes.* Nextflow, #idx("Snakemake")Snakemake,
   WDL, and CWL all express the pipeline as a DAG of tools with
   resource specs. Resume-on-failure, parallelism, and cloud
   execution are first-class. Nextflow + nf-core is the
@@ -1241,7 +1241,7 @@ that hosts it, (b) the kind of record it points to, (c) whether
 the data is open-access or controlled-access. Two sentences each.
 
 #strong[4.] #emph[Reference choice.] You have been given a
-DeepVariant pipeline that expects the recommended
+#idx("DeepVariant")DeepVariant pipeline that expects the recommended
 `GRCh38_full_analysis_set_plus_decoy_hla.fa`. A collaborator hands
 you BAMs aligned against `hg38.fa` from UCSC. Describe what will go
 wrong, how you would detect it from the BAM header alone, and what
@@ -1282,7 +1282,7 @@ in @fig:reproducibility-stack is the weakest?
   SAMtools." _Bioinformatics_ 25: 2078–2079. SAM and BAM in one
   short paper; still the spec the rest of the field is built on.
 - *Hsi-Yang Fritz, M., Leinonen, R., Cochrane, G., Birney, E.*
-  (2011). "Efficient Storage of High Throughput DNA Sequencing
+  (2011). "Efficient Storage of High Throughput #idx("DNA")DNA Sequencing
   Data using Reference-Based Compression." _Genome Research_ 21:
   734–740. The CRAM paper.
 - *Danecek, P., et al.* (2011). "The Variant Call Format and
@@ -1297,7 +1297,7 @@ in @fig:reproducibility-stack is the weakest?
   nf-core Framework for Community-Curated Bioinformatics Pipelines."
   _Nature Biotechnology_ 38: 276–278.
 - *Zook, J. M., Chapman, B., Wang, J., et al.* (2014). "Integrating
-  Human Sequence Data Sets Provides a Resource of Benchmark SNP
+  Human Sequence Data Sets Provides a Resource of Benchmark #idx("SNP")SNP
   and Indel Genotype Calls." _Nature Biotechnology_ 32: 246–251. GIAB.
 - *Krusche, P., Trigg, L., Boutros, P. C., et al.* (2019). "Best
   Practices for Benchmarking Germline Small-Variant Calls in
@@ -1307,7 +1307,7 @@ in @fig:reproducibility-stack is the weakest?
   "Refgenie: A Reference Genome Resource Manager." _GigaScience_ 9:
   giz149.
 - *Kurtzer, G. M., Sochat, V., and Bauer, M. W.* (2017).
-  "Singularity: Scientific Containers for Mobility of Compute."
+  "#idx("Singularity")Singularity: Scientific Containers for Mobility of Compute."
   _PLoS ONE_ 12: e0177459.
 - *da Veiga Leprevost, F., Grüning, B. A., et al.* (2017).
   "BioContainers: An Open-Source and Community-Driven Framework

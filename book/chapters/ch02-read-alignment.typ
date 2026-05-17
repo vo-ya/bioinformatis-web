@@ -1,11 +1,11 @@
 #import "../theme/book-theme.typ": *
 
-= Read Alignment: From Brute Force to FM Index and Back <ch:read-alignment>
+= #idx("read alignment")Read Alignment: From Brute Force to #idx("FM index")FM Index and Back <ch:read-alignment>
 
 #matters[
-  Every other chapter in this book starts with a FASTQ file produced by a
-  sequencer. Almost no analysis runs on that file as-is. Variant calling,
-  expression quantification, ChIP-seq peak finding, methylation analysis,
+  Every other chapter in this book starts with a #idx("FASTQ")FASTQ file produced by a
+  sequencer. Almost no analysis runs on that file as-is. #idx("variant calling")Variant calling,
+  expression quantification, #idx("ChIP-seq")ChIP-seq peak finding, #idx("methylation")methylation analysis,
   structural-variant detection — all of them assume that someone has
   already placed each read onto the genome it came from, with an
   approximate edit distance and a coordinate. That placement is _read
@@ -14,7 +14,7 @@
   and every downstream tool fails in ways that are hard to debug because
   the bug is two pipeline steps upstream. The algorithms in this chapter
   are also some of the most elegant in computer science — invented
-  partly for compression, partly for string matching, partly for genome
+  partly for compression, partly for #idx("STRING")string matching, partly for genome
   scale — and they reward studying them as algorithms, not just as
   bioinformatics tools.
 ]
@@ -23,7 +23,7 @@ A sequencing run produces a few hundred million short strings of A, C,
 G, and T. Lecture 1 ended there: that is the raw output of the
 instrument, and by itself it is almost useless. A FASTQ file is an
 unordered pile of 150-base-pair fragments. Nothing biological lives in
-that pile; biology lives in the positions on a chromosome that the
+that pile; biology lives in the positions on a #idx("chromosome")chromosome that the
 fragments came from. Putting them back is the substrate everything
 downstream runs on.
 
@@ -51,7 +51,7 @@ pattern radar and GPS receivers use, which is not a coincidence.
 The problem, stated cleanly: given a reference string $R$ over the
 alphabet ${A, C, G, T}$ and a read $r$, find all positions $i$ such
 that $R[i .. i + |r| - 1]$ matches $r$ within some edit distance $k$.
-For the human reference, $|R| approx 3 times 10^9$; for an Illumina
+For the human reference, $|R| approx 3 times 10^9$; for an #idx("Illumina")Illumina
 read, $|r| approx 150$; for a typical whole-genome run, you align
 about $10^9$ reads against the same reference.
 
@@ -119,8 +119,8 @@ This chapter is organised by that split. Sections 2.2 and 2.3 build the
 fast exact index — first naively, then with suffix arrays, hash tables,
 and finally the Burrows-Wheeler / FM index that real aligners actually
 use. Section 2.4 builds the slow accurate extension algorithm,
-Smith-Waterman, and shows how its output is serialised into the CIGAR
-string stored in BAM records. Section 2.5 composes the two into the
+#idx("Smith-Waterman")Smith-Waterman, and shows how its output is serialised into the #idx("CIGAR")CIGAR
+string stored in #idx("BAM")BAM records. Section 2.5 composes the two into the
 pipeline every aligner — `bwa`, `bowtie2`, `minimap2` — implements.
 
 
@@ -189,7 +189,7 @@ that suffix begins.
 #figure(
   image("../../diagrams/lecture-02/03-suffix-array-structure.svg", width: 95%),
   caption: [
-    The suffix array of `BANANA$`. Seven suffixes, listed in sorted
+    The #idx("suffix array")suffix array of `BANANA$`. Seven suffixes, listed in sorted
     order. The rows whose suffixes start with `ANA` form a contiguous
     range — which is the reason binary search works on this structure.
   ],
@@ -234,7 +234,7 @@ themselves $O(|R|)$. The classical linear-time algorithms — DC3,
 SA-IS — bring construction to $O(|R|)$, which for the human genome
 takes minutes to tens of minutes and is done once.
 
-=== Hash maps and k-mer indices
+=== Hash maps and #idx("k-mer")k-mer indices
 
 The second indexing approach drops sortedness and replaces it with
 hashing. Pick a length $k$ — typically 12 to 30. Enumerate every
@@ -244,7 +244,7 @@ list of positions where it occurs.
 #figure(
   image("../../diagrams/lecture-02/04-hash-kmer-index.svg", width: 95%),
   caption: [
-    A k-mer hash index. Each k-mer is a key; the value is the list of
+    A k-mer #idx("hash index")hash index. Each k-mer is a key; the value is the list of
     positions in the reference where it occurs. Lookup is a single
     hash operation; memory is dominated by the lists of positions.
   ],
@@ -320,7 +320,7 @@ the size of the compressed reference itself?
 ]
 
 
-== The Burrows-Wheeler Transform and the FM Index <sec:bwt-fm>
+== The #idx("Burrows-Wheeler transform")Burrows-Wheeler Transform and the FM Index <sec:bwt-fm>
 
 The answer is yes, and the construction is one of the most elegant
 algorithms in computer science. The Burrows-Wheeler transform is a
@@ -332,7 +332,7 @@ deeply informative.
 
 === Construction
 
-The _Burrows-Wheeler transform_ (BWT) was introduced by Michael Burrows
+The _Burrows-Wheeler transform_ (#idx("BWT")BWT) was introduced by Michael Burrows
 and David Wheeler in a 1994 Digital Equipment Corporation technical
 report. The report was a compression algorithm, not a string-search
 data structure; the search applications would come six years later. The
@@ -385,14 +385,14 @@ character that _follows_ them — every rotation whose next character is
 an `A` ends up adjacent. The previous character of each of those
 rotations, the one that lands in $L$, is drawn from the small set of
 characters that precede an `A` in the original string. In natural
-language or DNA the distribution of "what character precedes which" is
+language or #idx("DNA")DNA the distribution of "what character precedes which" is
 far from uniform; in English text, `h` very often follows `t`, in DNA
-the dinucleotide CpG is depleted, and so on. That non-uniformity makes
+the dinucleotide #idx("CpG")CpG is depleted, and so on. That non-uniformity makes
 $L$ end up with long runs of the same character — `AAA`, `GG`, `CC` —
 which run-length-encode and Huffman-code beautifully. That is why
 `bzip2` works.
 
-Why does it help search? Because of a property called the LF mapping,
+Why does it help search? Because of a property called the #idx("LF mapping")LF mapping,
 which we get to next. The short answer: the BWT is a representation of
 $R$ that uses about the same space as $R$ itself and, with a few small
 auxiliary arrays, supports exact-match queries of a read in $O(|r|)$
@@ -441,7 +441,7 @@ sounds mysterious. The figure below makes the connectors explicit.
   caption: [
     The LF mapping. Curved connectors show that the $i$-th occurrence
     of each character in $L$ is the $i$-th occurrence in $F$. This
-    invariant is what makes both inversion and backward search work.
+    invariant is what makes both inversion and #idx("backward search")backward search work.
   ],
 ) <fig:lf>
 
@@ -619,7 +619,7 @@ Concrete numbers. Illumina sequencing has a per-base error rate of
 about 0.1 to 1 per cent, dominated by substitutions with a small tail
 of indels. A 150 bp read therefore has, on average, between 0.15 and
 1.5 sequencing-error-induced mismatches — most reads have at least
-one. On top of that, a human individual differs from the GRCh38
+one. On top of that, a human individual differs from the #idx("GRCh38")GRCh38
 reference at roughly 1 in 1,000 positions due to real biological
 variation (single-nucleotide variants), plus roughly 1 in 5,000
 positions for small indels, plus occasional larger structural
@@ -671,17 +671,17 @@ happen, they are often several bases long, so a run of five gaps
 should not cost five times the price of one. Typical numbers for DNA
 alignment are match $+1$, mismatch $-4$, gap-open $-6$, gap-extend
 $-1$. For protein alignment, the match/mismatch pair is replaced by a
-full $20 times 20$ substitution matrix — BLOSUM62 is the standard —
+full $20 times 20$ #idx("substitution matrix")substitution matrix — #idx("BLOSUM62")BLOSUM62 is the standard —
 because not all amino-acid substitutions are equally plausible.
 
 #note[
   The scoring scheme is a log-likelihood model in disguise. If each
   column of an alignment is an independent observation drawn from a
   probability distribution — match with probability $p_m$, mismatch
-  with some lower probability, indel with some lower probability still
+  with some lower probability, #idx("indel")indel with some lower probability still
   — then the log-likelihood of the alignment is a weighted sum of
   column counts. The "match reward" is the log-odds of a match
-  relative to a mismatch under that model. Affine gap penalties
+  relative to a mismatch under that model. #idx("affine gap")Affine gap penalties
   correspond to a geometric-length model for indels, which is
   approximately correct for real biological indels. The dynamic
   programming we are about to do is, in every meaningful sense,
@@ -689,13 +689,13 @@ because not all amino-acid substitutions are equally plausible.
   just predates that language by a decade.
 ]
 
-=== Smith-Waterman: local alignment by dynamic programming
+=== Smith-Waterman: local alignment by #idx("dynamic programming")dynamic programming
 
 The _Smith-Waterman_ algorithm, introduced by Temple Smith and Michael
 Waterman in 1981, finds the highest-scoring _local_ alignment between
 two sequences — the best-scoring pair of substrings, one from each,
 under the chosen scoring scheme. Its global counterpart is
-Needleman-Wunsch (1970), which forces both strings to align
+#idx("Needleman-Wunsch")Needleman-Wunsch (1970), which forces both strings to align
 end-to-end. For read alignment we almost always want local: the read
 should align to _some_ window of the reference, not to the whole
 three-billion-base thing.
@@ -751,7 +751,7 @@ hit a zero. The path you walked is the alignment.
   step types (diagonal, up, left); the recurrence is the same
   max-over-predecessors-plus-transition-cost; the traceback is the
   same argmax path. The only difference from a convolutional-code
-  Viterbi decoder is the trellis shape and the zero-floor that makes
+  #idx("Viterbi")Viterbi decoder is the trellis shape and the zero-floor that makes
   the alignment local. If you have ever implemented Viterbi for an
   error-correcting code, you have implemented Smith-Waterman without
   knowing it.
@@ -776,7 +776,7 @@ back, with worse constants.
 === The band optimisation
 
 There is one more efficiency move worth understanding before we get to
-seed-and-extend, because real implementations use it everywhere.
+#idx("seed-and-extend")seed-and-extend, because real implementations use it everywhere.
 
 If a seed has already told you _approximately_ where in the reference
 window the read should align, the optimal alignment cannot stray far
@@ -816,7 +816,7 @@ crossed yet.
 The output of Smith-Waterman is a path through a matrix. That path,
 serialised as a sequence of edit operations, is what gets stored in
 an alignment file. The serialisation format is the _CIGAR string_,
-defined as part of the SAM/BAM specification.
+defined as part of the #idx("SAM")SAM/BAM specification.
 
 A CIGAR string is a sequence of `<length><operation>` tokens. The
 operations are:
@@ -829,11 +829,11 @@ operations are:
   no counterpart in the reference).
 - `D` — deletion relative to the reference (a base in the reference
   with no counterpart in the read).
-- `S` — soft clip (read bases that were not aligned but are still
+- `S` — #idx("soft clip")soft clip (read bases that were not aligned but are still
   stored in the BAM record).
 - `H` — hard clip (read bases that were trimmed off entirely and not
   retained).
-- `N` — skipped region (used for RNA-seq, where introns produce large
+- `N` — skipped region (used for #idx("RNA-seq")RNA-seq, where introns produce large
   reference gaps that are not really deletions).
 - `P` — padding (multi-alignment use, rarely seen).
 
@@ -951,7 +951,7 @@ one long SMEM; a noisy region produces several shorter ones. For each
 SMEM of sufficient length, `bwa mem` performs banded Smith-Waterman
 extension. The earlier `bwa aln` (Heng Li and Richard Durbin, 2009)
 used a different strategy — backward search with at most $k$
-mismatches — and was the original BWA. `bwa mem` superseded it for
+mismatches — and was the original #idx("BWA")BWA. `bwa mem` superseded it for
 reads longer than 70 bp.
 
 `bowtie2` (Ben Langmead and Steven Salzberg, 2012) also uses an FM
@@ -967,7 +967,7 @@ megabases per CPU-minute in under 2 GB of RAM. `bowtie2` added gapped
 alignment to the original's mismatches-only design.
 
 `minimap2` (Heng Li, 2018) is the de facto standard for long reads
-— PacBio HiFi, Oxford Nanopore — and also handles short reads. Its
+— #idx("PacBio")PacBio #idx("HiFi")HiFi, #idx("Oxford Nanopore")Oxford Nanopore — and also handles short reads. Its
 seeds are _minimizers_: for each sliding window of length $w$ in the
 reference and the read, take the lexicographically smallest $k$-mer
 in the window as a representative. This sparsifies the $k$-mer index
@@ -980,7 +980,7 @@ then runs banded Smith-Waterman to fill in exact base-level details.
 #figure(
   image("../figures/ch02/f4-minimizer-chain-extend.svg", width: 100%),
   caption: [
-    The minimap2 skeleton on a long read. Minimizers are sparse
+    The #idx("minimap2")minimap2 skeleton on a long read. Minimizers are sparse
     seeds taken as the lexicographically smallest $k$-mer in each
     sliding window. Hits between read and reference form a dot plot;
     colinear hits chain along the true alignment diagonal, while
@@ -1022,7 +1022,7 @@ and command-line flags than of fundamentally new ideas.
 
 #note[
   The FM index became practical for genome alignment with the 2009
-  Bowtie paper, and BWA followed the same year with a slightly
+  #idx("Bowtie")Bowtie paper, and BWA followed the same year with a slightly
   different design. Both demonstrated that BWT-backed short-read
   alignment could fit a human-genome index in roughly 2 GB of RAM,
   more than an order of magnitude smaller than the hash-based
@@ -1076,7 +1076,7 @@ and flagging the rest (with `S` in the CIGAR) as unaligned-but-present
 — or by reporting a _split alignment_ as a supplementary record. Both
 mechanisms exist in SAM/BAM for historical reasons; both are used in
 practice. Long-read aligners do this routinely; short-read aligners
-do it less, because a 150 bp read rarely spans a structural variant
+do it less, because a 150 bp read rarely spans a #idx("structural variant")structural variant
 of interest.
 
 _Chimeric reads_ are the more pathological version of the structural-
@@ -1091,7 +1091,7 @@ is a job for the variant caller, not the aligner.
 Bisulfite-converted reads, RNA-seq reads that span splice junctions,
 ancient-DNA reads with characteristic damage patterns, and a few
 others all need specialised aligners. `bismark` and `methylpy` handle
-bisulfite conversion by allowing a deliberate C-to-T mismatch
+#idx("bisulfite")bisulfite conversion by allowing a deliberate C-to-T mismatch
 asymmetry. `STAR` and `HISAT2` allow reads to align across introns by
 extending the CIGAR vocabulary with the `N` operation and by detecting
 the splice junctions during seed extension. `mapDamage` models the
@@ -1182,7 +1182,7 @@ soft-clip (`S`). In one sentence each, explain what the alignment is
 reporting.
 
 *7.* _Checkpoint stride trade-off._ For a 3 Gb reference, plot the
-expected memory footprint of the FM-index rank arrays and the
+expected memory #idx("footprint")footprint of the FM-index rank arrays and the
 expected query latency, as functions of the checkpoint stride $d in
 {1, 4, 16, 64, 256, 1024}$. Assume the residue scan runs at 2 GB/s
 (SSE-accelerated `popcnt`) and the rank arrays are 4 bytes per
@@ -1219,7 +1219,7 @@ include `STAR`, `HISAT2`, `bismark`, `BLASR`, `cuda-seqlib`,
   Alignment with Bowtie 2." _Nature Methods_ 9: 357–359. The Bowtie 2
   paper; pair with the 2009 _Genome Biology_ Bowtie paper for the
   full design lineage.
-- *Li, H.* (2018). "Minimap2: Pairwise Alignment for Nucleotide
+- *Li, H.* (2018). "Minimap2: Pairwise Alignment for #idx("nucleotide")Nucleotide
   Sequences." _Bioinformatics_ 34: 3094–3100. The minimap2 paper.
   The chaining algorithm in its supplementary material is worth the
   detour.

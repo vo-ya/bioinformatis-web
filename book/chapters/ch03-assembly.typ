@@ -1,13 +1,13 @@
 #import "../theme/book-theme.typ": *
 
-= DNA Sequence Assembly: From Reads to Genomes <ch:assembly>
+= #idx("DNA")DNA Sequence Assembly: From Reads to Genomes <ch:assembly>
 
 #matters[
   An assembled genome is the foundation on which every other analysis in
   this book quietly rests. Alignment in Chapter 2 only works against a
-  reference somebody has already assembled. Variant calling in Chapter 4
+  reference somebody has already assembled. #idx("variant calling")Variant calling in Chapter 4
   is the difference between your reads and an assembled coordinate
-  system. Expression analysis, regulatory annotation, the pangenome —
+  system. Expression analysis, regulatory annotation, the #idx("pangenome")pangenome —
   every one of them presumes a sequence to map onto. For most of the
   genomes you will encounter in practice — a soil microbe nobody has
   sequenced before, a tumour rearranged past recognition, a viral
@@ -15,7 +15,7 @@
   only way to get one is to assemble it from the reads themselves.
 ]
 
-The story of de novo assembly is the story of one engineering decision
+The story of #idx("de novo assembly")de novo assembly is the story of one engineering decision
 made well in 2001 and a long sequence of consequences. The decision was
 to formulate the assembly problem on a different graph from the
 intuitive one: not "a node per read" — that turns assembly into the
@@ -23,18 +23,18 @@ NP-hard Hamiltonian-path problem — but "a node per fixed-length
 substring," which turns assembly into the linear-time Eulerian-path
 problem. The same input data, the same desired output, a different
 choice of state variable. Almost every short-read assembler since
-Velvet (Zerbino and Birney, 2008) is a refinement of that one
+#idx("Velvet")Velvet (Zerbino and Birney, 2008) is a refinement of that one
 substitution.
 
 This chapter walks you through the substitution and its consequences.
 We start with the assembly pipeline as an end-to-end object: six stages
 between raw reads and a polished sequence, each of which can fail
 independently. We then climb into the two stages that carry most of the
-algorithmic weight — error correction in the k-mer-frequency domain,
+algorithmic weight — #idx("error correction")error correction in the k-mer-frequency domain,
 and graph traversal — before stepping back out to look at what really
 limits assembly in practice (repeats) and how the field has learned to
-measure assemblies honestly (N50 and its sharper-edged cousins). Long
-reads, mate-pair libraries, and Hi-C show up wherever they earn a
+measure assemblies honestly (#idx("N50")N50 and its sharper-edged cousins). Long
+reads, mate-pair libraries, and #idx("Hi-C")Hi-C show up wherever they earn a
 mention; they are not the protagonist of this chapter but they are the
 reason any modern mammalian assembly exists at all.
 
@@ -53,7 +53,7 @@ maybe a hundred more — the assumption is valid: a high-quality reference
 exists, and the right question is "where does this new read map?"
 For everything else, the question is "what _is_ the sequence to begin
 with?" There is no reference. There is no template. There is only a
-tube of dissolved DNA, an instrument, and the FASTQ file the instrument
+tube of dissolved DNA, an instrument, and the #idx("FASTQ")FASTQ file the instrument
 produces.
 
 That reconstruction problem is _de novo_ assembly. Given millions of
@@ -107,7 +107,7 @@ while a de novo assembly's biases are at least its own.
 === The pipeline
 
 An assembly run is never a single program. It is a pipeline of six
-stages, and the production assemblers you have heard of — SPAdes, Flye,
+stages, and the production assemblers you have heard of — #idx("SPAdes")SPAdes, Flye,
 Canu, hifiasm — are orchestrators that run roughly the same sequence in
 the same order:
 
@@ -117,13 +117,13 @@ the same order:
 2. *Error correction.* Clean systematic read errors before they poison
    the graph. Tools: `BFC`, `Lighter`, SPAdes's built-in BayesHammer.
    Covered in @sec:errors.
-3. *Graph construction.* Build a de Bruijn graph (short reads) or an
-   overlap graph (long reads). Covered in @sec:debruijn and @sec:overlap.
+3. *Graph construction.* Build a #idx("de Bruijn graph")de Bruijn graph (short reads) or an
+   #idx("overlap graph")overlap graph (long reads). Covered in @sec:debruijn and @sec:overlap.
 4. *Graph cleanup.* Remove tips, collapse bubbles, simplify or report
    tangles. Covered in @sec:topology.
-5. *Contig construction.* Walk the cleaned graph; emit one contig per
+5. *#idx("contig")Contig construction.* Walk the cleaned graph; emit one contig per
    non-branching path. Covered in @sec:topology.
-6. *Scaffolding.* Use paired-end, mate-pair, Hi-C, or optical-map
+6. *Scaffolding.* Use #idx("paired-end")paired-end, mate-pair, Hi-C, or optical-map
    information to link contigs across the gaps the reads could not
    bridge. Covered in @sec:scaffolding.
 
@@ -152,17 +152,17 @@ Not all reads are equally useful for assembly. Three axes matter:
 length, accuracy, and whether the reads come in pairs whose insert size
 is known.
 
-- *Short accurate reads* (Illumina, 150–300 bp, ≤0.5% per-base error).
+- *Short accurate reads* (#idx("Illumina")Illumina, 150–300 bp, ≤0.5% per-base error).
   Cheap, deep, low error. Useless on repeats longer than the read.
   Dominant for bacterial and small-eukaryote assembly, and for the
   short-read half of hybrid assemblies.
-- *Long noisy reads* (PacBio CLR and Oxford Nanopore raw, 10–100 kb,
+- *Long noisy reads* (#idx("PacBio")PacBio #idx("CLR")CLR and #idx("Oxford Nanopore")Oxford Nanopore raw, 10–100 kb,
   5–15% raw error). Span most repeats. The noise corrects out under
   multi-fold consensus. Essential for mammalian-scale assembly.
-- *Long accurate reads* (PacBio HiFi, 10–25 kb, &lt;0.1% error). The
+- *Long accurate reads* (PacBio #idx("HiFi")HiFi, 10–25 kb, &lt;0.1% error). The
   best of both worlds, at a price premium. The current gold standard
-  for de novo mammalian assembly; the T2T human genome was a HiFi-and-
-  ONT project.
+  for de novo mammalian assembly; the #idx("T2T")T2T human genome was a HiFi-and-
+  #idx("ONT")ONT project.
 - *Paired-end and mate-pair reads.* Two reads from opposite ends of a
   single fragment of known approximate length. Paired-end inserts are
   300–600 bp; mate-pair (older terminology: "jumping libraries")
@@ -184,7 +184,7 @@ range order. The assembler that uses one type only is leaving
 information on the table.
 
 
-== Coverage: A Poisson Process with Uneven Bias <sec:coverage>
+== #idx("coverage")Coverage: A Poisson Process with Uneven Bias <sec:coverage>
 
 Before any assembly algorithm runs, the raw reads are characterised by
 one summary number more than any other: *coverage*. Coverage at a
@@ -269,7 +269,7 @@ are not. Three sources of non-uniformity matter in practice:
   Coverage piles up in the middle of reads and thins at their edges.
 
 The cleanup for GC bias is a second PCR-free library preparation, or a
-PCR-free chemistry such as 10X Genomics's linked reads or PCR-free
+PCR-free chemistry such as #idx("10x Genomics")10X Genomics's linked reads or PCR-free
 Illumina kits. The cleanup for repeats is long reads. There is no
 cleanup for strand bias — you tolerate it and you report it.
 
@@ -298,7 +298,7 @@ extends it) or rejoins the path further down (forming a bubble). Either
 way, the graph balloons and the downstream traversal slows to a crawl.
 
 Every production assembler corrects the reads before graph
-construction. The dominant technique is *k-mer spectrum analysis*:
+construction. The dominant technique is *#idx("k-mer spectrum")#idx("k-mer")k-mer spectrum analysis*:
 treat each read as a window over the genome, count every _k_-mer in
 every read, and use the resulting frequency distribution to separate
 true _k_-mers from errors.
@@ -339,7 +339,7 @@ or from heterozygous variants at low coverage.
 The threshold is the heart of the trick. _k_-mers below it (say, count
 &lt; 3 for moderate coverage) are presumed errors; _k_-mers above it
 are presumed true. Setting the threshold is the same problem as setting
-a detection threshold on a matched filter — you pick the false-alarm
+a detection threshold on a #idx("matched filter")matched filter — you pick the false-alarm
 versus miss-detection tradeoff that matches your downstream noise
 tolerance. Modern correctors do this Bayesianly, fitting both
 populations and choosing the maximum-likelihood threshold.
@@ -408,7 +408,7 @@ algorithms look at degree as the first signal — a node with in-degree
 one and out-degree one is on a chain; a node with multiple in-edges or
 out-edges is a branch point.
 
-Two kinds of path show up constantly. An *Eulerian path* visits every
+Two kinds of path show up constantly. An *#idx("Eulerian path")Eulerian path* visits every
 edge exactly once. A *Hamiltonian path* visits every node exactly
 once. The two sound similar and the difference is fatal.
 
@@ -418,7 +418,7 @@ path exists in a connected graph if and only if every node has even
 degree, or exactly two nodes have odd degree (the start and end). For
 directed graphs the condition becomes: in-degree equals out-degree
 everywhere, or exactly two nodes are imbalanced by one (one source,
-one sink). When the path exists, *Hierholzer's algorithm* constructs
+one sink). When the path exists, *#idx("Hierholzer")Hierholzer's algorithm* constructs
 it in $O(|E|)$ time: walk until you get stuck, then for any remaining
 unvisited edges, find an intermediate node on your current path that
 still has out-degree, and splice a new cycle in there.
@@ -433,7 +433,7 @@ of practical size."
   Graphs are bookkeeping for "A connects to B." In a circuit, $A$ and
   $B$ are nodes and the edge is a wire with some impedance. In a
   finite-state machine the nodes are states and the edges are
-  transitions. In a Viterbi decoder the trellis is a graph and the
+  transitions. In a #idx("Viterbi")Viterbi decoder the trellis is a graph and the
   best decoded sequence is a path through it. In short-read assembly
   the nodes are short substrings and the edges are the single-letter
   shifts that take one substring to the next. The algorithms transfer.
@@ -470,7 +470,7 @@ the concept is this simple.
 The remarkable property is what happens next. To recover the original
 genome, walk an Eulerian path through the graph — every edge exactly
 once. Write the label of the first node, then append the last
-character of each subsequent node. The reconstructed string has length
+character of each subsequent node. The reconstructed #idx("STRING")string has length
 $"(number of edges)" + (k - 1)$ and, in the absence of errors and
 repeats, is the original genome.
 
@@ -660,7 +660,7 @@ contigs at a fork is the honest output.
 
 For a clean bacterial genome at 30× coverage with no repeats longer
 than the read length, the de Bruijn graph is close to a single linear
-path and the assembly is one contig covering the whole chromosome.
+path and the assembly is one contig covering the whole #idx("chromosome")chromosome.
 Real genomes are not like that. Real genomes have repeats, errors, and
 structural variation, and the graph has forks.
 
@@ -730,7 +730,7 @@ coverages 16 and 14, you are almost certainly looking at a heterozygous
 variant — the genome carries _both_ paths, one on each homologous
 chromosome, and collapsing them throws away real biology. A
 diploid-aware assembler keeps the bubble and emits two contigs, one
-per haplotype. A haploid-only assembler collapses it and notes the
+per #idx("haplotype")haplotype. A haploid-only assembler collapses it and notes the
 ambiguity. The choice depends on what you intend to do with the
 assembly downstream.
 
@@ -760,7 +760,7 @@ catalogue is worth knowing in numbers:
 - *Segmental duplications*, large blocks of 10 kb or more with
   &gt; 90% identity to another copy elsewhere, totalling about 5% of
   the genome;
-- *Ribosomal RNA arrays*, hundreds of tandem copies of the rDNA
+- *Ribosomal #idx("RNA")RNA arrays*, hundreds of tandem copies of the rDNA
   cluster on five different chromosomes.
 
 Here is why they break assembly. Take two identical copies of a 500 bp
@@ -847,7 +847,7 @@ The two workhorses:
   image("../../diagrams/lecture-03/10-scaffolding-mate-pairs.svg", width: 100%),
   caption: [
     Scaffolding with mate pairs. Long-insert read pairs link contigs
-    across unresolved regions; the resulting scaffold preserves order
+    across unresolved regions; the resulting #idx("scaffold")scaffold preserves order
     and orientation with explicit N-padded gaps.
   ],
 ) <fig:scaffolding>
@@ -916,7 +916,7 @@ were needed to cover half the assembly.
 #figure(
   image("../figures/ch03/f4-n50-walkthrough.svg", width: 100%),
   caption: [
-    N50 and NG50 computed on a ten-contig assembly. The cumulative-length
+    N50 and #idx("NG50")NG50 computed on a ten-contig assembly. The cumulative-length
     curve crosses the 50%-of-total reference inside contig 3
     (N50 = 500 kb) and crosses the 50%-of-expected-genome reference
     inside contig 4 (NG50 = 400 kb). The summary table at lower left

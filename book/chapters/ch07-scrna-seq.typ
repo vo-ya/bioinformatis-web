@@ -1,6 +1,6 @@
 #import "../theme/book-theme.typ": *
 
-= Single-Cell RNA-seq: From Droplets to Cell-Type Atlases <ch:scrna-seq>
+= #idx("single-cell RNA-seq")Single-Cell #idx("RNA-seq")RNA-seq: From Droplets to Cell-Type Atlases <ch:scrna-seq>
 
 #matters[
   Bulk RNA-seq, the subject of Chapter 5, treats a tissue sample as a
@@ -14,10 +14,10 @@
   read those differences. The data are sparser, the pipelines have more
   moving parts, and almost every step is statistically harder than its
   bulk equivalent. This chapter walks the whole stack: how the droplets
-  are made, why a unique molecular identifier survives an amplification
+  are made, why a #idx("unique molecular identifier")unique molecular identifier survives an amplification
   channel, how to draw a defensible line between a real cell and an
-  empty droplet, why the standard normalisation tricks of bulk RNA-seq
-  fail on a 95 %-zero matrix, and how PCA and UMAP and Leiden combine
+  #idx("empty droplet")empty #idx("droplet")droplet, why the standard normalisation tricks of bulk RNA-seq
+  fail on a 95 %-zero matrix, and how #idx("PCA")PCA and #idx("UMAP")UMAP and #idx("Leiden")Leiden combine
   into the canonical visualisation that ends with a labelled UMAP
   hanging over a poster.
 ]
@@ -27,13 +27,13 @@ biological consequences. The first true single-cell RNA-seq paper,
 Tang et al. 2009, hand-picked individual mouse blastomeres into PCR
 tubes and processed them one at a time. Throughput was below a hundred
 cells per experiment. Six years later the Macosko and Klein groups
-independently published droplet-based methods — Drop-seq and inDrops —
+independently published droplet-based methods — #idx("Drop-seq")Drop-seq and inDrops —
 that pushed throughput into the thousands of cells per run. In 2017,
-10x Genomics' Chromium platform commercialised the same idea with
+#idx("10x Genomics")10x Genomics' #idx("Chromium")Chromium platform commercialised the same idea with
 better chemistry and reproducibility, and within three years it had
 become the dominant single-cell instrument in the world. The
 computational stack matured in parallel: Cell Ranger, STARsolo, and
-alevin-fry on the quantification side; Seurat (R) and Scanpy (Python)
+alevin-fry on the quantification side; #idx("Seurat")Seurat (R) and #idx("Scanpy")Scanpy (Python)
 on the analysis side. By the early 2020s a single sample of ten
 thousand cells could be processed end-to-end in an afternoon, and the
 Human Cell Atlas had begun building a tissue-by-tissue reference of
@@ -48,7 +48,7 @@ the cell barcodes and unique molecular identifiers that turn a noisy
 amplification channel into an invertible one. Section 7.3 walks the
 quantification pipeline from BCL files to a sparse count matrix.
 Section 7.4 covers the four QC filters that every pipeline applies —
-empty droplets, doublets, mitochondrial fraction, ambient RNA —
+empty droplets, doublets, mitochondrial fraction, ambient #idx("RNA")RNA —
 because every one of them is a known way to make a downstream
 analysis silently wrong. Section 7.5 covers normalisation, where the
 bulk-RNA-seq toolkit breaks and a single-cell-specific toolkit takes
@@ -59,8 +59,8 @@ biological label.
 
 The chapter assumes you understand bulk RNA-seq from Chapter 5 —
 specifically, what a count matrix is and why library size matters.
-Everything downstream of the single-cell pipeline — trajectory
-inference, RNA velocity, batch integration, spatial transcriptomics —
+Everything downstream of the single-cell pipeline — #idx("trajectory")trajectory
+inference, #idx("RNA velocity")RNA velocity, #idx("batch integration")batch integration, #idx("spatial transcriptomics")spatial transcriptomics —
 builds on the cell-by-gene matrix this chapter produces.
 
 
@@ -80,7 +80,7 @@ discrete states or a continuous gradient?* Bulk averaging cannot
 distinguish.
 
 Single-cell RNA-seq dissolves the tissue into a suspension of
-individual cells, measures each cell's mRNA pool independently, and
+individual cells, measures each cell's #idx("mRNA")mRNA pool independently, and
 returns a count matrix indexed by (cell, gene). For a sample of ten
 thousand cells and twenty thousand genes the matrix is enormous but
 sparse: a typical cell yields a few thousand non-zero gene entries
@@ -125,7 +125,7 @@ biological signal.
 A modern single-cell RNA-seq experiment is fundamentally a microfluidic
 encapsulation problem. The 10x Genomics Chromium platform, which has
 dominated the market since 2017, isolates individual cells inside
-oil-water droplets and runs reverse transcription per-droplet. The
+oil-water droplets and runs reverse #idx("transcription")transcription per-droplet. The
 chemistry is short to describe and consequential in its details:
 
 1. *Load.* A cell suspension at one to fifty thousand cells per sample
@@ -139,9 +139,9 @@ chemistry is short to describe and consequential in its details:
 2. *Lyse and prime.* Inside each droplet, the cell is chemically lysed
    and its mRNAs released into solution. Each gel bead carries
    millions of oligonucleotide primers, each consisting of three
-   pieces: a *cell barcode* (16 bp; the same sequence across all
+   pieces: a *#idx("cell barcode")cell barcode* (16 bp; the same sequence across all
    primers on one bead, different across beads), a *unique molecular
-   identifier* or UMI (12 bp; random per primer), and a poly-T tail
+   identifier* or #idx("UMI")UMI (12 bp; random per primer), and a poly-T tail
    (which hybridises to the poly-A of mature mRNA).
 3. *Reverse transcribe.* Reverse transcriptase extends each primer
    into a cDNA copy of the captured mRNA. The cell barcode and UMI
@@ -149,7 +149,7 @@ chemistry is short to describe and consequential in its details:
    *before* any amplification has happened.
 4. *Pool and sequence.* The emulsion is broken, all the cDNA is
    pooled into a single tube, PCR-amplifies the pool, and the
-   amplified library goes onto an Illumina sequencer. Every resulting
+   amplified library goes onto an #idx("Illumina")Illumina sequencer. Every resulting
    read carries (cell barcode, UMI, transcript sequence). A typical
    v3 Chromium run targets ten thousand cells, fifty thousand reads
    per cell, and roughly three thousand detected genes per cell.
@@ -189,7 +189,7 @@ Section 7.4 returns to this.
 
 == Cell Barcodes and UMIs: Tags Before the Amplifier <sec:umi>
 
-The two pieces of nucleotide tag attached to every cDNA do
+The two pieces of #idx("nucleotide")nucleotide tag attached to every cDNA do
 fundamentally different jobs. The cell barcode says *which cell* the
 molecule came from; the UMI says *which mRNA molecule within that
 cell*. Both are required because the pooling step at the end of the
@@ -260,7 +260,7 @@ one of gene G2.
   numbers at the output recovers the original input count regardless
   of amplification factor. The same idea drives MAC addresses on a
   network, transaction IDs in a distributed database, and isotope
-  labelling in mass spectrometry — unique identifiers stable across a
+  labelling in #idx("mass spectrometry")mass spectrometry — unique identifiers stable across a
   lossy transport.
 ]
 
@@ -293,8 +293,8 @@ counting would over-report.
 == From BCL to a Count Matrix <sec:quantification>
 
 The sequencer emits BCL (Binary Base-Call) files, which `bcl2fastq`
-converts into FASTQ-formatted reads — one FASTQ for each end of the
-paired-end read structure. The Chromium read layout is asymmetric:
+converts into FASTQ-formatted reads — one #idx("FASTQ")FASTQ for each end of the
+#idx("paired-end")paired-end read structure. The Chromium read layout is asymmetric:
 read 1 carries the cell barcode plus UMI (28 bp total for v3), and
 read 2 carries the actual cDNA sequence. The quantifier's job is to
 align read 2 to the transcriptome (or pseudoalign it; see Chapter 5),
@@ -303,7 +303,7 @@ sparse cell-by-gene count matrix.
 
 Three quantifiers dominate practice in 2024:
 
-- *Cell Ranger* (10x Genomics' own). The reference pipeline; uses STAR
+- *Cell Ranger* (10x Genomics' own). The reference pipeline; uses #idx("STAR")STAR
   under the hood with 10x-specific barcode handling and a tightly
   managed output schema. Slower than alternatives but produces the de
   facto standard outputs against which everything else is benchmarked.
@@ -311,13 +311,13 @@ Three quantifiers dominate practice in 2024:
   Smart-seq barcode handling to vanilla STAR. Two to four times faster
   than Cell Ranger at similar accuracy. The default for anyone not
   locked into the 10x output schema.
-- *alevin-fry* (Salmon team; Srivastava et al. 2019, He et al. 2022).
+- *alevin-fry* (#idx("Salmon")Salmon team; Srivastava et al. 2019, He et al. 2022).
   Pseudoalignment-based — the same trick from Chapter 5's
   bulk-RNA-seq quantifiers, adapted to droplet data. Fastest of the
   three; benchmarks within 2 % of STARsolo on standard datasets.
 
 The output is a sparse cell-by-gene count matrix, written either as
-an HDF5 file (`.h5`) or as the Matrix Market triplet format (`.mtx`
+an #idx("HDF5")HDF5 file (`.h5`) or as the Matrix Market triplet format (`.mtx`
 plus `barcodes.tsv` plus `features.tsv`). Both formats store only the
 non-zero entries, which is the right choice when 95 % of the matrix
 is zero. The downstream object that analysis tools consume is the
@@ -333,12 +333,12 @@ per-cell and per-gene metadata in a single container."
     Cell Ranger, STARsolo, or alevin-fry; the matrix loaded into an
     AnnData or SeuratObject for downstream analysis.
   ],
-) <fig:quant>
+) <fig:ch07-quant>
 
 #tip[
   Save intermediate artifacts at every stage of the pipeline. Disk is
   cheap; re-sequencing is not. A clean pipeline records BCL, FASTQ,
-  BAM (if produced), and the sparse matrix at distinct checkpoints, so
+  #idx("BAM")BAM (if produced), and the #idx("sparse matrix")sparse matrix at distinct checkpoints, so
   that any downstream step can be re-run without re-aligning or
   re-sequencing. The single most common pipeline-time waste in
   single-cell analysis is re-running the full quantification stage to
@@ -356,7 +356,7 @@ working set. Four filters run on essentially every single-cell
 pipeline, in this order: empty droplets, doublets, dying or stressed
 cells (via mitochondrial fraction), and ambient-RNA contamination.
 
-=== Empty Droplets and the Knee Plot
+=== Empty Droplets and the #idx("knee plot")Knee Plot
 
 Most droplets in a Chromium run never received a cell. They still
 generate reads, because they contain *ambient RNA* — fragments of
@@ -426,7 +426,7 @@ same data.
 When the cell-loading concentration is high enough that two cells
 end up in the same droplet, their mRNAs share a single cell barcode
 and the resulting "cell" looks like a mixture of two cell types. This
-is a *doublet*. The doublet rate scales approximately linearly with
+is a *#idx("doublet")doublet*. The doublet rate scales approximately linearly with
 the number of cells loaded per chip, with a 10x Chromium target of
 ten thousand cells producing about a 5–8 % doublet fraction. "Load
 more cells to amortise the per-cell cost" is a false economy past
@@ -439,12 +439,12 @@ and, in the cell-by-cell-distance manifold, sits halfway between the
 two pure clusters — a midpoint region that real cells of any type
 rarely occupy. Doublet detection algorithms exploit this geometry:
 
-- *Scrublet* (Wolock, Lopez, Klein 2019) generates synthetic doublets
+- *#idx("scrublet")Scrublet* (Wolock, Lopez, Klein 2019) generates synthetic doublets
   by summing the count vectors of random pairs of real cells, then
   trains a classifier to distinguish real cells from synthetics, then
   applies the classifier to every real cell to score doublet
   probability.
-- *DoubletFinder* (McGinnis et al. 2019) is similar: simulate, project
+- *#idx("DoubletFinder")DoubletFinder* (McGinnis et al. 2019) is similar: simulate, project
   into PC space, and score each cell by its proximity to simulated
   doublets in k-NN sense.
 - *scDblFinder* (Germain et al. 2021) extends the idea with iterative
@@ -493,7 +493,7 @@ real biological state.
 Healthy mammalian cells typically show 5–15 % mitochondrial-gene
 expression. The standard QC threshold is anywhere from 10 to 25 %,
 depending on the tissue — but the threshold is *dataset-specific*,
-not universal. Cardiac myocytes, fast-twitch muscle fibres, and some
+not universal. Cardiac myocytes, fast-twitch #idx("MUSCLE")muscle fibres, and some
 neurons have naturally elevated mitochondrial content and tolerate
 20–30 % under healthy conditions. Always inspect the per-cell MT
 distribution before setting a threshold; never copy a number from a
@@ -556,7 +556,7 @@ function of biology. Single-cell data breaks both assumptions. A
 typical scRNA-seq cell has a few thousand non-zero gene entries out
 of twenty thousand total, and library sizes vary by an order of
 magnitude across cells in the same dataset for purely technical
-reasons. The median-of-ratios estimator that DESeq2 uses on bulk data
+reasons. The median-of-ratios estimator that #idx("DESeq2")DESeq2 uses on bulk data
 becomes unstable on mostly-zero count vectors: the "median" is taken
 over whichever genes happen to be non-zero in *both* samples, which is
 a biased subset and a noisy estimate.
@@ -579,7 +579,7 @@ Scanpy `pp.normalize_total` + `pp.log1p` pair. Two short steps:
 1. For each cell, divide each gene's count by the cell's total UMI
    count, then multiply by a fixed scaling factor (commonly 10 000).
    This produces a counts-per-ten-thousand value, the single-cell
-   analogue of CPM.
+   analogue of #idx("CPM")CPM.
 2. Apply the natural log of one plus the value. The pseudo-count of
    one prevents $log(0)$ and pulls zeros into the same continuous
    range as nonzero observations.
@@ -619,7 +619,7 @@ differences across cells of similar type.
   patterns across cell groups, not raw counts.
 ]
 
-=== Highly Variable Gene Selection
+=== #idx("highly variable gene")Highly Variable Gene #idx("selection")Selection
 
 After normalisation, the next reduction step is *feature selection*.
 A typical scRNA-seq dataset has twenty thousand gene rows, but most
@@ -638,13 +638,13 @@ dominate:
 
 - *Variance-mean trend selection* (Seurat's `vst` method, Scanpy's
   default). Fit a smooth mean-variance trend across all genes (a
-  trick borrowed from bulk DESeq2 dispersion estimation, Chapter 5).
+  trick borrowed from bulk DESeq2 #idx("dispersion")dispersion estimation, Chapter 5).
   Keep the genes with the largest residual variance — those whose
   variance is much larger than the trend predicts for their mean.
 - *Pearson-residual variance* (Lause, Berens, Kobak 2021;
   SCTransform's default). The genes whose Pearson residuals have the
   largest variance across cells. Mathematically the cleanest variant
-  of HVG selection; computationally heavier.
+  of #idx("HVG")HVG selection; computationally heavier.
 
 The top two thousand HVGs typically capture most of the cell-type
 discrimination signal. The remaining genes contribute negligible
@@ -666,7 +666,7 @@ nonlinear one (UMAP) — and runs clustering on the linear stage.
 
 === Why Two Reductions
 
-A first reduction by *principal component analysis* (PCA) goes from
+A first reduction by *#idx("principal component analysis")principal component analysis* (PCA) goes from
 roughly 2000 HVGs down to roughly 30 to 50 principal components. PCA
 is the singular value decomposition (SVD) of the cells-by-HVGs matrix:
 its principal components are linear combinations of HVGs ordered by
@@ -677,7 +677,7 @@ something distance-comparable, and it produces a representation
 on which the rest of the pipeline (k-NN graph, Leiden clustering,
 UMAP) is fast.
 
-A second reduction by *UMAP* (or t-SNE; UMAP has been the default
+A second reduction by *UMAP* (or #idx("t-SNE")t-SNE; UMAP has been the default
 since around 2018) goes from 30–50 PCA components down to two
 dimensions, for the sole purpose of visualisation. UMAP is a
 nonlinear manifold-learning algorithm that preserves *local*
@@ -808,8 +808,8 @@ The pipeline is three steps:
    which edge weights are the Jaccard overlap of $k$-NN neighbour
    sets. SNN denoises the raw kNN graph by giving more weight to
    pairs of cells that share many neighbours.
-3. Run *Leiden* or *Louvain* community detection on the graph. Both
-   algorithms maximise modularity — a measure of how much the graph's
+3. Run *Leiden* or *#idx("Louvain")Louvain* community detection on the graph. Both
+   algorithms maximise #idx("modularity")modularity — a measure of how much the graph's
    edges concentrate within communities versus crossing between them.
 
 Modularity is defined as
@@ -872,7 +872,7 @@ follow the biology, not the other way around.
 
 === Marker Genes
 
-After clustering, the final step before annotation is *marker gene
+After clustering, the final step before annotation is *#idx("marker gene")marker gene
 identification* — finding genes that are differentially expressed in
 one cluster versus the rest. For each cluster $c$ and each gene $g$,
 run a differential-expression test comparing cells in $c$ against
@@ -949,7 +949,7 @@ and transfer the reference label. Three tools dominate:
   application running pre-trained references for the most common
   tissues (PBMC, bone marrow, heart). Upload a dataset, get
   annotations in twenty minutes.
-- *scArches* / *scPoli* (Lotfollahi et al. 2022) use deep learning to
+- *scArches* / *scPoli* (Lotfollahi et al. 2022) use #idx("deep learning")deep learning to
   map a query dataset into the latent space of a pre-trained
   reference, then transfer labels. Slower; better at handling cell
   states not present in the reference.
@@ -1004,7 +1004,7 @@ is what makes cross-study comparison and meta-analysis tractable.
 
 == Summary <sec:summary>
 
-- Single-cell RNA-seq measures per-cell transcript abundance. Bulk
+- Single-cell RNA-seq measures per-cell #idx("transcript abundance")transcript abundance. Bulk
   averages hide cell-type composition; single-cell resolves it. The
   cost is per-cell signal-to-noise; the payoff is that heterogeneity
   becomes visible.
@@ -1079,7 +1079,7 @@ of sequencing?
 #strong[5.] #emph[Why bulk normalisation fails.]
 A toy two-cell dataset has six genes. Cell 1 counts are
 `[10, 0, 0, 0, 5, 0]`; cell 2 counts are `[0, 8, 0, 0, 0, 12]`.
-(a) Compute the DESeq2 median-of-ratios size factor for each cell.
+(a) Compute the DESeq2 median-of-ratios #idx("size factor")size factor for each cell.
 (b) Comment on the result: is the estimator well-defined? (c)
 Repeat with log-normalisation (divide each cell by its total UMI,
 multiply by 10 000, add 1, take log). Is the answer well-defined now?
@@ -1138,7 +1138,7 @@ evidence they offer that it works.
   boundary.
 - *Hafemeister, C., & Satija, R.* (2019). "Normalization and variance
   stabilization of single-cell RNA-seq data using regularized
-  negative binomial regression." _Genome Biology_ 20: 296. The
+  #idx("negative binomial")negative binomial regression." _Genome Biology_ 20: 296. The
   SCTransform paper.
 - *Traag, V. A., Waltman, L., & van Eck, N. J.* (2019). "From Louvain
   to Leiden: guaranteeing well-connected communities." _Scientific

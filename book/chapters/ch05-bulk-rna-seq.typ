@@ -1,11 +1,11 @@
 #import "../theme/book-theme.typ": *
 
-= Bulk RNA-seq: From Reads to Transcript Abundances <ch:bulk-rna-seq>
+= Bulk #idx("RNA-seq")RNA-seq: From Reads to Transcript Abundances <ch:bulk-rna-seq>
 
 #matters[
   A genome lists the parts a cell could in principle build. A
   transcriptome reports the parts the cell is actually building right
-  now. The same DNA sits in every nucleus of your body; a liver cell and
+  now. The same #idx("DNA")DNA sits in every #idx("nucleus")nucleus of your body; a liver cell and
   a neuron differ because they transcribe different subsets of it, at
   different rates, into different splice variants. RNA-seq is the
   measurement that turns that activity into numbers — and almost every
@@ -14,48 +14,48 @@
   some flavour of it. The numerics carry consequences: a botched
   normalisation can flip the sign of an effect; a misconfigured strand
   setting can silently halve every count in the matrix. This chapter
-  builds the pipeline from FASTQ to a clean count matrix and explains
+  builds the pipeline from #idx("FASTQ")FASTQ to a clean count matrix and explains
   what each stage is buying you.
 ]
 
 The output of a sequencing instrument is the same whether the input was
-DNA or RNA — a FASTQ file of short reads with PHRED quality scores. The
+DNA or #idx("RNA")RNA — a FASTQ file of short reads with PHRED quality scores. The
 divergence starts the moment you try to align those reads back to a
 genome. A read from a piece of genomic DNA maps to a contiguous stretch
-of reference. A read from a piece of mature mRNA does not: the cell has
-already spliced its introns out, so the read corresponds to a
+of reference. A read from a piece of mature #idx("mRNA")mRNA does not: the cell has
+already #idx("spliced")spliced its introns out, so the read corresponds to a
 discontinuous slice of genome with multi-kilobase gaps inside it. The
 rest of the chapter follows from that one fact.
 
 Four moves carry the rest. Section 5.1 lays out the biology — splicing,
 isoforms, and why naive read-per-gene counting is wrong on two
 independent axes. Section 5.2 explains splice-aware alignment as a
-hidden-Markov-model extension of the seed-and-extend framework from
-Chapter 3, comparing the two dominant short-read aligners STAR
-(Dobin 2013) and HISAT2 (Kim 2015, 2019). Section 5.3 takes the radical
-alternative — pseudoalignment, introduced by Kallisto (Bray 2016) and
-refined by Salmon (Patro 2017) — which throws away the base-level
+hidden-Markov-model extension of the #idx("seed-and-extend")seed-and-extend framework from
+Chapter 3, comparing the two dominant short-read aligners #idx("STAR")STAR
+(Dobin 2013) and #idx("HISAT2")HISAT2 (Kim 2015, 2019). Section 5.3 takes the radical
+alternative — #idx("pseudoalignment")pseudoalignment, introduced by #idx("Kallisto")Kallisto (Bray 2016) and
+refined by #idx("Salmon")Salmon (Patro 2017) — which throws away the base-level
 alignment that quantification didn't need and runs 10–100× faster as a
 consequence. Section 5.4 covers the expectation-maximisation algorithm
 that resolves the ambiguity in compatibility classes, from RSEM (Li &
 Dewey 2011) through to its modern descendants. Section 5.5 turns to the
-count matrix itself: CPM, FPKM, TPM, and the median-of-ratios size
-factor of DESeq2. Section 5.6 explains why count data is overdispersed
+count matrix itself: #idx("CPM")CPM, #idx("FPKM")FPKM, #idx("TPM")TPM, and the median-of-ratios size
+factor of #idx("DESeq2")DESeq2. Section 5.6 explains why count data is overdispersed
 Poisson and what the negative-binomial fix buys you. Section 5.7 surveys
-the broader assay family — ribo-seq, CLIP-seq, m^6A-seq, CAGE — which
+the broader assay family — #idx("ribo-seq")ribo-seq, #idx("CLIP-seq")CLIP-seq, m^6A-seq, CAGE — which
 all reuse this pipeline downstream of FASTQ.
 
 The chapter assumes a working knowledge of short-read alignment from
-Chapter 3 (seed-and-extend, BWT/FM-index) and the Phred-quality formalism
-from Chapter 1. Differential expression — the statistical machinery that
+Chapter 3 (seed-and-extend, #idx("BWT")BWT/FM-index) and the Phred-quality formalism
+from Chapter 1. #idx("differential expression")Differential expression — the statistical machinery that
 takes the count matrix out the other side of this chapter and decides
 which genes change between conditions — is the subject of Chapter 6.
 
 
 == Why RNA Is Not DNA <sec:rna-vs-dna>
 
-A short Illumina read coming off the instrument is 150 bp of A/C/G/T
-with a PHRED string. There is no flag on the FASTQ record that says
+A short #idx("Illumina")Illumina read coming off the instrument is 150 bp of A/C/G/T
+with a PHRED #idx("STRING")string. There is no flag on the FASTQ record that says
 "this came from genomic DNA" versus "this came from polyA-selected RNA."
 The biology is hiding entirely in what the reference looks like, which is
 why the same alignment tool you used in Chapter 3 will silently produce
@@ -64,9 +64,9 @@ genomic alignment.
 
 Three biological facts drive everything in this chapter.
 
-*Transcription is selective.* Only a fraction of the genome is
+*#idx("transcription")Transcription is selective.* Only a fraction of the genome is
 transcribed in any given cell at any given time. Genes have promoters
-that recruit RNA polymerase II; transcription factors bind regulatory
+that recruit RNA #idx("polymerase")polymerase II; transcription factors bind regulatory
 regions and turn genes on or off; the abundance of a transcript in a
 cell is approximately proportional to its production rate times its
 half-life. A liver hepatocyte transcribes the ~12,000 genes most
@@ -77,10 +77,10 @@ protein-coding genes in the genome are mostly silent.
 *exons* — the parts that end up in the mature mRNA — separated by
 *introns* — the parts that get cut out. The spliceosome, a large
 RNA-protein complex, recognises canonical splice-donor (GT) and
-splice-acceptor (AG) dinucleotides at exon boundaries, excises the
-intron, and joins the exons. A gene spanning 40 kb of genomic locus
+splice-acceptor (AG) dinucleotides at #idx("exon")exon boundaries, excises the
+#idx("intron")intron, and joins the exons. A gene spanning 40 kb of genomic locus
 typically produces a 2 kb mature mRNA: most of the locus is intron.
-The largest human gene, *DMD*, spans 2.4 Mb on the X chromosome and
+The largest human gene, *DMD*, spans 2.4 Mb on the X #idx("chromosome")chromosome and
 encodes a 14 kb mRNA. About 99.4 % of *DMD*'s genomic length is intron.
 
 *One gene, many transcripts.* The same gene can be spliced in multiple
@@ -116,7 +116,7 @@ of counting break down at every step.
 === Why Naive Counting Fails
 
 Given the biology in @fig:splicing, the naive pipeline — "align reads
-with BWA from Chapter 3 and count how many overlap each gene" — breaks
+with #idx("BWA")BWA from Chapter 3 and count how many overlap each gene" — breaks
 in three independent ways.
 
 First, *reads span splice junctions*. A 150 bp read can sit across the
@@ -127,7 +127,7 @@ splits it into two low-quality alignments. STAR and HISAT2 exist
 specifically to handle these junction-spanning reads as a first-class
 alignment case.
 
-Second, *reads from one gene can't always be assigned to one isoform*.
+Second, *reads from one gene can't always be assigned to one #idx("isoform")isoform*.
 A read that lands in an exon shared by three isoforms of the same gene
 is, at the read level, ambiguous: we know the gene but not the
 transcript. The naive solution — assign to a primary transcript and
@@ -145,7 +145,7 @@ estimator of molar abundance — you must normalise by length to compare
 genes within a sample.
 
 #warn[
-  "Reads per gene" and "transcript abundance" are different quantities,
+  "Reads per gene" and "#idx("transcript abundance")transcript abundance" are different quantities,
   in different units, with different rankings. Plotting one and
   labelling it as the other is the single most common bug in published
   RNA-seq analyses. A gene with high read count but very long length is
@@ -168,7 +168,7 @@ disagree on the middle stage but agree on the endpoints.
   ],
 ) <fig:ch05-pipeline>
 
-The *align-then-count* path produces a sorted BAM and then counts reads
+The *align-then-count* path produces a sorted #idx("BAM")BAM and then counts reads
 overlapping each feature (gene, exon, or transcript) using
 `featureCounts` or `htseq-count`. The *pseudoalign* path produces
 transcript-level abundance estimates directly and never writes a BAM at
@@ -177,7 +177,7 @@ differential expression tools consume.
 
 The pragmatic 2024 default is Salmon followed by `tximport` into
 DESeq2; the legacy default — still right in many cases, especially when
-you need the BAM for other purposes such as variant calling from RNA —
+you need the BAM for other purposes such as #idx("variant calling")variant calling from RNA —
 is STAR followed by `featureCounts`. The two paths land within a few
 percent of each other on standard benchmarks.
 
@@ -185,7 +185,7 @@ percent of each other on standard benchmarks.
   The historical timeline of bulk RNA-seq quantification is short and
   worth knowing. Tophat (Trapnell 2009) was the first widely-used
   splice-aware aligner. RSEM (Li & Dewey 2011) introduced
-  expectation-maximisation on top of Bowtie alignments — the first
+  expectation-maximisation on top of #idx("Bowtie")Bowtie alignments — the first
   principled treatment of multi-mapping reads. STAR (Dobin 2013) and
   HISAT (Kim 2015) made splice-aware alignment fast. Kallisto (Bray
   2016) replaced alignment with pseudoalignment and brought
@@ -209,7 +209,7 @@ will have its first 80 bp aligning to the end of exon 1 and its last 70
 bp aligning to the start of exon 2. In between, on the reference, sits
 5 kb of intron that the read does not contain. The aligner has to
 recognise that 5 kb gap as a *splice* rather than as a deletion. A
-deletion that large would be either a structural variant (Chapter 4) or
+deletion that large would be either a #idx("structural variant")structural variant (Chapter 4) or
 a complete misalignment; a splice is a routine biological event.
 
 #figure(
@@ -268,8 +268,8 @@ The algorithm has three phases per read.
   multi-mapping, and are demoted to non-primary alignments.
 
 + *Extend with splice awareness.* For each cluster, STAR extends the
-  MMPs using a modified Smith-Waterman alignment that allows an unusual
-  move: at any canonical GT…AG motif, the alignment can "jump" forward
+  MMPs using a modified #idx("Smith-Waterman")Smith-Waterman alignment that allows an unusual
+  move: at any canonical GT…AG #idx("motif")motif, the alignment can "jump" forward
   by the intron length at *zero* alignment cost. The splice move is a
   different operation from an ordinary insertion — insertions have a
   per-base gap-open and gap-extend penalty; splices are free if the
@@ -304,9 +304,9 @@ transition.
 ) <fig:star-trellis>
 
 #tip[
-  Splice-aware alignment is a hidden Markov model whose state-transition
+  Splice-aware alignment is a #idx("hidden Markov model")hidden Markov model whose state-transition
   diagram includes long-skip transitions at canonical splice sites. A
-  junction alignment is the Viterbi path through a trellis where one
+  junction alignment is the #idx("Viterbi")Viterbi path through a trellis where one
   edge can traverse 100 kb of reference in a single time step — but only
   if that edge is labelled "canonical splice." Drop the long-skip edges
   and you recover the DNA aligner. Add them and you recover STAR. The
@@ -316,7 +316,7 @@ transition.
 ]
 
 STAR's practical envelope: a human-genome index is about 30 GB of RAM
-(the suffix array over the whole genome plus a junction-database
+(the #idx("suffix array")suffix array over the whole genome plus a junction-database
 overlay). The aligner processes ~100 million reads per hour on 16
 cores. The output is a coordinate-sorted BAM with `XS` tags indicating
 splice strand and, optionally, a tab-separated table of detected splice
@@ -337,7 +337,7 @@ problem as STAR with a different data structure. Instead of a
 suffix array, HISAT2 uses a *hierarchical graph FM-index* (HGFM), which
 extends the FM-index from Chapter 3 to a reference *graph* whose nodes
 are genomic positions and whose edges include known splice junctions
-and common variants from dbSNP.
+and common variants from #idx("dbSNP")dbSNP.
 
 The construction is layered.
 
@@ -360,7 +360,7 @@ The construction is layered.
     HISAT2's hierarchical graph FM-index. A global FM-index covers the
     whole genome; hundreds of local indexes give cheap short
     extensions; annotated splice junctions appear as graph edges that
-    the FM-index traverses during backward search.
+    the FM-index traverses during #idx("backward search")backward search.
   ],
 ) <fig:hisat2>
 
@@ -374,9 +374,9 @@ the gap is small for libraries from well-annotated species.
   on a linear string. The same Last-First mapping and backward-search
   procedure as Chapter 3 works — the FM-index alphabet is extended so
   that transitions across graph edges appear as valid moves during the
-  search. This is the same generalisation that returns in the pangenome
-  alignment work of recent years (vg, minigraph), where the reference
-  is a population-scale variation graph rather than a single haplotype.
+  search. This is the same generalisation that returns in the #idx("pangenome")pangenome
+  alignment work of recent years (#idx("vg")vg, minigraph), where the reference
+  is a population-scale variation graph rather than a single #idx("haplotype")haplotype.
 ]
 
 === From BAM to Gene Counts
@@ -428,15 +428,15 @@ and ate the previous decade's tooling.
 If your goal is transcript *abundance* — not base-level alignment
 coordinates — you don't need to know *where* in each transcript a read
 came from. You only need to know *which transcripts the read is
-compatible with.* A read's "compatibility class" is the set of
+compatible with.* A read's "#idx("compatibility class")compatibility class" is the set of
 transcripts whose sequence is consistent with the read.
 
-The construction is straightforward. Pick a k-mer length (k = 31 is
+The construction is straightforward. Pick a #idx("k-mer")k-mer length (k = 31 is
 typical). Extract every k-mer from every transcript in your reference
 transcriptome and build a hash table that maps each k-mer to the set of
 transcripts containing it. Some k-mers will be unique to one transcript;
 some will appear in two or three closely related isoforms; some will
-appear in dozens (think rRNA, or a paralog family). When a new read
+appear in dozens (think rRNA, or a #idx("paralog")paralog family). When a new read
 arrives, chop it into k-mers, look each one up, intersect the resulting
 transcript sets, and the intersection is the read's compatibility class.
 
@@ -475,7 +475,7 @@ What you keep is everything you need for quantification: which
 transcripts each read is compatible with, and how those compatibilities
 distribute across the transcriptome.
 
-=== Kallisto and the Target de Bruijn Graph
+=== Kallisto and the Target #idx("de Bruijn graph")de Bruijn Graph
 
 Kallisto (Bray, Pimentel, Melsted & Pachter 2016) was the first
 pseudoalignment tool to ship. Its data structure is a *Target de Bruijn
@@ -524,7 +524,7 @@ in the original paper, replaced Kallisto's T-DBG with an enhanced suffix
 array that explicitly tracked the approximate position of each k-mer
 match within the transcript. Knowing position lets Salmon model
 positional biases — reads do not come from a uniform distribution along
-a transcript, because of 3′ bias from polyA selection, 5′ bias from
+a transcript, because of 3′ bias from polyA #idx("selection")selection, 5′ bias from
 degradation, and position-dependent GC biases. Salmon corrects all
 three explicitly in its likelihood model.
 
@@ -555,7 +555,7 @@ information and keeps the rest. The tradeoffs:
 - *Memory.* About 3–4 GB resident for a human transcriptome index, vs
   30 GB for STAR's genome index.
 - *No BAM.* You cannot run downstream tools that need read coordinates
-  — variant calling, splice-junction discovery, coverage tracks for
+  — variant calling, splice-junction discovery, #idx("coverage")coverage tracks for
   visualisation. If you need a BAM for any reason, run the aligner.
 - *Comparable accuracy on standard benchmarks.* Within 1–2 % of
   alignment-based tools on gene-level counts; 2–5 % on transcript-level
@@ -574,7 +574,7 @@ or RSEM consume the STAR alignments only if you have a specific reason.
 Compatibility classes are inherently ambiguous. A read that lands in
 an exon shared by three transcripts has compatibility class
 ${T_1, T_2, T_3}$ — we know the read came from one of those three but
-not which. The EM algorithm resolves this probabilistically.
+not which. The #idx("EM algorithm")EM algorithm resolves this probabilistically.
 
 EM was first formalised by Dempster, Laird, and Rubin in 1977 as a
 general technique for maximum-likelihood estimation when some of the
@@ -664,7 +664,7 @@ posterior toward T1, and the ambiguous read follows.
   — probabilistic guesses at which codeword was sent. Iterating those
   soft bits against a model of codeword probabilities is exactly what
   a turbo decoder does on a convolutional code. The same algorithmic
-  pattern returns in Chapter 8 for the variational EM used by scVI on
+  pattern returns in Chapter 8 for the variational EM used by #idx("scVI")scVI on
   single-cell counts, and it sits at the heart of every
   detection-theory curriculum.
 ]
@@ -718,7 +718,7 @@ Three categories of bias matter.
   reads in sample A but only 10 % in sample B, every *other* gene in
   sample A appears deflated relative to sample B even when its absolute
   expression is identical. This is the composition bias the
-  median-of-ratios size factor of DESeq2 corrects for, and it is *not*
+  median-of-ratios #idx("size factor")size factor of DESeq2 corrects for, and it is *not*
   the same as depth.
 
 === CPM, FPKM, TPM
@@ -742,7 +742,7 @@ and gene length, in the order depth then length:
 $ "FPKM"_(s,g) = c_(s,g) / ((D_s / 10^6) (ell_g / 1000)) $
 
 FPKM is CPM divided by gene length in kilobases. RPKM is the same
-quantity for single-end reads; FPKM is the paired-end version, where
+quantity for single-end reads; FPKM is the #idx("paired-end")paired-end version, where
 the fragment (not the read) is the unit of accounting.
 
 *TPM (transcripts per million)* normalises for length *first*, then for
@@ -786,7 +786,7 @@ the table.
 #warn[
   TPM is the right unit for *reporting* expression because it is a
   proportion and behaves cleanly across samples. CPM is the right unit
-  to feed into differential expression tools like edgeR and limma-voom,
+  to feed into differential expression tools like #idx("edgeR")edgeR and limma-voom,
   because those tools model length as a regression offset internally
   and want depth-corrected counts as input. FPKM is legacy. Never
   compare a gene's FPKM between two samples without converting to TPM
@@ -835,7 +835,7 @@ hijacking the estimator — exactly the failure mode that breaks naive
 depth scaling on a sample with one runaway transcript. The estimator
 behaves cleanly even when 30 % of reads come from a small number of
 genes, which is the operating regime of every blood sample, every
-muscle sample, and every cancer line.
+#idx("MUSCLE")muscle sample, and every cancer line.
 
 #note[
   Median-of-ratios is the same robust-estimator move that returns
@@ -865,7 +865,7 @@ differential-expression model in Chapter 6 handles all three together as
 regression offsets and intercepts.
 
 
-== The Negative Binomial <sec:nb>
+== The #idx("negative binomial")Negative Binomial <sec:nb>
 
 Chapter 1 introduced the Poisson distribution as the natural model for
 read counts: if reads are sampled uniformly at random from a long
@@ -885,7 +885,7 @@ sequencing runs. None of it is sampling noise; all of it is real
 biology that the Poisson model has no way to express.
 
 The fix is the *negative binomial* (NB) distribution. The NB has two
-parameters, a mean $mu$ and a dispersion $alpha$, with
+parameters, a mean $mu$ and a #idx("dispersion")dispersion $alpha$, with
 
 $ "var"[X] = mu + alpha mu^2 $
 
@@ -963,7 +963,7 @@ ten.
 Bulk RNA-seq measures one quantity: transcript abundance, averaged over
 the cells in the tube. But cells regulate gene expression through
 multiple layers — transcription rate, splicing choice, RNA-protein
-binding, RNA modification, translation rate, RNA degradation. Each
+binding, RNA modification, #idx("translation")translation rate, RNA degradation. Each
 layer has its own dedicated sequencing assay. They all reuse the
 alignment, counting, normalisation, and NB-modelling machinery you have
 just learned. What changes is the library-prep step upstream of the
@@ -981,7 +981,7 @@ sequencer and the biological interpretation of the resulting counts.
   ],
 ) <fig:ribo>
 
-*Ribo-seq* (ribosome profiling, Ingolia, Ghaemmaghami, Newman & Weissman
+*Ribo-seq* (#idx("ribosome")ribosome profiling, Ingolia, Ghaemmaghami, Newman & Weissman
 2009) measures *translation*, not transcription. The trick: RNase-digest
 a cell extract; everything is degraded except the ~28-nucleotide
 footprints of mRNA that translating ribosomes were protecting at the
@@ -1003,12 +1003,12 @@ differential TE testing.
 and eCLIP are the modern variants) measures *RNA-protein binding*.
 UV-crosslink an RNA-binding protein (RBP) to whatever RNAs it is
 gripping; immunoprecipitate the RBP; sequence the protected RNA
-fragments. The result is a transcriptome-wide footprint of one
+fragments. The result is a transcriptome-wide #idx("footprint")footprint of one
 specific RBP's binding sites. The ENCODE eCLIP atlas contains tracks
 for about 150 human RBPs in two cell lines, including all the major
 splicing factors (SF1, U2AF1/2, SRSF family), 3′ UTR regulators (HuR,
 AUF1), and m^6^A readers/writers (METTL3, YTHDF1-3). Tools: PureCLIP,
-omniCLIP, and CLIPper for peak calling.
+omniCLIP, and CLIPper for #idx("peak calling")peak calling.
 
 Other variants in the family worth recognising:
 
@@ -1018,7 +1018,7 @@ Other variants in the family worth recognising:
   cancer biology.
 - *CAGE* and *5′-RACE.* Map transcription start sites at single-base
   resolution; the FANTOM5 atlas of human CAGE data is the canonical
-  reference for promoter usage.
+  reference for #idx("promoter")promoter usage.
 - *3′-end seq* (PAS-Seq, QuantSeq). Map polyadenylation sites; cheaper
   than full RNA-seq for differential-expression studies where you don't
   need transcript-body coverage.
@@ -1064,7 +1064,7 @@ For *transcript-level (isoform) quantification*: Salmon with
 collapses to gene-level counts for DE; if isoform-level DE is the
 question, hand the transcript counts directly to `sleuth` or to DRIMSeq.
 
-For *long-read RNA-seq* (Iso-Seq, ONT direct RNA): Minimap2 in spliced
+For *long-read RNA-seq* (Iso-Seq, #idx("ONT")ONT direct RNA): #idx("minimap2")Minimap2 in spliced
 mode plus IsoQuant or Bambu. The long-read tools handle full-length
 transcript identification natively; pseudoalignment doesn't apply.
 
@@ -1072,7 +1072,7 @@ For *fusion transcript detection in cancer*: STAR-Fusion or Arriba.
 Both need STAR alignments as input; both look for chimeric reads
 spanning gene-gene junctions.
 
-For *RNA variant calling*: STAR two-pass → GATK HaplotypeCaller in RNA
+For *RNA variant calling*: STAR two-pass → #idx("GATK")GATK #idx("HaplotypeCaller")HaplotypeCaller in RNA
 mode. Calls germline variants from RNA-seq, with the caveats that you
 only see variants in expressed transcripts and that allele-specific
 expression biases the apparent VAF.
@@ -1183,7 +1183,7 @@ Pick one tool from the chapter — Salmon, Kallisto, STAR, HISAT2, RSEM,
 or DESeq2's size-factor estimation — and read its primary publication.
 In one paragraph, describe the single most surprising design decision
 the authors made and why it works on the empirical data they show. Pay
-particular attention to anything in the paper that an EE student
+particular #idx("attention")attention to anything in the paper that an EE student
 recognises as a well-known technique from a different domain.
 
 
@@ -1226,7 +1226,7 @@ recognises as a well-known technique from a different domain.
 
 - *Ingolia, N. T., Ghaemmaghami, S., Newman, J. R. S., & Weissman, J.
   S.* (2009). "Genome-Wide Analysis in Vivo of Translation with
-  Nucleotide Resolution Using Ribosome Profiling." _Science_ 324:
+  #idx("nucleotide")Nucleotide Resolution Using Ribosome Profiling." _Science_ 324:
   218–223. The ribo-seq paper.
 
 - *Pertea, M., Kim, D., Pertea, G. M., Leek, J. T., & Salzberg, S. L.*

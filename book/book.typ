@@ -64,3 +64,19 @@
 #include "chapters/ch25-causal-inference.typ"
 #include "chapters/ch26-drug-discovery.typ"
 #include "chapters/ch27-proteomics-metabolomics.typ"
+
+
+// ─── Index ───────────────────────────────────────────────────────────
+// Back-of-book alphabetised index. Markers are inserted into chapter
+// prose via `book/index/tag.py`; the renderer below collects them.
+#pagebreak()
+#{
+  set page(margin: (top: 30mm, bottom: 25mm, inside: 30mm, outside: 22mm))
+  v(20pt)
+  text(font: ("Source Serif 4", "Charter", "Georgia"),
+       size: 28pt, weight: "medium")[Index]
+  v(6pt)
+  block(width: 60pt, height: 2pt, fill: rgb("#1e3a8a"))
+  v(20pt)
+  render-index()
+}

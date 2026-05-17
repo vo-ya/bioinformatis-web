@@ -1,6 +1,6 @@
 #import "../theme/book-theme.typ": *
 
-= BLAST and Sequence Search Statistics <ch:blast>
+= #idx("BLAST")BLAST and Sequence Search Statistics <ch:blast>
 
 #matters[
   More than any other tool, BLAST is what working bioinformaticians
@@ -9,12 +9,12 @@
   first asking BLAST what each predicted protein looks most like. The
   reason a 1990 piece of software survived three rewrites of the field's
   hardware and two generations of replacements is not nostalgia. BLAST
-  combines two ideas — heuristic seed-and-extend search and the
+  combines two ideas — heuristic #idx("seed-and-extend")seed-and-extend search and the
   Karlin–Altschul extreme-value statistics — into a tool that gives up
-  exact optimality and recovers an honest E-value in exchange. That
+  exact optimality and recovers an honest #idx("E-value")E-value in exchange. That
   trade is the design move worth internalising. Once you understand it,
-  the modern replacements (DIAMOND, MMseqs2) are variations on the same
-  theme, and the application patterns — function transfer, ortholog
+  the modern replacements (#idx("DIAMOND")DIAMOND, #idx("MMseqs2")MMseqs2) are variations on the same
+  theme, and the application patterns — function transfer, #idx("ortholog")ortholog
   identification, off-target prediction — fall out as direct
   consequences of how the score and the E-value are defined.
 ]
@@ -38,8 +38,8 @@ against the database and reduces it to thirty seconds without losing
 any of the hits you would actually have cared about. The second half
 is the statistics: how Karlin and Altschul's 1990 result turned the
 output of a heuristic into a calibrated false-discovery measurement,
-and how the bit score and the E-value separate _what_ you found from
-_how surprised you should be_. The last sections cover PSI-BLAST's
+and how the #idx("bit score")bit score and the E-value separate _what_ you found from
+_how surprised you should be_. The last sections cover #idx("PSI-BLAST")PSI-BLAST's
 iterated profile refinement, the modern fast successors, and the
 application patterns that make BLAST a verb.
 
@@ -99,7 +99,7 @@ you should believe the match is not random?
   heuristic that the rest of this chapter walks.
 ]
 
-The algorithmic consequence is that exhaustive dynamic programming is
+The algorithmic consequence is that exhaustive #idx("dynamic programming")dynamic programming is
 out. BLAST's design move — the move that fixed everything for
 thirty-five years and counting — was to observe that the vast majority
 of database sequences share no meaningful similarity with any given
@@ -110,14 +110,14 @@ first to find candidate regions, and the expensive full alignment runs
 only on the survivors. Three stages — *seed, extend, score* — are the
 backbone. Seeds are short word-level matches found by hashing.
 Extension grows seeds into local alignments under a substitution
-matrix and an X-drop stopping rule. The final score is converted to a
+matrix and an #idx("X-drop")X-drop stopping rule. The final score is converted to a
 bit score and then to an E-value that tells you how surprised to be.
 
 #figure(
   image("../../diagrams/lecture-19/01-blast-pipeline.svg", width: 92%),
   caption: [
     The BLAST pipeline. Five stages cascade from the raw query through
-    hashing-based seed detection, two-hit gating, gapless then gapped
+    hashing-based seed detection, #idx("two-hit")two-hit gating, gapless then gapped
     extension, and an E-value-based significance filter. Each stage
     is cheap enough to apply to the whole survivor set of the previous
     stage; only the expensive Smith–Waterman runs on the few hundred
@@ -127,11 +127,11 @@ bit score and then to an E-value that tells you how surprised to be.
 
 The detection-theoretic reading of this pipeline is worth pausing on
 because it sets up everything that follows. Stage one — the
-hash-based seed scan — is a coarse matched filter applied to every
+hash-based seed scan — is a coarse #idx("matched filter")matched filter applied to every
 $k$-mer in the database. Stage two — the X-drop ungapped extension —
 is a finer matched filter applied to the small subset of positions
 that survived the seed scan. Stage three — the banded gapped
-alignment — is the full Smith–Waterman likelihood ratio test, run
+alignment — is the full Smith–Waterman #idx("likelihood ratio test")likelihood ratio test, run
 only on the survivors of the ungapped extension. The final E-value is
 a multiple-testing correction: it is the expected number of false
 positives in a database of size $N$ at the given bit-score threshold.
@@ -154,7 +154,7 @@ correction.
 == Substitution Matrices and Bit Scores <sec:matrices>
 
 The first half of BLAST's substantive content lives in its scoring
-matrix. Aligning two nucleotide sequences is a relatively trivial
+matrix. Aligning two #idx("nucleotide")nucleotide sequences is a relatively trivial
 business: A matches A, G matches G, and mismatches and gaps incur fixed
 penalties. Aligning two amino-acid sequences is not, because the twenty
 amino acids are not exchangeable. Some pairs (D ↔ E, K ↔ R, I ↔ L)
@@ -171,10 +171,10 @@ translated-nucleotide searches (`blastx`, `tblastn`, `tblastx`) where
 the database, the query, or both are translated through the genetic
 code before scoring. Nucleotide-only searches (`blastn`) exist and
 have their place — finding near-identical genomic regions, or
-amplicon clustering at the OTU level — but for any homology question
+amplicon clustering at the #idx("OTU")OTU level — but for any homology question
 older than tens of millions of years, the protein search wins.
 
-Two reasons. The first is the genetic code's degeneracy: the third
+Two reasons. The first is the #idx("genetic code")genetic code's degeneracy: the third
 position of most codons can change without changing the encoded amino
 acid, so synonymous mutations accumulate as noise on the nucleotide
 track while the protein track stays still. Aligning at the protein
@@ -186,7 +186,7 @@ penalised the same way. The practical consequence is that you can
 detect homology at 25 % protein identity that is invisible at the
 nucleotide level beneath the synonymous-substitution floor.
 
-=== PAM Matrices (Dayhoff, 1978)
+=== #idx("PAM")PAM Matrices (Dayhoff, 1978)
 
 Margaret Dayhoff's *Point Accepted Mutation* matrices, published in
 the _Atlas of Protein Sequence and Structure_ in 1978, were the first
@@ -218,7 +218,7 @@ carries evidence of common ancestry. PAM30 and PAM70 are tuned for
 short, closely-related searches (e.g., peptide matching). PAM250 is
 the classical default for distant comparisons.
 
-=== BLOSUM Matrices (Henikoff & Henikoff, 1992)
+=== #idx("BLOSUM")BLOSUM Matrices (Henikoff & Henikoff, 1992)
 
 The BLOSUM family supersedes PAM for almost every modern application,
 and the reason is the data. Steven and Jorja Henikoff in 1992
@@ -231,7 +231,7 @@ extrapolation was needed.
 
 The naming convention encodes the input cutoff. BLOSUM$n$ is built
 from blocks in which sequences sharing more than $n$ % identity have
-been clustered down to a single representative — so BLOSUM62 sees
+been clustered down to a single representative — so #idx("BLOSUM62")BLOSUM62 sees
 substitutions across pairs that are at most 62 % identical. Smaller
 numbers correspond to more distant pairs in the training data:
 BLOSUM45 for very distant homology, BLOSUM90 for close homology,
@@ -241,7 +241,7 @@ NCBI BLAST's default is BLOSUM62 and has been since the mid-1990s.
 #figure(
   image("../../diagrams/lecture-19/06-blosum62.svg", width: 95%),
   caption: [
-    The BLOSUM62 substitution matrix. Self-substitution scores along
+    The BLOSUM62 #idx("substitution matrix")substitution matrix. Self-substitution scores along
     the diagonal are highest; chemically similar pairs (D ↔ E, K ↔ R,
     I ↔ L) score positive; chemically distant pairs (W ↔ A) score
     sharply negative. The row-column ordering groups amino acids by
@@ -317,7 +317,7 @@ exactly what the E-value, in @sec:karlin-altschul, will fix.
 Real homologous alignments are almost never gap-free. Insertions and
 deletions accumulate alongside substitutions over evolutionary time,
 and any practical scoring scheme has to handle them. BLAST uses an
-*affine gap penalty*
+*#idx("affine gap")affine gap penalty*
 
 $ "gap"(n) = -G_o - (n - 1) dot G_e $
 
@@ -326,7 +326,7 @@ per additional residue, and $n$ is the gap length. The affine shape
 captures the empirical observation that gap openings are evolutionarily
 expensive (typically requiring a structural rearrangement) while
 extending an existing gap by one more residue is cheap (a small
-local indel slides easily along an existing loop). NCBI BLAST
+local #idx("indel")indel slides easily along an existing loop). NCBI BLAST
 defaults for BLOSUM62 are $G_o = 11$, $G_e = 1$.
 
 #note[
@@ -442,7 +442,7 @@ too high lets the extension wander into non-homologous flanking
 sequence and inflates the HSP boundary noisily. The BLAST defaults
 ($X = 22$ raw score units for the ungapped step under BLOSUM62) are
 calibrated to catch real homologs with a typical bit-score
-trajectory while rejecting noise.
+#idx("trajectory")trajectory while rejecting noise.
 
 #figure(
   image("../../diagrams/lecture-19/09-x-drop.svg", width: 92%),
@@ -726,7 +726,7 @@ alignment is finding a homolog whose surface residues have drifted
 extensively but whose structural and functional residues remain
 conservatively substituted. That is what distant homology looks
 like at the protein level. When Identities and Positives are both
-high (say, 90 %+) the alignment is finding a close paralog or
+high (say, 90 %+) the alignment is finding a close #idx("paralog")paralog or
 ortholog. When Identities are very low and Positives are barely
 above them, the alignment is borderline and worth inspecting by
 eye before believing.
@@ -740,7 +740,7 @@ Rost (1999) for the region where pairwise identity is no longer a
 reliable predictor of homology — the sensitivity falls off. But
 biologically important relationships often live in the twilight zone:
 distantly related kinases share only 15-20 % identity across their
-catalytic domains, transcription factor families diverge to single-
+catalytic domains, #idx("transcription factor")#idx("transcription")transcription factor families diverge to single-
 digit pairwise identities while preserving the same DNA-binding
 fold. A single-query, single-matrix BLAST will miss many of them.
 
@@ -752,7 +752,7 @@ straightforward in outline:
 1. *Iteration 0*: run standard BLASTP with the query against the
    database. Collect all hits with $E < E_("include")$ (default
    $0.005$).
-2. *Profile construction*: build a multiple sequence alignment from
+2. *Profile construction*: build a #idx("multiple sequence alignment")multiple sequence alignment from
    the surviving hits and from it construct a *Position-Specific
    Scoring Matrix (PSSM)* — a $20 times L$ matrix giving a per-position
    substitution score, where $L$ is the query length.
@@ -836,15 +836,15 @@ mixed.
   as you have audited the profile.
 ]
 
-=== Connection to HMMER
+=== Connection to #idx("HMMER")HMMER
 
-The next algorithmic step up from PSI-BLAST is the *profile HMM*
+The next algorithmic step up from PSI-BLAST is the *#idx("profile HMM")profile #idx("HMM")HMM*
 implemented in HMMER (Eddy, 1995 and ongoing) and used to power
-Pfam's domain classifications. A profile HMM is what you get when
+#idx("Pfam")Pfam's domain classifications. A profile HMM is what you get when
 you replace PSI-BLAST's position-specific scoring matrix with an
-explicit *hidden Markov model* whose states are aligned columns,
+explicit *#idx("hidden Markov model")hidden Markov model* whose states are aligned columns,
 with separate insertion and deletion states between them, and whose
-emission and transition probabilities are fit by maximum likelihood
+emission and transition probabilities are fit by #idx("maximum likelihood")maximum likelihood
 on the multiple alignment. The expressive power is strictly greater
 than PSI-BLAST's PSSM — HMMs model insertion and deletion as
 position-specific events with their own transition probabilities,
@@ -929,7 +929,7 @@ sorts database sequences by length, precomputes $k$-mer profiles per
 sequence, and uses these as cheap pre-filters. The tool is
 extraordinarily fast (orders of magnitude beyond BLAST) at clustering
 and search where the targets share 70 % or more identity — exactly
-the regime that dominates microbiome 16S rRNA workflows, amplicon
+the regime that dominates #idx("microbiome")microbiome #idx("16S rRNA")16S rRNA workflows, amplicon
 clustering, and chimera detection. It is less effective at distant
 homology and is rarely the right choice when the question is "find
 the closest UniProt protein to my newly discovered effector."
@@ -1004,7 +1004,7 @@ hits. The search engine is BLAST or, increasingly, DIAMOND for
 throughput.
 
 NCBI's PGAP (Prokaryotic Genome Annotation Pipeline), Ensembl's
-gene-build pipeline, MAKER for eukaryotic annotation, and BRAKER for
+gene-build pipeline, MAKER for eukaryotic annotation, and #idx("BRAKER")BRAKER for
 RNA-seq-assisted prokaryotic annotation all use BLAST or DIAMOND
 under the hood as the protein-search step. The pattern is universal
 enough that the field treats "annotated by sequence similarity" as a
@@ -1032,7 +1032,7 @@ hits (RBH)*:
     best hits across species predict orthology with about 80 %
     accuracy; the failure mode is recent paralog duplication, where
     the "best hit" in one direction is the wrong paralog. Modern
-    extensions (OrthoFinder, OrthoMCL) handle paralog confounds by
+    extensions (#idx("OrthoFinder")OrthoFinder, OrthoMCL) handle paralog confounds by
     clustering.
   ],
 ) <fig:rbh>
@@ -1059,10 +1059,10 @@ attach it to the query. The workflow:
 1. Query protein $X$ against UniProt with `blastp` or `diamond`.
 2. The top hit is some $Y$ with $E approx 10^(-50)$ and 60 % identity
    across 80 % of the query length.
-3. $Y$ has a curated Gene Ontology annotation, a Pfam domain call,
+3. $Y$ has a curated #idx("Gene Ontology")Gene Ontology annotation, a Pfam domain call,
    an enzyme-commission number, perhaps a structure in the PDB.
 4. Transfer those annotations to $X$, with confidence proportional
-   to the identity, the alignment coverage, and the E-value.
+   to the identity, the alignment #idx("coverage")coverage, and the E-value.
 
 The empirical reliability of function transfer is sharply
 identity-dependent. Above 50 % identity over most of the protein
@@ -1104,7 +1104,7 @@ structure or experiment.
 Most genes in a bacterial genome are vertically inherited and produce
 BLAST hits whose top matches are in closely related species. *Genes
 acquired by horizontal transfer* — phage, plasmid, or environmental
-DNA picked up by a microbe and integrated into its genome — show an
+#idx("DNA")DNA picked up by a microbe and integrated into its genome — show an
 *anomalous BLAST signature*: a gene whose closest hits lie in a
 distant phylum rather than in sibling species. The detection
 discipline is simple in principle: for each gene, compare the
@@ -1119,7 +1119,7 @@ integration histories. The false-positive rate is non-trivial — gene
 loss in some lineages and rapid evolution in others can mimic the
 HGT signature — so the convention is to combine BLAST-based
 anomaly detection with phylogenetic analysis of the candidate gene
-and synteny analysis of the surrounding genomic context.
+and #idx("synteny")synteny analysis of the surrounding genomic context.
 
 === Drug Target and Off-Target Prediction
 
@@ -1141,7 +1141,7 @@ related proteins in non-target organisms). BLAST does not
 predict whether a specific small molecule binds; it predicts which
 proteins are similar enough that the same binding mode is
 geometrically plausible. The full off-target prediction also requires
-docking, structural alignment, and ideally experimental binding
+#idx("docking")docking, structural alignment, and ideally experimental binding
 assays — but the BLAST off-target list is the universal first pass.
 
 
@@ -1284,7 +1284,7 @@ handles the inevitable false-positive rate at scale.
   Karlin–Altschul application are both laid out clearly.
 
 - *Altschul, S. F., Madden, T. L., Schäffer, A. A., Zhang, J.,
-  Zhang, Z., Miller, W., & Lipman, D. J.* (1997). "Gapped BLAST and
+  Zhang, Z., Miller, W., & Lipman, D. J.* (1997). "#idx("gapped BLAST")Gapped BLAST and
   PSI-BLAST: a new generation of protein database search programs."
   _Nucleic Acids Research_ 25: 3389–3402. The BLAST 2.0 paper,
   introducing gapped extension, two-hit seeding, and the PSI-BLAST

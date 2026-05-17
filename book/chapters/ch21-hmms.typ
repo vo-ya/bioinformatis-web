@@ -6,9 +6,9 @@
   Hidden Markov Models are the workhorse of segmentation in genomics.
   Roughly every protein domain assignment in UniProt, every gene in a
   newly assembled bacterial genome, every chromatin-state call in the
-  ENCODE atlas, and every indel-aware variant likelihood inside GATK's
-  HaplotypeCaller is — at the bottom of the stack — a Viterbi or a
-  forward pass on an HMM. The architecture was designed in the late
+  ENCODE atlas, and every indel-aware variant likelihood inside #idx("GATK")GATK's
+  #idx("HaplotypeCaller")HaplotypeCaller is — at the bottom of the stack — a #idx("Viterbi")Viterbi or a
+  forward pass on an #idx("HMM")HMM. The architecture was designed in the late
   1960s for speech recognition, was adapted to biology in the early
   1990s, and refuses to retire. Deep neural networks have displaced
   HMMs in some tasks and not in others, and the distinction is
@@ -20,24 +20,24 @@
 
 A genome, viewed as an information channel, is a discrete observation
 stream punctuated by long stretches that share a hidden regime. Inside
-a gene the codon statistics look one way; inside an intron, another;
-inside an intergenic spacer, a third. A CpG island has a different
+a gene the #idx("codon")codon statistics look one way; inside an #idx("intron")intron, another;
+inside an intergenic spacer, a third. A #idx("CpG island")#idx("CpG")CpG island has a different
 dinucleotide composition than the bulk genome that surrounds it. A
-promoter is statistically distinguishable from the open reading frame
+#idx("promoter")promoter is statistically distinguishable from the open reading frame
 it precedes. None of these labels — gene, intron, island, promoter —
 appears in the FASTA file. They are latent regimes that the sequence
 emits clues about. The task of recovering them, position by position,
 is the segmentation problem that defines half of all annotation work
 in genomics.
 
-The Hidden Markov Model is the cleanest probabilistic statement of that
+The #idx("hidden Markov model")Hidden Markov Model is the cleanest probabilistic statement of that
 task. It posits a small unobservable state that controls the local
 emission distribution and a Markov transition between states. Given a
 genome, three things you might want come for free in $O(T K^2)$ time:
 the likelihood of the observation under the model, the most probable
 state sequence consistent with it, and — given only observations and
 no labels — the maximum-likelihood parameters that generated it. Those
-three computations are the forward, the Viterbi, and the Baum-Welch
+three computations are the forward, the Viterbi, and the #idx("Baum-Welch")Baum-Welch
 algorithms. Everything else in this chapter is a particular choice of
 state space.
 
@@ -52,8 +52,8 @@ convolutional codes; the same algorithm was rediscovered for speech
 recognition a decade later. Lawrence Rabiner's 1989 tutorial in the
 _Proceedings of the IEEE_ canonicalised the notation. The transfer to
 biology — profile HMMs for protein families (Krogh, Mian, Sjölander,
-and Haussler in 1994) and gene finding (Burge and Karlin's GENSCAN in
-1997) — followed within a decade. The HMMER software package (Sean
+and Haussler in 1994) and gene finding (Burge and Karlin's #idx("GENSCAN")GENSCAN in
+1997) — followed within a decade. The #idx("HMMER")HMMER software package (Sean
 Eddy, 1998 and 2011) packaged the protein-family inference into a
 tool that has been the default first pass in genome annotation for
 twenty-five years.
@@ -64,9 +64,9 @@ Sections 2 and 3 develop the forward, backward, Viterbi, and Baum-Welch
 recurrences with the numerical-stability and initialisation tricks that
 working implementations require. Section 4 specialises the model to
 protein-family inference (profile HMMs) and walks through HMMER and
-Pfam. Section 5 specialises it to gene finding and walks through GENSCAN
-and AUGUSTUS. Section 6 surveys the other places HMMs hide inside
-the tools you already use — ChromHMM, HISAT2's splice-aware aligner,
+#idx("Pfam")Pfam. Section 5 specialises it to gene finding and walks through GENSCAN
+and #idx("AUGUSTUS")AUGUSTUS. Section 6 surveys the other places HMMs hide inside
+the tools you already use — #idx("ChromHMM")ChromHMM, #idx("HISAT2")HISAT2's splice-aware aligner,
 the pair-HMM inside HaplotypeCaller. Section 7 closes with the design
 question that decides whether HMMs or a deep neural network is the
 right tool for a new problem.
@@ -78,7 +78,7 @@ A *Markov chain* over a sequence of observations $x_1, x_2, dots, x_T$
 makes one structural assumption: the next observation depends only on
 the current one, not on any earlier history. Formally,
 $ P(x_t | x_(t-1), x_(t-2), dots, x_1) = P(x_t | x_(t-1)). $
-This is a strong but not entirely useless assumption for DNA. A first-order
+This is a strong but not entirely useless assumption for #idx("DNA")DNA. A first-order
 Markov chain on the four bases can capture, for example, the elevated
 frequency of "CG" in CpG islands or the depletion of "TA" in coding
 regions. Its limitation is that it has exactly one transition matrix.
@@ -131,7 +131,7 @@ across alternative models — a CpG-island HMM against a background-only
 chain, two competing gene-finder parameterisations, the trained model
 against a permuted baseline. The naive computation sums over all
 $K^T$ state paths and is exponential in sequence length. The forward
-algorithm collapses it to $O(T K^2)$ by dynamic programming.
+algorithm collapses it to $O(T K^2)$ by #idx("dynamic programming")dynamic programming.
 
 The second is *decoding*: what is the most probable state sequence
 $arg max_Z P(Z | X, theta)$? This is the segmentation question — given
@@ -143,7 +143,7 @@ The third is *training*: given only observations, learn $theta$. The
 Baum-Welch algorithm — expectation-maximisation specialised to HMMs
 — iterates between using the current parameters to compute posterior
 expectations of state occupancies and using those expectations to
-re-estimate the parameters. It is the EM algorithm of Dempster, Laird,
+re-estimate the parameters. It is the #idx("EM algorithm")EM algorithm of Dempster, Laird,
 and Rubin (1977), specialised to a chain-structured latent variable,
 and like all EM it converges monotonically to a _local_ optimum of the
 likelihood.
@@ -151,10 +151,10 @@ likelihood.
 #note[
   An HMM is a *discrete-state-space dynamical system* with stochastic
   transitions and stochastic observations — the discrete-symbol analog
-  of the Kalman filter. Forward-backward is the
+  of the Kalman filter. #idx("forward-backward")Forward-backward is the
   discrete-time-discrete-state version of the Kalman filter and
   smoother. Viterbi is the maximum-a-posteriori decoder of the most
-  probable trajectory. Baum-Welch is EM for the latent state and
+  probable #idx("trajectory")trajectory. Baum-Welch is EM for the latent state and
   parameters jointly. Baum and Petrie published the HMM in 1966; Kalman
   published the filter in 1960. The two communities developed
   independently for decades before the convergence in the 1990s. For
@@ -197,7 +197,7 @@ regions:
 - Transition probabilities reflect the rarity and stickiness of
   islands: $P("island"|"island") approx 0.99$, $P("background"|"island") approx 0.01$.
 
-Train the model on labelled regions, run Viterbi on a new chromosome,
+Train the model on labelled regions, run Viterbi on a new #idx("chromosome")chromosome,
 read off an island annotation. The pattern that this example
 establishes — _few-state HMM plus Viterbi decoding equals genome
 segmentation_ — recurs throughout the rest of the chapter. ChromHMM
@@ -243,7 +243,7 @@ Multiplied together, $alpha$ and $beta$ give the per-position posterior:
 $ P(z_t = S_i | X, theta) = (alpha_t(i)  beta_t(i)) / P(X | theta). $
 This *posterior decoding* is what you want when you care about
 per-position confidence — say, the probability that each base of a
-gene lies inside an exon rather than committing to the single most
+gene lies inside an #idx("exon")exon rather than committing to the single most
 probable exon-intron parse. Posterior decoding can produce state
 sequences that are themselves never traversed in a single Viterbi path
 because individually optimal positions need not be globally consistent;
@@ -294,7 +294,7 @@ implemented one of these algorithms, the other is a relabelling.
     cell that achieved it; the optimal state sequence is recovered by
     following back-pointers from the final column. The max-plus DP on
     the lattice is structurally the same machinery as the log-domain
-    Smith-Waterman recurrence of Chapter 2.
+    #idx("Smith-Waterman")Smith-Waterman recurrence of Chapter 2.
   ],
 ) <fig:viterbi-trellis>
 
@@ -429,7 +429,7 @@ compute the criterion, and pick the minimum.
     monotonically with $K$ as the model gets richer; BIC (middle)
     penalises extra parameters and reaches its minimum at the true
     $K = 5$; AIC (bottom) penalises more weakly and selects $K = 7$.
-    BIC is the safer default for HMM model selection.
+    BIC is the safer default for HMM model #idx("selection")selection.
   ],
 ) <fig:bic>
 
@@ -448,7 +448,7 @@ forward-backward recurrence is exactly the *sum-product belief
 propagation* algorithm specialised to a chain-structured graphical
 model. The forward pass sends messages left-to-right; the backward
 pass sends messages right-to-left; the product at each node is the
-marginal posterior. Felsenstein's pruning algorithm — the workhorse
+marginal posterior. #idx("Felsenstein")Felsenstein's pruning algorithm — the workhorse
 of tree-based phylogenetic likelihood from Chapter 20 — is the same
 sum-product BP on a _tree_ instead of a chain. Viterbi is the
 *max-product* variant. The HMM and the phylogenetic likelihood differ
@@ -461,15 +461,15 @@ The first genomics application that gave HMMs their dominant place in
 the toolbox was protein-family annotation. Anders Krogh, Saira Mian,
 Kimmen Sjölander, and David Haussler published the profile-HMM
 architecture in the _Journal of Molecular Biology_ in 1994. The idea
-is to take a multiple sequence alignment of a known protein family —
-the kind of MSA Chapter 19 covered — and turn it into a probabilistic
+is to take a #idx("multiple sequence alignment")multiple sequence alignment of a known protein family —
+the kind of #idx("MSA")MSA Chapter 19 covered — and turn it into a probabilistic
 model that scores any new sequence against the family with full
 position-specific resolution and explicit handling of insertions and
 deletions.
 
 === The 3-State-Per-Column Architecture
 
-The profile HMM has three kinds of states, one set per MSA column:
+The #idx("profile HMM")profile HMM has three kinds of states, one set per MSA column:
 - A *match state* $M_k$ emits the amino acid at column $k$ with the
   column-specific frequency distribution.
 - An *insert state* $I_k$ emits one or more amino acids _between_
@@ -516,7 +516,7 @@ alignment dominates.
 === Position-Specific Filters with Gap States
 
 The EE-flavoured reading of a profile HMM is as a *position-specific
-matched filter with explicit gap states*. A fixed-template matched
+#idx("matched filter")matched filter with explicit gap states*. A fixed-template matched
 filter from radar or sonar correlates the input with a known signal
 shape; the profile HMM does the same with two extensions. First, every
 position of the template has its own emission distribution rather than
@@ -543,19 +543,19 @@ will want to do with profile HMMs in practice:
 - `hmmbuild` compiles a profile HMM from an MSA.
 - `hmmsearch` queries a profile HMM against a sequence database.
 - `hmmscan` queries a sequence against a database of profile HMMs.
-- `nhmmer` is the nucleotide variant, used for non-coding RNAs and
-  regulatory motif scanning.
+- `nhmmer` is the #idx("nucleotide")nucleotide variant, used for non-coding RNAs and
+  regulatory #idx("motif")motif scanning.
 
 HMMER's output report has four numbers per hit worth keeping straight.
-The *sequence E-value* is the expected number of background sequences
+The *sequence #idx("E-value")E-value* is the expected number of background sequences
 that would score at least as well as the query, computed under a null
 model of independent residues drawn from the background amino-acid
 distribution. The *domain E-value* is the same statistic computed per
-domain hit within the sequence. The *bit score* is the log-odds of the
+domain hit within the sequence. The *#idx("bit score")bit score* is the log-odds of the
 model against the null in base-2 log; bit scores translate to E-values
 through the database size. The *bias correction* downweights matches to
 queries with unusual amino-acid composition (e.g., long proline runs or
-highly hydrophobic stretches), in the same spirit as the BLAST
+highly hydrophobic stretches), in the same spirit as the #idx("BLAST")BLAST
 compositional adjustment from Chapter 19. A sequence E-value below
 $10^(-3)$ is the typical reporting threshold; below $10^(-10)$ is
 unambiguous homology.
@@ -592,7 +592,7 @@ The combination of HMMER and Pfam has been the default protein-family
 annotation toolchain for twenty-five years. It is one of the cleanest
 examples of HMMs out-performing more flexible alternatives because the
 biological signal — position-specific amino-acid preferences plus
-controlled gap structure — exactly matches the inductive bias the
+controlled gap structure — exactly matches the #idx("inductive bias")inductive bias the
 profile-HMM imposes.
 
 
@@ -640,7 +640,7 @@ Each state has its own length distribution — geometric for introns
 (which can be arbitrarily long), gamma-distributed for exons (which
 have a strong peak around 130 bp), pointwise for splice signals.
 Emission distributions encode codon-usage statistics, splice-site
-consensus sequences, and the CpG-island enrichment near transcription
+consensus sequences, and the CpG-island enrichment near #idx("transcription")transcription
 start sites. Viterbi decoding on this multi-class HMM segments a
 hundred-megabase chromosome into a list of genes in minutes.
 
@@ -672,7 +672,7 @@ polypyrimidine tract (a run of C and T residues) extending 10–20
 bases upstream.
 
 These signals are detected by *position-specific weight matrices* — the
-simplest case of a profile HMM, with no insert or delete states. A PWM
+simplest case of a profile HMM, with no insert or delete states. A #idx("PWM")PWM
 is a $L times 4$ matrix that scores each position of a fixed-length
 window with the log-odds of seeing each base under the splice-site
 model versus the background:
@@ -694,13 +694,13 @@ in a training set of annotated splice sites, with pseudocounts.
 
 Modern splice-site prediction layers a deep convolutional network
 (*SpliceAI*, Jaganathan et al. 2019) on top of the PWM-style models.
-The CNN reads a kilobase or two of flanking context and outperforms
+The #idx("CNN")CNN reads a kilobase or two of flanking context and outperforms
 PWM-only models on the precision-recall frontier by integrating
 long-range sequence features. The PWM remains the backbone inside
 classical gene finders because of its interpretability and because
 it gets most of the signal almost for free.
 
-=== AUGUSTUS, BRAKER, and the RNA-seq Era
+=== AUGUSTUS, #idx("BRAKER")BRAKER, and the #idx("RNA-seq")RNA-seq Era
 
 The modern successor to GENSCAN is *AUGUSTUS*, written by Mario Stanke
 and colleagues from 2003 onward. AUGUSTUS introduces three improvements
@@ -730,7 +730,7 @@ related-species model, you predict an initial gene set on the new
 genome, use the most confidently predicted genes as training data,
 retrain, predict again, and iterate. The pipeline that wraps this
 loop is *BRAKER* (Brůna et al. 2021), which combines AUGUSTUS, the
-GeneMark family for the bootstrap, and the user's own RNA-seq for
+#idx("GeneMark")GeneMark family for the bootstrap, and the user's own RNA-seq for
 hints. For a new mammalian or plant genome assembled today, BRAKER
 plus AUGUSTUS plus RNA-seq is the standard annotation pipeline.
 
@@ -763,9 +763,9 @@ internal components. This section walks three of them.
 === ChromHMM and Chromatin-State Segmentation
 
 *ChromHMM* (Jason Ernst and Manolis Kellis, _Nature Methods_ 2012) is
-the standard tool for segmenting a genome into chromatin states given
-multi-track ChIP-seq data. The input is a per-genomic-bin binary or
-count vector across several histone modifications (typically nine to
+the standard tool for segmenting a genome into #idx("chromatin")chromatin states given
+multi-track #idx("ChIP-seq")ChIP-seq data. The input is a per-genomic-bin binary or
+count vector across several #idx("histone")histone modifications (typically nine to
 twelve marks: H3K4me1, H3K4me3, H3K27ac, H3K36me3, H3K27me3, H3K9me3,
 H3K9ac, H4K20me1, CTCF, and a few others). The model is a
 multi-emission HMM where each chromatin state has a vector of
@@ -804,7 +804,7 @@ the states, project the annotation onto the genome.
 
 === Pair-HMMs Inside Variant Callers
 
-GATK's *HaplotypeCaller* (Chapter 4) does indel-aware variant calling
+GATK's *HaplotypeCaller* (Chapter 4) does indel-aware #idx("variant calling")variant calling
 by re-aligning reads to candidate haplotypes with a three-state
 *pair-HMM*. The pair-HMM has match, insert, and delete states, with
 gap-open and gap-extend transitions controlling the indel-friendly
@@ -821,17 +821,17 @@ score:
 #figure(
   image("../../diagrams/lecture-21/10-pair-hmm.svg", width: 90%),
   caption: [
-    The pair-HMM at the bottom of GATK HaplotypeCaller and DeepVariant.
+    The pair-HMM at the bottom of GATK HaplotypeCaller and #idx("DeepVariant")DeepVariant.
     Three states (match, insert, delete) with gap-open probability
     $delta$ and gap-extend probability $epsilon$. Forward on this model
-    gives the likelihood of a read given a candidate haplotype with
+    gives the likelihood of a read given a candidate #idx("haplotype")haplotype with
     indels handled coherently. Viterbi gives an alignment.
   ],
 ) <fig:pair-hmm>
 
 The forward score on the pair-HMM is the read-likelihood term in the
 HaplotypeCaller's local realignment, and it propagates into the
-genotype likelihood. The pair-HMM is the same machinery as the
+#idx("genotype likelihood")genotype likelihood. The pair-HMM is the same machinery as the
 profile HMM, applied between two sequences instead of between a
 sequence and a model. DeepVariant runs a convolutional network on
 top of pair-HMM-aligned pileups; the HMM contributes the indel-aware
@@ -840,16 +840,16 @@ re-alignment, the CNN contributes the classification head.
 === Splice-Aware Alignment in HISAT2
 
 HISAT2 (Kim et al. 2015), the workhorse RNA-seq aligner from Chapter 5,
-treats RNA reads as observations from a graph-extended HMM that allows
-spliced alignments across introns. The base aligner is the
-Burrows-Wheeler transform from Chapter 2; the HMM extension is a
+treats #idx("RNA")RNA reads as observations from a graph-extended HMM that allows
+#idx("spliced")spliced alignments across introns. The base aligner is the
+#idx("Burrows-Wheeler transform")Burrows-Wheeler transform from Chapter 2; the HMM extension is a
 graph layer that adds intron-skip edges between exonic positions and
 scores them by a junction likelihood combining donor and acceptor PWMs
 with an intron-length prior. The HMM is the smallest part of HISAT2 by
 code volume but the part that turns a DNA aligner into an RNA aligner.
 
 The pattern generalises. *Viterbi-on-DAG* alignment — the alignment of
-a long read or a query sequence to a pangenome graph (Chapter 11) —
+a long read or a query sequence to a #idx("pangenome")pangenome graph (Chapter 11) —
 uses the same Viterbi machinery, on a directed acyclic graph instead
 of a chain. States become graph positions; transitions become graph
 edges. The chain-structured DP of this chapter is the special case
@@ -870,7 +870,7 @@ quickly becomes unfittable.
 
 The *conditional-independence assumption* says emissions at different
 positions are independent given the state sequence. Real dependencies
-— between codons in the same gene, between methylation marks at
+— between codons in the same gene, between #idx("methylation")methylation marks at
 adjacent CpGs, between histone modifications on nearby nucleosomes —
 are imperfectly captured by an HMM with diagonal emissions. The CRF
 extension partly addresses this by conditioning on observations
@@ -892,9 +892,9 @@ a design rule.
 The history of the last decade is largely the history of deep neural
 networks displacing HMMs from tasks where they were once dominant.
 Splice-site prediction was a PWM-and-HMM problem until SpliceAI; TF
-binding was a PWM problem until DeepBind; regulatory expression
-prediction from sequence was a kernel-methods problem until Basenji
-and Enformer (Chapter 16). The pattern suggests an obvious question:
+binding was a PWM problem until #idx("DeepBind")DeepBind; regulatory expression
+prediction from sequence was a kernel-methods problem until #idx("Basenji")Basenji
+and #idx("Enformer")Enformer (Chapter 16). The pattern suggests an obvious question:
 should HMMs survive at all, or are they a transitional technology that
 will be fully replaced as compute and data continue to grow?
 
@@ -922,7 +922,7 @@ distribution; the segmentation output assigns one state per position.
 A user reading the output knows which positions were called intron and
 why. The corresponding deep model produces a class probability per
 position with no further explanation, and recovering interpretations
-requires post hoc tools (attribution methods, attention visualisation)
+requires post hoc tools (attribution methods, #idx("attention")attention visualisation)
 that are themselves contested. For applications that get audited —
 clinical gene annotation, regulatory-region prediction in a research
 publication — the interpretability is decisive.
@@ -952,7 +952,7 @@ producing fragmented or inconsistent annotations.
   ],
 ) <fig:hmm-vs-dl>
 
-=== Where Deep Learning Has Won
+=== Where #idx("deep learning")Deep Learning Has Won
 
 Three task types have moved decisively to deep learning.
 *Splice-site detection* with long-range context: SpliceAI's 10 kb
@@ -993,7 +993,7 @@ absurdly.
 The boundary between the two regimes is not sharp; most modern
 production pipelines combine an HMM backbone with deep-learning
 components. *BRAKER* combines AUGUSTUS's HMM with deep-learning
-splice-site hints. *HMMRATAC* runs an HMM on ATAC-seq pileups with
+splice-site hints. *HMMRATAC* runs an HMM on #idx("ATAC-seq")ATAC-seq pileups with
 deep-feature emissions. *DeepHMM* and friends keep the HMM topology
 and replace the local emission models with shallow neural networks
 that score richer features of the observation window.
@@ -1029,14 +1029,14 @@ algorithms their concrete context.
 
 A typical 2025 bacterial annotation pipeline on a five-megabase
 assembled genome runs as follows.
-1. *Assemble* the reads to contigs (SPAdes for short reads, Flye or
+1. *Assemble* the reads to contigs (#idx("SPAdes")SPAdes for short reads, Flye or
    hifiasm for long reads). Output: a multi-contig FASTA file of
    chromosomal and plasmid sequences.
 2. *Run Prodigal* for ORF prediction. The HMM-based prokaryotic gene
    finder produces about five thousand ORF predictions on a typical
    bacterial genome in a few minutes.
 3. *Translate* the ORFs to protein sequences using the standard
-   genetic code (or the appropriate variant for archaea or
+   #idx("genetic code")genetic code (or the appropriate variant for archaea or
    organelle-targeted predictions).
 4. *Run `hmmscan` against Pfam.* Each ORF is scored against the
    ~20,000 Pfam profile HMMs; hits with $E < 10^(-3)$ are recorded.
@@ -1044,9 +1044,9 @@ assembled genome runs as follows.
    hit. Runtime is roughly one CPU-hour per thousand ORFs on a single
    modern core; the standard accelerated mode with `--cpu 8` brings
    that down to minutes.
-5. *Run DIAMOND BLAST against UniProt* for ORFs without strong Pfam
+5. *Run #idx("DIAMOND")DIAMOND BLAST against UniProt* for ORFs without strong Pfam
    hits. Adds function transfer for an additional 10% of ORFs.
-6. *Map to KEGG pathways* and Gene Ontology terms for metabolic and
+6. *Map to #idx("KEGG")KEGG pathways* and #idx("Gene Ontology")Gene Ontology terms for metabolic and
    functional context.
 7. *Output* a GFF3 annotation file plus a per-gene functional
    description.
@@ -1073,7 +1073,7 @@ runtime on a modern laptop is under two hours.
 A mammalian genome — three gigabases, on the order of twenty thousand
 genes with strong intron structure — runs a related but heavier
 pipeline.
-1. *Assemble* with long reads plus Hi-C scaffolding (Chapter 11).
+1. *Assemble* with long reads plus #idx("Hi-C")Hi-C scaffolding (Chapter 11).
 2. *Repeat-mask* with RepeatMasker, masking the roughly 40% of the
    genome that is repetitive sequence (LINEs, SINEs, LTRs, satellite
    DNA). Repeats are masked because gene finders trained on
@@ -1090,7 +1090,7 @@ pipeline.
 6. *Validate* with `hmmscan` against Pfam for domain annotation.
    Most predicted proteins receive at least one Pfam hit; the
    remainder go to InterProScan or to BLAST against UniProt.
-7. *Orthology assignment* with OrthoFinder or BUSCO against the
+7. *Orthology assignment* with #idx("OrthoFinder")OrthoFinder or BUSCO against the
    nearest sequenced relatives, transferring gene names and
    functional annotation by orthology.
 
@@ -1108,7 +1108,7 @@ CNN that reads a 10 kb window of context. The integrated model
 outperforms either component alone.
 
 *AlphaFold-driven annotation* is now standard for the 10–20% of
-predicted proteins that have no Pfam hit. The AlphaFold structure
+predicted proteins that have no Pfam hit. The #idx("AlphaFold")AlphaFold structure
 prediction is fed to Foldseek, which finds structural homologs in
 the PDB and the AlphaFold database; function is inferred from
 structural orthology rather than sequence orthology. This rescues a

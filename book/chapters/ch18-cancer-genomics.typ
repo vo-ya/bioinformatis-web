@@ -5,8 +5,8 @@
 #matters[
   Cancer is the integrating problem for the first seventeen chapters of
   this book. Every layer of the pipeline you have spent the course
-  building — the FASTQ from Chapter 1, the aligner from Chapter 2, the
-  variant caller from Chapter 4, the RNA quantifier from Chapters 5 and
+  building — the #idx("FASTQ")FASTQ from Chapter 1, the aligner from Chapter 2, the
+  variant caller from Chapter 4, the #idx("RNA")RNA quantifier from Chapters 5 and
   6, the long-read assembler from Chapter 11, the clinical-tiering
   framework from Chapter 14 — meets a problem with stakes attached when
   you point it at a tumour. The biology is the same Darwinian dynamics
@@ -14,7 +14,7 @@
   factor of a thousand and run inside the lifetime of one person. The
   engineering is harder than any single previous chapter because every
   upstream failure mode now has a downstream therapeutic consequence,
-  and the same VCF row might decide between immunotherapy, a kinase
+  and the same #idx("VCF")VCF row might decide between immunotherapy, a kinase
   inhibitor, and a clinical trial.
 ]
 
@@ -37,10 +37,10 @@ start with the population-genetic view — cancer as fast-forward
 evolution inside a body — and translate the textbook hallmarks
 (Hanahan and Weinberg, 2000, 2011, 2022) into the molecular alterations
 a sequencer can actually measure. We then walk the cancer-specific
-sequencing landscape: tumour-normal pairs, FFPE artefacts, ctDNA and
-liquid biopsy, and the panel-versus-exome-versus-genome trade-off that
+sequencing landscape: tumour-normal pairs, FFPE artefacts, #idx("ctDNA")ctDNA and
+#idx("liquid biopsy")liquid biopsy, and the panel-versus-exome-versus-genome trade-off that
 defines clinical assay choice. The third part walks somatic variant
-calling at depth, with Mutect2 as the canonical caller and mutational
+calling at depth, with #idx("MuTect2")Mutect2 as the canonical caller and mutational
 signatures as the linear-algebra interlude. Structural variants and
 fusions occupy a part of their own because cancer breaks chromosomes
 in ways no other field has to handle at scale. Subclonal reconstruction
@@ -49,7 +49,7 @@ sequence in AMP/ASCO/CAP tiers; and the final part walks the path from
 a VCF to a drug-gene-cancer-triple decision in a tumour board.
 
 The chapter is the integrated capstone of this book's first arc —
-sequencing in Chapter 1, alignment in Chapter 2, variant calling in
+sequencing in Chapter 1, alignment in Chapter 2, #idx("variant calling")variant calling in
 Chapter 4, RNA quantification in Chapters 5 and 6, long reads in
 Chapter 11, clinical pipelines in Chapter 14, and clinical
 interpretation in Chapter 17 — applied to one disease at the depth
@@ -63,9 +63,9 @@ the lens of population genetics. A normal tissue is a population of
 cells with shared ancestry, identical-by-descent genomes, and a
 recombination-free clonal-only mode of inheritance. A tumour is the
 same population running at a higher mutation rate, under a stronger
-selection pressure, in a confined geographical space, with no gene
-flow in or out. Every concept from Wright-Fisher dynamics carries over.
-Variant allele fraction is the allele frequency. Clonal fixation is the
+#idx("selection")selection pressure, in a confined geographical space, with no gene
+flow in or out. Every concept from #idx("Wright-Fisher")Wright-Fisher dynamics carries over.
+Variant allele fraction is the #idx("allele frequency")allele frequency. Clonal fixation is the
 case where a variant reaches frequency one. Selection coefficients
 become driver advantages. Drift produces minor subclones the same way
 it produces rare alleles in a small population. The metaphor is
@@ -82,7 +82,7 @@ Induction of angiogenesis. Activation of invasion and metastasis. The
 plus two enabling characteristics — genome instability and
 tumour-promoting inflammation. The 2022 update added phenotypic
 plasticity, the role of senescent cells, non-mutational epigenetic
-reprogramming, and the polymorphic microbiome. Each hallmark is a
+reprogramming, and the polymorphic #idx("microbiome")microbiome. Each hallmark is a
 capability; each capability is enabled by specific molecular alterations
 that a sequencer can measure.
 
@@ -112,7 +112,7 @@ Distinguishing the drivers from the passengers is one of the field's
 core technical problems and has produced an industry of methods. The
 simplest is recurrence: a variant seen in many patients' tumours, in
 the same gene, in the same hot-spot, is overwhelmingly likely to be a
-driver. COSMIC's curated Cancer Gene Census collects these; cBioPortal
+driver. #idx("COSMIC")COSMIC's curated Cancer Gene Census collects these; cBioPortal
 exposes the per-patient counts; TCGA and PCAWG provide the
 pan-cancer denominator. The next step up is statistical: MutSig
 (Lawrence et al., *Nature* 2013) and its successor MutSigCV
@@ -153,15 +153,15 @@ enables all the others. Mechanisms come in several flavours. Point
 mutations from replication error, ultraviolet photodimers, tobacco
 adducts, oxidative damage, and spontaneous deamination drive most of
 the SNV load and produce the per-process spectra you will meet again
-in Section 1.4 as mutational signatures. *Microsatellite instability*
+in Section 1.4 as mutational signatures. *#idx("microsatellite instability")Microsatellite instability*
 follows from mismatch-repair loss — typically inactivation of MLH1,
 MSH2, MSH6, or PMS2 — and produces a characteristic insertion-deletion
 spectrum at short repeats. *Chromosomal instability* manifests as
 whole-chromosome gains and losses, copy-number changes that scale
-genome-wide. *Homologous recombination deficiency*, from BRCA1, BRCA2,
+genome-wide. *Homologous #idx("recombination")recombination deficiency*, from #idx("BRCA1")BRCA1, #idx("BRCA2")BRCA2,
 PALB2, or related loss, leaves a specific signature of large
 deletions, tandem duplications, and a characteristic single-base
-substitution pattern (SBS3) that becomes a clinical biomarker for PARP
+substitution pattern (SBS3) that becomes a clinical biomarker for #idx("PARP")PARP
 inhibitor therapy in Section 1.6.
 
 
@@ -169,7 +169,7 @@ inhibitor therapy in Section 1.6.
 
 Cancer sequencing differs from the germline analyses of Chapter 4 in
 three operational ways that drive every downstream design choice. The
-sample is impure — only a fraction of the input DNA is from tumour
+sample is impure — only a fraction of the input #idx("DNA")DNA is from tumour
 cells, with the rest from stroma, immune infiltrate, and adjacent
 normal tissue. The sample is often archival — fixed in formalin and
 embedded in paraffin years before the sequencing technology used to
@@ -195,12 +195,12 @@ The clinical reality is more often *tumour-only sequencing*. A single
 FFPE block is all that exists; no peripheral-blood draw was banked
 when the patient was originally biopsied; the assay's commercial
 operator wants to minimise the per-sample cost. Tumour-only calling
-filters germline variants statistically using gnomAD frequencies and
+filters germline variants statistically using #idx("gnomAD")gnomAD frequencies and
 ancestry priors instead of subtracting against a matched sample. The
 loss in specificity is typically five to ten percent. Commercial
 panel assays such as FoundationOne CDx and MSK-IMPACT are run
 tumour-only with elaborate germline filtering; some newer designs
-add *very-shallow* normal sequencing (5× coverage of the matched
+add *very-shallow* normal sequencing (5× #idx("coverage")coverage of the matched
 blood) as a cheap germline filter that recovers most of the
 matched-pair specificity at a fraction of the cost.
 
@@ -225,7 +225,7 @@ result, on a sequencer, is an excess of C-to-T transitions — and the
 excess is not random but strand-biased, because the deamination
 preferentially affects one strand at a time. Modern callers
 (Mutect2's `FilterByOrientationBias`, the equivalent step in
-Strelka2) detect the strand asymmetry and reject calls that look like
+#idx("Strelka2")Strelka2) detect the strand asymmetry and reject calls that look like
 deamination artefacts. Even so, low-allele-fraction C-to-T calls from
 FFPE samples are an artefact-versus-subclone judgment call that
 clinical pipelines lean toward filtering aggressively.
@@ -281,7 +281,7 @@ whether any tumour cells survived.
 ]
 
 The 2025 clinical workflow tends to combine these designs across a
-patient's trajectory. Diagnosis uses a high-coverage tumour-only or
+patient's #idx("trajectory")trajectory. Diagnosis uses a high-coverage tumour-only or
 tumour-normal panel for fast actionable-variant identification.
 Research-grade WES or WGS may be added in academic centres or for
 trial-eligibility evaluation. Longitudinal ctDNA monitors residual
@@ -297,14 +297,14 @@ the truth is one of three genotypes: homozygous reference,
 heterozygous, or homozygous alternate. Variant allele fraction in a
 diploid sample takes one of three values — $0$, $0.5$, $1$ — and the
 caller's job is to choose among them given a stack of reads.
-HaplotypeCaller's HMM and GATK's variant-quality recalibration are
+#idx("HaplotypeCaller")HaplotypeCaller's #idx("HMM")HMM and #idx("GATK")GATK's variant-quality recalibration are
 both built on top of that three-state assumption.
 
 Somatic calling discards every part of that framework. Tumour purity
 shifts the expected VAF of a clonal variant from $0.5$ to $0.5 times
 "purity"$. Subclonal variants sit at VAFs below the clonal level. Copy
 number changes — common in cancer — change the expected VAF further
-because a variant on a chromosome present in three copies has a
+because a variant on a #idx("chromosome")chromosome present in three copies has a
 different expected fraction than diploid. And the noise floor that
 matters is the sequencer's, not biology's, because a $5 %$ VAF call
 might be real if the underlying subclone is real and pure noise if
@@ -324,13 +324,13 @@ the underlying read errors happen to cluster the right way.
 ) <fig:mutect2>
 
 *Mutect2* (Cibulskis et al., *Nature Biotechnology* 2013 for the
-original MuTect; Benjamin et al., *bioRxiv* 2019 for the GATK 4
+original #idx("MuTect")MuTect; Benjamin et al., *bioRxiv* 2019 for the GATK 4
 version) is the field's most-used somatic caller and a good entry
 point for understanding the architecture. The first stage is local
 reassembly — exactly as in HaplotypeCaller — to produce a set of
 candidate haplotypes from the reads in a window around each putative
 variant. The second stage replaces the germline likelihood with a
-*somatic likelihood* that scores each read against each haplotype
+*somatic likelihood* that scores each read against each #idx("haplotype")haplotype
 under the assumption that the alternate allele could be at any
 fraction between zero and one, rather than the discrete $0, 0.5, 1$
 of the germline case. The third stage is a sequence of
@@ -345,7 +345,7 @@ The output VCF is conservative, well-annotated, and clinically usable.
 *Strelka2* (Kim et al., *Nature Methods* 2018) and the older
 *VarScan2* are the main alternatives, each with somewhat different
 trade-offs. Strelka2 dominates the speed-per-sample metric and tends
-to win on indel sensitivity in benchmark studies; VarScan2 has the
+to win on #idx("indel")indel sensitivity in benchmark studies; VarScan2 has the
 longest history of clinical use and is still common in legacy
 pipelines. *LoFreq*, with its strong noise modelling, handles
 tumour-only and low-VAF cases competitively. The choice among them is
@@ -353,7 +353,7 @@ usually driven by the validation work the calling lab has already
 done, not by abstract benchmark performance.
 
 The hardest somatic problem is *low-VAF subclonal detection*. At
-Illumina's baseline per-base error rate near $0.1 %$, a $1 %$ VAF
+#idx("Illumina")Illumina's baseline per-base error rate near $0.1 %$, a $1 %$ VAF
 call is at the edge of the noise floor; at $0.1 %$ VAF it is
 indistinguishable from sequencer noise without extra machinery. The
 extra machinery comes in a few forms. *Depth scaling* — increasing
@@ -378,7 +378,7 @@ solid-tumour subclonal work.
   they reflect the operating point of the molecular tumour board.
 ]
 
-=== Mutational Signatures as NMF
+=== Mutational Signatures as #idx("NMF")NMF
 
 Somatic mutations carry the fingerprint of the process that caused
 them. Ultraviolet photodimers preferentially produce C-to-T transitions
@@ -386,7 +386,7 @@ at TCN trinucleotides. Tobacco smoke produces C-to-A at specific
 flanking contexts. APOBEC deaminases produce C-to-T and C-to-G at TCW
 sites. Mismatch-repair deficiency produces an indel-heavy spectrum at
 microsatellites and a particular SNV pattern. Spontaneous deamination
-of methylated cytosine produces C-to-T at CpG sites and accumulates
+of methylated cytosine produces C-to-T at #idx("CpG")CpG sites and accumulates
 clock-like with age.
 
 The framework that made these patterns quantitative is Alexandrov,
@@ -448,7 +448,7 @@ accumulates with age in every tumour; SBS2 and SBS13 are APOBEC; SBS3
 is HRD-associated and a clinical biomarker for PARP-inhibitor
 sensitivity; SBS4 is tobacco; SBS6, SBS15, SBS20, and SBS26 are MMR
 deficiency; SBS7a-d are ultraviolet; SBS10a and SBS10b come from POLE
-polymerase mutation. The interpretation is straightforward: decompose
+#idx("polymerase")polymerase mutation. The interpretation is straightforward: decompose
 the tumour, look at which signatures are present, and read the
 mutagenic history.
 
@@ -465,10 +465,10 @@ mutagenic history.
 ) <fig:nmf>
 
 Signature-based actionability is now clinical reality. SBS3 (HRD) is
-the genomic basis for PARP inhibitor (olaparib, niraparib, rucaparib)
+the genomic basis for PARP inhibitor (#idx("olaparib")olaparib, niraparib, rucaparib)
 sensitivity in ovarian, breast, pancreatic, and prostate cancers. The
 MMR-deficient signature combination (SBS6 plus 15 plus 20 plus 26)
-flags eligibility for immune checkpoint inhibitor therapy
+flags eligibility for #idx("immune checkpoint")immune checkpoint inhibitor therapy
 (pembrolizumab is FDA-approved tumour-agnostic for MSI-H since 2017).
 APOBEC signatures are an active research area for therapeutic
 vulnerability. Ultraviolet signatures inform melanoma biology but do
@@ -483,11 +483,11 @@ Cancer breaks chromosomes in ways no other field has to deal with at
 scale. The short-read alignment framework from Chapter 2 produces
 useful evidence — discordant pairs, split reads, soft-clipped tails —
 but cannot resolve the resulting topology unambiguously. Long reads
-do that better; RNA-seq adds an orthogonal view of the resulting
-transcripts; the modern cancer SV pipeline integrates all three.
+do that better; #idx("RNA-seq")RNA-seq adds an orthogonal view of the resulting
+transcripts; the modern cancer #idx("SV")SV pipeline integrates all three.
 
 The catalogue of cancer-specific SVs is rich enough to deserve its own
-vocabulary. *Chromothripsis* (Stephens et al., *Cell* 2011) is the
+vocabulary. *#idx("chromothripsis")Chromothripsis* (Stephens et al., *Cell* 2011) is the
 catastrophic shattering of one chromosome into dozens of fragments
 that reassemble in random order, producing a localised cluster of
 SVs that look like a single event when reconstructed correctly. It is
@@ -528,7 +528,7 @@ events that short reads cannot reach.
 A *gene fusion* joins two genes into a single transcript through a
 structural rearrangement. The fusion protein has properties neither
 parent possessed alone — typically a kinase domain placed under a
-constitutively-active promoter or an oligomerisation partner that
+constitutively-active #idx("promoter")promoter or an oligomerisation partner that
 forces dimerisation and downstream signalling. Fusions are the
 canonical targeted-therapy substrate because the resulting protein is
 absent from normal tissue and depends entirely on the rearrangement
@@ -537,7 +537,7 @@ near-zero off-target effect, which is the precision-oncology dream.
 
 The historical first was *BCR-ABL1*, the Philadelphia chromosome
 translocation $t(9;22)$ in chronic myeloid leukaemia, and the first
-matched drug *imatinib* (FDA approval 2001) inaugurated the modern
+matched drug *imatinib* (#idx("FDA")FDA approval 2001) inaugurated the modern
 era of targeted cancer therapy. *EML4-ALK* in lung adenocarcinoma
 (roughly $5 %$ of NSCLC, treatable with crizotinib, alectinib,
 lorlatinib), *TMPRSS2-ERG* in prostate cancer (common but not yet
@@ -560,7 +560,7 @@ cholangiocarcinoma and bladder cancer round out the textbook examples.
 Detection methods follow two complementary routes. *RNA-seq fusion
 callers* (STAR-Fusion, *Arriba*, FusionCatcher, JAFFA) look for
 chimeric reads that span the junction between two genes' transcripts;
-they catch only fusions that produce abundant mRNA, but they catch
+they catch only fusions that produce abundant #idx("mRNA")mRNA, but they catch
 those at high specificity. *DNA-based SV callers* detect the
 underlying breakpoint; they are more sensitive overall but include
 many breakpoints that do not produce a functional transcript. The
@@ -576,7 +576,7 @@ Callers include *CNVkit*, *Sequenza*, *PureCN*, *ASCAT*, *TitanCNA*,
 and *Facets*; each estimates tumour purity, ploidy, and per-segment
 absolute copy number jointly. Clinically critical CNVs include
 *HER2* (ERBB2) amplification in breast cancer, which drives
-trastuzumab therapy and was the first precision-oncology CNV
+trastuzumab therapy and was the first precision-oncology #idx("CNV")CNV
 biomarker; *MYC* amplification, often ecDNA-resident; *CDKN2A* loss,
 which disables a tumour-suppressor pathway across many cancers; and
 *EGFR* amplification in glioblastoma and lung cancer.
@@ -591,13 +591,13 @@ which disables a tumour-suppressor pathway across many cancers; and
 ]
 
 
-== Tumour Heterogeneity and Clonal Evolution <sec:heterogeneity>
+== Tumour Heterogeneity and #idx("clonal evolution")Clonal Evolution <sec:heterogeneity>
 
 Every late-stage tumour is a population of subclones. A single bulk
 biopsy contains DNA contributed by each subclone at a fraction
 proportional to that subclone's prevalence, plus normal DNA from
 stroma and immune infiltrate. Recovering the subclones from the bulk
-mixture is the *subclonal deconvolution* problem, and it is —
+mixture is the *subclonal #idx("deconvolution")deconvolution* problem, and it is —
 structurally — a blind source separation problem of the kind any EE
 student has met in independent-component-analysis or
 mixture-model contexts.
@@ -627,7 +627,7 @@ the phylogenetic tree relating them.
   ],
 ) <fig:subclone>
 
-The dominant tools are *PyClone* (Roth et al., *Nature Methods* 2014;
+The dominant tools are *#idx("PyClone")PyClone* (Roth et al., *Nature Methods* 2014;
 Dirichlet-process clustering with explicit purity and CN priors),
 *SciClone* (Miller et al., *PLOS Computational Biology* 2014; variational
 inference), *PhyloWGS* (Deshwar et al., 2015; joint clustering and
@@ -661,13 +661,13 @@ branch drivers are the source of treatment resistance.
 
 Single-cell sequencing (Chapter 8) avoids the deconvolution problem
 entirely by reading individual cells directly. *scRNA-seq* (10×
-Chromium, Smart-seq) reads cell-by-cell expression and reveals the
+#idx("Chromium")Chromium, Smart-seq) reads cell-by-cell expression and reveals the
 tumour-microenvironment composition — T cells, macrophages,
 fibroblasts, endothelial cells — that matters for immunotherapy
 response. *scDNA-seq* (10× Chromium CNV) profiles per-cell copy
 number and resolves CNV heterogeneity that bulk averages out.
 *scATAC-seq* (Chapter 10) reveals epigenetic heterogeneity. Spatial
-transcriptomics — Visium, Xenium, MERFISH — adds geography to the
+transcriptomics — #idx("Visium")Visium, Xenium, #idx("MERFISH")MERFISH — adds geography to the
 cell-type catalogue and is starting to enter clinical research
 pipelines.
 
@@ -686,8 +686,8 @@ pipelines.
 
 == Clinical Interpretation: AMP/ASCO/CAP and the Biomarker Trio <sec:clinical>
 
-Chapter 17 walked the ACMG/AMP framework for *germline* variant
-classification: a probability scale from benign to pathogenic,
+Chapter 17 walked the #idx("ACMG")ACMG/AMP framework for *germline* variant
+classification: a probability scale from #idx("benign")benign to #idx("pathogenic")pathogenic,
 arrived at by aggregating evidence codes. Cancer somatic variants use
 a different framework — the *AMP/ASCO/CAP* joint guidelines
 (Li, Datto, Duncavage, et al., *Journal of Molecular Diagnostics* 2017)
@@ -732,8 +732,8 @@ case-report evidence. The four-by-letter structure produces a
 fine-grained action mapping that the clinical reporter can defend
 in a tumour board.
 
-The knowledge bases that drive tier assignment are *OncoKB* (Memorial
-Sloan Kettering; FDA-recognised for variant annotation), *CIViC*
+The knowledge bases that drive tier assignment are *#idx("OncoKB")OncoKB* (Memorial
+Sloan Kettering; FDA-recognised for variant annotation), *#idx("CIViC")CIViC*
 (crowd-curated, open source; Griffith et al., *Nature Genetics* 2017),
 and the newer *ClinGen Somatic Cancer Variant Curation*. A clinical
 variant scientist queries OncoKB and CIViC, checks FDA labels for the
@@ -755,14 +755,14 @@ CIViC internally with custom curation layers on top.
   different questions.
 ]
 
-=== TMB, MSI, and HRD — the Biomarker Trio
+=== #idx("TMB")TMB, #idx("MSI")MSI, and HRD — the Biomarker Trio
 
 Beyond single-variant tiers, three aggregate biomarkers drive
 precision-oncology decisions. Each is a statistic over the somatic
 catalogue rather than a single variant, and each connects to a
 specific drug class.
 
-*Tumour mutational burden* (TMB) is the number of non-synonymous
+*#idx("tumour mutational burden")Tumour mutational burden* (TMB) is the number of non-synonymous
 somatic mutations per megabase of coding sequence. A high TMB implies
 many neoantigens — mutated protein fragments that the immune system
 can recognise as foreign — and predicts response to immune checkpoint
@@ -783,7 +783,7 @@ biomarker rather than a single-organ indication drove an approval.
 *Homologous recombination deficiency* (HRD) is loss of double-strand
 break repair through homologous recombination, most often from
 BRCA1, BRCA2, or PALB2 loss but also from other HR-pathway disruption.
-HRD-positive tumours show the SBS3 mutational signature, characteristic
+HRD-positive tumours show the SBS3 #idx("mutational signature")mutational signature, characteristic
 indel patterns (ID6), large-scale genomic scarring (loss of heterozygosity,
 telomeric allelic imbalance, large state transitions), and exquisite
 sensitivity to PARP inhibitors (olaparib, niraparib, rucaparib).
@@ -892,7 +892,7 @@ is delivered once the antibody internalises. *Bispecific antibodies*
 bridge T cells to tumour cells. *CAR-T therapy* engineers a patient's
 own T cells to express a tumour-targeting receptor (CD19 for
 B-cell malignancies; an expanding catalogue for solid tumours).
-*Therapeutic neoantigen vaccines*, often built on the mRNA platforms
+*Therapeutic #idx("neoantigen")neoantigen vaccines*, often built on the mRNA platforms
 that the COVID-19 vaccines popularised, use the patient-specific
 somatic catalogue from sequencing to design a tailored vaccine.
 Each of these expands the integration surface between genomics and
@@ -900,7 +900,7 @@ oncology, and each pulls more of the work the chapter has described
 into the clinic.
 
 Drug discovery itself is increasingly structure-based, in the lineage
-of AlphaFold (Chapter 15). The 2021 FDA approval of sotorasib, the
+of #idx("AlphaFold")AlphaFold (Chapter 15). The 2021 FDA approval of sotorasib, the
 first KRAS G12C inhibitor, illustrates the pattern: structure-based
 design identified a cryptic binding pocket unique to the G12C
 mutant form, enabling selective targeting after decades of KRAS
@@ -1052,8 +1052,8 @@ reconstruction.
 
 #strong[4.] #emph[Fusion topology.] @fig:fusion shows EML4-ALK as the
 canonical lung-adenocarcinoma fusion. The breakpoint is typically in
-EML4 intron 13 and ALK intron 19. Sketch the fusion transcript at
-the exon level. Which protein domains from EML4 and ALK survive in
+EML4 #idx("intron")intron 13 and ALK intron 19. Sketch the fusion transcript at
+the #idx("exon")exon level. Which protein domains from EML4 and ALK survive in
 the fusion? Why is the resulting kinase constitutively active even
 though the wild-type ALK kinase is not? Cite at least one of the
 canonical EML4-ALK papers.

@@ -173,6 +173,61 @@
 #let matters(body) = admonition("Why this matters", rgb("#6b21a8"), body)
 
 
+// ─── Indexing ────────────────────────────────────────────────────────
+// Mark a term for the back-of-book index. The marker is invisible —
+// only its page location matters; the visible prose is unchanged. Use
+// `sort:` to override the alphabetisation key (e.g. for "α-synuclein"
+// pass sort: "alpha-synuclein").
+#let idx(term, sort: none) = {
+  let key = if sort == none { term } else { sort }
+  [#metadata((term: term, sort: key))<idx>]
+}
+
+// Render the alphabetised back-of-book index. Groups entries by term,
+// dedupes pages, lists in `term  pp. 12, 47, 102` form, two-column.
+#let render-index() = context {
+  let entries = query(<idx>)
+  let groups = (:)
+  for e in entries {
+    let v = e.value
+    let term = v.term
+    let sort-key = v.sort
+    let p = counter(page).at(e.location()).first()
+    if term in groups {
+      if not groups.at(term).pages.contains(p) {
+        groups.at(term).pages.push(p)
+      }
+    } else {
+      groups.insert(term, (term: term, sort: sort-key, pages: (p,)))
+    }
+  }
+  let sorted = groups.values().sorted(key: g => lower(g.sort))
+
+  // Render in two columns for compactness.
+  set par(first-line-indent: 0pt, leading: 0.55em, justify: false)
+  set text(size: 9.5pt)
+  show: columns.with(2, gutter: 24pt)
+
+  // Optional grouping by first letter — small header per letter.
+  let current-letter = none
+  for g in sorted {
+    let l = upper(g.sort.at(0))
+    if l != current-letter {
+      current-letter = l
+      v(8pt, weak: true)
+      text(font: ("Inter", "Helvetica Neue", "Arial"),
+           weight: "semibold", size: 10pt, fill: accent, l)
+      v(2pt, weak: true)
+    }
+    let pages = g.pages.map(str).join(", ")
+    block(below: 2pt)[
+      #text(weight: "regular")[#g.term]  #h(0.4em)
+      #text(fill: muted, size: 9pt)[#pages]
+    ]
+  }
+}
+
+
 // ─── Frontmatter helpers ─────────────────────────────────────────────
 #let book-title-page(title, subtitle, author, edition, year) = {
   align(center + horizon)[

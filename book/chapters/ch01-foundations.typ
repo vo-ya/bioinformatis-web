@@ -1,13 +1,13 @@
 #import "../theme/book-theme.typ": *
 
-= Foundations: From Cells to Sequences to FASTQ <ch:foundations>
+= Foundations: From Cells to Sequences to #idx("FASTQ")FASTQ <ch:foundations>
 
 #matters[
-  Bioinformatics begins with a translation problem. A cell is a chemical
+  Bioinformatics begins with a #idx("translation")translation problem. A cell is a chemical
   machine that stores its operating manual in a polymer; an engineer's job
   is to read that polymer with an instrument and turn its output into a
   text file. Everything else in this book — alignment, assembly, variant
-  calling, expression analysis, protein structure — assumes you understand
+  calling, expression analysis, #idx("protein structure")protein structure — assumes you understand
   what the polymer is, how the instrument reads it, and what the text file
   contains. We spend a chapter on it because most analysis bugs trace back
   to a misunderstanding of one of those three things.
@@ -16,15 +16,15 @@
 A genome is not, strictly speaking, an information object. It is roughly
 three picograms of phosphate-backboned nucleic acid coiled inside a
 membrane-bound organelle, replicating itself once per cell cycle and
-occasionally being transcribed by a polymerase that walks along it at
+occasionally being transcribed by a #idx("polymerase")polymerase that walks along it at
 about fifty bases per second. Calling it _information_ is already a
 modelling choice. It is the choice that makes bioinformatics possible.
 
 This chapter walks the path that choice opens up. We start in the cell,
 where the polymer physically lives. We work outward through the chemistry
-of the double helix and the central dogma, then jump abruptly into
+of the #idx("double helix")double helix and the #idx("central dogma")central dogma, then jump abruptly into
 engineering: the sequencing instruments that take a tube of dissolved
-DNA as input and emit a text file as output. By the end of the chapter
+#idx("DNA")DNA as input and emit a text file as output. By the end of the chapter
 you will know what is inside that text file, why each character is
 there, and what kind of errors you are signing up for when you open it.
 
@@ -38,19 +38,19 @@ The genome of every organism you will encounter in this book lives inside
 a cell. Cells come in two architectures.
 
 *Prokaryotes* — bacteria and archaea — keep their DNA loose in the
-cytoplasm, organised as a single circular chromosome with no surrounding
+cytoplasm, organised as a single circular #idx("chromosome")chromosome with no surrounding
 membrane. The genome is small, typically one to ten million base pairs.
 There is no separation between the place where DNA lives and the place
-where it is translated into protein: a ribosome can begin reading an
-mRNA before the polymerase has finished writing it.
+where it is translated into protein: a #idx("ribosome")ribosome can begin reading an
+#idx("mRNA")mRNA before the polymerase has finished writing it.
 
 *Eukaryotes* — everything else, including yeast, plants, fungi, and
 animals — wrap their DNA in a nuclear membrane. The genome is large
 (typically hundreds of millions to billions of base pairs), organised
 across multiple linear chromosomes, and packaged at several levels:
-DNA wraps around histone octamers to form nucleosomes; nucleosomes
-fold into chromatin fibres; chromatin folds into chromosome territories
-inside the nucleus. There is also a second, smaller genome inside every
+DNA wraps around #idx("histone")histone octamers to form nucleosomes; nucleosomes
+fold into #idx("chromatin")chromatin fibres; chromatin folds into chromosome territories
+inside the #idx("nucleus")nucleus. There is also a second, smaller genome inside every
 eukaryotic cell — the mitochondrial genome — a 16-kilobase circular
 chromosome that is a evolutionary souvenir from when an
 ancestral cell engulfed an aerobic bacterium and never let go.
@@ -58,7 +58,7 @@ ancestral cell engulfed an aerobic bacterium and never let go.
 #figure(
   image("../../diagrams/lecture-01/01-cell-organelles.svg", width: 90%),
   caption: [
-    Eukaryotic cell architecture and the locations where DNA, RNA, and
+    Eukaryotic cell architecture and the locations where DNA, #idx("RNA")RNA, and
     protein synthesis happen. The nucleus holds the primary genome;
     mitochondria carry their own small circular chromosome.
   ],
@@ -66,14 +66,14 @@ ancestral cell engulfed an aerobic bacterium and never let go.
 
 You will spend most of your bioinformatics career working with eukaryotic
 genomes — human, mouse, plant, yeast. Bacterial genomes show up in
-microbiome work (Chapter 23) and in basic-research contexts. When we say
+#idx("microbiome")microbiome work (Chapter 23) and in basic-research contexts. When we say
 _genome_ without qualification in this book, we mean the diploid nuclear
 human genome: 3.05 billion base pairs across 22 autosomes, X, Y, and the
-mitochondrion, in two near-identical copies per somatic cell.
+#idx("mitochondrion")mitochondrion, in two near-identical copies per somatic cell.
 
 #note[
   The "near-identical" matters. The two copies of each autosome differ
-  at roughly four to five million positions — single nucleotide
+  at roughly four to five million positions — single #idx("nucleotide")nucleotide
   variants, small insertions and deletions, and occasional structural
   changes. These differences _are_ the variants that Chapter 4 will
   teach you to call.
@@ -88,7 +88,7 @@ and recognised it as a phosphorus-rich molecule from cell nuclei, but
 neither he nor his contemporaries suspected its function. Through the
 first half of the twentieth century the consensus assumption was that
 chromosomes carried hereditary information in their _protein_ component;
-DNA was assumed to be a structural scaffold, too chemically monotonous
+DNA was assumed to be a structural #idx("scaffold")scaffold, too chemically monotonous
 to encode anything interesting.
 
 Three experiments changed that. Avery, MacLeod, and McCarty in 1944
@@ -106,7 +106,7 @@ Proteins have twenty. From any nineteenth-century chemist's perspective
 the molecule with more letters in its alphabet must be the one doing
 the storing. The fact that the molecule with four letters won is the
 first piece of bioinformatics intuition you should internalise: an
-alphabet's size matters less than how many symbols you string together.
+alphabet's size matters less than how many symbols you #idx("STRING")string together.
 
 
 == The Double Helix <sec:dna>
@@ -149,12 +149,12 @@ spacing. The stacking generates a strong UV absorbance at 260 nm that
 gives bioinformaticians their favourite spectrophotometric assay —
 "OD-260" for nucleic-acid concentration.
 
-Two grooves run along the outside of the helix. The *major groove* is
-about 22 Å wide; the *minor groove*, about 12 Å. The base pairs are
+Two grooves run along the outside of the helix. The *#idx("major groove")major groove* is
+about 22 Å wide; the *#idx("minor groove")minor groove*, about 12 Å. The base pairs are
 exposed differently in each groove — in particular, the major groove
 displays edges of the four base pairs that a protein can distinguish
 without unwinding the DNA. Almost every sequence-specific protein you
-will hear about — transcription factors, restriction enzymes,
+will hear about — #idx("transcription")transcription factors, restriction enzymes,
 CRISPR-Cas9 — reads DNA through the major groove.
 
 #figure(
@@ -214,7 +214,7 @@ that proteins cannot dictate nucleic-acid sequence has held up.
   ],
 ) <fig:dogma>
 
-=== The Genetic Code
+=== The #idx("genetic code")Genetic Code
 
 The mapping from codons to amino acids is the genetic code. There are
 $4^3 = 64$ possible codons but only 20 amino acids plus a stop signal,
@@ -226,9 +226,9 @@ tolerate single-base errors.
 #figure(
   image("../../diagrams/lecture-01/04-genetic-code-table.svg", width: 100%),
   caption: [
-    The standard genetic code. Each three-nucleotide codon maps to
+    The standard genetic code. Each three-nucleotide #idx("codon")codon maps to
     one amino acid, with three stop codons (UAA, UAG, UGA). The third
-    position is "wobble" — most synonymous codons differ only there.
+    position is "#idx("wobble")wobble" — most synonymous codons differ only there.
   ],
 ) <fig:code>
 
@@ -243,7 +243,7 @@ than three billion years ago.
   genomic DNA that, after transcription and (in eukaryotes) splicing,
   produces a single mature mRNA encoding a protein. Eukaryotic genes
   are interrupted by *introns* — sequences that are transcribed but
-  spliced out before translation. Bacterial genes are not. The
+  #idx("spliced")spliced out before translation. Bacterial genes are not. The
   details of splicing show up again in Chapters 5 and 6.
 ]
 
@@ -259,7 +259,7 @@ dominated for the next thirty years.
 #figure(
   image("../../diagrams/lecture-01/06-sanger-termination.svg", width: 85%),
   caption: [
-    Sanger sequencing by dideoxy chain termination. Four reactions,
+    #idx("Sanger sequencing")Sanger sequencing by dideoxy chain termination. Four reactions,
     each spiked with a different fluorescently labelled ddNTP. The
     fragments are separated by capillary electrophoresis; the
     sequence is read off the electropherogram.
@@ -277,10 +277,10 @@ reference genome you still use today.
 The second revolution — *next-generation sequencing* — arrived in 2005
 with the 454 platform from Roche, which read DNA by detecting
 pyrophosphate release after each base addition. 454 was followed by
-Solexa (later Illumina) in 2007, SOLiD from Applied Biosystems shortly
+Solexa (later #idx("Illumina")Illumina) in 2007, SOLiD from Applied Biosystems shortly
 after, and a long tail of competing platforms. The defining feature of
 NGS was *parallelism*: instead of running a few dozen sequencing
-reactions side by side in a 96-well plate, an NGS flow cell held
+reactions side by side in a 96-well plate, an NGS #idx("flow cell")flow cell held
 hundreds of millions of separate clonal clusters and read them all at
 once.
 
@@ -307,18 +307,18 @@ is one of the most famous graphs in modern biology.
   asking as you read.
 ]
 
-The third era is now well underway. Long-read platforms — PacBio's
-single-molecule real-time (SMRT) sequencing from 2011 and Oxford
+The third era is now well underway. Long-read platforms — #idx("PacBio")PacBio's
+single-molecule real-time (#idx("SMRT")SMRT) sequencing from 2011 and Oxford
 Nanopore's protein-pore platform from 2014 — read individual molecules
 ten to a hundred kilobases long, at the cost of higher per-base error
-rates. The first complete, telomere-to-telomere human genome assembly
+rates. The first complete, #idx("telomere-to-telomere")telomere-to-telomere human genome assembly
 was published in 2022, twenty years after the "complete" draft, using
 long-read data to fill in the centromeres, ribosomal arrays, and other
 repetitive regions that short reads could never resolve. Chapter 11
-covers long reads and the pangenome.
+covers long reads and the #idx("pangenome")pangenome.
 
 
-== Illumina: Sequencing by Synthesis <sec:illumina>
+== Illumina: #idx("sequencing by synthesis")Sequencing by Synthesis <sec:illumina>
 
 Illumina sequencing dominates the field by volume and will be the
 default platform for the rest of this book unless we say otherwise.
@@ -350,7 +350,7 @@ binding sites for the sequencing reaction itself.
   ],
 ) <fig:adapter>
 
-Fragmentation is mechanical (sonication) or enzymatic (transposase).
+Fragmentation is mechanical (sonication) or enzymatic (#idx("transposase")transposase).
 Adapter ligation happens in solution. The library is then size-selected
 on a magnetic bead system and PCR-amplified just enough to give
 detectable signal — too many PCR cycles introduces duplicate reads
@@ -358,7 +358,7 @@ and amplification artefacts, both of which complicate downstream
 analysis. The exact protocol varies by application but the shape is
 universal: fragment, ligate, size-select, amplify lightly.
 
-=== Cluster Generation by Bridge Amplification
+=== Cluster Generation by #idx("bridge amplification")Bridge Amplification
 
 The fragmented library is loaded onto a flow cell — a glass slide
 patterned with a high-density lawn of P5 and P7 oligonucleotide
@@ -391,7 +391,7 @@ event, which is what makes the basecall reliable.
 
 With the flow cell loaded, the actual sequencing is conceptually
 simple. The instrument floods the flow cell with sequencing primer,
-four fluorescently labelled "reversible terminator" nucleotides, and
+four fluorescently labelled "#idx("reversible terminator")reversible terminator" nucleotides, and
 DNA polymerase. The polymerase adds exactly one terminator nucleotide
 to each cluster's growing strand and stops. The instrument images the
 flow cell in four channels (one per base), records the dominant color
@@ -420,7 +420,7 @@ the others.
 
 #note[
   The two dominant sources of error in Illumina sequencing are
-  *phasing* and *prephasing*. Phasing happens when a polymerase fails
+  *#idx("phasing")#idx("phasing")phasing* and *#idx("prephasing")prephasing*. Phasing happens when a polymerase fails
   to extend during one cycle and stays behind; prephasing happens when
   it adds two bases in one cycle. After many cycles, an unsynchronised
   cluster looks like a smeared mixture of two adjacent positions in
@@ -438,12 +438,12 @@ than the read itself. Centromeres, ribosomal-RNA arrays, segmental
 duplications, and many disease-associated tandem repeats are simply
 invisible to short-read sequencing alone.
 
-*PacBio* and *Oxford Nanopore* solve this differently. PacBio's
+*PacBio* and *#idx("Oxford Nanopore")Oxford Nanopore* solve this differently. PacBio's
 single-molecule real-time (SMRT) platform watches a single DNA
 polymerase work on a single template inside a tiny illuminated well —
 a "zero-mode waveguide" — and detects fluorescent nucleotides as they
 are incorporated. Read lengths reach tens of kilobases; circular
-consensus reads ("HiFi") deliver Q30+ accuracy at ~20 kb reads by
+consensus reads ("#idx("HiFi")HiFi") deliver Q30+ accuracy at ~20 kb reads by
 sequencing the same molecule multiple times.
 
 #figure(
@@ -470,14 +470,14 @@ by chemistry.
   caption: [
     Nanopore "squiggle": picoampere-scale ionic current versus time as
     a single DNA strand translocates through a protein pore. The
-    basecaller is a neural network that maps current segments back
+    #idx("basecaller")basecaller is a neural network that maps current segments back
     to bases.
   ],
 ) <fig:nanopore>
 
 Long-read platforms shift the engineering tradeoff: read length goes
 up by a factor of a hundred, but per-base error rates were
-historically higher (5–15% for ONT in 2018; 0.1–1% for HiFi). Modern
+historically higher (5–15% for #idx("ONT")ONT in 2018; 0.1–1% for HiFi). Modern
 ONT chemistry has narrowed the gap dramatically. Chapter 11 returns
 to long reads when we cover assembly.
 
@@ -509,7 +509,7 @@ The four lines, in order, are:
   caption: [
     Anatomy of a FASTQ record. Identifier, sequence, separator,
     quality string. The quality string is the same length as the
-    sequence and encodes each base's Phred score as an ASCII character.
+    sequence and encodes each base's #idx("Phred score")Phred score as an ASCII character.
   ],
 ) <fig:fastq>
 
@@ -553,7 +553,7 @@ is `I`.
 
 === Paired Reads, Index Reads, and Other Lies
 
-In practice you rarely have just _one_ FASTQ file. Paired-end Illumina
+In practice you rarely have just _one_ FASTQ file. #idx("paired-end")Paired-end Illumina
 sequencing reads each cluster from both ends, producing two FASTQ
 files where each record in file 1 has a matching record at the same
 position in file 2. The two files are named with `_R1` and `_R2`
@@ -585,7 +585,7 @@ per-sample already.
   caption: [
     The canonical short-read bioinformatics pipeline. Each box is a
     later chapter: alignment (Chapter 2), assembly (Chapter 3),
-    variant calling (Chapter 4), expression analysis (Chapters 5–8),
+    #idx("variant calling")variant calling (Chapter 4), expression analysis (Chapters 5–8),
     and so on through the rest of the book.
   ],
 ) <fig:ch01-pipeline>
@@ -671,7 +671,7 @@ correction it applies.
   Sequencing using Reversible Terminator Chemistry." _Nature_ 456:
   53–59. The Illumina platform paper.
 - *Eisenstein, M.* (2022). "The Complete Human Genome." _Nature
-  Methods_ 19: 521–524. A short news piece covering the T2T consortium.
+  Methods_ 19: 521–524. A short news piece covering the #idx("T2T")T2T consortium.
 - *Wendisch, A., et al.* (2020). "Lessons Learned from
   High-Throughput Sequencing Technologies." _Annual Review of
   Genomics and Human Genetics_ 21: 109–130. A condensed review of the

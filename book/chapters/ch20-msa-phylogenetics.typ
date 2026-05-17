@@ -1,12 +1,12 @@
 #import "../theme/book-theme.typ": *
 
-= Multiple Sequence Alignment, Phylogenetics, and Comparative Genomics <ch:msa-phylogenetics>
+= #idx("multiple sequence alignment")Multiple Sequence Alignment, Phylogenetics, and Comparative Genomics <ch:msa-phylogenetics>
 
 #matters[
   Until this chapter the unit of analysis has been a single genome, a
   single transcriptome, a single protein. The next move in
   bioinformatics is to compare. Once you can compare a gene across
-  fifty species, you can ask which residues are under selection, when
+  fifty species, you can ask which residues are under #idx("selection")selection, when
   two lineages diverged, whether a non-coding region is a regulatory
   element, and whether a gene family expanded through duplication or
   through speciation. The whole sub-field of evolutionary genomics
@@ -15,7 +15,7 @@
   *phylogenetic tree* that organises the sequences by descent, and a
   *substitution model* that scores how plausible the alignment is
   given the tree. Each pillar comes with an honest tractability story
-  — exact MSA is NP-hard, tree inference is a search over a
+  — exact #idx("MSA")MSA is NP-hard, tree inference is a search over a
   super-exponential space, codon-level selection tests are
   likelihood-ratio statistics with subtle null distributions — and
   modern tooling is the set of heuristics that make the whole stack
@@ -24,7 +24,7 @@
 
 A genome looks different the second time you see it. The first pass
 through the assembly, the variant calls, the expression matrix, the
-chromatin tracks — the work of Chapters 1 through 19 — treats the
+#idx("chromatin")chromatin tracks — the work of Chapters 1 through 19 — treats the
 species in isolation. Real biological insight rarely lives inside a
 single species. It lives in the differences. A glance at the
 haemoglobin alpha chain in human, mouse, chicken, and lamprey tells
@@ -33,7 +33,7 @@ neighbouring beta chain, and which residues are free to wander. A
 glance at the same gene in five hundred mammals tells you which
 positions accelerated in bats and which positions froze in cetaceans.
 A glance across species in a syntenic interval tells you whether the
-region you are staring at is a conserved regulatory element or a
+region you are staring at is a conserved #idx("regulatory element")regulatory element or a
 neutral intergenic stretch. The unit of biological insight is not a
 genome. It is a *comparison*.
 
@@ -41,26 +41,26 @@ This chapter is the toolbox for that comparison. It opens with
 multiple sequence alignment — the unglamorous data structure on which
 everything else hangs — and walks through why exact alignment is
 intractable, why the field settled on progressive heuristics, and what
-the modern tools (Clustal Omega, MUSCLE, MAFFT, T-Coffee, ProbCons)
+the modern tools (#idx("Clustal")Clustal Omega, #idx("MUSCLE")MUSCLE, #idx("MAFFT")MAFFT, #idx("T-Coffee")T-Coffee, ProbCons)
 actually do under the hood. It then moves to phylogenetic inference
-proper. Distance methods, parsimony, and maximum likelihood are three
+proper. Distance methods, parsimony, and #idx("maximum likelihood")maximum likelihood are three
 distinct philosophies for turning an alignment into a tree, and a
 good practitioner reaches for whichever one matches the problem.
-Felsenstein's pruning algorithm — belief propagation on a tree, seven
+#idx("Felsenstein")Felsenstein's pruning algorithm — belief propagation on a tree, seven
 years before Pearl named graphical models — is the algorithmic heart
-of the field. The chapter then turns calendrical: the molecular clock,
+of the field. The chapter then turns calendrical: the #idx("molecular clock")molecular clock,
 relaxed clocks, and divergence-time estimation. From there to selection:
-the codon-substitution machinery of dN/dS, the likelihood-ratio
+the codon-substitution machinery of #idx("dN/dS")dN/dS, the likelihood-ratio
 framework for detecting positive selection, and the worked examples
 that made the technique famous (HA, MHC, sperm-egg recognition).
-The closing sections leave the gene level entirely. Synteny aligns
+The closing sections leave the gene level entirely. #idx("synteny")Synteny aligns
 whole genomes, conservation tracks score per-base evolutionary
 constraint, and Infernal plus Rfam apply the same machinery to
 non-coding RNAs whose function depends on structure rather than on
 sequence.
 
-A reader who has done Chapters 2 (read alignment), 4 (variant
-calling), and 9 (peak calling) will recognise a recurring move in this
+A reader who has done Chapters 2 (#idx("read alignment")read alignment), 4 (variant
+calling), and 9 (#idx("peak calling")peak calling) will recognise a recurring move in this
 chapter. Each previous problem had an obvious objective function and a
 tractable algorithm. This chapter's problems have obvious objective
 functions and *intractable* algorithms; every working method is a
@@ -76,7 +76,7 @@ programming problem in $O(L^2)$ time. The biological objective they
 served was rarely about two strings alone. A biologist who has a
 candidate gene almost always wants to align it against every known
 homologue: all twenty haemoglobins, all fifty cytochrome $c$ orthologs,
-all of Pfam's globin domain. The right data structure for that comparison
+all of #idx("Pfam")Pfam's globin domain. The right data structure for that comparison
 is a *multiple sequence alignment* (MSA): a matrix of $N$ rows and
 $M$ columns where every column claims a single evolutionary identity.
 The residues in a column are either descended from a common ancestral
@@ -86,8 +86,8 @@ specific lineage.
 A good MSA is the substrate for almost every comparative move in this
 chapter. Phylogenetic trees are inferred from MSAs. Profile HMMs (the
 Pfam domain models you met in Chapter 15) are estimated from MSAs.
-AlphaFold-2's MSA features power its co-evolutionary contact
-predictions. Conserved-block detection, motif discovery, codon-substitution
+#idx("AlphaFold-2")AlphaFold-2's MSA features power its co-evolutionary contact
+predictions. Conserved-block detection, #idx("motif")motif discovery, codon-substitution
 analysis, and ancestral-state reconstruction all start from a column
 matrix where homologous residues line up. A bad MSA poisons all of
 that downstream work in ways that rarely announce themselves loudly.
@@ -96,7 +96,7 @@ that downstream work in ways that rarely announce themselves loudly.
   image("../../diagrams/lecture-20/01-pairwise-to-msa.svg", width: 95%),
   caption: [
     From pairwise to multiple. The exact-MSA tensor scales as $L^N$
-    and explodes past four or five sequences. Progressive alignment
+    and explodes past four or five sequences. #idx("progressive alignment")Progressive alignment
     decomposes the tensor into a sequence of pairwise steps along a
     guide tree, paying $O(N^2 L^2)$ instead of $O(L^N)$.
   ],
@@ -104,7 +104,7 @@ that downstream work in ways that rarely announce themselves loudly.
 
 === Why Exact MSA Is Hopeless
 
-The natural generalisation of pairwise dynamic programming is the
+The natural generalisation of pairwise #idx("dynamic programming")dynamic programming is the
 $N$-dimensional Carrillo–Lipman tensor. Each cell stores the best
 alignment of a prefix combination drawn from all $N$ sequences;
 each transition has up to $2^N - 1$ neighbours, one per non-empty
@@ -128,7 +128,7 @@ The standard scoring objective for the exact problem is *sum-of-pairs*:
 $ "SP"(A) = sum_(i < j) "score"(A_i, A_j) $
 
 — the sum, over all pairs of rows in the alignment, of the standard
-pairwise alignment score with a substitution matrix (BLOSUM, PAM) and
+pairwise alignment score with a #idx("substitution matrix")substitution matrix (#idx("BLOSUM")BLOSUM, #idx("PAM")PAM) and
 gap penalties. SP is convenient because it factorises across pairs,
 but it carries a known bias: identical columns count quadratically in
 $N$, which over-weights conservation in dense families. T-Coffee
@@ -173,11 +173,11 @@ The recipe is direct. Compute all pairwise distances by $k$-tuple
 counting — fast, but inaccurate at distant homology because shared
 $k$-tuples become rare. Build a guide tree by UPGMA or neighbour-joining.
 Walk the tree from leaves to root; at each node align the two child
-profiles using a profile-profile dynamic programme with affine gap
+profiles using a profile-profile dynamic programme with #idx("affine gap")affine gap
 penalties. CLUSTAL Omega uses HHalign's profile-profile algorithm
 underneath, which is part of why it scales to tens of thousands of
 sequences. The result is a single alignment in column form, ready
-for tree inference, profile HMM construction, or visualisation.
+for tree inference, #idx("profile HMM")profile #idx("HMM")HMM construction, or visualisation.
 
 #figure(
   image("../../diagrams/lecture-20/02-progressive-msa.svg", width: 95%),
@@ -292,7 +292,7 @@ all rooted bifurcating trees on $N$ taxa is $(2N - 3)!! / 2^(N - 1)$
 topologies — about $7.9 times 10^4$ at $N = 8$, about $2.2 times 10^(20)$
 at $N = 20$, astronomically large at $N = 50$. No exact tree search
 is feasible past about ten taxa. Modern likelihood tree software
-(RAxML, IQ-TREE, FastTree) uses smart local-rearrangement
+(#idx("RAxML")RAxML, #idx("IQ-TREE")IQ-TREE, FastTree) uses smart local-rearrangement
 heuristics that find the optimum reliably in practice while making
 no guarantees in theory. The honest framing of every modern
 phylogenetics paper is *we found the best tree we could using a
@@ -330,7 +330,7 @@ and parsimony survives as a sanity check.
     assumes the molecular clock and is fast. Neighbour-joining drops
     the clock assumption and runs in $O(N^3)$. Maximum parsimony
     minimises total substitutions but is statistically inconsistent
-    under long-branch attraction. Maximum likelihood and Bayesian
+    under #idx("long-branch attraction")long-branch attraction. Maximum likelihood and Bayesian
     inference are statistically consistent under their model
     assumptions and have become the modern defaults.
   ],
@@ -388,7 +388,7 @@ results.
 ) <fig:nj>
 
 In practice neighbour-joining is the workhorse for "I just want a
-tree". BLAST followed by ClustalW followed by NJ is still the most
+tree". #idx("BLAST")BLAST followed by ClustalW followed by NJ is still the most
 common workflow for the back-of-the-envelope phylogeny of a small
 family.
 
@@ -418,7 +418,7 @@ models add parameters for unequal base frequencies and unequal
 substitution rates between specific base pairs. GTR is the most
 permissive *reversible* model — twelve rate parameters constrained
 by detailed balance leave six free — and is the default for
-nucleotide phylogenetics. Protein analogs (JTT, WAG, LG) replace the
+#idx("nucleotide")nucleotide phylogenetics. Protein analogs (JTT, WAG, LG) replace the
 $4 times 4$ rate matrix with a $20 times 20$ matrix estimated from
 empirical protein databases.
 
@@ -436,7 +436,7 @@ empirical protein databases.
 
 #note[
   Site-rate heterogeneity matters as much as the choice of base
-  model. Real positions evolve at very different rates: third codon
+  model. Real positions evolve at very different rates: third #idx("codon")codon
   positions and rRNA loops fast, second codon positions and rRNA
   stems slow. The standard fix is to add a Gamma-distributed
   site-rate ($+G$) model, usually with four discrete rate categories,
@@ -559,7 +559,7 @@ modern default for medium-sized problems (a few thousand taxa, a few
 megabases of alignment) and includes a model-selection step
 (ModelFinder) that auto-picks the best substitution model by BIC.
 
-Bayesian phylogenetics — MrBayes (Huelsenbeck and Ronquist, 2001),
+Bayesian phylogenetics — #idx("MrBayes")MrBayes (Huelsenbeck and Ronquist, 2001),
 BEAST (Drummond and Rambaut, 2007) — replaces the maximum-likelihood
 point estimate with a posterior distribution over trees. The MCMC
 sampler explores tree space, branch-length space, and model-parameter
@@ -609,7 +609,7 @@ lengths in millions of years if we know the rate.
 
 The hypothesis is correct in spirit and wrong in detail. Rates vary
 across lineages (rodents evolve faster than primates), across
-genes (mitochondrial DNA accumulates substitutions about ten times
+genes (mitochondrial #idx("DNA")DNA accumulates substitutions about ten times
 faster than nuclear), across regions of a genome (synonymous codon
 positions faster than non-synonymous), and across time within a
 single lineage (rate slowdowns are common after large radiations).
@@ -635,7 +635,7 @@ the gamma-distributed site-rate corrections of @sec:trees.
     Molecular clock dating. The chimpanzee--human split (six million
     years ago, calibrated from fossils) anchors the rate; branch
     lengths in substitutions translate to dates with credible
-    intervals under a relaxed clock. The mouse--rat split lands at
+    intervals under a #idx("relaxed clock")relaxed clock. The mouse--rat split lands at
     about thirteen million years; the rodent--primate split at about
     eighty million years.
   ],
@@ -745,7 +745,7 @@ under the assumption that all substitution types are equally likely.
 The method is fast and reasonable as a first pass but biased in
 realistic data where transitions outnumber transversions. The
 Yang--Nielsen (2000) family of codon-substitution models — implemented
-in PAML's `codeml` — replace the counting with a full
+in #idx("PAML")PAML's `codeml` — replace the counting with a full
 maximum-likelihood model of codon substitution. The model is
 $61 times 61$ (excluding stop codons) and parameterises codon
 substitutions by base substitution rates, codon usage frequencies,
@@ -818,7 +818,7 @@ repeatedly documented:
 #warn[
   dN/dS is not a magic positive-selection detector. The LRT can fire
   on technical artefacts: bad alignment around indels inflates
-  $omega$ on a handful of sites; recombination breaks the
+  $omega$ on a handful of sites; #idx("recombination")recombination breaks the
   single-tree assumption; saturation of $d_S$ at deep divergence
   makes the ratio unstable. The 2005--2015 wave of "every other
   gene is under positive selection" papers has been substantially
@@ -838,12 +838,12 @@ suggests a more recent common ancestor.
 
 === Synteny: Conserved Gene Order
 
-*Synteny* is the preservation of gene order along a chromosome
+*Synteny* is the preservation of gene order along a #idx("chromosome")chromosome
 across species. Conserved synteny blocks are stretches of the
 ancestral chromosome that have not been broken by inversion,
 translocation, or fission in the time since the last common
 ancestor. Human chromosome 17 and mouse chromosome 11 share a large
-syntenic block — the HOXB cluster, p53 region, BRCA1 neighbourhood —
+syntenic block — the HOXB cluster, p53 region, #idx("BRCA1")BRCA1 neighbourhood —
 that has stayed intact across roughly ninety million years of
 mammalian evolution. The block is interrupted by a handful of small
 inversions and by lineage-specific gene gains and losses.
@@ -853,7 +853,7 @@ pairwise) at the level of homologous gene clusters. Mauve (Darling
 et al., 2010) was the classic tool for bacterial-genome synteny via
 *locally collinear blocks* (LCBs); MUMmer/nucmer (Kurtz et al., 2004)
 handles arbitrary genome pairs with suffix-tree-based seed and
-extend; modern tools (LAST, minimap2, SyMAP) scale to gigabase
+extend; modern tools (LAST, #idx("minimap2")minimap2, SyMAP) scale to gigabase
 mammalian genomes. The output is a list of synteny blocks with
 start, end, and orientation in each genome.
 
@@ -902,15 +902,15 @@ sub-functionalise or neo-functionalise after duplication.
   ],
 ) <fig:ortho-paralog>
 
-Practical ortholog inference comes in three flavours. *Reciprocal
+Practical #idx("ortholog")ortholog inference comes in three flavours. *Reciprocal
 best hits* (RBH) is the simplest: BLAST each gene against the other
 species; if gene $A$ in species 1 is the best hit of gene $B$ in
 species 2 and vice versa, call them orthologs. RBH is fast and
 reaches roughly eighty per cent accuracy on benchmarks; its main
 failure modes are gene loss (an ortholog has been lost in one
-species, so RBH picks the closest paralog) and recent duplication
+species, so RBH picks the closest #idx("paralog")paralog) and recent duplication
 (the closest paralog and the true ortholog have similar BLAST
-scores). *Tree-based methods* — OrthoFinder (Emms and Kelly, 2015,
+scores). *Tree-based methods* — #idx("OrthoFinder")OrthoFinder (Emms and Kelly, 2015,
 2019) being the canonical example — build a gene tree per family,
 identify speciation and duplication nodes by reconciliation against
 the species tree, and read orthologs and paralogs from the
@@ -946,7 +946,7 @@ substantially more likely to be functional than a variant at a
 PhyloP $approx 0$ position. They are also the foundation of
 *phylogenetic footprinting*: a non-coding region that is conserved
 across mammals is a strong candidate regulatory element even without
-ChIP-seq data, and intersecting conservation tracks with ChIP-seq
+#idx("ChIP-seq")ChIP-seq data, and intersecting conservation tracks with ChIP-seq
 peaks and motif scans gives the highest-confidence
 transcription-factor binding-site inventory.
 
@@ -963,12 +963,12 @@ transcription-factor binding-site inventory.
 ) <fig:tol>
 
 
-== Non-Coding RNA: Structure-Aware Alignment <sec:rna>
+== Non-Coding #idx("RNA")RNA: Structure-Aware Alignment <sec:rna>
 
 Most of this chapter has treated sequence as the unit of homology.
 For non-coding RNAs that assumption breaks. The function of tRNA,
 rRNA, riboswitches, microRNA precursors, and many long non-coding
-RNAs depends on a *secondary structure* of base-paired stems and
+RNAs depends on a *#idx("secondary structure")secondary structure* of base-paired stems and
 loops that is conserved across enormous evolutionary distances even
 as the underlying primary sequence diverges. Two tRNAs with twenty
 per cent sequence identity may have identical cloverleaf structure.
@@ -980,7 +980,7 @@ context-free grammars*.
 === RNA Secondary Structure Basics
 
 RNA secondary structure is the set of Watson--Crick (A-U, G-C) and
-wobble (G-U) base pairs formed by a single-stranded RNA molecule
+#idx("wobble")wobble (G-U) base pairs formed by a single-stranded RNA molecule
 folding back on itself. The most common structural motifs are
 *hairpin loops* (a stem followed by a loop), *internal loops* (two
 stems separated by an unpaired bulge), *multi-branch loops* (three
@@ -1031,9 +1031,9 @@ or a singlet state, with emission distributions estimated from the
 training alignment.
 
 *Infernal* (Eddy, *Bioinformatics* 2013) is the SCFG counterpart of
-HMMER. `cmbuild` constructs a CM from a structure-annotated seed
+#idx("HMMER")HMMER. `cmbuild` constructs a CM from a structure-annotated seed
 alignment; `cmsearch` scans a sequence database for hits to the
-model with statistical significance reported as an E-value.
+model with statistical significance reported as an #idx("E-value")E-value.
 Crucially, Infernal scores both sequence similarity *and*
 base-pairing covariation — pairs of positions in the model that
 co-vary in a way consistent with maintaining base-pairing are
@@ -1063,7 +1063,7 @@ most tasks.
   exchange for tractability.
 ]
 
-=== Tertiary Structure and the AlphaFold-3 Coda
+=== #idx("tertiary structure")Tertiary Structure and the AlphaFold-3 Coda
 
 Beyond secondary structure, predicting an RNA molecule's full
 three-dimensional coordinates is the structural-RNA analog of the
@@ -1072,7 +1072,7 @@ protein-structure problem of Chapter 15. Pre-deep-learning tools
 fragment libraries indexed by secondary-structure motifs and reached
 reasonable accuracy on small structured RNAs. The deep-learning wave
 arrived with RoseTTAFold-NA (Baek et al., 2024) and the RNA
-extensions of AlphaFold; AlphaFold-3 (Abramson et al., 2024) is the
+extensions of #idx("AlphaFold")AlphaFold; AlphaFold-3 (Abramson et al., 2024) is the
 current frontier and predicts protein, DNA, RNA, and small-molecule
 ligand coordinates jointly. Accuracy on small structured RNAs (tRNAs,
 riboswitches) is in the $2$–$4$ Å backbone-RMSD range; large

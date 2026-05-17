@@ -3,7 +3,7 @@
 = Advanced Single-Cell: Trajectories, Integration, Multi-Modal <ch:advanced-single-cell>
 
 #matters[
-  Single-cell RNA sequencing solves the problem Chapter 7 set up: it
+  Single-cell #idx("RNA")RNA sequencing solves the problem Chapter 7 set up: it
   hands you a measurement of every transcript in every cell of a tissue.
   But the measurement is a snapshot of a process that is fundamentally
   about change — cells differentiate, batches drift, modalities disagree,
@@ -17,11 +17,11 @@
   that way is the only reasonable approach.
 ]
 
-A scRNA-seq experiment ends with a cells-by-genes count matrix and a UMAP
+A scRNA-seq experiment ends with a cells-by-genes count matrix and a #idx("UMAP")UMAP
 that looks, if you squint, like the cells were drawn that way on purpose.
-Chapter 7 covered the path that lands you there: alignment, droplet
+Chapter 7 covered the path that lands you there: alignment, #idx("droplet")droplet
 demultiplexing, normalisation, principal components, nearest-neighbour
-graph, Leiden clustering, marker genes. By the end of that pipeline you
+graph, #idx("Leiden")Leiden clustering, marker genes. By the end of that pipeline you
 have an annotated atlas — _T cells over here, monocytes over there, a
 few rare populations in the corners_. This is enough to publish a
 descriptive paper. It is not enough to ask any of the questions that
@@ -30,30 +30,30 @@ actually motivate the experiment.
 The questions that motivate the experiment are dynamic, comparative, and
 multi-modal. _Where are these cells going next?_ _How do these two
 patients' samples compare?_ _Which of these cells are receiving signals
-from which others?_ _Which Visium spot is mostly T cells and which is
+from which others?_ _Which #idx("Visium")Visium spot is mostly T cells and which is
 mostly fibroblasts?_ Each of these requires going beyond the static
 snapshot. This chapter walks through the second-generation single-cell
 toolkit that answers them.
 
-Six topics structure the chapter. Section 8.1 introduces pseudotime —
+Six topics structure the chapter. Section 8.1 introduces #idx("pseudotime")pseudotime —
 the trick that recovers temporal ordering from a single sampling moment
-— and the three algorithms (Monocle3, Slingshot, PAGA) that implement
-it. Section 8.2 unpacks RNA velocity, which reads the direction of
-gene-expression change off the ratio of unspliced to spliced reads.
-Section 8.3 handles batch integration, the supervised source-separation
+— and the three algorithms (Monocle3, #idx("Slingshot")Slingshot, #idx("PAGA")PAGA) that implement
+it. Section 8.2 unpacks #idx("RNA velocity")RNA velocity, which reads the direction of
+gene-expression change off the ratio of #idx("unspliced")unspliced to #idx("spliced")spliced reads.
+Section 8.3 handles #idx("batch integration")batch integration, the supervised source-separation
 problem that lets you merge datasets from different labs, days, or
 chemistries. Section 8.4 expands beyond RNA to surface protein
-(CITE-seq) and chromatin accessibility (scATAC-seq), and to the joint
-embeddings that fuse them. Section 8.5 turns to spatial transcriptomics:
-the platforms, the mixed-pixel deconvolution problem, and the
+(#idx("CITE-seq")CITE-seq) and #idx("chromatin")chromatin accessibility (scATAC-seq), and to the joint
+embeddings that fuse them. Section 8.5 turns to #idx("spatial transcriptomics")spatial transcriptomics:
+the platforms, the mixed-pixel #idx("deconvolution")deconvolution problem, and the
 niche-detection analyses they enable. Section 8.6 closes with
-ligand-receptor inference — what cells appear to be talking to which,
+#idx("ligand-receptor")ligand-receptor inference — what cells appear to be talking to which,
 and why those "appears" are doing a lot of work.
 
 Throughout, the EE framings keep their force. RNA velocity is a
 state-space estimator with linear ODE dynamics. Batch integration is
-blind source separation with a known mixing label. scVI is variational
-EM, the same engine as Chapter 5's Salmon. Spot deconvolution is the
+blind source separation with a known mixing label. #idx("scVI")scVI is variational
+EM, the same engine as Chapter 5's #idx("Salmon")Salmon. Spot deconvolution is the
 remote-sensing mixed-pixel problem. None of these analogies is a
 gimmick; each maps onto methods you would recognise from a different
 domain, and each lets you reason about failure modes from a familiar
@@ -64,7 +64,7 @@ nearest-neighbour graph, and the UMAP appear here as inputs, not as
 things to be derived.
 
 
-== Pseudotime and Trajectory Inference <sec:pseudotime>
+== Pseudotime and #idx("trajectory")Trajectory Inference <sec:pseudotime>
 
 scRNA-seq captures a single moment. The cells were dissociated, lysed,
 encapsulated in droplets, reverse-transcribed, and sequenced — and by
@@ -205,7 +205,7 @@ reach for first.
 ]
 
 #note[
-  The original Monocle paper (Trapnell et al. 2014, _Nature
+  The original #idx("Monocle")Monocle paper (Trapnell et al. 2014, _Nature
   Biotechnology_) was among the first scRNA-seq methods papers to cross
   ten-thousand citations. The non-obvious insight — that a snapshot
   population can be read as a developmental timeline — opened up a
@@ -222,25 +222,25 @@ reach for first.
 Pseudotime orders cells but does not tell you which way they are going.
 A trajectory inferred by Monocle3 or Slingshot is direction-free until
 you nominate a root. *RNA velocity* — La Manno et al. (2018), refined
-into the scVelo framework by Bergen et al. (2020) — closes the gap. It
+into the #idx("scVelo")scVelo framework by Bergen et al. (2020) — closes the gap. It
 reads the _direction_ of expression change directly off the data, without
 needing a temporal label, by exploiting a small piece of biology that
-scRNA-seq leaves on the floor: the difference between mRNA that has
+scRNA-seq leaves on the floor: the difference between #idx("mRNA")mRNA that has
 been spliced and mRNA that has not.
 
 === Spliced and Unspliced Reads
 
 A eukaryotic gene is transcribed as a *pre-mRNA* that contains both
 exons and introns. The pre-mRNA is then *spliced* — the introns are cut
-out, the exons joined — to produce the mature mRNA that the ribosome
-translates. Splicing is fast compared to transcription, but it is not
+out, the exons joined — to produce the mature mRNA that the #idx("ribosome")ribosome
+translates. Splicing is fast compared to #idx("transcription")transcription, but it is not
 instantaneous, and at any given moment a fraction of a cell's
 transcripts have not yet been spliced.
 
 In a 10x scRNA-seq run, both forms get captured. Cell Ranger separates
 them at the alignment step (Chapter 7): reads aligning fully within
 exons are *spliced*; reads that span an intron-exon boundary, or fall
-entirely inside an intron, are *unspliced*. A typical scRNA-seq run
+entirely inside an #idx("intron")intron, are *unspliced*. A typical scRNA-seq run
 ends up roughly eighty per cent spliced and twenty per cent unspliced,
 with the ratio depending on the gene, the library prep, and the cell-cycle
 state of the population.
@@ -374,7 +374,7 @@ and strictly slower; it pays off on datasets with clear temporal
 structure (embryonic development, directed differentiation) and is
 overkill on steady-ish tissue atlases.
 
-scVelo is the 2024 default. It integrates directly with the Scanpy /
+scVelo is the 2024 default. It integrates directly with the #idx("Scanpy")Scanpy /
 AnnData stack, ships with sane defaults, and the dynamical-model
 results are what most current single-cell velocity papers report.
 
@@ -432,7 +432,7 @@ specific day, with a specific reagent lot, by a specific operator, on a
 specific sequencer. Batches systematically differ from each other in
 ways the biology never cared about — small shifts in mean expression,
 differences in capture efficiency, variation in dropout rate. The
-batch effect is real, large, and reproducible.
+#idx("batch effect")batch effect is real, large, and reproducible.
 
 The problem becomes acute the moment you want to combine batches —
 which you almost always do. Any interesting study has technical
@@ -480,16 +480,16 @@ The pre-history of this problem is worth a paragraph. Microarray studies
 in the 2000s faced exactly the same difficulty: a chip's mean and
 variance depended on the laboratory and on the lot of reagents, and
 two studies of the "same" disease produced incompatible expression
-profiles. Combat (Johnson, Li, Rabinovic 2007) introduced empirical
+profiles. #idx("ComBat")Combat (Johnson, Li, Rabinovic 2007) introduced empirical
 Bayes location-and-scale adjustment per gene per batch — a linear
-mean-shift correction with shrinkage toward a global prior. Combat was
+mean-shift correction with #idx("shrinkage")shrinkage toward a global prior. Combat was
 the standard for a decade. It fails on single-cell data because the
 batch effect is no longer just a linear shift in mean: capture
 efficiency differs, dropout rate differs, and the same gene can show
 opposite-sign batch effects in different cell types. Single-cell
 batch integration is Combat's harder cousin.
 
-=== Harmony — Linear Correction in PCA Space
+=== #idx("Harmony")Harmony — Linear Correction in #idx("PCA")PCA Space
 
 *Harmony* (Korsunsky et al. 2019, _Nature Methods_) is the fast,
 simple baseline. It operates entirely in PCA space and iterates a
@@ -511,7 +511,7 @@ projection.
 *Pros.* Fast — scales linearly with cell count and runs on a laptop on
 millions of cells. Simple algorithm with one well-tuned hyperparameter
 ($K$, the number of soft clusters, which defaults to a function of the
-batch count). Implemented in both Seurat and Scanpy.
+batch count). Implemented in both #idx("Seurat")Seurat and Scanpy.
 
 *Cons.* Linear correction in a linear space: if the true batch effect
 is non-linear, Harmony cannot fix it. The method is also prone to
@@ -530,8 +530,8 @@ compare against. For anything harder, reach for scVI.
 modern toolkit) is the deep-generative answer to the same question.
 Architecturally it is a *variational autoencoder* with a
 *negative-binomial reconstruction likelihood* — a direct callback to
-the NB count model that turns up in every modern bulk RNA-seq
-differential expression tool (Chapter 6).
+the NB count model that turns up in every modern bulk #idx("RNA-seq")RNA-seq
+#idx("differential expression")differential expression tool (Chapter 6).
 
 The generative model:
 
@@ -543,7 +543,7 @@ where $z_i$ is a low-dimensional latent representation of cell $i$
 (typically ten-dimensional), $s_i$ is the one-hot batch label,
 $rho_i$ is the decoded mean expression profile, $l_i$ is a per-cell
 library-size latent (learned jointly), and $phi_j$ is a per-gene
-dispersion. The encoder $q_phi(z bar.v x, s)$ is a small neural
+#idx("dispersion")dispersion. The encoder $q_phi(z bar.v x, s)$ is a small neural
 network mapping the observed counts and batch label to a Gaussian
 posterior over $z$; the decoder $f_theta(z, s)$ is another network
 mapping the latent and batch label back to expected expression.
@@ -591,7 +591,7 @@ into $z$. The latent is, by construction, a biology-only representation.
   scVI is variational EM on counts. The E-step is the encoder
   (compute posterior over latents given data); the M-step is the
   decoder-plus-likelihood update (maximise reconstruction given
-  latents). This is directly the structure of the Salmon and Kallisto
+  latents). This is directly the structure of the Salmon and #idx("Kallisto")Kallisto
   EM from Chapter 5 — read-to-transcript soft assignment was the
   E-step, transcript-abundance re-estimation was the M-step. The
   architectural upgrade: Salmon's E-step had a closed-form update;
@@ -621,7 +621,7 @@ control get fused). Under-correct, and the batches still separate.
 Quantifying where on this trade-off a particular result sits requires
 metrics.
 
-*LISI — local inverse Simpson index* (Korsunsky 2019). For each cell,
+*LISI — local inverse #idx("Simpson")Simpson index* (Korsunsky 2019). For each cell,
 compute the inverse Simpson diversity of batch labels in its $k$-nearest
 neighbours; average across cells. A high *iLISI* (batch LISI) means
 batches are well-mixed locally; a low *cLISI* (cell-type LISI) means
@@ -660,7 +660,7 @@ simulation often look worse on real biology.
 
 scRNA-seq measures mRNA. mRNA is not the only thing that matters about
 a cell. Cells also have proteins on their surface, chromatin in their
-nuclei, methylation marks on their DNA, and an ATP economy that drives
+nuclei, #idx("methylation")methylation marks on their #idx("DNA")DNA, and an ATP economy that drives
 all of it. Each of these is its own modality, each can be measured by
 its own assay, and each tells you something the others do not. The
 multi-modal-single-cell stack measures more than one of them on the
@@ -675,7 +675,7 @@ a panel of antibodies, each carrying a unique DNA tag — the
 _antibody-derived tag_, ADT. The antibody binds its target protein on
 the cell surface. When the cell is captured and lysed inside a droplet,
 the antibody tags are released and reverse-transcribed alongside the
-mRNA, sharing the same cell barcode. A single sequencing run therefore
+mRNA, sharing the same #idx("cell barcode")cell barcode. A single sequencing run therefore
 produces two matrices over the same cell-barcode list:
 
 - The standard mRNA count matrix from Chapter 7 — cells by ~20,000
@@ -707,7 +707,7 @@ same cells, in the same experiment.
 === scATAC-seq — Open Chromatin Per Cell
 
 *scATAC-seq* (Buenrostro et al. 2015; Cusanovich et al. 2015) measures
-chromatin accessibility per cell. The assay uses the Tn5 transposase,
+chromatin accessibility per cell. The assay uses the #idx("Tn5")Tn5 #idx("transposase")transposase,
 which inserts sequencing adapters preferentially into open
 (nucleosome-free) regions of DNA. Where Tn5 inserts, sequencing reads
 pile up; where chromatin is closed, no insertions, no reads. Reads
@@ -726,8 +726,8 @@ binary sparse matrices; dimensionality reduction for scATAC-seq
 typically uses *latent semantic indexing* (LSI), a TF-IDF-weighted SVD
 borrowed from text retrieval. UMAP and Leiden follow as in Chapter 7.
 
-*Multiome* chemistry (10x Genomics Multiome) measures RNA and ATAC on
-the same nucleus in the same droplet. Each cell yields a gene expression
+*Multiome* chemistry (#idx("10x Genomics")10x Genomics Multiome) measures RNA and ATAC on
+the same #idx("nucleus")nucleus in the same droplet. Each cell yields a gene expression
 vector and a chromatin accessibility vector that are directly paired —
 no inference needed to link them. Multiome is the cleanest multimodal
 experiment short of additional protein measurement, and is rapidly
@@ -799,7 +799,7 @@ cortical layer four_ — are gone.
 *Spatial transcriptomics* keeps the positions. The assay measures
 gene expression while preserving each cell's, or each region's,
 coordinates in the original tissue section. Three platform families
-dominate in 2024, and they make different trade-offs between coverage,
+dominate in 2024, and they make different trade-offs between #idx("coverage")coverage,
 resolution, and throughput.
 
 === Three Platforms, Two Modalities of Measurement
@@ -816,7 +816,7 @@ to its spot of origin by the spot's positional barcode. Output: a spots
 gene is measured, but cells are not individually resolved — each spot
 is a *mixed pixel* of the cells underneath it.
 
-*MERFISH* (Chen et al. 2015), *seqFISH* (Lubeck et al. 2014), and
+*#idx("MERFISH")MERFISH* (Chen et al. 2015), *seqFISH* (Lubeck et al. 2014), and
 their relatives are the imaging-based platforms. Pre-designed panels
 of one hundred to five hundred targeted genes are visualised in the
 tissue by multiplexed fluorescent in-situ hybridisation: each gene
@@ -905,7 +905,7 @@ Two deconvolution methods dominate practice.
 Decomposition_. Maximum-likelihood fit under a Poisson count model
 with a sparse mixture prior. Two modes: a "singlet" mode that assumes
 exactly one cell per spot (appropriate for high-resolution platforms
-like Slide-seq), and a "doublet" mode that allows up to two cell types
+like #idx("Slide-seq")Slide-seq), and a "#idx("doublet")doublet" mode that allows up to two cell types
 per spot (appropriate for Visium's mixed-pixel regime). Uses a
 scRNA-seq atlas of the same tissue as the cell-type reference.
 
@@ -1025,7 +1025,7 @@ co-expression score.
 
 Two tools dominate.
 
-*CellChat* (Jin et al. 2021, _Nature Communications_). Uses a curated
+*#idx("CellChat")CellChat* (Jin et al. 2021, _Nature Communications_). Uses a curated
 database of about two thousand ligand-receptor pairs (CellChatDB)
 that includes known multi-subunit complexes — IL-2, for instance,
 binds a three-subunit receptor, and CellChat's score uses the
@@ -1034,7 +1034,7 @@ the pair as a single ligand-receptor link. Significance is assessed
 by permutation testing. Outputs a ranked list of communication axes
 plus network-style visualisations.
 
-*NicheNet* (Browaeys et al. 2020, _Nature Methods_). Goes one step
+*#idx("NicheNet")NicheNet* (Browaeys et al. 2020, _Nature Methods_). Goes one step
 further: rather than scoring only $L$-to-$R$ co-expression, NicheNet
 models the full $L arrow R arrow$ target-gene chain. A ligand is
 inferred to act on a receiver cell population if the downstream target
@@ -1143,9 +1143,9 @@ them. In one paragraph: explain why this is a bad idea, what PAGA
 would show, and what the right interpretation of the three-cluster
 topology is.
 
-#strong[2.] #emph[Velocity from a pileup.]
+#strong[2.] #emph[Velocity from a #idx("pileup")pileup.]
 At one gene you have a population of 200 cells with average unspliced
-count $u = 4.0$ UMI and average spliced count $s = 12.0$ UMI. The
+count $u = 4.0$ #idx("UMI")UMI and average spliced count $s = 12.0$ UMI. The
 steady-state line you fit through the data has slope
 $gamma slash beta = 0.5$. (a) Compute the velocity $v_s = beta u -
 gamma s$ with $beta = 1$. (b) Is this gene being induced or repressed

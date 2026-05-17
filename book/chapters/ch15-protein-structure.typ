@@ -1,6 +1,6 @@
 #import "../theme/book-theme.typ": *
 
-= Protein Structure Prediction in the AlphaFold Era <ch:protein-structure>
+= #idx("protein structure")Protein Structure Prediction in the #idx("AlphaFold")AlphaFold Era <ch:protein-structure>
 
 #matters[
   For fifty years, predicting a protein's three-dimensional structure
@@ -8,7 +8,7 @@
   problems in computational biology. The fact that it is now largely
   solved — for single-chain folds, on the timescale of minutes per
   protein, by a freely available neural network — is the most concrete
-  triumph machine learning has delivered to the life sciences. Almost
+  triumph #idx("machine learning")machine learning has delivered to the life sciences. Almost
   every downstream biology problem that involves a protein, which is
   to say most of them, has been quietly re-grounded on top of it.
   Drug discovery, enzyme engineering, functional annotation, evolutionary
@@ -39,7 +39,7 @@ transformer-based architecture that walked through it in 2020, and
 the inverse problem — protein design — that became tractable
 immediately afterwards. The mathematics is dense in places, and the
 chapter occasionally lingers on a derivation longer than the lecture
-would. That is deliberate. The Evoformer and the structure module
+would. That is deliberate. The #idx("Evoformer")Evoformer and the #idx("structure module")structure module
 are the most carefully reasoned pieces of architectural design in
 applied machine learning; reading them quickly leaves their
 elegance invisible.
@@ -56,7 +56,7 @@ construction, how rigid bodies move in three-dimensional space.
 
 A typical protein is a polymer of fifty to two thousand amino acids
 drawn from an alphabet of twenty standard residues. The chain is
-synthesised by a ribosome reading messenger RNA in groups of three
+synthesised by a #idx("ribosome")ribosome reading messenger #idx("RNA")RNA in groups of three
 nucleotides (Chapter 1); the chemistry of the side chains decorates
 the backbone with the full diversity of organic functional groups —
 carboxylates, amines, aromatics, sulphurs, hydroxyls. Almost the
@@ -78,18 +78,18 @@ arrangement of atoms. That arrangement is the structure.
 ) <fig:hierarchy>
 
 The four hierarchical levels in @fig:hierarchy are conventional. The
-primary structure is the sequence itself, a string in a 20-letter
-alphabet. The secondary structure is local backbone conformation —
+#idx("primary structure")primary structure is the sequence itself, a #idx("STRING")string in a 20-letter
+alphabet. The #idx("secondary structure")secondary structure is local backbone conformation —
 the $alpha$-helix (a right-handed spiral with 3.6 residues per turn
 and intra-helix hydrogen bonds) and the $beta$-strand (an extended
 conformation that pairs with other strands to make a sheet). A
 typical globular protein is thirty to fifty percent helix and
-strand; the rest is loops and turns. The tertiary structure is the
+strand; the rest is loops and turns. The #idx("tertiary structure")tertiary structure is the
 full three-dimensional arrangement of the chain — every backbone
 torsion ($phi.alt$, $psi$, $omega$) and every side-chain torsion
 ($chi_1$, $chi_2$, $...$). Given those torsions and the standard
 bond geometry, every atom's $(x, y, z)$ coordinate is determined.
-The quaternary structure is the assembly of multiple chains —
+The #idx("quaternary structure")quaternary structure is the assembly of multiple chains —
 haemoglobin is four chains, the ribosome is eighty chains plus RNA.
 
 In bioinformatics practice, "solving a structure" almost always means
@@ -107,7 +107,7 @@ plus standard bond geometry; more compact and the representation
 AlphaFold actually outputs before converting back to Cartesian. And
 the *contact map*: an $N times N$ binary or continuous matrix where
 entry $(i, j)$ encodes the distance between residues $i$ and $j$.
-Contact maps throw away the rotation and translation of the whole
+Contact maps throw away the rotation and #idx("translation")translation of the whole
 protein and keep only the relative geometry; this is what
 coevolution-based methods predict directly, and what AlphaFold's
 internal pair representation eventually becomes.
@@ -152,7 +152,7 @@ do" into "find this energy minimum."
 ]
 
 The trouble, of course, is that the energy landscape is staggering.
-*Levinthal's paradox* (Cyrus Levinthal, 1969) makes the staggering
+*#idx("Levinthal")Levinthal's paradox* (Cyrus Levinthal, 1969) makes the staggering
 concrete: a chain of 100 residues, each with three accessible
 backbone conformations, has $3^100 approx 10^48$ conformations.
 Even if the chain could sample one conformation per nanosecond, an
@@ -199,7 +199,7 @@ each with a sharply different failure mode.
 
 *Homology modelling* works when the query protein has a sequence-similar
 homologue with a known experimental structure. The recipe is mechanical:
-BLAST the query against PDB sequences, find a "template" with high
+#idx("BLAST")BLAST the query against PDB sequences, find a "template" with high
 identity, copy the template's backbone coordinates for aligned
 residues, place the query's side chains using a rotamer library
 (SCWRL, Rosetta), then energy-minimise. Tools: *Modeller* (Sali, 1993),
@@ -225,7 +225,7 @@ flavours dominated. *Fragment assembly*, embodied by David Baker's
 Rosetta (1997+), represented the protein chain as a sequence of short
 (9-residue) structural fragments drawn from the PDB and assembled
 them by Monte Carlo sampling under a learned energy function. *Molecular
-dynamics* simulated the folding trajectory atom by atom with a
+dynamics* simulated the folding #idx("trajectory")trajectory atom by atom with a
 classical force field; in 1998, Peter Kollman's group folded the
 villin headpiece (35 residues) in months of supercomputer time.
 Folding\@home and Anton scaled MD to milliseconds of simulated
@@ -235,10 +235,10 @@ out of reach.
 #figure(
   image("../../diagrams/lecture-15/02-casp-progression.svg", width: 90%),
   caption: [
-    CASP free-modelling accuracy (median best GDT_TS on the hardest
+    #idx("CASP")CASP free-modelling accuracy (median best GDT_TS on the hardest
     target category) from CASP1 in 1994 through CASP16 in 2024.
     Decades of incremental progress, then two step changes —
-    CASP13 (AlphaFold-1) and CASP14 (AlphaFold-2) — and a high
+    CASP13 (AlphaFold-1) and CASP14 (#idx("AlphaFold-2")AlphaFold-2) — and a high
     plateau thereafter.
   ],
 ) <fig:casp>
@@ -250,7 +250,7 @@ participants are given the sequences of soon-to-be-released
 experimental structures; they submit predictions; after the
 experimental structures are released, predictions are scored against
 them. CASP tracks several categories — template-based modelling,
-free modelling, multimers, ligand docking, contact prediction — and
+free modelling, multimers, ligand #idx("docking")docking, contact prediction — and
 its primary metric is *GDT_TS* (Global Distance Test, Total Score),
 a percentage from zero to one hundred where ~50 means "recognisable
 fold," ~70 means "good prediction," and ~90 corresponds roughly to
@@ -276,7 +276,7 @@ accounts, fell quiet.
   targets. The plateau is about *information* — the methods were not
   exploiting the rich constraint signal that lives in homologous
   sequence families. Two changes had to happen before that signal
-  could be read: a statistical-physics method (DCA, 2011) that knew
+  could be read: a statistical-physics method (#idx("DCA")DCA, 2011) that knew
   how to extract direct from indirect coupling, and a neural
   architecture (the Evoformer, 2020) that could fold the extracted
   signal into atomic-resolution geometry. The decade from 2011 to
@@ -295,7 +295,7 @@ information was always in the sequences; the trick was to read many
 sequences at once.
 
 
-== Coevolution: Reading Contact From the MSA <sec:coevolution>
+== #idx("coevolution")Coevolution: Reading Contact From the #idx("MSA")MSA <sec:coevolution>
 
 Given a protein family — say, all known homologues of a kinase
 catalytic domain — align the sequences into a *multiple sequence
@@ -350,7 +350,7 @@ predictors were known to find roughly forty percent of true contacts
 in the top-$L$ predictions — better than chance, but nowhere near the
 accuracy needed to seed a folding calculation.
 
-=== Direct Coupling Analysis
+=== #idx("direct coupling analysis")Direct Coupling Analysis
 
 The insight that unlocked the field came from statistical physics. If
 you model the joint distribution over sequences as a Potts model —
@@ -370,7 +370,7 @@ from an MSA. *Mean-field DCA* (mfDCA; Faruck Morcos and collaborators
 in Martin Weigt's group, 2011) gives a closed-form approximation that
 runs in seconds per family. *Pseudo-likelihood DCA* (plmDCA; Magnus
 Ekeberg and colleagues, 2013) is more accurate, runs in minutes, and
-was the standard until deep learning displaced it. Both produce, for
+was the standard until #idx("deep learning")deep learning displaced it. Both produce, for
 each column pair $(i, j)$, a 20 × 20 coupling matrix; the *contact
 score* is the Frobenius norm
 
@@ -508,7 +508,7 @@ coordinates.
 The Evoformer is 48 repeated blocks. Each block updates both $bold(M)$
 and $bold(Z)$ through six sub-operations, run in a specific order:
 
-1. *Row-wise MSA attention with pair bias.* Within each MSA row (one
+1. *Row-wise MSA #idx("attention")attention with pair bias.* Within each MSA row (one
    sequence), every residue position attends to every other position.
    The attention map is biased by features pulled from the pair
    representation $bold(Z)$, so contact information already in
@@ -569,7 +569,7 @@ adapted by Jumper's group for the MSA case.
 ) <fig:axial-attention>
 
 #note[
-  The Evoformer is a two-axis transformer. One axis is residues
+  The Evoformer is a two-axis #idx("transformer")transformer. One axis is residues
   (tokens along the chain); the other is species (tokens down the
   MSA). The triangle updates in the pair representation are
   effectively a graph-neural-network layer where edges update
@@ -614,7 +614,7 @@ At each iteration, every residue maintains a *backbone frame*
 $bold(T)_i in "SE"(3)$ — a 3D position plus a 3D orientation, six
 degrees of freedom per residue. The block has four parts:
 
-1. *Invariant point attention (IPA).* The novel attention mechanism
+1. *#idx("invariant point attention")Invariant point attention (IPA).* The novel attention mechanism
    at the heart of the module, described below.
 2. *Frame update.* Each residue gets translated and rotated based on
    the IPA output.
@@ -714,12 +714,12 @@ step.
 The other thing AlphaFold-2 produces is *confidence*. Three signals
 matter:
 
-- *pLDDT* (predicted local distance difference test). Per-residue,
+- *#idx("pLDDT")pLDDT* (predicted local distance difference test). Per-residue,
   scaled 0–100. Operationally: pLDDT $> 90$ means "very confident
   this residue is positioned within $approx 1$ Å of correct"; $70$–$90$
   means "confident, backbone usable"; $50$–$70$ means "low confidence,
   fold-class only"; $< 50$ means "probably disordered or wrong."
-- *PAE* (Predicted Aligned Error). Per-pair, in Ångstroms.
+- *#idx("PAE")PAE* (#idx("predicted aligned error")Predicted Aligned Error). Per-pair, in Ångstroms.
   $"PAE"_(i j)$ is the expected error in residue $j$'s position when
   the structure is aligned to residue $i$'s frame. Low PAE means
   "$j$'s position is well-defined relative to $i$"; high PAE means
@@ -817,7 +817,7 @@ heterogeneous input types in a single pass.
     Gaussian noise to true coordinates over $T$ timesteps until
     coordinates are pure noise. Learned reverse process: denoise
     iteratively, conditioned on the pair representation. Multi-
-    component inputs (protein + DNA + ligand) denoise together in
+    component inputs (protein + #idx("DNA")DNA + ligand) denoise together in
     a single pass.
   ],
 ) <fig:af3>
@@ -842,7 +842,7 @@ representations are formed, making inference much faster.
   end with clean coordinates. The same mathematical framework
   underlies image diffusion (Ho et al., 2020), score-matching (Song
   et al., 2021), and small-molecule conformation generation
-  (DiffDock, 2022). The advantage over IPA is generative flexibility;
+  (#idx("DiffDock")DiffDock, 2022). The advantage over IPA is generative flexibility;
   the cost is sharper sensitivity to the conditioning signal.
 ]
 
@@ -878,7 +878,7 @@ the workhorse.
 *OpenFold* (Gustaf Ahdritz and colleagues, 2022) is an open-source
 PyTorch reimplementation of AlphaFold-2 with retrained weights. The
 architecture is identical; the training corpus and procedure are
-documented; the released code supports fine-tuning and feature
+documented; the released code supports #idx("fine-tuning")fine-tuning and feature
 probing. OpenFold has become the canonical platform for
 academic-research extensions of AlphaFold-2 — anything that requires
 gradient access to the model or modifications to the training loop.
@@ -893,7 +893,7 @@ ColabFold provides cannot be overstated — it was the difference
 between AlphaFold being a flagship-lab tool and AlphaFold being a
 graduate-student tool.
 
-=== ESMFold and Single-Sequence Prediction
+=== #idx("ESMFold")ESMFold and Single-Sequence Prediction
 
 *ESMFold* (Zeming Lin and colleagues, _Science_ 2023) takes a
 different bet. Instead of using an MSA as input, it passes the single
@@ -901,7 +901,7 @@ query sequence through *ESM-2*, a large protein-language transformer
 trained by masked-residue prediction on 65 million UniRef sequences.
 The resulting per-residue embeddings carry most of the evolutionary
 information an MSA would supply, learned implicitly during language-
-model pretraining. ESMFold projects the embeddings into a pair
+model #idx("pretraining")pretraining. ESMFold projects the embeddings into a pair
 representation, then runs an AlphaFold-style structure module on top.
 
 The crucial property is *no MSA search at inference time*. The
@@ -953,7 +953,7 @@ with a specific binding pocket, find a sequence that folds to it.
 *Repair* — given a protein with a deleterious mutation, find a
 near-native sequence that fixes the defect.
 
-=== ProteinMPNN
+=== #idx("ProteinMPNN")ProteinMPNN
 
 *ProteinMPNN* (Justas Dauparas and colleagues, _Science_ 2022) is the
 Baker-lab inverse-folding network. The input is a *backbone-only*
@@ -1001,7 +1001,7 @@ design a routine enterprise for the first time.
   the structural data, not hand-crafted.
 ]
 
-=== RFdiffusion and the Design Loop
+=== #idx("RFdiffusion")RFdiffusion and the Design Loop
 
 Pure inverse folding still requires a *target backbone* — you give
 ProteinMPNN a shape and ask for a sequence. *De novo* protein design
@@ -1271,7 +1271,7 @@ worse than useless.
 
 == Exercises <sec:ch15-exercises>
 
-#strong[1.] #emph[Reading pLDDT and PAE.] Download an AlphaFold-DB
+#strong[1.] #emph[Reading pLDDT and PAE.] Download an #idx("AlphaFold-DB")AlphaFold-DB
 prediction for a multi-domain human protein (kinase, ABC transporter,
 or your favourite). Open the structure in a viewer that colours by
 pLDDT (PyMOL, ChimeraX). Examine the PAE matrix. Identify (a) the
@@ -1378,7 +1378,7 @@ empirical evidence supports it. Cite the paper.
   prediction with a protein-language-model front end.
 - *Varadi, M., Anyango, S., Deshpande, M., et al.* (2022). "AlphaFold
   Protein Structure Database: massively expanding the structural
-  coverage of protein-sequence space with high-accuracy models."
+  #idx("coverage")coverage of protein-sequence space with high-accuracy models."
   _Nucleic Acids Research_ 50: D439–D444. The database paper.
 - *Mirdita, M., Schütze, K., Moriwaki, Y., et al.* (2022). "ColabFold:
   making protein folding accessible to all." _Nature Methods_ 19:

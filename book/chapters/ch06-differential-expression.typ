@@ -1,6 +1,6 @@
 #import "../theme/book-theme.typ": *
 
-= Differential Expression and Count Statistics <ch:differential-expression>
+= #idx("differential expression")Differential Expression and Count Statistics <ch:differential-expression>
 
 #matters[
   After Chapter 5 you have a count matrix: a rectangle of integers,
@@ -22,19 +22,19 @@ A modern differential-expression analysis runs twenty thousand
 hypothesis tests in parallel with three samples per condition. Stated
 that way, it should not work. The classical statistician's intuition
 says you need many replicates to estimate variance, you need normally
-distributed data to use a t-test, and you need a Bonferroni penalty
+distributed data to use a t-test, and you need a #idx("Bonferroni")Bonferroni penalty
 that makes any single result implausible. None of those constraints
-hold in modern RNA-seq, and yet the field produces calibrated p-values
+hold in modern #idx("RNA-seq")RNA-seq, and yet the field produces calibrated p-values
 and reproducible gene lists routinely. The reason is a particular
 combination of moves — a negative-binomial generalised linear model,
-empirical-Bayes shrinkage of dispersion across genes, and
+empirical-Bayes #idx("shrinkage")shrinkage of #idx("dispersion")dispersion across genes, and
 Benjamini–Hochberg false-discovery-rate control — that together turn an
 under-determined statistical problem into a tractable one.
 
 This chapter walks each move. Section 6.1 sets up the question and
 shows why the most natural first instinct — a per-gene t-test — fails
 on count data. Section 6.2 introduces the negative-binomial
-distribution and the generalised linear model that DESeq2 and edgeR
+distribution and the generalised linear model that #idx("DESeq2")DESeq2 and #idx("edgeR")edgeR
 fit. Section 6.3 covers the DE pipeline in detail: per-gene dispersion
 estimation, the mean–dispersion trend, empirical-Bayes shrinkage, and
 the choice between Wald and likelihood-ratio tests. Section 6.4 turns
@@ -71,7 +71,7 @@ The output is, conceptually, twenty thousand pairs of numbers: an
 estimate of how different the expression is (the _log-fold change_),
 and a confidence statement about that estimate (the _p-value_,
 eventually adjusted for the fact that you ran the test twenty thousand
-times). The canonical visual for this output is the *volcano plot* —
+times). The canonical visual for this output is the *#idx("volcano plot")volcano plot* —
 log-fold change on the horizontal axis, $-log_(10)$ of the adjusted
 p-value on the vertical — which carves the gene cloud into a familiar
 butterfly shape with the "hits" lifted far from the origin in both
@@ -149,7 +149,7 @@ directions at the two ends of the expression range.
   multiplicative noise. The right detection statistic is not the same
   as for Gaussian-noise channels — you need a likelihood-ratio test
   built against the correct noise distribution, not a fixed-variance
-  t-test. Using a t-test on counts is like using a matched filter that
+  t-test. Using a t-test on counts is like using a #idx("matched filter")matched filter that
   assumes white noise when the actual noise is shot noise with a
   $1/f$ component: the detector runs, it produces numbers, and the
   numbers are wrong in systematic ways.
@@ -164,7 +164,7 @@ First, the data are _discrete and have a zero floor_. Genes with low
 true expression produce many zero observations and a thin right tail.
 A Gaussian model cannot represent this. The minimum required
 distribution family is one parametrised on non-negative integers — the
-Poisson, the negative binomial, the zero-inflated Poisson, and a few
+Poisson, the #idx("negative binomial")negative binomial, the zero-inflated Poisson, and a few
 exotic alternatives are the candidate set.
 
 Second, _variance grows with the mean_. A gene at mean count one
@@ -257,7 +257,7 @@ gene $g$ and sample $i$, the canonical form is
 $ log mu_(i g) = log s_i + beta_(0,g) + beta_(1,g) dot x_i $
 
 where $mu_(i g)$ is the expected count for gene $g$ in sample $i$;
-$s_i$ is the *size factor* for sample $i$ (estimated by the
+$s_i$ is the *#idx("size factor")size factor* for sample $i$ (estimated by the
 median-of-ratios procedure from Chapter 5); $x_i$ is a condition
 indicator (zero for control, one for treatment); $beta_(0,g)$ is the
 gene's baseline log-expression; and $beta_(1,g)$ is the
@@ -310,7 +310,7 @@ the log-fold change between conditions:
 
 $ beta_(1,g) = log(mu_(g, "treated") / mu_(g, "control")). $
 
-Converting to the biologist's convention of $log_2$ fold change is one
+Converting to the biologist's convention of $log_2$ #idx("fold change")fold change is one
 division by $log(2)$. A $beta_(1,g)$ value of $0.693$ corresponds to a
 two-fold increase; a value of $-1.386$ corresponds to a four-fold
 decrease.
@@ -350,7 +350,7 @@ In practice, biological variance dominates for medium-to-highly
 expressed genes; technical variance dominates only at the bottom of
 the dynamic range, for genes near the detection limit. The
 consequence for design is unforgiving: if your effect is small or you
-care about lowly expressed regulators (transcription factors, signalling
+care about lowly expressed regulators (#idx("transcription")transcription factors, signalling
 molecules, splicing factors), you need six or more biological
 replicates. More sequencing depth on three samples will not save you.
 
@@ -384,16 +384,16 @@ The pipeline runs: estimate per-sample size factors (median of ratios,
 Chapter 5); estimate per-gene dispersion as a maximum-likelihood
 estimate from the residuals; fit a smooth mean–dispersion trend across
 all genes; shrink the per-gene dispersions toward the trend via
-empirical Bayes; refit the GLM per gene with the shrunk dispersion;
+#idx("empirical Bayes")empirical Bayes; refit the GLM per gene with the shrunk dispersion;
 test each $beta$ coefficient against zero using a Wald or
 likelihood-ratio test; apply Benjamini–Hochberg correction across the
 genes; filter and annotate the survivors.
 
-Two of those steps — dispersion shrinkage and FDR control — are where
+Two of those steps — dispersion shrinkage and #idx("FDR")FDR control — are where
 the real action is. Everything else is well-understood textbook
 machinery.
 
-=== Per-Gene Dispersion Maximum Likelihood <sec:disp-mle>
+=== Per-Gene Dispersion #idx("maximum likelihood")Maximum Likelihood <sec:disp-mle>
 
 Given the counts for gene $g$ across $n$ samples and the fitted
 intercept $beta_(0,g)$, the per-gene maximum-likelihood estimate of
@@ -518,7 +518,7 @@ analyses use DESeq2.
 With the GLM fit and the shrunk dispersion in hand, the test against
 $H_0 : beta_(1,g) = 0$ has two canonical forms.
 
-The *Wald test* computes a z-statistic from the fitted coefficient and
+The *#idx("Wald test")Wald test* computes a z-statistic from the fitted coefficient and
 its standard error:
 
 $ z_g = hat(beta)_(1,g) / "SE"(hat(beta)_(1,g)), quad p_g = 2 dot Phi(-|z_g|). $
@@ -576,7 +576,7 @@ The transformation has two pieces. First, log-counts-per-million
 homoscedastic scale. Second, apply a per-observation precision weight
 estimated from the empirical mean–variance relationship: small counts
 get small weights, large counts get large weights. Feed the weighted
-log-CPMs into limma's existing empirical-Bayes-moderated t-test, a
+log-CPMs into #idx("limma")limma's existing empirical-Bayes-moderated t-test, a
 piece of machinery developed for microarrays in the early 2000s and
 already well-tested.
 
@@ -592,7 +592,7 @@ genome-scale studies, limma-voom scales better and gives equivalent
 answers.
 
 #note[
-  Voom's variance stabilisation is a _preprocessing_ trick rather than
+  #idx("voom")Voom's variance stabilisation is a _preprocessing_ trick rather than
   a new likelihood. It transforms the data onto a scale where a
   constant-variance Gaussian model is approximately right, then
   applies constant-variance Gaussian inference. This is the same
@@ -604,7 +604,7 @@ answers.
 ]
 
 
-== Multiple Testing at Genome Scale <sec:multiple-testing>
+== #idx("multiple testing")Multiple Testing at Genome Scale <sec:multiple-testing>
 
 A standard DE run tests around twenty thousand genes in parallel. Even
 if every gene were truly null, the conventional $p < 0.05$ threshold
@@ -775,7 +775,7 @@ true positives survive.
 The more sophisticated *Independent Hypothesis Weighting* (IHW;
 Ignatiadis et al. 2016) generalises the idea: weight each p-value by
 an independently-estimated covariate (gene length, mean expression,
-chromosome) that predicts power without biasing the null. Used sparingly
+#idx("chromosome")chromosome) that predicts power without biasing the null. Used sparingly
 in routine RNA-seq; common in large-cohort studies where the extra
 power matters.
 
@@ -823,12 +823,12 @@ both, the table looks like
 
 Under the null hypothesis that DE genes are a random sample of the
 twenty thousand tested, the number of DE genes falling in the gene
-set follows a hypergeometric distribution. Fisher's exact test
+set follows a #idx("hypergeometric")hypergeometric distribution. #idx("Fisher's exact test")Fisher's exact test
 computes the tail probability of seeing 42 or more set members in the
 500-gene draw — the over-representation p-value. Equivalent
 chi-square approximations exist; the exact form is preferred when any
 table cell is small. Run the same test against thousands of gene sets
-in MSigDB or the Gene Ontology, apply BH correction to the resulting
+in MSigDB or the #idx("Gene Ontology")Gene Ontology, apply BH correction to the resulting
 p-values, and report the enrichments that survive.
 
 #figure(
@@ -841,7 +841,7 @@ p-values, and report the enrichments that survive.
   ],
 ) <fig:ora-fisher>
 
-ORA is cheap, intuitive, and easy to explain to a wet-lab
+#idx("ORA")ORA is cheap, intuitive, and easy to explain to a wet-lab
 collaborator. Its drawbacks are also straightforward. It requires a
 hard threshold to define "DE" — sub-threshold genes contribute nothing
 even when their fold changes are large and consistent. It treats every
@@ -850,7 +850,7 @@ of six counts the same as one with fold change of $0.6$. And it
 discards the directional information: an enrichment driven by ten
 upregulated genes and one downregulated gene looks the same as one
 driven by five and six. Each of these problems has a fix; the
-ranking-based GSEA family addresses all three.
+ranking-based #idx("GSEA")GSEA family addresses all three.
 
 === Gene-Set Enrichment Analysis <sec:gsea>
 
@@ -901,7 +901,7 @@ typically sufficient.
     enrichments and diverge on diffuse, low-amplitude programmes —
     where GSEA's pooled-evidence design wins.
   ],
-) <fig:ora-vs-gsea>
+) <fig:ch06-ora-vs-gsea>
 
 #note[
   GSEA's running-sum statistic is a CUSUM (cumulative-sum) detector —
@@ -945,12 +945,12 @@ associated gene set. Universal across species and hierarchical — an
 "immune response" annotation entails membership in many child
 categories.
 
-*KEGG* — the Kyoto Encyclopedia of Genes and Genomes — provides
+*#idx("KEGG")KEGG* — the Kyoto Encyclopedia of Genes and Genomes — provides
 manually curated metabolic and signalling pathways, each with a
 canonical gene list and a wiring diagram. Smaller and higher-quality
 than GO; especially useful for metabolic-focused analyses.
 
-*Reactome* offers more detailed biochemistry than KEGG and is popular
+*#idx("Reactome")Reactome* offers more detailed biochemistry than KEGG and is popular
 in European labs and in cardiovascular and immunological research.
 *WikiPathways* is community-curated and edited like Wikipedia.
 
@@ -1022,7 +1022,7 @@ sorted p-value lies below.
 Sketch the p-value histograms you would expect under (a) a healthy
 DE analysis with strong signal, (b) a healthy analysis with no
 signal, (c) an analysis whose model misspecification (an unmodeled
-batch effect) generates excess small p-values, and (d) an analysis
+#idx("batch effect")batch effect) generates excess small p-values, and (d) an analysis
 whose model is over-confident and generates inflated p-values
 clustered near 1. For each, describe in one sentence what an analyst
 should do next.

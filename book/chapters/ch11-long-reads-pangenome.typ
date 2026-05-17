@@ -1,26 +1,26 @@
 #import "../theme/book-theme.typ": *
 
-= Long Reads and the Pangenome: From One String to a Graph <ch:long-reads>
+= Long Reads and the #idx("pangenome")Pangenome: From One #idx("STRING")String to a Graph <ch:long-reads>
 
 #matters[
   Two pieces of bioinformatics infrastructure quietly changed between
   2019 and 2024, and almost every downstream pipeline in this book now
   inherits both. The first change is that long-read sequencing crossed
   the accuracy threshold where it is no longer just "long but noisy" — a
-  PacBio HiFi read is now as accurate as a Sanger read, sixty times its
-  length, at one-thousandth the cost; Oxford Nanopore has tracked
+  #idx("PacBio")PacBio #idx("HiFi")HiFi read is now as accurate as a Sanger read, sixty times its
+  length, at one-thousandth the cost; #idx("Oxford Nanopore")Oxford Nanopore has tracked
   alongside and is now within reach of the same quadrant. The second
   change is that the reference genome stopped being a string. The
   Human Pangenome Reference Consortium's first release, in May 2023,
-  replaced GRCh38 with a graph of forty-seven haplotypes that encodes
-  variation as branching structure rather than as a column in a VCF.
+  replaced #idx("GRCh38")GRCh38 with a graph of forty-seven haplotypes that encodes
+  variation as branching structure rather than as a column in a #idx("VCF")VCF.
   Either change on its own would be infrastructural; together they
   retire most of the assumptions Chapters 2 through 4 were forced to
   make. This chapter is the formal reset.
 ]
 
 For twenty years a genome assembly was a string, and a sequencing
-project was a translation problem: every read had to be placed on that
+project was a #idx("translation")translation problem: every read had to be placed on that
 string, every difference reported as a delta. The string was good
 enough when reads were short and variation was small, which is to say,
 for almost everything covered in Chapters 2 through 4. The two
@@ -34,33 +34,33 @@ that makes all of it tractable.
 
 This chapter walks the stack from input to output. Section 11.1 takes
 stock of where the long-read platforms sit in 2024 and explains why
-crossing the Q20 line was the change worth paying attention to. Section
+crossing the Q20 line was the change worth paying #idx("attention")attention to. Section
 11.2 catalogues what long reads make easy — structural variants, tandem
-repeats, haplotype phasing, telomere-to-telomere assembly — each of
+repeats, #idx("haplotype")haplotype #idx("phasing")#idx("phasing")phasing, #idx("telomere-to-telomere")telomere-to-telomere assembly — each of
 which was genuinely hard or actually impossible with short reads alone.
 Sections 11.3 and 11.4 introduce the pangenome graph and the file
 format that made it portable. Sections 11.5 and 11.6 work through the
-algorithms: seed-and-extend generalised to a DAG, Viterbi dynamic
+algorithms: #idx("seed-and-extend")seed-and-extend generalised to a DAG, #idx("Viterbi")Viterbi dynamic
 programming on a DAG, and the complexity argument for when the graph
-formulation pays for itself. Section 11.7 covers T2T-CHM13 and HPRC v1
+formulation pays for itself. Section 11.7 covers #idx("T2T-CHM13")T2T-CHM13 and #idx("HPRC")HPRC v1
 as the two concrete artifacts of this transition, and Section 11.8
 treats phasing — already mentioned in passing — as a stand-alone
 source-separation problem.
 
 The chapter assumes you understand sequencing platforms at the level of
 Chapter 1, short-read alignment at the level of Chapter 2, and variant
-calling at the level of Chapter 4. The two structural variant sections
+calling at the level of Chapter 4. The two #idx("structural variant")structural variant sections
 of Chapter 4 (§4.7 in particular) are the most-load-bearing reference
-points; the algorithmic machinery from Chapter 2 (k-mer indexing, seed
-chaining, banded dynamic programming) is the spine of Section 11.5.
+points; the algorithmic machinery from Chapter 2 (#idx("k-mer")k-mer indexing, seed
+chaining, banded #idx("dynamic programming")dynamic programming) is the spine of Section 11.5.
 
 
 == Long-Read Tech in 2024 <sec:long-reads-tech>
 
 Chapter 1 sketched the long-read platforms in their pre-2019 form, as a
-counterweight to Illumina's reign. PacBio's single-molecule real-time
-(SMRT) instrument watched a polymerase work in a zero-mode waveguide;
-Oxford Nanopore threaded DNA through a protein pore and watched the
+counterweight to #idx("Illumina")Illumina's reign. PacBio's single-molecule real-time
+(#idx("SMRT")SMRT) instrument watched a #idx("polymerase")polymerase work in a zero-mode waveguide;
+Oxford Nanopore threaded #idx("DNA")DNA through a protein pore and watched the
 ionic current modulate. Read lengths reached ten to a hundred
 kilobases; per-base error rates, in the early platforms, sat between
 five and fifteen percent. The mental model the field operated under was
@@ -81,7 +81,7 @@ lengths around 20 kb. Two thousand gigabases per day per instrument;
 ten to twenty US dollars per gigabase.
 
 Q30 at 20 kb is a regime no sequencing platform had previously
-occupied. Sanger sequencing was Q30 at 800 bp. Illumina is Q30 at 150
+occupied. #idx("Sanger sequencing")Sanger sequencing was Q30 at 800 bp. Illumina is Q30 at 150
 bp. HiFi is Q30 at twenty thousand bases — Sanger-grade accuracy at one
 hundred and twenty-fifth the cost per base, with reads that span things
 no Sanger read or Illumina read could ever span.
@@ -91,20 +91,20 @@ no Sanger read or Illumina read could ever span.
 Oxford Nanopore took longer. The fundamental physics is different —
 there is no consensus pass; each base is called once, from the
 modulation it imparts on the pore current as it translocates through.
-Accuracy depends entirely on the basecaller's ability to decode that
+Accuracy depends entirely on the #idx("basecaller")basecaller's ability to decode that
 modulation, and the basecaller is a neural network that has been
 re-trained on every chemistry update.
 
 Three chemistry generations carry the story. *R9.4* (deployed widely
 2018–2021) sat at roughly Q12 raw — about 6 % per-base error — and
 required heavy alignment-based consensus to be useful for anything
-beyond structural variants and ultra-long contig scaffolding. *R10.4*
+beyond structural variants and ultra-long #idx("contig")contig scaffolding. *R10.4*
 (2022) moved the pore design to a dual-reader chemistry that sampled
 the current at two points along the molecule, jumping raw accuracy to
 Q18–Q20. *R10.4.1 + Q20+* (2023, paired with the modern Dorado
 basecaller) crossed the Q20 line for raw reads, with Q25+ after
 polishing. Read lengths range from 10 kb to over a megabase; the
-"ultra-long" tail of the distribution is what makes ONT uniquely
+"ultra-long" tail of the distribution is what makes #idx("ONT")ONT uniquely
 capable for centromeric assembly.
 
 ONT is not identical to HiFi. The error profile is structured —
@@ -125,7 +125,7 @@ that mattered for downstream tools has closed.
 
 #note[
   The Q20 line is not arbitrary. Below it, every read is a noisy
-  vote and variant calling requires deep alignment-based consensus —
+  vote and #idx("variant calling")variant calling requires deep alignment-based consensus —
   many reads voting on each base. Above it, each read is a
   mostly-correct witness; small-variant calling becomes feasible from
   a single read, methylation-modification calling becomes feasible at
@@ -146,7 +146,7 @@ inference over multiple weak partial views. The same trade applies in
 genomics: a structural variant shorter than the read length is
 resolved directly by a single alignment, a structural variant longer
 than the read length is visible only through indirect inference on
-fragment geometry — split reads, discordant pair orientations, coverage
+fragment geometry — split reads, discordant pair orientations, #idx("coverage")coverage
 anomalies. The 50 bp–10 kb regime, essentially invisible at 150 bp
 read length, becomes trivial at 20 kb read length. This is the
 biophysical analogue of pulse-compression in radar: enlarge the
@@ -159,9 +159,9 @@ detection regime.
   stutters; ONT's residual errors are bias-structured, with certain
   k-mers reproducibly basecalled worse than others. The "reads are
   perfect now" overclaim breaks at predictable loci. Use a modern
-  long-read-aware variant caller — DeepVariant in long-read mode,
+  long-read-aware variant caller — #idx("DeepVariant")DeepVariant in long-read mode,
   Clair3, or PEPPER-Margin-DeepVariant — rather than a short-read
-  caller pointed at a BAM of long reads.
+  caller pointed at a #idx("BAM")BAM of long reads.
 ]
 
 
@@ -170,7 +170,7 @@ detection regime.
 The story of the long-read transition is best told through the four
 problem classes that flipped from hard or impossible under short reads
 to routine under long. Each class had its own short-read workaround —
-indirect SV inference, PCR fragment sizing, statistical phasing, gap
+indirect #idx("SV")SV inference, PCR fragment sizing, statistical phasing, gap
 masking — and each workaround is now obsolete.
 
 === Structural Variants, Resolved Directly
@@ -178,7 +178,7 @@ masking — and each workaround is now obsolete.
 Chapter 4 covered structural variant calling under short reads
 (@sec:sv-recap below). The recap: a 150 bp short read cannot span
 anything longer than itself, so SVs are visible only through the three
-indirect channels Chapter 4 catalogued — discordant read pairs straddling
+indirect channels Chapter 4 catalogued — #idx("discordant read")discordant read pairs straddling
 the breakpoint, split reads cut across it, and depth anomalies inside
 deleted or duplicated regions. Sensitivity below 60 % for mid-size SVs
 was typical even on high-coverage short-read whole-genome data; precision
@@ -205,7 +205,7 @@ The dominant 2024 long-read SV callers are *Sniffles2*, *CuteSV*, and
 for read-internal evidence of insertions, deletions, inversions, and
 translocations; cluster supporting reads; emit a VCF with single-base
 breakpoint coordinates and inserted sequence where it can be assembled.
-On the GIAB HG002 benchmark for SVs between 50 bp and 10 kb, modern
+On the #idx("GIAB")GIAB HG002 benchmark for SVs between 50 bp and 10 kb, modern
 long-read pipelines report both precision and recall above 95 %.
 Short-read pipelines on the same sample sit closer to 70–80 %.
 
@@ -213,12 +213,12 @@ Short-read pipelines on the same sample sit closer to 70–80 %.
 
 A subset of tandem-repeat loci are clinically important because the
 number of repeat units determines disease. *Huntington's disease* —
-CAG repeats in `HTT`, pathogenic at ≥ 36 units, severity scaling with
+CAG repeats in `HTT`, #idx("pathogenic")pathogenic at ≥ 36 units, severity scaling with
 expansion size. *Fragile X syndrome* — CGG repeats in `FMR1`,
 pathogenic at ≥ 200 units, with mosaic premutation alleles in the
 55–200 range. *Myotonic dystrophy* — CTG repeats in `DMPK`, pathogenic
 above ~50 units. Two dozen more disorders follow the same pattern: a
-short motif, repeated many times, expanding across generations, with
+short #idx("motif")motif, repeated many times, expanding across generations, with
 disease determined by repeat count.
 
 Short reads cannot count repeat units when the expansion exceeds the
@@ -251,13 +251,13 @@ A diploid human carries two near-identical copies of each autosome,
 one from each parent. At every heterozygous site, the sample has
 both alleles; at every homozygous site, only one. *Phasing* is the
 problem of deciding which heterozygous alleles share a parental
-chromosome — that is, recovering the two parental haplotypes from the
+#idx("chromosome")chromosome — that is, recovering the two parental haplotypes from the
 mixture of reads.
 
 Short-read phasing is statistical. A 150 bp read overlaps at most one
 or two heterozygous sites, and the combinations across many such reads
 do not uniquely determine phase. The fix is to bring in a population
-panel — 1000 Genomes, HGDP, gnomAD — and use *linkage disequilibrium*
+panel — 1000 Genomes, HGDP, #idx("gnomAD")gnomAD — and use *#idx("linkage disequilibrium")linkage disequilibrium*
 (LD), the population-level correlation between nearby variants, as the
 prior. The result is probabilistic, accurate for common variants in
 well-sampled populations, and progressively worse for rare variants
@@ -293,7 +293,7 @@ arms, and segmental duplications. Short reads could not assemble these
 regions because the repeats were longer than the reads.
 
 The first actually complete human-genome assembly arrived in April
-2022, when the *T2T Consortium* published the *T2T-CHM13* assembly
+2022, when the *#idx("T2T")T2T Consortium* published the *T2T-CHM13* assembly
 (Nurk et al.). It used the hydatidiform-mole cell line CHM13 — a cell
 line that carries two copies of a single paternal genome and is
 therefore effectively haploid, side-stepping the phasing problem — and
@@ -305,7 +305,7 @@ assemblers *Verkko* and *hifiasm* did most of the algorithmic work.
 #figure(
   image("../../diagrams/lecture-11/05-t2t-before-after.svg", width: 95%),
   caption: [
-    A chromosome before and after T2T. GRCh38 left the centromere and
+    A chromosome before and after T2T. GRCh38 left the #idx("centromere")centromere and
     the acrocentric arm as a masked gap; T2T-CHM13 fills both in with
     resolved alpha-satellite higher-order repeats.
   ],
@@ -335,7 +335,7 @@ and by half a percent to one percent at the structural-variant level.
 Every variant call against a single reference reports a delta against
 *one combination*, and the choice of which combination matters.
 
-=== Reference Bias
+=== #idx("reference bias")Reference Bias
 
 The pathology is called *reference bias*. Variants common in the
 population but absent from the reference are systematically
@@ -391,9 +391,9 @@ that co-occur in at least one known haplotype. A *path* through the
 graph is one specific haplotype: pick a sequence of edges, concatenate
 the segment sequences along the way, and you have one person's chromosome.
 
-At a biallelic SNP, the graph has two nodes — one carrying the
+At a biallelic #idx("SNP")SNP, the graph has two nodes — one carrying the
 reference base, one carrying the alternate — both bracketed by the
-shared flanking sequence. At a small indel, one branch contains the
+shared flanking sequence. At a small #idx("indel")indel, one branch contains the
 inserted sequence and another skips it. At a common structural
 variant, the graph has two or more branches representing the SV
 haplotypes. Common variation is structure, not annotation.
@@ -409,7 +409,7 @@ haplotypes. Common variation is structure, not annotation.
 
 A useful order-of-magnitude calibration. The HPRC v1 pangenome encodes
 roughly 110 Gb of sequence — the 47 input haplotypes laid end to end —
-in a graph that compresses to about 4 Gb of GFA text. The
+in a graph that compresses to about 4 Gb of #idx("GFA")GFA text. The
 compression is not lossy: it works because most of the genome is
 shared across haplotypes, and the graph only branches where they
 disagree. Where two haplotypes are identical the graph runs as a
@@ -458,7 +458,7 @@ Five record types, all you really need to know:
 - `H` — header, with format version and optional metadata.
 - `S` — segment, the graph node: an integer ID plus a DNA sequence.
 - `L` — link, the graph edge: from-node, from-orientation, to-node,
-  to-orientation, plus an overlap CIGAR (`0M` for no overlap).
+  to-orientation, plus an overlap #idx("CIGAR")CIGAR (`0M` for no overlap).
 - `P` — path, a named haplotype expressed as a comma-separated list of
   oriented nodes.
 - `W` — walk, the GFA 1.1 successor to `P`, expressing a sample's
@@ -482,7 +482,7 @@ Five record types, all you really need to know:
   complement. Most early GFA parsing bugs trace to ignoring orientation.
 ]
 
-The toolchain around GFA is reasonably mature. *vg* (the variation
+The toolchain around GFA is reasonably mature. *#idx("vg")vg* (the variation
 graph toolkit; Garrison et al., 2018) is the reference implementation,
 with subcommands for construction, alignment, calling, and projection
 back to linear. *minigraph* (Li, 2021) is faster and uses a simpler
@@ -554,7 +554,7 @@ Three tools dominate the space, separated by their algorithmic choices
 more than by their feature sets.
 
 *vg* (Garrison et al., 2018) is the reference implementation, with
-full graph alignment under principled scoring. Its main subcommands
+full #idx("graph alignment")graph alignment under principled scoring. Its main subcommands
 trace the entire pipeline: `vg construct` builds a graph from a
 reference FASTA plus a VCF of known variants; `vg giraffe` is the
 fast short-read graph aligner; `vg map` is the slower but more
@@ -853,7 +853,7 @@ the cleanest machine-learning analogy in the chapter.
 
 A diploid genome carries two copies of every autosome. The two copies
 are chemically indistinguishable in the lab — they separate in space
-inside the nucleus, but they go into the sequencing tube as a single
+inside the #idx("nucleus")nucleus, but they go into the sequencing tube as a single
 homogenised solution. At every heterozygous site, the sample carries
 two different alleles: one on the maternal chromosome, one on the
 paternal. Phasing is the problem of deciding which maternal allele
@@ -883,7 +883,7 @@ Three tools dominate phasing in 2024:
   with haplotype-resolved output: the assembly itself produces two
   contigs per chromosome, one per parental haplotype. In trio mode it
   uses parental short reads to label the child's HiFi reads by
-  haplotype origin; in Hi-C mode it uses Hi-C chromatin-conformation
+  haplotype origin; in #idx("Hi-C")Hi-C mode it uses Hi-C chromatin-conformation
   scaffolding when trio data is unavailable.
 - *WhatsHap* (Martin et al., 2016; v2 Garg et al., 2024). Takes a VCF
   of variant calls and a BAM of long reads and emits a phased VCF
@@ -995,7 +995,7 @@ the right side of the trade.
 - A single linear reference systematically under-represents
   populations distant from its donor. *Reference bias* has measurable
   clinical consequences — missed pathogenic variants in
-  under-represented populations and PRS scores that transfer poorly
+  under-represented populations and #idx("PRS")PRS scores that transfer poorly
   across ancestries.
 - A *pangenome graph* makes variation first-class topology rather
   than annotation. GFA is the standard text format; vg / minigraph /
@@ -1093,7 +1093,7 @@ authors made and the empirical observation that justifies it.
 - *Garrison, E., Guarracino, A., Heumos, S., et al.* (2024). "Building
   Pangenome Graphs." _Nature Methods_ 21: 2008–2012. pggb.
 - *Cheng, H., Concepcion, G. T., Feng, X., Zhang, H., and Li, H.*
-  (2021). "Haplotype-Resolved De Novo Assembly Using Phased Assembly
+  (2021). "Haplotype-Resolved #idx("de novo assembly")De Novo Assembly Using Phased Assembly
   Graphs with hifiasm." _Nature Methods_ 18: 170–175.
 - *Sherman, R. M., Forman, J., Antonescu, V., et al.* (2019).
   "Assembly of a Pan-Genome from Deep Sequencing of 910 Humans of

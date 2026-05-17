@@ -1,6 +1,6 @@
 #import "../theme/book-theme.typ": *
 
-= Metagenomics and the Microbiome: Community Signal Demixing <ch:metagenomics>
+= #idx("metagenomics")Metagenomics and the #idx("microbiome")Microbiome: Community Signal Demixing <ch:metagenomics>
 
 #matters[
   The microbiome is the first biological object in this book that is not
@@ -8,8 +8,8 @@
   a few dozen archaea, fungi, viruses, and protozoans, all in one tube
   — and almost everything you learned from Chapters 2 through 22 has to
   be rebuilt for the case where the sequenced sample contains many
-  genomes in unknown proportion. Read alignment becomes read
-  classification. Variant calling becomes strain demixing. Differential
+  genomes in unknown proportion. #idx("read alignment")Read alignment becomes read
+  classification. #idx("variant calling")Variant calling becomes strain demixing. Differential
   expression becomes differential abundance under a sum-to-one
   constraint. Diversity replaces variance as the central summary
   statistic. The community is treated as a population and its sampling
@@ -24,7 +24,7 @@
   staying on the right side of that line.
 ]
 
-A microbiome sample is a tube of DNA from hundreds of organisms in
+A microbiome sample is a tube of #idx("DNA")DNA from hundreds of organisms in
 proportions you do not know. The sequencer reads from that mixture
 without preference, and the analysis problem is to recover who is
 present, in what proportion, doing what, and how that maps to the
@@ -40,16 +40,16 @@ than that of a single human genome and the statistics are harder.
 The chapter is organised around the engineer's question: given a
 microbiome sample, what sequence of decisions turns it into a defended
 claim? The first section walks the scale of the microbial world and
-names the two main assays — amplicon sequencing of the 16S rRNA
+names the two main assays — amplicon sequencing of the #idx("16S rRNA")16S rRNA
 ribosomal-RNA gene, and shotgun sequencing of total DNA. The second
-covers the modern 16S pipeline, from DADA2 amplicon-sequence-variant
-inference to QIIME 2 visualisation and taxonomic assignment against
+covers the modern 16S pipeline, from #idx("DADA2")DADA2 amplicon-sequence-variant
+inference to #idx("QIIME")QIIME 2 visualisation and taxonomic assignment against
 SILVA or the Genome Taxonomy Database. The third walks the shotgun
-side: Kraken2 k-mer classification, MetaPhlAn marker-gene profiling,
-HUMAnN functional profiling, and metagenome-assembled-genome recovery.
+side: #idx("Kraken2")Kraken2 #idx("k-mer")k-mer classification, #idx("MetaPhlAn")MetaPhlAn marker-gene profiling,
+#idx("HUMAnN")HUMAnN functional profiling, and metagenome-assembled-genome recovery.
 The fourth introduces diversity as the field's central summary
-statistic — Shannon entropy, Simpson's index, Faith's phylogenetic
-diversity, Bray-Curtis dissimilarity, UniFrac — and the fifth lays
+statistic — #idx("Shannon")Shannon entropy, #idx("Simpson")Simpson's index, Faith's phylogenetic
+diversity, #idx("Bray-Curtis")Bray-Curtis dissimilarity, #idx("UniFrac")UniFrac — and the fifth lays
 down the compositional-data trap that every microbiome paper from
 2008 onward had to learn to escape. The sixth surveys host-microbiome
 connections, with the immunotherapy story as the most clinically
@@ -59,7 +59,7 @@ and the 2024 frontier.
 The chapter is the longest single departure from the
 one-genome-one-FASTQ paradigm in this book. Every primitive you have
 to relearn pays off as a primitive you keep. Compositional thinking
-shows up again in single-cell deconvolution; demixing shows up again
+shows up again in single-cell #idx("deconvolution")deconvolution; demixing shows up again
 in cell-free DNA and microbial cell-free fragments in plasma; the
 diversity-as-divergence framing appears in immune-repertoire
 sequencing and clonal-population analysis. The microbiome is the
@@ -121,13 +121,13 @@ strategy and a different analysis pipeline.
 
 The strategy that answers question one is *16S ribosomal-RNA amplicon
 sequencing*. The 16S gene is a roughly 1500-base-pair bacterial
-ribosomal RNA gene with the unusual property of alternating between
-strongly conserved regions (where ribosome function constrains every
+ribosomal #idx("RNA")RNA gene with the unusual property of alternating between
+strongly conserved regions (where #idx("ribosome")ribosome function constrains every
 base) and hypervariable regions (where the constraint is relaxed and
 species-level differences accumulate). The conserved regions anchor
 PCR primers; the variable regions between them carry the taxonomic
 signal. A typical 16S protocol amplifies the V3 — V4 segment (about
-460 bp) using universal primers, sequences the product on Illumina at
+460 bp) using universal primers, sequences the product on #idx("Illumina")Illumina at
 about ${\$}30$ per sample, and assigns taxonomy by matching the
 amplicon to a database of known 16S sequences.
 
@@ -142,8 +142,8 @@ downstream-computational rather than upstream-experimental.
 #figure(
   image("../../diagrams/lecture-23/01-16s-vs-shotgun.svg", width: 95%),
   caption: [
-    16S amplicon versus shotgun metagenomics. The choice is constraint-driven:
-    cost, biomass, kingdom coverage, and whether functional content
+    16S amplicon versus #idx("shotgun metagenomics")shotgun metagenomics. The choice is constraint-driven:
+    cost, biomass, kingdom #idx("coverage")coverage, and whether functional content
     matters together pick the assay.
   ],
 ) <fig:assay-compare>
@@ -157,8 +157,8 @@ content — and converges on one of three platforms.
   caption: [
     A four-question decision tree for picking the assay. 16S is cheap,
     bacteria-only, and genus-resolution; shotgun is expensive and
-    multi-kingdom with strain-resolution; full-length 16S on PacBio
-    HiFi sits between them.
+    multi-kingdom with strain-resolution; full-length 16S on #idx("PacBio")PacBio
+    #idx("HiFi")HiFi sits between them.
   ],
 ) <fig:design-decision>
 
@@ -171,10 +171,10 @@ where it matters most.
 
 #note[
   The microbiome maps cleanly onto population-genetics intuition. The
-  relative abundance of a taxon plays the role of an allele frequency.
+  relative abundance of a taxon plays the role of an #idx("allele frequency")allele frequency.
   The community's richness plays the role of an effective population
   size. Stochastic abundance fluctuations between samples are drift;
-  selection by host diet, antibiotic exposure, or immune state is
+  #idx("selection")selection by host diet, antibiotic exposure, or immune state is
   selection; faecal microbiota transplant or skin contact is
   migration. Population-genetics metrics like Wright's $F_("st")$ and
   Nei's distance have direct microbial-community analogues in UniFrac
@@ -223,7 +223,7 @@ amplicon sequencing is the same idea industrialised.
 
 The variable regions are conventionally numbered V1 through V9. V3 — V4
 is the most commonly amplified segment for short-read sequencing
-because it fits 2×250 bp paired-end Illumina with overlap, carries
+because it fits 2×250 bp #idx("paired-end")paired-end Illumina with overlap, carries
 enough variation for genus-level taxonomy, and works well across the
 broad range of bacterial taxa that interest most studies. V4 alone is
 shorter and amplifies a slightly different range of taxa; V1 — V2
@@ -253,14 +253,14 @@ to give up on culturing.
 Once the amplicon is sequenced, a 16S workflow has to decide which
 reads represent the same biological sequence and which are sequencer
 errors. The historical answer was *Operational Taxonomic Units* — read
-clusters at 97 % nucleotide identity, on the rough theory that
+clusters at 97 % #idx("nucleotide")nucleotide identity, on the rough theory that
 typical sequencer error rates are at the percent level and
 within-species variation in 16S is usually below it. UCLUST and CD-HIT
 ran the clustering; mothur and QIIME packaged the pipeline. The
 problem with 97 % OTUs is that they erase real, biologically
 meaningful single-base differences between closely-related taxa, and
 they merge two species that genuinely sit at 98 % 16S identity into
-one OTU.
+one #idx("OTU")OTU.
 
 The modern answer is *DADA2* (Callahan, McMurdie, Rosen, Han, Johnson,
 and Holmes, *Nature Methods* 2016). DADA2 models the Illumina error
@@ -287,7 +287,7 @@ reads at a per-base score (typical: trim where Q drops below 25 — 30)
 and at maximum-expected-error thresholds. Learn per-sample error rates
 by parametric estimation against a candidate set of high-abundance
 sequences. Apply the *core denoising step*: cluster reads into ASVs
-under the learned error model, with each candidate ASV's
+under the learned error model, with each candidate #idx("ASV")ASV's
 likelihood ratio against being a sequencer-corrupted version of a more
 abundant sequence as the deciding criterion. Merge the paired-end
 reads (the overlapping region resolves single-base
@@ -304,7 +304,7 @@ phylogeny-aware diversity metrics can be computed downstream.
   generated by Illumina error, and the likelihood of a particular
   read being a member of that cloud rather than a separate ASV is
   computed under the per-sample error model. This is parametric
-  empirical Bayes — a step up from the heuristic identity-threshold
+  #idx("empirical Bayes")empirical Bayes — a step up from the heuristic identity-threshold
   clustering of 97 % OTUs — and it is what lets ASVs distinguish two
   *Lactobacillus* strains that differ by one nucleotide in V4. The
   trade-off is that DADA2 is more sensitive to actual sequencer
@@ -326,7 +326,7 @@ runnable without command-line skills.
 
 Taxonomy in 16S is downstream of a curated reference database. Three
 databases compete. *SILVA* (Quast et al., 2013, updated quarterly) is
-the most comprehensive and the most-used default. *GTDB* (the Genome
+the most comprehensive and the most-used default. *#idx("GTDB")GTDB* (the Genome
 Taxonomy Database; Parks et al., *Nature Biotechnology* 2018, 2020)
 imposes a phylogenetically coherent taxonomy on whole-genome data
 and resolves several long-standing paraphyly problems in older
@@ -339,7 +339,7 @@ phylogenetic rigour matters or when the analysis combines amplicon
 data with whole-genome data from the same project.
 
 The output of a DADA2/QIIME 2 run is a set of artefacts that should
-feel familiar to anyone who has worked with single-cell RNA-seq. The
+feel familiar to anyone who has worked with #idx("single-cell RNA-seq")single-cell #idx("RNA-seq")RNA-seq. The
 *ASV table* is a samples-by-ASVs count matrix. The *taxonomy table*
 maps each ASV to a kingdom/phylum/class/order/family/genus/species
 assignment with a confidence score. The *phylogenetic tree* of the
@@ -400,11 +400,11 @@ metagenome-assembled-genome (MAG) recovery.
 === Kraken2: k-mer Classification
 
 *Kraken2* (Wood, Lu, Langmead, *Genome Biology* 2019) is a k-mer-based
-exact classifier. The original Kraken (Wood and Salzberg, 2014) built
+exact classifier. The original #idx("Kraken")Kraken (Wood and Salzberg, 2014) built
 a hash table mapping every k-mer in a reference database to the
 lowest common ancestor (LCA) of the taxa that contained it; Kraken2
 replaced the dense k-mer index with a more compact minimiser-based
-scheme and reduced the memory footprint by about an order of
+scheme and reduced the memory #idx("footprint")footprint by about an order of
 magnitude. The classification itself is simple. For each read,
 enumerate its k-mers (default $k = 35$); for each k-mer, look up the
 LCA of all reference genomes that contain it; aggregate the
@@ -482,7 +482,7 @@ known clades.
 *HUMAnN* (the HMP Unified Metabolic Analysis Network; Franzosa et al.,
 *Nature Methods* 2018; current release HUMAnN 3) answers the *what
 can they do* question. The pipeline maps reads to two reference
-resources: *ChocoPhlAn*, a per-species pangenome of clade-specific
+resources: *ChocoPhlAn*, a per-species #idx("pangenome")pangenome of clade-specific
 genes assembled from sequenced genomes, and *UniRef90*, a clustered
 non-redundant protein database covering essentially the
 characterisable bacterial protein universe. Reads that map to a
@@ -523,7 +523,7 @@ and coverage, with cluster cardinality determined empirically.
   image("../../diagrams/lecture-23/09-mag-recovery.svg", width: 95%),
   caption: [
     MAG recovery clusters assembled contigs by tetranucleotide
-    composition and read coverage; CheckM then assesses each bin's
+    composition and read coverage; #idx("CheckM")CheckM then assesses each bin's
     completeness and contamination before downstream use.
   ],
 ) <fig:mag-recovery>
@@ -740,7 +740,7 @@ formalised by John Aitchison in 1982 (*The Statistical Analysis of
 Compositional Data*). Compositions live on the simplex
 $Delta^(D-1) = \{(x_1, dots, x_D) : x_i > 0, sum_i x_i = 1\}$, and the
 appropriate algebra on the simplex is not the ordinary vector algebra
-of Euclidean space. The *centred log-ratio* (CLR) transform maps a
+of Euclidean space. The *centred log-ratio* (#idx("CLR")CLR) transform maps a
 composition into a $(D-1)$-dimensional Euclidean space where ordinary
 statistics apply:
 
@@ -757,7 +757,7 @@ Correction; Lin and Peddada, *Nature Communications* 2020) is the
 current standard differential-abundance test under compositional
 constraint. It models log-transformed abundances with a per-sample
 bias term estimated from the data, applies a multiple-testing
-correction (Benjamini-Hochberg), and reports per-taxon effects in
+correction (#idx("Benjamini-Hochberg")Benjamini-Hochberg), and reports per-taxon effects in
 log-fold-change units relative to the estimated reference frame.
 *ALDEx2* (Fernandes et al., 2014) takes a related approach using
 Dirichlet-multinomial Bayesian sampling. *songbird* (Morton et al.,
@@ -927,13 +927,13 @@ sewage-metagenomic surveillance for ARG dynamics.
   ],
 ) <fig:arg>
 
-*Strain-level resolution.* Within-species variation matters — pathogenic
+*Strain-level resolution.* Within-species variation matters — #idx("pathogenic")pathogenic
 *E. coli* and commensal *E. coli* differ in a handful of accessory
 genes (Shiga toxin, intimin, fimbriae) that determine clinical
 behaviour. *StrainPhlAn* (Truong et al., 2017), *MIDAS* (Nayfach et
 al., 2016), and *inStrain* (Olm et al., *Nature Biotechnology* 2021)
 infer strain composition from shotgun data by genotyping marker genes
-across samples. Long-read shotgun (PacBio HiFi, ONT) has begun to
+across samples. Long-read shotgun (PacBio HiFi, #idx("ONT")ONT) has begun to
 deliver full-length strain genomes directly from environmental
 samples. The 2024 frontier is whether strain-level signatures can
 predict clinical phenotype where species-level signatures cannot.
@@ -955,7 +955,7 @@ annotation of MAG-recovered genes, antimicrobial-resistance gene
 prediction, and metabolite-pathway inference. *Evo* (Nguyen et al.,
 *Science* 2024) is a DNA-LM trained on millions of microbial genomes
 at the megabase scale; its generative outputs include plausible
-designed CRISPR systems and operon structures. The microbiome's data
+designed #idx("CRISPR")CRISPR systems and operon structures. The microbiome's data
 abundance — public sequence on the petabyte scale — makes it a
 natural home for foundation-model approaches that data-limited
 single-species domains cannot support.
@@ -972,7 +972,7 @@ or songbird.
 
 The 2024 standard shotgun stack is *bioBakery 4*: KneadData for QC and
 host removal, MetaPhlAn 4 for taxonomy, HUMAnN 3 for function. For
-reproducibility-critical work, *nf-core/mag* and *Sunbeam* are
+reproducibility-critical work, *#idx("nf-core")nf-core/mag* and *Sunbeam* are
 Nextflow- and Snakemake-based pipelines that pin tool versions,
 parameter sets, and database releases. MAG recovery runs through
 *nf-core/mag* or *Atlas*. CheckM and GTDB-Tk gate downstream use.
@@ -1036,7 +1036,7 @@ effect-size priors rather than naive Cohen's d.
 
 Microbiome reproducibility is famously poor. Cross-cohort replication
 of named taxa as biomarkers is roughly thirty to fifty per cent — much
-worse than, say, GWAS replication for common variants. The drivers
+worse than, say, #idx("GWAS")GWAS replication for common variants. The drivers
 are cohort effects (geography, diet, ethnicity, age, sampling
 protocol), technical variation (extraction kit, primer choice,
 sequencer, library prep), and methodological choices (compositional

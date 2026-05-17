@@ -1,16 +1,16 @@
 #import "../theme/book-theme.typ": *
 
-= GWAS and Statistical Genetics: A Million Parallel Detectors <ch:gwas>
+= #idx("GWAS")GWAS and Statistical Genetics: A Million Parallel Detectors <ch:gwas>
 
 #matters[
   By 2023, the published GWAS catalogue contained more than half a
   million reported variant-trait associations across roughly five
   thousand human traits. Every one of those associations is, mechanically,
-  a regression coefficient at a single SNP in some cohort, surviving a
+  a regression coefficient at a single #idx("SNP")SNP in some cohort, surviving a
   p-value threshold of $5 times 10^(-8)$. The shape of that pipeline
   is so uniform that you can read most GWAS papers in fifteen minutes
   once you know what to look at: how many cases, how many controls,
-  how many SNPs imputed, the Manhattan plot, the QQ plot, the inflation
+  how many SNPs imputed, the #idx("Manhattan plot")Manhattan plot, the #idx("QQ plot")QQ plot, the inflation
   factor, the lead-SNP table. What the field has actually been doing
   for twenty years is running a very large multi-hypothesis detection
   problem against a noisy, structured background. Almost every
@@ -49,13 +49,13 @@ effects. @sec:heritability turns from per-SNP detection to
 genome-wide summaries — heritability estimation, LD-score
 regression, polygenic risk scores, and the portability problem that
 has become the defining ethical crisis of the field.
-@sec:finemapping treats fine-mapping as the sparse inverse problem
+@sec:finemapping treats #idx("fine-mapping")fine-mapping as the sparse inverse problem
 it is, and shows how SuSiE-style credible sets fall out.
 @sec:rare-variants closes with the rare-variant regime, where
-single-SNP testing collapses and burden and SKAT tests take over.
+single-SNP testing collapses and burden and #idx("SKAT")SKAT tests take over.
 
 The chapter assumes you have read Chapter 12 on population genetics
-— in particular the parts on allele frequency, linkage disequilibrium,
+— in particular the parts on #idx("allele frequency")allele frequency, #idx("linkage disequilibrium")linkage disequilibrium,
 and Hardy–Weinberg equilibrium, all of which become load-bearing
 inside the next ten pages.
 
@@ -139,25 +139,25 @@ real-valued dosages in $[0, 2]$ for imputed SNPs), a phenotype vector
 of length $N$, and a covariate matrix that is usually 10–30 columns
 wide. Modern genotyping arrays type 500 thousand to a few million SNPs
 directly; imputation against a reference panel — TOPMed, the HRC, or
-the more recent pangenome — expands this to roughly 10 million SNPs
+the more recent #idx("pangenome")pangenome — expands this to roughly 10 million SNPs
 in the working table, with the caveat that imputation quality (the
 INFO score) varies and low-INFO sites get dropped before testing.
 
 The regression then runs $M$ times — one fit per SNP, with the per-SNP
 $G$ vector and the shared covariate matrix as inputs. The output is
 the *GWAS summary statistic table*: $M$ rows, each carrying at least
-a SNP identifier, chromosome, position, reference and effect alleles,
+a SNP identifier, #idx("chromosome")chromosome, position, reference and effect alleles,
 allele frequency, effect-size estimate $hat(beta)$, standard error
 $"SE"(hat(beta))$, and p-value. This summary table — not the underlying
 genotype matrix — is what gets shared between research groups and is
-the input to nearly every downstream analysis (PRS, LDSC, fine-mapping,
-colocalization). Treating the summary statistics as the data product
+the input to nearly every downstream analysis (#idx("PRS")PRS, #idx("LDSC")LDSC, fine-mapping,
+#idx("colocalization")colocalization). Treating the summary statistics as the data product
 of GWAS, rather than the raw genotypes, is most of what makes the
 modern statistical-genetics ecosystem possible.
 
 #note[
   A GWAS is a bank of $M approx 10^6$ parallel single-channel detectors,
-  one per SNP, each running a classical likelihood-ratio or Wald test
+  one per SNP, each running a classical likelihood-ratio or #idx("Wald test")Wald test
   and reporting a p-value. The genome is the frequency axis of a
   coarse filter bank; each SNP is one filter; the phenotype is the
   signal being correlated against each channel. You then have to
@@ -172,7 +172,7 @@ modern statistical-genetics ecosystem possible.
 
 === A Short Historical Arc
 
-The first GWAS to genuinely catch the field's attention was Klein et al.
+The first GWAS to genuinely catch the field's #idx("attention")attention was Klein et al.
 (2005), testing 116,204 SNPs in 96 cases of age-related macular
 degeneration and 50 controls — laughably small by today's standards.
 A common variant in the complement-factor-H gene (`CFH`) came out at
@@ -305,7 +305,7 @@ polygenic-signal component and a confounding component.
 A causal SNP with a true effect rarely shows up alone on the Manhattan
 plot. It sits in a *linkage disequilibrium* block — a region of the
 genome where genotype correlations between nearby SNPs are high
-because too few historical recombination events have separated them.
+because too few historical #idx("recombination")recombination events have separated them.
 Every SNP in LD with the causal one carries a fraction of the signal:
 its allele frequency in cases vs controls tracks the causal SNP's
 allele frequency in cases vs controls, scaled by $r^2$ between the two.
@@ -334,19 +334,19 @@ is a separate analysis (@sec:finemapping).
   each position, plot the strength of the response. Peaks above the
   noise floor are detections; the clutter below is the null. LD-driven
   peak width is filter bandwidth — each causal variant's signal leaks
-  into correlated neighbours, broadening its footprint on the
+  into correlated neighbours, broadening its #idx("footprint")footprint on the
   spectrum. Wider LD blocks mean broader peaks and fewer effective
   independent tests, which feeds directly into the multiple-testing
   arithmetic of the next section.
 ]
 
 
-== Multiple Testing at SNP Scale <sec:gwas-multiple-testing>
+== #idx("multiple testing")Multiple Testing at SNP Scale <sec:gwas-multiple-testing>
 
 If you run $M$ independent tests at per-test significance level
 $alpha$, the expected number of false positives is $M alpha$. To
 control the family-wise error rate at $alpha = 0.05$ across all $M$
-tests, Bonferroni demands the adjusted per-test level
+tests, #idx("Bonferroni")Bonferroni demands the adjusted per-test level
 $alpha_"adj" = alpha / M$. For $M = 10^6$ this gives
 $alpha_"adj" = 5 times 10^(-8)$ — the genome-wide significance
 threshold that has defined GWAS for almost twenty years.
@@ -397,7 +397,7 @@ of African-ancestry cohorts still use $5 times 10^(-8)$.
   ],
 ) <fig:bonferroni>
 
-=== FWER versus FDR
+=== FWER versus #idx("FDR")FDR
 
 Two different error-control philosophies live in statistical genetics
 and adjacent fields.
@@ -406,7 +406,7 @@ and adjacent fields.
 positive across all tests. Controlled by Bonferroni or its refinements
 (Holm, Hochberg). Strict and conservative. The GWAS standard.
 
-*False discovery rate (FDR).* The expected fraction of declared
+*#idx("false discovery rate")False discovery rate (FDR).* The expected fraction of declared
 discoveries that are false. Controlled by the Benjamini–Hochberg
 procedure. Lets more real hits through at the cost of a known
 contamination rate.
@@ -437,7 +437,7 @@ biobanks necessary. For smaller effects — say $beta = 0.01$, common
 for individual loci in a polygenic trait — the required $N$ scales as
 $1 / beta^2$, so quadruples to roughly $900,000$.
 
-The arithmetic explains the field's two-decade trajectory. The 2007
+The arithmetic explains the field's two-decade #idx("trajectory")trajectory. The 2007
 WTCCC paper at $N = 17,000$ could detect $beta approx 0.1$ at common
 frequency and 80 % power; today's $N = 500,000$–$5,000,000$ studies
 detect down to $beta approx 0.01$ and lower. Most of the gain has gone
@@ -472,13 +472,13 @@ gotten bigger, the detection floor has dropped.
 
 This is the fourth time in this book that multi-hypothesis correction
 at scale has appeared. Chapter 4 used FDR on per-site variant calls,
-chapter 6 on differential-expression genes, chapter 9 on ChIP-seq
+chapter 6 on differential-expression genes, chapter 9 on #idx("ChIP-seq")ChIP-seq
 peaks, and now $10^6$ tests across the genome. The mathematical
 structure — null distribution, test statistic, correction for the
 effective number of tests — recurs in every domain. What changes is
 the definition of "effective number of independent tests": LD blocks
-for GWAS, gene co-expression structure for differential expression,
-peak spacing for ChIP-seq, the coalescent null for selection scans.
+for GWAS, gene co-expression structure for #idx("differential expression")differential expression,
+peak spacing for ChIP-seq, the #idx("coalescent")coalescent null for #idx("selection")selection scans.
 Knowing where the effective count comes from in each setting is most
 of what separates a clean p-value from an inflated one.
 
@@ -519,7 +519,7 @@ ancestry-differentiated SNPs.
 #figure(
   image("../../diagrams/lecture-13/06-pca-structure.svg", width: 95%),
   caption: [
-    Population structure visible in PCA space. The top two principal
+    Population structure visible in #idx("PCA")PCA space. The top two principal
     components of the genotype matrix separate ancestry groups cleanly
     (left). When phenotype also tracks ancestry (right), any SNP
     with allele-frequency differences between groups will spuriously
@@ -582,7 +582,7 @@ degree of freedom).
   to white, restoring valid per-SNP inference.
 ]
 
-=== Cryptic Relatedness and Kinship
+=== Cryptic Relatedness and #idx("kinship")Kinship
 
 A second confounder hides inside the cohort even after stratification
 has been handled. In any nominally-unrelated sample of $N$ individuals
@@ -638,11 +638,11 @@ Solving this naively requires inverting an $N times N$ matrix at every
 SNP, which is computationally hopeless at biobank scale.
 Algorithmic shortcuts make it tractable:
 
-- *BOLT-LMM* (Loh et al., 2015). Iterative conjugate-gradient methods
+- *#idx("BOLT-LMM")BOLT-LMM* (Loh et al., 2015). Iterative conjugate-gradient methods
   with spectral approximations to the kinship matrix. Scales to
   $N > 500,000$; the default choice for quantitative traits in UK
   Biobank.
-- *SAIGE* (Zhou et al., 2018). Saddle-point approximation for binary
+- *#idx("SAIGE")SAIGE* (Zhou et al., 2018). Saddle-point approximation for binary
   traits with severe case-control imbalance — a regime where ordinary
   logistic regression's test statistic is poorly calibrated even
   before kinship enters the picture.
@@ -684,10 +684,10 @@ confounders waits for the inattentive analyst.
 *Genotyping batch.* Different plates, machines, sample-prep
 operators, or time periods produce systematically different genotype
 calls. The standard fix is to include batch indicators as covariates,
-and to drop SNPs whose call rate or Hardy-Weinberg p-value varies
+and to drop SNPs whose call rate or #idx("Hardy-Weinberg")Hardy-Weinberg p-value varies
 across batches.
 
-*DNA source.* Saliva and blood occasionally produce different
+*#idx("DNA")DNA source.* Saliva and blood occasionally produce different
 genotype distributions at specific SNPs because of bacterial DNA
 contamination or differential cell-type sampling. Worth checking;
 rarely a dominant effect.
@@ -743,8 +743,8 @@ representative values: height $approx 0.8$, BMI $approx 0.4$–$0.6$,
 schizophrenia $approx 0.7$, type 2 diabetes $approx 0.3$.
 
 Two modern methods estimate heritability directly from GWAS data.
-*GCTA* (Yang et al., 2011) estimates $h^2$ from the kinship matrix
-plus phenotype via restricted maximum likelihood (REML) on the same
+*#idx("GCTA")GCTA* (Yang et al., 2011) estimates $h^2$ from the kinship matrix
+plus phenotype via restricted #idx("maximum likelihood")maximum likelihood (REML) on the same
 mixed-model framework as the per-SNP tests. *LD-score regression*
 (LDSC, Bulik-Sullivan et al., 2015) estimates $h^2$ from summary
 statistics alone, without ever touching the raw genotype matrix.
@@ -819,7 +819,7 @@ threshold hid it.
 
 === Polygenic Risk Scores
 
-A *polygenic risk score* (PRS) aggregates signal across many SNPs into
+A *#idx("polygenic risk score")polygenic risk score* (PRS) aggregates signal across many SNPs into
 a single per-individual score, by taking a weighted sum of allele
 counts with weights given by GWAS effect estimates:
 
@@ -833,7 +833,7 @@ distinguishes the PRS methods:
   $alpha$ threshold is a hyperparameter; the optimal value depends on
   the trait and is usually found by cross-validation against an
   independent target cohort.
-- *LDpred / LDpred2*. Bayesian shrinkage with a spike-and-slab prior
+- *LDpred / LDpred2*. Bayesian #idx("shrinkage")shrinkage with a spike-and-slab prior
   on the per-SNP effects, applied genome-wide. Outperforms C+T because
   it borrows strength across all SNPs rather than just the significant
   ones.
@@ -948,7 +948,7 @@ Bayesian sparse regression and return a *credible set* per signal —
 a set of SNPs guaranteed (under the model's assumptions) to contain
 the causal variant with specified posterior probability.
 
-=== SuSiE, FINEMAP, and CAVIAR
+=== #idx("SuSiE")SuSiE, #idx("FINEMAP")FINEMAP, and #idx("CAVIAR")CAVIAR
 
 *SuSiE* (Sum of Single Effects; Wang et al., 2020) is the dominant
 modern method. It models the phenotype at the locus as a sum of
@@ -1092,10 +1092,10 @@ signals. This is the regime where FINEMAP's stochastic search can
 out-perform SuSiE's variational scheme.
 
 *Structural causal.* Fine-mapping assumes a SNP-based causal model.
-If the causal variant is actually a structural variant — a CNV, a
+If the causal variant is actually a #idx("structural variant")structural variant — a #idx("CNV")CNV, a
 short tandem repeat expansion, a transposable-element insertion —
 that is not represented in the SNP panel, fine-mapping converges to
-the SNP tagging the SV and reports a credible set that does not
+the SNP tagging the #idx("SV")SV and reports a credible set that does not
 contain the actual cause. Empirically maybe 10–20 % of GWAS loci
 have a plausible structural cause; long-read resequencing of GWAS
 loci is the active area here.
@@ -1107,7 +1107,7 @@ loci is the active area here.
   prior. In practice $L$ is a hyperparameter, the LD matrix is
   estimated from a reference panel that may not match the GWAS cohort,
   and the effect prior is parametric. Credible sets are best read as
-  "strong candidates" rather than as guaranteed coverage. Always
+  "strong candidates" rather than as guaranteed #idx("coverage")coverage. Always
   inspect the locus plot — peak shape, LD pattern, and the relative
   PIPs — alongside the credible-set summary.
 ]
@@ -1132,7 +1132,7 @@ hybrid (*SKAT-O*) as the modern default.
 
 === Burden Tests
 
-A burden test collapses all rare variants in a gene into a single
+A #idx("burden test")burden test collapses all rare variants in a gene into a single
 summary statistic per individual, then regresses the phenotype on
 that summary. The simplest form is
 
@@ -1200,7 +1200,7 @@ pipelines.
 ) <fig:burden-skat>
 
 #note[
-  A burden test is a matched filter on rare-variant counts. The
+  A burden test is a #idx("matched filter")matched filter on rare-variant counts. The
   template is "sum of rare variants in gene $G$"; the signal is the
   phenotype; the test statistic is the regression coefficient on the
   templated burden. SKAT is the kernel version, using a quadratic
@@ -1220,7 +1220,7 @@ Rare-variant testing requires sequencing rather than genotyping
 arrays, because arrays capture only the common variants their content
 panel was designed to type. Three resources dominate.
 
-*gnomAD* (Karczewski et al., 2020) aggregates exome and whole-genome
+*#idx("gnomAD")gnomAD* (Karczewski et al., 2020) aggregates exome and whole-genome
 sequencing from public studies — over 800 thousand exomes and 150
 thousand genomes by version 4. It is the reference for rare-variant
 allele frequencies across continental ancestries; every clinical
@@ -1390,7 +1390,7 @@ the shortcut might fail.
   "Computationally Efficient Whole-Genome Regression for Quantitative
   and Binary Traits." _Nature Genetics_ 53: 1097–1103. REGENIE.
 - #strong[Bulik-Sullivan, B. K., Loh, P. R., Finucane, H. K., et al.]
-  (2015). "LD Score Regression Distinguishes Confounding from
+  (2015). "#idx("LD score regression")LD Score Regression Distinguishes Confounding from
   Polygenicity in Genome-Wide Association Studies." _Nature Genetics_
   47: 291–295. LDSC.
 - #strong[Wang, G., Sarkar, A., Carbonetto, P., and Stephens, M.]
@@ -1413,5 +1413,5 @@ the shortcut might fail.
   Health Disparities." _Nature Genetics_ 51: 584–591. The PRS
   portability paper.
 - #strong[Visscher, P. M., Wray, N. R., Zhang, Q., et al.] (2017).
-  "10 Years of GWAS Discovery: Biology, Function, and Translation."
+  "10 Years of GWAS Discovery: Biology, Function, and #idx("translation")Translation."
   _American Journal of Human Genetics_ 101: 5–22. A decade in review.

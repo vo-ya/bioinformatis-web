@@ -47,6 +47,11 @@
   set text(font: ("Source Serif 4", "Charter", "Georgia"), size: 10.5pt, lang: "en")
   set par(leading: 0.75em, justify: true, first-line-indent: 1.2em)
 
+  // Auto-number headings; show rules below choose where each level's
+  // number appears (kicker for h1, inline cobalt prefix for h2, hidden
+  // for h3).
+  set heading(numbering: "1.1")
+
   // No first-line indent right after a heading, blockquote, figure, code, or list.
   show heading: it => { set par(first-line-indent: 0pt); it }
   show figure: it => { set par(first-line-indent: 0pt); it }
@@ -54,27 +59,42 @@
   show quote: it => { set par(first-line-indent: 0pt); it }
 
   // ── Headings ────────────────────────────────────────────────────────
+  // h1 = chapter, h2 = section (N.M, inline-numbered), h3 = subsection
+  // (no number, italic). Matches the on-website lecture pages: small
+  // accent kicker above the chapter title, inline cobalt "N.M" prefix on
+  // sections, plain italic subsection heads.
   show heading.where(level: 1): it => {
     pagebreak(weak: true)
-    v(40pt)
-    text(font: ("Inter", "Helvetica Neue", "Arial"), size: 11pt, weight: "semibold", fill: accent,
-         smallcaps[Chapter #counter(heading).display("1")])
-    v(-4pt)
-    block(width: 100%, stroke: (bottom: 1pt + accent), inset: (bottom: 8pt),
-          text(font: ("Source Serif 4", "Charter", "Georgia"), size: 28pt, weight: "medium", it.body))
+    v(36pt)
+    text(font: ("Inter", "Helvetica Neue", "Arial"),
+         size: 11pt, weight: "semibold", fill: accent,
+         tracking: 0.18em,
+         upper[Chapter #counter(heading).display("1")])
+    v(10pt)
+    text(font: ("Source Serif 4", "Charter", "Georgia"),
+         size: 30pt, weight: "medium", it.body)
+    v(8pt)
+    block(width: 60pt, height: 2pt, fill: accent)
     v(28pt)
   }
 
   show heading.where(level: 2): it => {
-    v(18pt, weak: true)
-    text(font: ("Source Serif 4", "Charter", "Georgia"), size: 17pt, weight: "medium", it.body)
-    v(6pt, weak: true)
+    v(22pt, weak: true)
+    block[
+      #text(font: ("Source Serif 4", "Charter", "Georgia"),
+            size: 18pt, weight: "medium")[
+        #text(fill: accent)[#counter(heading).display("1.1")]
+        #h(0.6em)
+        #it.body
+      ]
+    ]
+    v(4pt, weak: true)
   }
 
   show heading.where(level: 3): it => {
-    v(12pt, weak: true)
-    text(font: ("Source Serif 4", "Charter", "Georgia"), size: 13pt, weight: "medium",
-         style: "italic", it.body)
+    v(14pt, weak: true)
+    text(font: ("Source Serif 4", "Charter", "Georgia"),
+         size: 13pt, weight: "medium", style: "italic", it.body)
     v(2pt, weak: true)
   }
 

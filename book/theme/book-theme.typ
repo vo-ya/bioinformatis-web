@@ -128,9 +128,10 @@
   show figure: set block(breakable: false)
   show figure.caption: it => {
     set text(size: 9.5pt, fill: muted, style: "italic", font: ("Inter", "Helvetica Neue", "Arial"))
-    set par(first-line-indent: 0pt, justify: false)
+    set par(first-line-indent: 0pt, justify: false, leading: 0.55em)
     pad(left: 2em, right: 2em)[
-      *Figure #it.counter.display("1.1")*  #h(0.5em) #it.body
+      #text(weight: "semibold", fill: accent)[Figure #it.counter.display("1.1")] \
+      #it.body
     ]
   }
 

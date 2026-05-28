@@ -38,11 +38,28 @@
 #{
   set page(margin: (top: 30mm, bottom: 25mm, inside: 30mm, outside: 22mm))
   v(20pt)
-  text(font: ("Source Serif 4", "Charter", "Georgia"), size: 24pt, weight: "medium")[Contents]
+  text(font: ("Source Serif 4", "Charter", "Georgia"), size: 28pt, weight: "medium")[Contents]
   v(8pt)
-  block(width: 60pt, height: 1pt, fill: rgb("#374151"))
-  v(20pt)
-  outline(title: none, depth: 2, indent: auto)
+  block(width: 60pt, height: 2pt, fill: rgb("#1e3a8a"))
+  v(28pt)
+
+  // Chapter rows (level 1): bold, slightly larger, breathing room above,
+  // dotted leader to right-aligned page number.
+  show outline.entry.where(level: 1): it => {
+    v(0.8em, weak: true)
+    set text(weight: "semibold", size: 11pt)
+    it
+  }
+  // Section rows (level 2): regular weight, indented, dotted leader.
+  show outline.entry.where(level: 2): it => {
+    set text(weight: "regular", size: 10pt, fill: rgb("#525252"))
+    it
+  }
+  // Dotted leaders between the body and page number, on every row.
+  set outline.entry(fill: box(width: 1fr,
+    repeat(gap: 4pt)[#text(fill: rgb("#8a8a85"))[.]]))
+
+  outline(title: none, depth: 2, indent: 1.2em)
   pagebreak()
 }
 

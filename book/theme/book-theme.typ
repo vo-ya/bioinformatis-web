@@ -71,7 +71,10 @@
   // accent kicker above the chapter title, inline cobalt "N.M" prefix on
   // sections, plain italic subsection heads.
   show heading.where(level: 1): it => {
-    pagebreak(weak: true)
+    // Always start chapters on a right-hand (odd) page — standard
+    // trade-paperback convention. If the previous chapter ends on an
+    // odd page, Typst inserts a blank verso behind it.
+    pagebreak(weak: true, to: "odd")
     v(40pt)
     block(width: 100%)[
       #text(font: ("Inter", "Helvetica Neue", "Arial"),
@@ -118,10 +121,16 @@
   }
 
   // ── Code blocks ────────────────────────────────────────────────────
+  // Cobalt left rule + light-gray fill so code reads as a distinct
+  // "instrument output" zone, not as continuous prose.
   show raw.where(block: true): it => {
-    block(width: 100%, fill: code-bg, inset: 10pt, radius: 3pt,
-          stroke: 0.5pt + rule,
-          text(font: ("JetBrains Mono", "Menlo", "Monaco"), size: 9pt, it))
+    block(
+      width: 100%,
+      fill: code-bg,
+      inset: (left: 14pt, right: 12pt, top: 10pt, bottom: 10pt),
+      radius: (top-right: 3pt, bottom-right: 3pt),
+      stroke: (left: 2.5pt + accent, rest: 0pt),
+      text(font: ("JetBrains Mono", "Menlo", "Monaco"), size: 9pt, it))
   }
 
   // ── Figures ────────────────────────────────────────────────────────
